@@ -309,3 +309,28 @@ cat id_rsa.pub
 ssh -T git@gitlab.com
 scp project_4.* amr@84.55.119.97:
 rm project_4.*
+cd .ssh/
+ls
+vim authorized_keys 
+ls -alrt
+vim makefile 
+ls -alrt
+cd ..
+git pull
+git status
+git pull --rebase
+cd
+ssh-keygen -o -t rsa -b 4096 -C "dat14amr@student.lu.se@
+ssh-keygen -o -t rsa -b 4096 -C "dat14amr@student.lu.se"
+cat .ssh/id_rsa.pub 
+cd
+cd edaf15/
+git pull
+ls
+cd
+rm -rf edaf15/
+git clone git@gitlab.com:StefanEJonsson/edaf15.git
+cd edaf15/
+git pull
+git pull
+vim simple/simple.c 
