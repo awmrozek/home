@@ -1,0 +1,230 @@
+/*!****************************************************************************
+*! FILE NAME  : Threads.ihh
+*!                                                            
+*! DESCRIPTION: The internal interface to threads
+*!              
+*!****************************************************************************/
+
+#ifndef threads_ihh
+#define threads_ihh
+
+#include "threads.hh"
+#include "queue.hh"
+
+typedef PQueue<Thread*> ThreadQueue;
+           
+//*#**************************************************************************
+//*# CLASS NAME       : MainThread
+//*# BASE CLASSES     : Thread
+//*#                    
+//*# DESCRIPTION      : the main thread, i.e. the one existing before
+//*#                    other threads are started
+//*# RESPONSIBILITIES : keep the context of the main thread
+//*#                    
+//*#---------------------------------------------------------------------------
+//*# HISTORY                                                    
+//*#                                                            
+//*# DATE         NAME            CHANGES                       
+//*# ----         ----            -------                       
+//*# Jul 27 1995  Stefan S        Initial version
+//*#**************************************************************************/
+
+class MainThread : public Thread
+{
+ public:
+  MainThread();
+
+ private:
+  void proc();
+};
+
+
+
+//*#**************************************************************************
+//*# CLASS NAME       : IdleThread
+//*# BASE CLASSES     : Thread
+//*#                    
+//*# DESCRIPTION      : Thread run when no other thread is ready to run
+//*#                    
+//*# RESPONSIBILITIES : Run when no other thread is run
+//*#                    
+//*#---------------------------------------------------------------------------
+//*# HISTORY                                                    
+//*#                                                            
+//*# DATE         NAME            CHANGES                       
+//*# ----         ----            -------                       
+//*# Jul 27 1995  Stefan S        Initial version
+//*#**************************************************************************/
+
+class IdleThread : public Thread
+{
+ public:
+  static Thread* instance();
+  
+ private:
+  IdleThread();
+
+  void proc();
+};
+
+
+//*#**************************************************************************
+//*# CLASS NAME       : Scheduler
+//*# BASE CLASSES     : none
+//*#                    
+//*# DESCRIPTION      : Singleton class deciding which thread to run when
+//*#                    switching thread
+//*# RESPONSIBILITIES : Divide cpu time between threads
+//*#                    
+//*#---------------------------------------------------------------------------
+//*# HISTORY                                                    
+//*#                                                            
+//*# DATE         NAME            CHANGES                       
+//*# ----         ----            -------                       
+//*# Jul 27 1995  Stefan S        Initial version
+//*# Nov 29 1996  Fredrik Svensson   Made rescheduleIsNeeded public
+//*#**************************************************************************/
+
+class Scheduler
+{
+ public:
+  static Scheduler& instance();
+
+  void reschedule();
+  void enterLast(Thread* theThread);
+  void enterFirst(Thread*);
+  void runNew(Thread* theThread);
+  void runFirstReady();
+  Thread* current();
+  void rescheduleIsNeeded();
+
+ protected:
+  void intRescheduleIsNeeded();
+  
+ private:
+  Scheduler();
+
+  Thread*      currentThread;
+  ThreadQueue  readyQueue;
+  bool         pendingReschedule;
+};
+
+
+
+//*#**************************************************************************
+//*# CLASS NAME       : QueueSemaphore
+//*# BASE CLASSES     : Semaphore
+//*#                    
+//*# DESCRIPTION      : Semaphore implemented with a thread queue
+//*#                    
+//*# RESPONSIBILITIES : Keep threads waiting
+//*#                    
+//*#---------------------------------------------------------------------------
+//*# HISTORY                                                    
+//*#                                                            
+//*# DATE         NAME            CHANGES                       
+//*# ----         ----            -------                       
+//*# Jul 27 1995  Stefan S        Initial version
+//*#**************************************************************************/
+
+class QueueSemaphore : public Semaphore
+{
+ public:
+  QueueSemaphore(const char* theName, unsigned int);
+  
+  void signal();
+  void signalAndSwitch();
+  void signalUrgent();
+
+  void wait();
+
+
+ protected:
+  ThreadQueue waitQueue;
+};
+
+/* ============================================================================
+CLASS NAME   : QueueGateSemaphore
+CLASS TYPE   : Concrete implementation
+IDIOMS       : 
+CONCURRENCY  : automatic
+INSTANTIATION: with new
+
+RESPONSIBILITIES:
+
+
+SUBCLASSING:
+Not intended to be subclassed.
+============================================================================ */
+
+class QueueGateSemaphore : public GateSemaphore
+{
+ public:
+  QueueGateSemaphore(bool itIsClosed);
+  
+  void open();
+  void close();
+  void wait();
+
+ protected:
+  ThreadQueue waitQueue;
+};
+
+#if 0  
+//*#**************************************************************************
+//*# CLASS NAME       : ThreadCollection
+//*# BASE CLASSES     : none
+//*#                    
+//*# DESCRIPTION      : Collection of all threads
+//*#                    
+//*# RESPONSIBILITIES : Register all threads in use
+//*#                    
+//*#---------------------------------------------------------------------------
+//*# HISTORY                                                    
+//*#                                                            
+//*# DATE         NAME            CHANGES                       
+//*# ----         ----            -------                       
+//*# 12 Aug 1995  Stefan S        Initial version               
+//*#**************************************************************************/
+
+class ThreadCollection
+{
+ public:
+  static ThreadCollection& instance();
+
+  void   add(Thread*);
+  void   writeTo(class ostream&) const;
+
+ protected:
+  BC_TUnboundedCollection<Thread*, BC_CUnmanaged> threads;
+};
+#endif
+
+//*#**************************************************************************
+//*# CLASS NAME       : ThreadSleep
+//*# BASE CLASSES     : Timed
+//*#                    
+//*# DESCRIPTION      : Make a thread go to sleep 
+//*#                    
+//*# RESPONSIBILITIES : 
+//*#                    
+//*#---------------------------------------------------------------------------
+//*# HISTORY                                                    
+//*#                                                            
+//*# DATE         NAME            CHANGES                       
+//*# ----         ----            -------                       
+//*# 26 Feb 1996  Fredrik Norrman Initial version               
+//*#**************************************************************************/
+
+class ThreadSleep : public Timed
+{
+ public:
+  ThreadSleep(Duration theDuration);
+
+ protected:
+  void timeOut();
+  ExclusiveEvent iHaveTimedOut;
+};
+
+
+#endif
