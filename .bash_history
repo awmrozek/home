@@ -334,3 +334,4 @@ cd edaf15/
 git pull
 git pull
 vim simple/simple.c 
+ls .ssh/
