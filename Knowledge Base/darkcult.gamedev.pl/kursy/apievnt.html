@@ -1,0 +1,321 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Mysz & klawiatura</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apictrl.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="apifile.html">Następna część kursu &gt;&gt;</A></TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+Obsługa urządzeń wejściowych
+</H1>
+
+<P>
+W Windowsie zazwyczaj się coś dzieje. Oprócz błędów krytycznych, zapętleń, wyczerpywania zasobów systemowych, blue screenów tudzież zwykłej niestabilności zdarza się też czasem, że Windows wykonuje coś pożytecznego. Polega to ogólnie na tym, że użytkownik wprowadza jakieś dane i otrzymuje inne dane w zamian. Zjawisko to nazywamy interakcją. Aby było to możliwe, generowane są tzw. <SPAN CLASS=Wazne>zdarzenia</SPAN> (<SPAN CLASS=Inglisz>events</span>). Zdarzeniem może być poruszenie myszą, wciśnięcie klawisza, wybranie jakiejś pozycji menu, zamknięcie lub przesunięcie okna itp. 
+</P>
+<P>
+Każde zdarzenie w Windows jest skojarzone z odpowiednim komunikatem. Żeby obsłużyć jakieś zdarzenie (przypisać mu konkretne działanie, np. najeżdżamy kursorem myszy na obiekt - kształt kursora się zmienia), musimy dopisać odpowiedni kod do procedury obsługi komunikatów. Procedura ta może mieć różne nazwy (zależy od fantazji programisty), ale najczęściej nazywa się <SPAN CLASS=T>WindowProcedure</SPAN> (procedurę o takiej nazwie generuje domyślnie Dev-C++) albo krócej <SPAN CLASS=T>WndProc</SPAN>. Ja będę raczej używał tej pierwszej - dłuższa, ale dla początkujących być może bardziej wymowna.
+</P>
+<P>
+Przyjrzyjmy się bliżej tej procedurze:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN> (message)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_CLOSE:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;DestroyWindow(hwnd);<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_DESTROY:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>);<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>default</SPAN>:<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>return</SPAN> DefWindowProc(hwnd, message, wParam, lParam);<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN><SPAN CLASS=L> 0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Tak mniej więcej wygląda domyślna procedura obsługi komunikatów, wygenerowana przez Dev-C++ jeśli stworzymy w nim nowy projekt windowsowy. Na razie obsługuje ona tylko dwa komunikaty: <SPAN CLASS=T>WM_CLOSE</SPAN>, wysyłany przez system w przypadku gdy użytkownik zamknie okno programu (reakcją jest zniszczenie zamkniętego okna funkcją <SPAN CLASS=T>DestroyWindow</SPAN>), oraz <SPAN CLASS=T>WM_DESTROY</SPAN> wysyłany przez system w momencie niszczenia okna (reakcją jest wysłanie komunikatu o zakończeniu działania programu). Jak nietrudno się domyślić, wysłanie tego pierwszego komunikatu w tym przypadku powoduje automatycznie wysłanie tego drugiego, zaś z kolei ten drugi spowoduje w linii prostej wyjście z programu.
+</P>
+<P>
+Procedura obsługi komunikatów powinna zawsze zwrócić <SPAN CLASS=L>0</SPAN> w przypadku poprawnego obsłużenia komunikatu. Do procedury <SPAN CLASS=T>WindowProcedure</SPAN> wysyłany jest każdy komunikat, jaki trafi się podczas działania programu, więc jeśli programista nie przewiduje obsługi danego komunikatu (tj. nie jest mu to potrzebne), musi ten komunikat przekazać (w stanie nienaruszonym ;-)) do domyślnej funkcji obsługi - <SPAN CLASS=T>DefWindowProc</SPAN> (która zresztą najczęściej nie robi z tym komunikatem nic konkretnego, ale takie traktowanie jest wymagane).
+</P>
+<P>
+Jak widać, wewnątrz funkcji <SPAN CLASS=T>WindowProcedure</SPAN> mamy do dyspozycji cztery parametry, które muszą nam wystarczyć do obsłużenia danego komunikatu. Pierwszy (tutaj <SPAN CLASS=T>hwnd</SPAN>) to uchwyt naszego głównego okna - chyba nie trzeba tłumaczyć, po co jest. Drugi (tutaj <SPAN CLASS=T>message</SPAN>) to kod komunikatu - używamy go najczęściej tylko w głównej kontrukcji <SPAN CLASS=K>switch-case</SPAN> do wybrania właściwego fragmentu kodu do danego komunikatu. Pozostałe parametry (<SPAN CLASS=T>wParam</SPAN> i <SPAN CLASS=T>lParam</SPAN>) są dodatkową informacją o komunikacie, i tak na przykład w przypadku komunikatu o kliknięciu myszą będą one zawierały kod konkretnego przycisku myszy, który został wciśnięty przez usera oraz współrzędne wskaźnika myszy w chwili wciśnięcia.
+</P>
+<P>
+W poprzedniej części tego kursu, poświęconej kontrolkom, zobaczyliśmy jak się obsługuje podstawowe komunikaty związane z tymi kontrolkami. Poznaliśmy też niektóre aspekty korzystania z parametrów <SPAN CLASS=T>wParam</SPAN> i <SPAN CLASS=T>lParam</SPAN>, przekonując się przy okazji w praktyce, jak ważne one są. Teraz dowiemy się, jak obsługiwać komunikaty związane z myszą i klawiaturą.
+</P>
+
+<H2>
+Obsługa kliknięć myszą
+</H2>
+
+<P>
+Aby nasz kochany, szary gryzoń zaczął żyć własnym życiem, trzeba dodać obsługę kilku komunikatów myszy. Zacznijmy od zwykłego kliknięcia. Dla systemu kliknięcie składa się z dwóch faz: wciśnięcia danego przycisku myszy i zwolnienia go. Dzięki takiemu rozróżnieniu możliwe są operacje typu "przeciągnij-i-upuść" (nawiasem mówiąc jedna z najbardziej wkurzających cech Windows, przyczyna wielu zaginięć plików, które później odnajdują się w zaskakujących miejscach). Którą z tych dwóch faz uznasz za właściwe kliknięcie, to już tylko od ciebie zależy. Możesz także akceptować tylko pełne kliknięcie: zapamiętywać w jakiejś zmiennej, że user wcisnął przycisk myszy w obrębie danej kontrolki i później gdy go zwolni, a wskaźnik myszy będzie nadal nad tą kontrolką, wywołać jakieś działanie.
+</P>
+<P>
+Windows domyślnie rozróżnia trzy przyciski myszy (lewy, prawy i środkowy). Wciśnięcie tych przycisków wywołuje odpowiednio komunikaty: <SPAN CLASS=T>WM_LBUTTONDOWN</SPAN>, <SPAN CLASS=T>WM_RBUTTONDOWN</SPAN>, <SPAN CLASS=T>WM_MBUTTONDOWN</SPAN>. Jeśli interesują cię jakieś dodatkowe przyciski, to musisz sięgnąć do odpowiednich bibliotek (np. DirectInput z pakietu DirectX) lub szukać innych sposobów ich zaprogramowania. Jak się zapewne domyślasz, zwolnienie przycisków powoduje wysłanie komunikatów <SPAN CLASS=T>WM_LBUTTONUP</SPAN>, <SPAN CLASS=T>WM_RBUTTONUP</SPAN> i <SPAN CLASS=T>WM_MBUTTONUP</SPAN>.
+</P>
+<P>
+Kompletne pojedyncze kliknięcie na danym obiekcie musimy sobie więc wykryć sami, ale na szczęście podwójne kliknięcia w całości zależą od ustawień systemowych, więc też i system je wykrywa, wysyłając nam wtedy odpowiedni komunikat, np. <SPAN CLASS=T>WM_LBUTTONDBLCLK</SPAN> (mam nadzieję, że nie będziesz miał problemów z rozszyfrowaniem tego skrótu ;-)). Jest jednak mały haczyk - podwójne kliknięcia wykrywane są tylko dla okien, które należą do klasy z ustawionym stylem <SPAN CLASS=T>CS_DBLCLKS</SPAN>. Musimy więc zajrzeć do kodu rejestrowania klasy okna i upewnić się, czy ten styl jest faktycznie ustawiony. Fragment ten powinien wyglądać mniej więcej tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+wincl.style = CS_DBLCLKS;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Warto od razu wspomnieć, że jeśli piszesz jakąś grę (lub inny program), gdzie trzeba dużo i szybko klikać, to pewnie zauważysz, że na niektóre kliknięcia program ten po prostu nie reaguje. Winowajcą może być właśnie ta flaga - <SPAN CLASS=T>CS_DBLCLKS</SPAN>, która powoduje, że część kliknięć "znika", czego w większości przypadków nie chcemy - w takim przypadku należy usunąć tę flagę.
+</P>
+
+<P>
+Najlepiej jest pokazać działanie komunikatów myszy, bawiąc się w rysowanie po okienku, tak że jeśli jeszcze nie wiesz nic na temat grafiki w WinAPI, radzę rzucić okiem na jedną z następnych części tego kursu, coby wszystko w tym przykładzie było jasne. Napiszemy sobie programik, który łączy nam liniami punkty, w których klikniemy z lewym górnym rogiem okienka. Ponadto przy każdym dwukrotnym kliknięciu będzie stawiał kółeczko. Wystarczy nam dodać obsługę komunikatów <SPAN CLASS=T>WM_LBUTTONDOWN</SPAN> i <SPAN CLASS=T>WM_LBUTTONDBLCLK:</SPAN>
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_LBUTTONDOWN:<BR>
+{<BR>
+&nbsp;HDC hdc = GetDC(hwnd);<BR>
+&nbsp;LineTo(hdc, LOWORD(lParam), HIWORD(lParam));<BR>
+&nbsp;ReleaseDC(hwnd, hdc);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+<SPAN CLASS=K>case</SPAN> WM_LBUTTONDBLCLK:<BR>
+{<BR>
+&nbsp;HDC hdc = GetDC(hwnd);<BR>
+&nbsp;Ellipse(hdc, LOWORD(lParam)-<SPAN CLASS=L>3</SPAN>, HIWORD(lParam)-<SPAN CLASS=L>3</SPAN>, LOWORD(lParam)+<SPAN CLASS=L>3</SPAN>, HIWORD(lParam)+<SPAN CLASS=L>3</SPAN>);<BR>
+&nbsp;ReleaseDC(hwnd, hdc);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jedyna prawdziwa nowość w tym przykładziku to wyrażenia <SPAN CLASS=T>LOWORD(lParam)</SPAN> i <SPAN CLASS=T>HIWORD(lParam)</SPAN>. Otóż komunikat <SPAN CLASS=T>WM_LBUTTONDOWN</SPAN>, podobnie jak inne komunikaty myszy, niesie ze sobą w argumencie <SPAN CLASS=T>lParam</SPAN> informację o współrzędnych wskaźnika myszy w chwili wysłania tego komunikatu (czyli tutaj w chwili kliknięcia). Współrzędna X jest przechowywana w dolnym słowie zmiennej <SPAN CLASS=T>lParam</SPAN>, natomiast współrzędna Y - w górnym słowie. Do "wyciągnięcia" współrzędnych (czyli podziału lParam na dwie połówki) używamy więc makr <SPAN CLASS=T>LOWORD</SPAN> i <SPAN CLASS=T>HIWORD</SPAN>.
+</P>
+<P>
+Jak widać na tym przykładzie, Windows wysyła wprawdzie komunikaty dla pojedynczych i podwójnych kliknięć osobno, ale jeśli wykonamy podwójne kliknięcie, to zostaną wysłane obydwa te komunikaty. Dlatego jeśli chcemy zaprogramować zarówno pojedyncze klinięcie, jak i podwójne, aby każde z nich miało przypisaną inną akcję, musimy być ostrożni. 
+</P>
+
+<H2>
+Poruszanie myszą
+</H2>
+
+<P>
+Oprócz klikania, myszą można poruszać (to ci dopiero nowość, nieprawdaż? ;-)). Za ruchy myszy odpowiedzialny jest komunikat <SPAN CLASS=T>WM_MOUSEMOVE</SPAN>, wysyłany za każdym razem, gdy jakaś rolka w myszy choćby drgnie - ten to dopiero ma w Windowsie przechlapane! Pomyśl sobie, ile razy jest on wywoływany w ciągu dnia! :-)
+</P>
+<P>
+Argumenty komunikatu <SPAN CLASS=T>WM_MOUSEMOVE</SPAN> pełnią identyczną rolę jak w komunikatach obsługujących kliknięcia. Napiszmy więc sobie teraz jeszcze fajniejszy program do rysowania po okienku. Tym razem będzie to już prawie program graficzny z prawdziwego zdarzenia ;-). Biega nam o to, aby rysowany był pojedynczy punkt za każym razem, gdy użytkownik wciśnie lewy przycisk myszy, a także (czy nawet przede wszystkim) gdy user przesuwa mysz, jeśli przycisk jest wciśnięty. Potrzeba nam więc obsługi wszystkich trzech komunikatów <SPAN CLASS=T>WM_LBUTTONDOWN</SPAN>, <SPAN CLASS=T>WM_LBUTTONUP</SPAN>, <SPAN CLASS=T>WM_MOUSEMOVE</SPAN>, a także globalnej zmiennej, która będzie mówiła nam, czy w danej chwili przycisk jest wciśnięty czy nie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>bool</SPAN> Przyc = <SPAN CLASS=K>false</SPAN>;
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy zmienną, dodajemy obsługę komunikatów:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_LBUTTONDOWN:<BR>
+{<BR>
+&nbsp;Przyc = <SPAN CLASS=K>true</SPAN>;<BR>
+&nbsp;SendMessage(hwnd, WM_MOUSEMOVE, wParam, lParam);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+<SPAN CLASS=K>case</SPAN> WM_LBUTTONUP:<BR>
+&nbsp;Przyc = <SPAN CLASS=K>false</SPAN>;<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+<SPAN CLASS=K>case</SPAN> WM_MOUSEMOVE:<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(Przyc)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;HDC hdc = GetDC(hwnd);<BR>
+&nbsp;&nbsp;SetPixel(hdc, LOWORD(lParam), HIWORD(lParam), RGB(<SPAN CLASS=L>255</SPAN>,<SPAN CLASS=L>0</SPAN>,<SPAN CLASS=L>0</SPAN>));<BR>
+&nbsp;&nbsp;ReleaseDC(hwnd, hdc);<BR>
+&nbsp;}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+No i proszę, możemy sobie rysować ;-). Myślę, że wszystko powinno być tu jasne, no, może opócz tej funkcji <SPAN CLASS=T>SendMessage</SPAN>. Nietrudno się jednak chyba domyślić, że służy ona do "sztucznego" wywoływania komunikatów, czyli używamy jej gdy chcemy symulować jakieś zdarzenie, które "tak naprawdę" nie miało miejsca. W tym przypadku gdy użytkownik kliknie myszą w danym punkcie, zostanie "sztucznie" wywołany komunikat <SPAN CLASS=T>WM_MOUSEMOVE</SPAN>, czyli narysuje się w tym miejscu punkt, nawet jeśli użytkownik wcale nie poruszył myszą, a tylko wcisnął lewy przycisk.
+</P>
+
+<H2>
+Kursor myszy
+</H2>
+
+<P>
+Ta strzałeczka, która lata sobie po całym ekranie jest całkiem fajowa, ale od czasu do czasu dobrze byłoby zmienić ją np. na klepsydrę czy inny kształt, albo i całkiem schować. Możemy się w tym celu posłużyć funkcją <SPAN CLASS=T>SetCursor</SPAN>. Jej jedyny parametr to uchwyt nowego kursora. Uchwyt taki możemy zdobyć od funkcji <SPAN CLASS=T>CreateCursor</SPAN> (która tworzy nowy kursor "od zera"), albo też od funkcji <SPAN CLASS=T>LoadCursor</SPAN> (wczytuje kursor z pliku zasobów). Na razie polecam znacznie prostszą funkcję <SPAN CLASS=T>LoadCursor</SPAN>, która poza ładowaniem kursora z zasobów naszego programu potrafi również pobrać jeden ze standardowych kursorów Windows:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HCURSOR StaryKursor;<BR>
+StaryKursor = SetCursor(LoadCursor(NULL, IDC_WAIT));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Powyższy przykładzik zmienia wskaźnik myszy na klepsydrę. Jak widać, funkcja <SPAN CLASS=T>SetCursor</SPAN> zwraca uchwyt do poprzednio używanego kursora (jeśli nie było żadnego, to zwraca <SPAN CLASS=T>NULL</SPAN>), który najlepiej jest przechować w odpowiedniej zmiennej (tutaj <SPAN CLASS=T>StaryKursor</SPAN>) i przy zakończeniu programu ustawić z powrotem jako aktualny kursor. Pierwszy argument funkcji <SPAN CLASS=T>LoadCursor</SPAN> musi zawsze być <SPAN CLASS=T>NULL</SPAN>, jeśli ładujemy jakiś standardowy kursor Windowsa, w przeciwnym wypadku (jeśli ładujemy kursor z zasobów programu), argument ten musi zawierać uchwyt do programu (<SPAN CLASS=T>HINSTANCE</SPAN>).
+</P>
+<P>
+Drugi argument funkcji <SPAN CLASS=T>LoadCursor</SPAN> może również przybierać wartości: <SPAN CLASS=T>IDC_ARROW</SPAN> - zwykła strzałka, <SPAN CLASS=T>IDC_CROSS</SPAN> - krzyż, <SPAN CLASS=T>IDC_IBEAM</SPAN> - kursor edycji tekstu, <SPAN CLASS=T>IDC_APPSTARTING</SPAN> - strzałka z małą klepsydrą itd.
+</P>
+<P>
+Oprócz funkcji <SPAN CLASS=T>LoadCursor</SPAN>, do wczytania kursora możemy jeszcze użyć funkcji <SPAN CLASS=T>LoadImage</SPAN>, która pozwoli nam wczytać kursor z samodzielnego pliku - kursora (*.cur), czy nawet ikony (*.ico) lub bitmapy (*.bmp). Trzeba jednak będzie w tym przypadku zastosować jawną konwersję obrazka zwróconego przez <SPAN CLASS=T>LoadImage</SPAN> na typ <SPAN CLASS=T>HCURSOR</SPAN>.
+</P>
+<P class=UWAGA>
+Zwróć uwagę, że pliki *.ico czy *.bmp nie zawierają współrzędnych tzw. hotspot-a, czyli punktu, który jest uznawany jako "czubek strzałki", a więc hotspot jest domyślnie ustawiany na lewy górny róg. Z tego względu te rodzaje plików nie bardzo nadają się do przechowywania kursorów.
+</P>
+<P>
+Możemy również podać <SPAN CLASS=T>NULL</SPAN> jako argument dla <SPAN CLASS=T>SetCursor</SPAN> - stosujemy to wówczas, gdy chcemy wskaźnik  myszy po prostu schować.
+</P>
+<P>
+Jak uzyskać uchwyt do aktualnie wybranego kursora? Proste - używamy funkcji <SPAN CLASS=T>GetCursor</SPAN> (nie ma ona żadnych argumentów).
+</P>
+<P>
+Ostatnią rzeczą, którą jeszcze warto wiedzieć na temat wskaźnika myszy, może być poruszanie nim... bez udziału myszy ;-). Aby przemieścić kursor w dowolne miejsce na ekranie... no, może nie na ekranie, tylko na oknie - używamy <SPAN CLASS=T>SetCursorPos</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(!SetCursorPos(<SPAN CLASS=L>100</SPAN>, <SPAN CLASS=L>150</SPAN>))<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Nie można ruszyć kursora (może się przylepił?)"</SPAN>,<BR>
+&nbsp;<SPAN CLASS=L>"Błąd"</SPAN>, MB_ICONEXCLAMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W ten sposób możemy np. zaprogramować poruszanie myszą przy pomocy klawiatury, co z pewnością docenią użytkownicy naszych aplikacji, gdy mysz im się popsuje ;-). Oczywiście w tym celu powinieneś przeczytać następny rozdział...
+</P>
+
+<H2>
+Obsługa klawiatury
+</H2>
+
+<P>
+Generalnie rzecz ujmując, mysza to naprawdę miłe stworzonko, ale figę nam po niej, jeśli robimy grę w stylu Robaka. Poza tym klawiatura jest łatwiejsza w użyciu, jeśli chcemy szybko włączyć jakąś opcję czy wywołać komendę menu - nie trzeba w nic celować strzałką, co bywa kłopotliwe zwłaszcza po spożyciu kilku... napojów. Nie mówiąc już o tym, że myszy czasami się psują. Krótko mówiąc: potrzebujemy obsługi klawiatury!
+</P>
+<P>
+Metod jest kilka, omówię tylko tę najprostszą i zarazem najbardziej przydatną. Wciśnięcie klawisza powoduje wysłanie komunikatu <SPAN CLASS=T>WM_KEYDOWN</SPAN> lub <SPAN CLASS=T>WM_KEYUP</SPAN> - analogicznie jak dla mychy. Sęk w tym, żeby wydedukować, który klawisz został wciśnięty (jak wiadomo, jest ich na klawiaturze sporo). Kod klawisza przekazywany jest w argumencie <SPAN CLASS=T>wParam.</SPAN> Trzeba tylko zastosować konstrukcję <SPAN CLASS=K>switch-case</SPAN>. Kodom klawiszy odpowiadają stałe rozpoczynające się od przedrostka <SPAN CLASS=T>VK</SPAN> (od Virtual Key). Niestety, nie są one zbyt intuicyjne (<SPAN CLASS=T>VK_RETURN</SPAN> - klawisz Enter, <SPAN CLASS=T>VK_MENU</SPAN> - klawisz Alt, <SPAN CLASS=T>VK_NEXT</SPAN> - klawisz Page Down itd.), a w dodatku autorzy SDK użytego w Dev-C++ zapomnieli najwyraźniej umieścić definicji stałych od <SPAN CLASS=T>VK_A</SPAN> do <SPAN CLASS=T>VK_Z</SPAN>. Na szczęście mają one kody odpowiadające kodom ASCII dużych liter, np. <SPAN CLASS=L>A</SPAN> zakodowane jest jako <SPAN CLASS=L>0x41</SPAN> (<SPAN CLASS=L>65</SPAN> dziesiątkowo).
+</P>
+<P CLASS=UWAGA>
+Jeśli nie chce ci się samodzielnie poprawiać twórców SDK do Dev-a, to zajrzyj do działu Download i ściągnij plik keys.zip - zawiera on plik nagłówkowy z definicjami klawiszy A-Z, wystarczy go tylko dołączyć wiadomą dyrektywą.
+</P>
+<P>
+Pozostaje tylko pokazać, jak to w praktyce wygląda:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_KEYDOWN:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>((<SPAN CLASS=K>int</SPAN>)wParam)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> VK_RETURN:<BR>
+&nbsp;&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wciśnięto Entera"</SPAN>, <SPAN CLASS=L>"Yeah"</SPAN>, MB_ICONINFORMATION);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> VK_ESCAPE:<BR>
+&nbsp;&nbsp;&nbsp;DestroyWindow(hwnd);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;}<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Chyba katastrofy by nie było, gdybyśmy pominęli tę konwersję parametru <SPAN CLASS=T>wParam</SPAN> na <SPAN CLASS=K>int</SPAN>, ale tak było w MSDN, więc przepisałem ;-). Funkcja <SPAN CLASS=T>DestroyWindow</SPAN> służy do niszczenia podanego okienka, jak sama nazwa zresztą wskazuje. Jest to niezły sposób na zakończenie programu, o ile mamy w kodzie obsługi komunikatu <SPAN CLASS=T>WM_DESTROY</SPAN> wywołanie funkcji <SPAN CLASS=T>PostQuitMessage</SPAN> (ten fragment jest generowany przez Dev-C++ razem z kodem tworzącym okno główne). Jeśli tego nie masz w swoim kodzie, to samo zniszczenie głównego okna spowoduje dość niezręczną sytuację - program trzeba będzie wywalić z pamięci przez Ctrl+Alt+Del :-/.
+</P>
+
+<H2>
+Trochę współdziałania
+</H2>
+
+<P>
+Niezliczone ilości opcji w programach sprawiają, że setki kombinacji klawiaturowych plus mysza z czterema przyciskami i dwoma scrollerami przestają wystarczać. Dlatego ktoś wpadł na pomysł, że można by połączyć myszę z klawiaturą - stąd czasami można wyczytać w instrukcji, że aby coś w danej grze czy programie zrobić, musisz np. przytrzymać Ctrl i kliknąć myszą. To dość fajna sprawa, więc postanowiłem pokazać, jak to się robi w WinAPI.
+</P>
+<P>
+Koncepcja jest bardzo prosta. Jak pamiętamy (prawda, że pamiętamy?), komunikaty typu <SPAN CLASS=T>WM_LBUTTONCLICK</SPAN> czy <SPAN CLASS=T>WM_MOUSEMOVE</SPAN> przekazywały nam w swoich argumentach <SPAN CLASS=T>lParam</SPAN> pozycję myszy. A drugi argument - <SPAN CLASS=T>wParam</SPAN> - daje nam informację o specjalnych klawiszach, które były wciśnięte tuż przed wygenerowaniem komunikatu. Te specjalne klawisze mogą być klawiszami myszy (stałe <SPAN CLASS=T>MK_LBUTTON</SPAN>, <SPAN CLASS=T>MK_MBUTTON</SPAN>, <SPAN CLASS=T>MK_RBUTTON</SPAN>), ale mogą też być klawiszami Ctrl (stała <SPAN CLASS=T>MK_CONTROL</SPAN>) lub Shift (<SPAN CLASS=T>MK_SHIFT</SPAN>). Oto jak to wykorzystać:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_LBUTTONDOWN:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(wParam & MK_CONTROL)<BR>
+&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wciśnięty jest Ctrl"</SPAN>, NULL, MB_ICONINFORMATION);<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(wParam & MK_SHIFT)<BR>
+&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wciśnięty jest Shift"</SPAN>, NULL, MB_ICONINFORMATION);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Zauważ, że np. dla komunikatu <SPAN CLASS=T>WM_LBUTTONDOWN</SPAN> zmienna <SPAN CLASS=T>wParam</SPAN> nigdy nie powinna być RÓWNA <SPAN CLASS=T>MK_CONTROL</SPAN>, nawet jeśli w czasie kliknięcia przytrzymany był Ctrl! Zmienna <SPAN CLASS=T>wParam</SPAN> zawiera KOMBINACJĘ aktualnie wciśniętych klawiszy, a więc jeśli przytrzymamy Ctrl i klikniemy lewym przyciskiem, to <SPAN CLASS=T>wParam</SPAN> będzie zawierał wartość <SPAN CLASS=T>MK_CONTROL | MK_LBUTTON</SPAN>. Dlatego też nie możemy stosować tutaj konstrukcji <SPAN CLASS=K>switch</SPAN> do sprawdzenia, który klawisz na klawiaturze był przytrzymany, a za to musimy stosować operator <span class=T>&</span>.
+</P>
+
+<h2>
+Parę słów o przechwytywaniu
+</h2>
+
+<p>
+Jedna z windowsowych reguł mówi, że tylko jedno okno może w danym momencie otrzymywać komunikaty pochodzące od myszy. Dlatego jeśli już mu się uda pokonać inne konkurencyjne okienka i otrzyma do obsłużenia jakieś myszkowe zdarzenie, to mówimy o tym oknie, że przechwyciło mysz.
+<P>
+<p>
+Jak już wiesz, wszelkie kontrolki również są oknami. Dlatego właśnie jeśli np. klikniesz lewym przyciskiem myszy na przycisku, to główne okno twojego programu NIE otrzyma ani komunikatu <span class=T>WM_LBUTTONDOWN</Span>, ani <span class=T>WM_LBUTTONUP</Span>. Otrzyma za to <span class=T>WM_COMMAND</Span>, wygenerowane przez przycisk. Dzieje się tak dlatego, że przycisk przechwytuje mysz, wewnętrzna procedura okna-przycisku (każde okno ma swoją własną procedurę do obsługi komunikatów!) obsługuje <span class=T>WM_LBUTTONDOWN</Span> i <span class=T>WM_LBUTTONUP</Span>, stwierdza, że nastąpiło pełnoprawne klinknięcie na przycisku i wówczas wysyła do swojego okna-rodzica (czyli naszego głównego okna) komunikat <span class=T>WM_COMMAND</Span>.
+</P>
+<P>
+Z powyższego wynika, że nie możemy w znany nam sposób obsłużyć "myszowych" zdarzeń dla kontrolek. Na szczęście nie do końca jest to prawdą; gdy już trochę więcej dowiesz się o WinAPI, poczytaj artykuł poświęcony subclassingowi.
+</p>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apictrl.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="apifile.html">Następna część kursu &gt;&gt;</A></TD>
+</TR>
+</TABLE>
+
+</HTML>
+
+ 

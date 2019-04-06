@@ -1,0 +1,368 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Slovenian HOWTO: Tiskanje</TITLE>
+ <LINK HREF="Slovenian-HOWTO-8.html" REL=next>
+ <LINK HREF="Slovenian-HOWTO-6.html" REL=previous>
+ <LINK HREF="Slovenian-HOWTO.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Slovenian-HOWTO-8.html">Next</A>
+<A HREF="Slovenian-HOWTO-6.html">Previous</A>
+<A HREF="Slovenian-HOWTO.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="tiskanje"></A> <A NAME="s7">7. Tiskanje</A></H2>
+
+<P>Pri tiskanju lahko naletimo na razlicne situacije:
+<UL>
+<LI>Tiskalnik neposredno podpira ISO Latin 2</LI>
+<LI>Tiskalnik podpira enega od ostalih osembitnih naborov z nasimi
+znaki (npr. kodno stran 852), ali pa sedembitni nabor JUS I.B1.002</LI>
+<LI>Tiskalnik razume PostScript</LI>
+<LI>Tiskalnik ne podpira nicesar drugega razen ASCII</LI>
+</UL>
+
+Zadnja moznost ni predmet obravnave tega spisa.
+<P>
+<H2><A NAME="tisk-l2"></A> <A NAME="ss7.1">7.1 Tiskalniki, ki podpirajo ISO Latin 2</A>
+</H2>
+
+<P>Nekaj novejsih tiskalnikov ze neposredno podpira kodni razpored
+ISO Latin 2. Med njimi so
+<UL>
+<LI>Hewlett-Packard LaserJet 4 Plus in 4M Plus</LI>
+<LI>Hewlett-Packard LaserJet 5L</LI>
+<LI>Epson FX-2170 (NLSP)</LI>
+<LI>Epson LQ-870 (NLSP)</LI>
+<LI>Epson LQ-2070 (NLSP)</LI>
+<LI>Epson LQ-2170 (NLSP)</LI>
+<LI>Epson DLQ-3000 (NLSP; letnik 1996 in novejsi)</LI>
+<LI>Fujitsu DL700</LI>
+<LI>Fujitsu DL1150/1250</LI>
+<LI>Fujitsu DL3700/3800</LI>
+<LI>Fujitsu DL6400/6600</LI>
+</UL>
+
+Vse, kar morate storiti, je izbrati pravilno kodno stran v
+tiskalniku. Ubezna sekvenca za tiskalnike Hewlett-Packard (PCL) in
+Epson (ESC/P2) so naslednje
+<DL>
+<DT><B>PCL</B><DD><P>Tole menda deluje:
+<HR>
+<PRE>
+\033(2N\033(s0p12h0s0b4099T
+</PRE>
+<HR>
+<P>
+<DT><B>ESC/P2</B><DD><P>Z ukazom <CODE>ESC ( t</CODE> prepisemo kodno tabelo ISO 8859-2 v drugo
+tabelo tiskalnika; zatem z ukazom <CODE>ESC t</CODE> izberemo drugo tabelo
+tiskalnika (strani C-73 in C-77 v ,,Epson ESC/P Reference Manual``,
+december 1997):
+<HR>
+<PRE>
+\033(t\003\000\002\177\002\033t\002
+</PRE>
+<HR>
+</DL>
+ 
+Oznaka <CODE>\033</CODE> je osmiska koda znaka Escape.
+<P>Eden od nacinov, kako z /etc/printcap prilagodimo okolje
+za tiskanje na tak tiskalnik, je podrobneje opisan v razdelku 
+<A HREF="#tisk-cp">Tiskalniki, ki podpirajo kak drug nabor z nasimi znaki</A>.
+<P>
+<H2><A NAME="tisk-cp"></A> <A NAME="ss7.2">7.2 Tiskalniki, ki podpirajo kak drug nabor z nasimi znaki</A>
+</H2>
+
+<P>Ce tiskalnik podpira kak drug nabor z nasimi znaki (ne dolgo nazaj 
+je bila ustaljena praksa, da je bil ROM v tiskalnikih zamenjan z
+EPROM, v njem pa svedski znaki zamenjani z znaki po JUS I.B1.002),
+lahko s primerno nastavitvijo v /etc/printcap se vedno 
+tiskamo spise, kodirane po ISO Latin 2.
+<P>Primerno moramo dopolniti datoteko /etc/printcap.  Za zgled
+si oglejmo tiskalnik Epson, ki ima znake po JUS I.B1.002 na mestu 
+svedskega nabora.
+<HR>
+<PRE>
+lp|ascii|epson|Epson LQ-850:\
+        :lp=/dev/lp1:\
+        :sd=/usr/spool/lpd/epson:\
+        :lf=/usr/spool/lpd/ERRORLOG:\
+        :mx#0:\
+        :sh:
+jus|Epson LQ-850 z znaki JUS I.B1.002:\
+        :lp=/dev/null:\
+        :sd=/usr/spool/lpd/jus:\
+        :if=/usr/spool/lpd/jus_filter:\
+        :lf=/usr/spool/lpd/ERRORLOG:\
+        :mx#0:\
+        :sh:
+latin2|text|Epson LQ-850 z znaki ISO Latin 2:\
+        :lp=/dev/null:\
+        :sd=/usr/spool/lpd/latin2:\
+        :if=/usr/spool/lpd/latin2_filter:\
+        :lf=/usr/spool/lpd/ERRORLOG:\
+        :mx#0:\
+        :sh:
+</PRE>
+<HR>
+<P>Zgled ima tri tiskalniske vrste.
+Prva je dejanski tiskalnik z ameriskim (ASCII) naborom znakov. 
+Druga uporablja filter <CODE>/usr/spool/lpd/jus_filter</CODE>:
+<HR>
+<PRE>
+#!/bin/sh
+/usr/spool/lpd/jus_epson | lpr -Pascii
+</PRE>
+<HR>
+
+Datoteko torej precedimo skozi filter /usr/spool/lpd/jus_epson
+in jo postavimo v prvo tiskalnisko vrsto.
+Filter <CODE>jus_epson</CODE> ne napravi drugega, kot da 
+na zacetku doda kodo za preklop v svedski nabor, prepise datoteko
+z vhoda na izhod, in na koncu doda kodo za preklop nazaj 
+v ameriski nabor.  To je tudi edini del programja, ki je odvisen
+od vrste tiskalnika:
+<HR>
+<PRE>
+#!/bin/sh
+# Tiskanje besedil kodiranih po JUS I.B1.002 na tiskalnik Epson LQ
+#
+# Izberemo slovenski (svedski) nabor
+/bin/echo -ne "\033R\005\c"
+# Izpisemo dokument
+cat
+# Izberemo ameriski nabor
+/bin/echo -ne "\033R\000\c"
+</PRE>
+<HR>
+<P>Tretja vrsta uporablja podoben filter kot druga, le da ta najprej
+pretvori besedilo iz Latin 2 v JUS, zatem uporabi ze opisani
+filter za to, da doda na zacetku in na koncu potrebno kodo za
+tiskalnik, in koncno t&aacute;ko datoteko postavi v prvo vrsto.
+<HR>
+<PRE>
+#!/bin/sh
+/usr/local/bin/recode --force latin2:yu | \
+    /usr/spool/lpd/jus_epson | lpr -Pascii
+</PRE>
+<HR>
+
+Zgled predpostavlja, da je pot do programa recode
+/usr/local/bin/recode.  Izbiro <CODE>--force</CODE> moramo
+uporabiti, ker je preslikava neobrnljiva -- v Latin 2 imamo tako 
+sumnike kot zavite oklepaje, v JUS pa samo se prve.
+<P>Za ta zgled smo morali v imeniku /usr/spool/lpd
+ustvariti tri podimenike: /usr/spool/lpd/epson,
+/usr/spool/lpd/jus in /usr/spool/lpd/latin2.
+<P>Tiskanje gre zdaj tako:
+<OL>
+<LI>Brez eksplicitne izbire vrste, ali pa z izbiro
+<CODE>-Pepson</CODE> ali <CODE>-Pascii</CODE> se datoteka odtisne kot
+ASCII:
+<BLOCKQUOTE>
+<CODE>lpr <EM>datoteka</EM></CODE>
+</BLOCKQUOTE>
+
+</LI>
+<LI>Z izbiro <CODE>-Pjus</CODE> se datoteka odtisne kot besedilo, 
+kodirano po JUS I.B1.002:
+<BLOCKQUOTE>
+<CODE>lpr -Pjus <EM>datoteka</EM></CODE>
+</BLOCKQUOTE>
+
+</LI>
+<LI>Z izbiro <CODE>-Platin2</CODE> ali <CODE>-Ptext</CODE> se datoteka
+odtisne kot besedilo, kodirano po ISO Latin 2:
+<BLOCKQUOTE>
+<CODE>lpr -Platin2 <EM>datoteka</EM></CODE>
+</BLOCKQUOTE>
+</LI>
+</OL>
+<P>
+<H2><A NAME="tisk-cp2"></A> <A NAME="ss7.3">7.3 Tiskalniki, ki podpirajo kak drug nabor z nasimi znaki II</A>
+</H2>
+
+<P>(Matjaz Terpin &lt;
+<A HREF="mailto:matjaz.terpin@comcom.si">matjaz.terpin@comcom.si</A>&gt;, <CODE>Message-id:
+&lt;Pine.LNX.3.96.980709095750.24607B-400000@guru.comcom.si&gt;</CODE>)
+<P>Matjaz Terpin &lt;
+<A HREF="mailto:matjaz.terpin@comcom.si">matjaz.terpin@comcom.si</A>&gt; je predlagal imenitno izboljsavo
+pravkar opisanega postopka, pri katerem lahko tiskamo nase znake
+<EM>in</EM> oglate in zavite oklepaje. Srz njegovega predloga je
+filter, ki pred vsakim nasim znakom preklopi v svedski nabor, takoj za
+njim pa spet nazaj v ASCII.
+<P>Datoteka /etc/printcap je v tem primeru taksna:
+<HR>
+<PRE>
+# /etc/printcap
+lp|raw|yu:\
+       :lp=/dev/lp1:\
+       :sd=/var/spool/lpd/lp:\
+       :lf=/var/spool/lpd/ERRORLOG:\
+       :mx#0:\
+       :sh:
+lat2:\
+       :lp=/dev/null:\
+       :if=/etc/lp/lat2.filter:\
+       :sd=/var/spool/lpd/lat2:\
+       :lf=/var/spool/lpd/ERRORLOG:\
+       :mx#0:\
+       :sh:
+</PRE>
+<HR>
+<P>Filter /etc/lp/lat2.filter precedi besedilo skozi naslednje
+sito, /etc/lp/lat2.switch, in ga postavi v vrsto
+<CODE>lp</CODE>:
+<HR>
+<PRE>
+#!/bin/sh
+# /etc/lp/lat2.filter
+
+/etc/lp/lat2.switch | lpr -Plp
+</PRE>
+<HR>
+<P>,,Meso`` postopka je v datoteki /etc/lp/lat2.switch:
+<HR>
+<PRE>
+#!/bin/sh
+#/etc/lp/lat2.switch
+
+echo -ne "\033R0"
+
+sed -e "s/c/`echo -ne "\033R5\~\033R0"`/g" \
+ -e "s/C/`echo -ne "\033R5\^\033R0"`/g" \
+ -e "s/s/`echo -ne "\033R5\{\033R0"`/g" \
+ -e "s/S/`echo -ne "\033R5\[\033R0"`/g" \
+ -e "s/z/`echo -ne "\033R5\140\033R0"`/g" \
+ -e "s/Z/`echo -ne "\033R5\@\033R0"`/g" \
+ -e "s/c/`echo -ne "\033R5\}\033R0"`/g" \
+ -e "s/C/`echo -ne "\033R5\]\033R0"`/g" \
+ -e "s/d/`echo -ne "\033R5\|\033R0"`/g" \
+ -e "s/D/`echo -ne "\033R5\\\\033R0"`/g" 
+
+echo -ne "\033R5"
+</PRE>
+<HR>
+<P>Matjaz pravi se: sed slabo prebavi ``echo -ne "\000"'', zato
+uporabljam kar znak 0 (niclo), saj je tiskalnik (NEC pinwriter P7)
+zadovoljen tudi s tem.
+<P>
+<H2><A NAME="tisk-ps"></A> <A NAME="ss7.4">7.4 Tiskalniki PostScript</A>
+</H2>
+
+<P>``Naravni'' kodni nabor v PostScriptu je Adobe Standard
+Encoding. Nasih crk ne pozna. Pa ne le nasih, tudi mnogih drugih crk
+ne pozna, in pravzaprav sploh nima tovrstnih ambicij. Namesto tega je
+ASCII razsirjen z gradniki sestavljenih znakov: stresica, ostrivec,
+diereza, sedij itd. -- vsi so tam. Jezik PostScript pa omogoca
+definiranje sestavljenih znakov. Vse skupaj je cakalo samo se nekoga,
+ki bo definiral sestavljene znake za kodni nabor ISO Latin 2. Ta nekdo
+je bil Juliusz Chroboczek, ki je napisal paket 
+<A HREF="http://www.dcs.ed.ac.uk/home/jec/programs/ogonkify/">ogonkify</A>.
+<P>Filtra <CODE>a2ps</CODE> in GNU <CODE>enscript</CODE> sta bila napisana z
+namenom, da resita za nase kraje neobicajno zagato: kako odtisniti
+cisto obicajno besedilo na tiskalnik, ki razume edino PostScript. Eden
+in drugi postavita stran v PostScriptu z danim besedilom in jo
+posljeta na tiskalnik. Fleksibilnost PostScripta omogoca tudi
+transformacije (npr. pomanjsave) ali poudarjanje sintakse pri tiskanju
+programskih izpisov. Oba podpirata nabor ISO Latin 2.
+<P>
+<BLOCKQUOTE><CODE>
+<A HREF="http://www.dcs.ed.ac.uk/home/jec/programs/ogonkify/">http://www.dcs.ed.ac.uk/home/jec/programs/ogonkify/</A><BR>
+<A HREF="http://www-inf.enst.fr/~demaille/a2ps/">http://www-inf.enst.fr/~demaille/a2ps/</A><BR>
+<A HREF="http://www.iki.fi/~mtr/genscript/">http://www.iki.fi/~mtr/genscript/</A><BR>
+<A HREF="ftp://ftp.arnes.si/gnu/enscript/enscript-1.6.1.tar.gz">ftp://ftp.arnes.si/gnu/enscript/enscript-1.6.1.tar.gz</A></CODE></BLOCKQUOTE>
+<P>
+<H3><A NAME="ogonkify"></A> ogonkify</H3>
+
+<P>Ogonkify je filter za izpise v PostScriptu, in omogoca pravilen odtis
+crk tudi v jezikih, ki ne uporabljajo nabora ISO Latin 1. Ker je
+filter, je ravno korak prepozen, da bi lahko pocel to elegantno, ampak
+mora prezveciti kakrsnokoli grdobijo pac izpljune program korak pred
+njim in iz dobljenega izdelati lep odtis. Programi pa izdelujejo
+datoteke PostScript vsak malo drugace, kar filtru ``ogonkify'' otezi
+delo. Zaenkrat podprti formati izpisa PostScript so: NCSA Mosaic,
+Netscape Navigator, StarOffice, Applixware in XFig.
+<P>Ogonkify za delovanje potrebuje Perl. Ko je namescen,
+<CODE>ogonkify</CODE> uporabimo takole za odtis spletnega sestavka,
+shranjenega iz Navigatorja:
+<BLOCKQUOTE><CODE>
+ogonkify -AT -N netscape.ps | lpr
+</CODE></BLOCKQUOTE>
+<P>
+<H3><A NAME="enscript"></A> GNU enscript</H3>
+
+<P>Ce 
+<A HREF="http://www.iki.fi/~mtr/genscript/">GNU enscript</A> se ni namescen, ga namestimo po navodilih,
+ki so prilozena programu.  Poleg njega potrebujemo se vsaj eno
+pisavo z vsemi nasimi znaki, zapisan v obliki Type 1.  Primeren je
+npr. IBM Courier, ki je prosto dostopen in se distribuira z X
+Window System, programom <CODE>ghostscript</CODE> ipd.  Ce nismo
+prepricani, ali ga imamo ze namescenega, pozenemo:
+<BLOCKQUOTE><CODE>
+<PRE>
+find / -name cour.pf[ab]
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>V osebno (~/.enscriptrc) ali skupno konfiguracijsko
+datoteko (navadno /usr/local/etc/enscript.cfg ali
+/usr/local/etc/enscriptsite.cfg) dodamo pravilno pot do
+datotek s pisavami.  Poleg tega potrebuje GNU enscript v vsakem
+imeniku s pisavami se datoteko z imenom font.map, ki
+vsebuje preslikavo med imeni pisav in datotekami, kjer so shranjene.
+Ustvarimo jo z ukazom <CODE>mkafmmap</CODE>.
+<P>Primer konfiguracijske datoteke:
+<HR>
+<PRE>
+...
+#  Kje hranimo pisave PostScript?
+AFMPath: /usr/lib/X11/fonts/Type1:/usr/local/lib/ghostscript/fonts
+...
+#  Privzeti nacin kodiranja:
+DefaultEncoding: latin2
+...
+#  Privzeti format papirja:
+DefaultMedia: A4
+...
+#  lpd izbira tiskalniske vrste z -P...
+QueueParam: -P
+...
+#  Za tiskanje uporabljamo ukaz lpr, ne lp
+Spooler: lpr
+</PRE>
+<HR>
+<P>Ko je vse potrebno nastavljeno, odtisnemo besedilo enostavno z
+ukazom
+<BLOCKQUOTE>
+<CODE>enscript <EM>datoteka</EM></CODE>
+</BLOCKQUOTE>
+<P>
+<H3><A NAME="a2ps"></A> a2ps</H3>
+
+<P>Z izdajo 4.7.21 je Akim Demaille v <CODE>a2ps</CODE> vgradil mehanizem za
+sestavljene znake, ki ga je Juliusz Chroboczek uporabil v filtru
+<A HREF="#ogonkify">ogonkify</A>.
+<P>Nasim krajem prilagodimo <CODE>a2ps</CODE> z majckeno spremembo
+nastavitvene datoteke. Sistemsko nastavitveno datoteko najdemo navadno
+kot /usr/etc/a2ps.cfg,
+/usr/local/etc/a2ps.cfg ali kaj podobnega; osebna se
+imenuje ~/.a2psrc.
+<HR>
+<PRE>
+...
+# Default encoding
+Options: --encoding=latin2
+
+# Default media
+Options: --media=A4
+...
+</PRE>
+<HR>
+<P>
+<HR>
+<A HREF="Slovenian-HOWTO-8.html">Next</A>
+<A HREF="Slovenian-HOWTO-6.html">Previous</A>
+<A HREF="Slovenian-HOWTO.html#toc7">Contents</A>
+</BODY>
+</HTML>

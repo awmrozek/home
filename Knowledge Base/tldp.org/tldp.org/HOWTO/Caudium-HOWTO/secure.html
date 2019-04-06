@@ -1,0 +1,515 @@
+<HTML
+><HEAD
+><TITLE
+>How to run Caudium as a non-privileged user; How to secure Caudium</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Caudium HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Customizing your server"
+HREF="customizing.html"><LINK
+REL="PREVIOUS"
+TITLE="Customizing your server"
+HREF="customizing.html"><LINK
+REL="NEXT"
+TITLE="How to benchmark a web server"
+HREF="benchmark.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Caudium HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="customizing.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 5. Customizing your server</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="benchmark.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="secure">5.1. How to run Caudium as a non-privileged user; How to secure Caudium</H1
+><P
+>&#13;      Web servers are usually publicly accessible and represent your company, group
+      or entity so there are chances you want to strengthen the security of this
+      service.
+    </P
+><P
+>&#13;      As I already mentioned Caudium has a good security for public access behind
+      mostly written in a script language. However Caudium runs as root by
+      default. In the case a non-authorized user gains access to Caudium's
+      process, he might gain root privileges. Consequently,a lot of web servers run
+      as another user with minimal privileges. Doing this may require some
+      work, as you will have to change the owner of all the files Caudium needs
+      access to, so I give step-by-step instructions how to change those
+      permissions:
+   </P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>&#13;	 Find a good user name. This user name should be a normal user with the least privileges. Lots of distributions already have a special account for this.  Common names include <SPAN
+CLASS="QUOTE"
+>"www"</SPAN
+>, <SPAN
+CLASS="QUOTE"
+>"www-data"</SPAN
+>, <SPAN
+CLASS="QUOTE"
+>"httpd"</SPAN
+>, <SPAN
+CLASS="QUOTE"
+>"nobody"</SPAN
+> (Caudium on Debian GNU/Linux runs as www-data:www-data by default). We don't recommend <SPAN
+CLASS="QUOTE"
+>"nobody"</SPAN
+> though; to quote Theo de Raadt: <A
+NAME="AEN704"><BLOCKQUOTE
+CLASS="BLOCKQUOTE"
+><P
+>The user <SPAN
+CLASS="QUOTE"
+>"nobody"</SPAN
+> has historically been doing too much.  If you could break into the user <SPAN
+CLASS="QUOTE"
+>"nobody"</SPAN
+>, you could cause great damage.</P
+></BLOCKQUOTE
+> 
+       </P
+></LI
+><LI
+><P
+>&#13;	 Change the owner of the files which Caudium needs to write to. These include:
+       </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	     Caudium internal log file (default.*).
+	   </P
+></LI
+><LI
+><P
+>&#13;	      Per virtual server log file.
+	   </P
+></LI
+><LI
+><P
+>&#13;	     All caches.
+	   </P
+></LI
+><LI
+><P
+>&#13;	     The configurations files (they are written by the <SPAN
+CLASS="abbrev"
+>CIF.</SPAN
+>).
+	   </P
+></LI
+></UL
+><P
+>&#13;	 On a Caudium source install the following command should do the job:
+       </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+><TT
+CLASS="computeroutput"
+>&#13;# chown -R  www-data.www-data logs/ var/ 
+argument_cache/ bgcache/ configurations/ server/*.pem server
+       </TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;	 Here is the result:
+       </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+><TT
+CLASS="computeroutput"
+>&#13;$ ls -l 
+total 32
+drwxr-sr-x    6 www-data www-data     4096 Feb 13 23:17 argument_cache
+drwxr-sr-x    2 www-data www-data     4096 Feb 19 09:27 bgcache
+drwxr-sr-x    2 www-data www-data     4096 Mar  4 22:28 configurations
+drwxr-sr-x    4 root     staff        4096 Feb 13 23:16 local
+drwxr-sr-x    7 www-data www-data     4096 Mar  3 11:50 logs
+drwxr-sr-x    2 root     staff        4096 Feb 13 23:16 readme
+drwxr-sr-x   19 www-data www-data     4096 Feb 19 20:13 server
+drwxr-sr-x    2 www-data www-data     4096 Mar  3 19:28 var
+
+$ id www-data
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+       </TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;	 If users are allowed to log on the server, you might also change the 
+	 permissions of the logs directory.
+       </P
+><P
+>&#13;	 If you have a Caudium specific distribution for your system (such as Debian GNU/Linux) check manually.
+       </P
+></LI
+><LI
+><P
+>&#13;	 Don't forget to change the permissions of any script/directory you made
+	 and for which Caudium needs to write to in your public filesystem.
+       </P
+></LI
+><LI
+><P
+>&#13;	 Log into the <SPAN
+CLASS="abbrev"
+>CIF.</SPAN
+>, go in the main <TT
+CLASS="option"
+>Global variables</TT
+> tab, then in 
+	 <TT
+CLASS="option"
+>Change uid and gid</TT
+> type the uid:gid data you choose. We typed <TT
+CLASS="userinput"
+><B
+>33:33</B
+></TT
+> 
+         in our example. You can also type a login name and group name: <TT
+CLASS="userinput"
+><B
+>www-data:www-data</B
+></TT
+>. 
+	 You can also enable the <TT
+CLASS="option"
+>Change uid and gid permanently</TT
+> option but be sure to read the documentation first.</P
+></LI
+></OL
+><P
+>&#13;     I will now speak about general security measures you can take if you are
+     very strict about security.
+   </P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>&#13;	 Don't allow users to execute scripts that are part of the server.
+       </P
+><P
+>&#13;	 As Caudium is a single process server, it is possible to stop it, restart 
+	 it, access it, etc. with a user script. This include pike scripts, pike tag, 
+	 and PHP modules for Caudium.
+       </P
+><P
+>&#13;	 If you do want to let your users run scripts, you can always use 
+	 CGI, or better uniscript (in this case it will be transparent to the user), in 
+	 order to run a script in a separate process using the fork(2) system call.
+	 This will decrease the performance of Caudium but the security has a price, 
+	 and it is up to you to decide how much you want to pay.
+
+       </P
+><DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>Uniscript is a CGI-like wrapper. It will execute programs
+       as if they were CGI scripts but unlike CGI, it does not require you
+       to put these programs under a specific directory like /cgi-bin/. For
+       example each user can have his or her CGI script in his or her directory.
+       Moreover Caudium can execute them with the uid of the owner.
+       </P
+></TD
+></TR
+></TABLE
+></DIV
+></LI
+><LI
+><P
+>&#13;	 Don't use anything you don't need. Remove any modules you don't need in your virtual server.
+       </P
+></LI
+><LI
+><P
+>&#13;	 Physically restrict access to the <SPAN
+CLASS="abbrev"
+>CIF.</SPAN
+>.  Don't access it from the Internet if 
+	 possible. Few people know this, but it is now possible to see SSL 
+	 connections in clear text with a man-in-the-middle attack.
+	 The <SPAN
+CLASS="application"
+>dsniff</SPAN
+> software contains all the tools and explanation for this.
+       </P
+></LI
+><LI
+><P
+>&#13;	 Turn off these options:
+       </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	     <TT
+CLASS="option"
+>Global Variables</TT
+> -&#62; <TT
+CLASS="option"
+>show_internals</TT
+>.
+	   </P
+></LI
+><LI
+><P
+>&#13;	     <TT
+CLASS="option"
+>Global Variables</TT
+> -&#62; <TT
+CLASS="option"
+>Version numbers</TT
+> -&#62; <TT
+CLASS="option"
+>Show Caudium Version Number</TT
+>.
+	   </P
+></LI
+><LI
+><P
+>&#13;	     <TT
+CLASS="option"
+>Global Variables</TT
+> -&#62; <TT
+CLASS="option"
+>Version numbers</TT
+> -&#62; <TT
+CLASS="option"
+>Show Pike Version Number</TT
+>.
+	   </P
+></LI
+></UL
+><P
+>&#13;	 Turn off any debug options specific to a module. These
+	 options are for developers, and they don't have security in
+	 mind when they debug output. 
+         <A
+NAME="AEN770"><TABLE
+BORDER="0"
+WIDTH="100%"
+CELLSPACING="0"
+CELLPADDING="0"
+CLASS="BLOCKQUOTE"
+><TR
+><TD
+WIDTH="10%"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+WIDTH="80%"
+VALIGN="TOP"
+><P
+>&#13;               Actually, this is security through obscurity and doesn't 
+               increase the security of the server.
+              </P
+></TD
+><TD
+WIDTH="10%"
+VALIGN="TOP"
+>&nbsp;</TD
+></TR
+><TR
+><TD
+COLSPAN="2"
+ALIGN="RIGHT"
+VALIGN="TOP"
+>--<SPAN
+CLASS="attribution"
+>Grendel</SPAN
+></TD
+><TD
+WIDTH="10%"
+>&nbsp;</TD
+></TR
+></TABLE
+>
+
+       </P
+></LI
+><LI
+><P
+>&#13;	 Output Caudium's log files to a separate partition. <TT
+CLASS="filename"
+>/var</TT
+> is a good choice for 
+	 that purpose.
+       </P
+></LI
+><LI
+><P
+>&#13;	 Check the Caudium web site for patches.
+       </P
+></LI
+><LI
+><P
+>&#13;	 If your job relies on your web server security, check the Caudium source.
+       </P
+></LI
+></OL
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="customizing.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="benchmark.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Customizing your server</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="customizing.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>How to benchmark a web server</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

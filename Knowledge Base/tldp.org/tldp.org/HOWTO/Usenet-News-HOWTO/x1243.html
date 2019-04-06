@@ -1,0 +1,537 @@
+<HTML
+><HEAD
+><TITLE
+>Our perspective</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Usenet News HOWTO "
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Usenet news clients"
+HREF="x1208.html"><LINK
+REL="NEXT"
+TITLE="Usenet software: a historical perspective"
+HREF="softwarehistory.html"></HEAD
+><BODY
+CLASS="SECTION"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Usenet News HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x1208.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="softwarehistory.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECTION"
+><H1
+CLASS="SECTION"
+><A
+NAME="AEN1243">12. Our perspective</H1
+><P
+>This chapter has been added to allow us to share our perspective on
+certain technical choices. Certain issues which are more a matter of
+opinion than detail, are discussed here.</P
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="FEEDEFFICIENCY">12.1. Efficiency issues of NNTP</H2
+><P
+>    To understand why NNTP is often an inappropriate choice for
+    newsfeeds, we need to understand TCP's sliding window protocol
+    and the nature of NNTP. NNTP is an apalling waste of bandwidth
+    for most bulk article transfer situations, because of the
+    following simple reasons:</P
+><P
+></P
+><UL
+><LI
+><P
+>    <EM
+>No compression</EM
+>: articles are transferred in plain text. </P
+></LI
+><LI
+><P
+> 
+    <EM
+>No article transmission restart</EM
+>: if a
+    connection breaks halfway through an article, the next round
+    will have to start with the beginning of the article.</P
+></LI
+><LI
+><P
+> 
+    <EM
+>Ping-pong protocol</EM
+>: NNTP is unsuitable for
+    bulk streaming data transfer because the TCP sliding window feature
+    is unusable with NNTP.</P
+></LI
+></UL
+><P
+>    What is a ping-pong protocol? TCP uses a sliding window mechanism to
+    pump out data in one direction very rapidly, and can achieve near
+    wire speeds under most circumstances. However, this only works if
+    the application layer protocol can aggregate a large amount of data
+    and pump it out without having to stop every so often, waiting for
+    an ack or a response from the other end's application layer. This is
+    precisely why sending one file of 100 Mbytes by FTP takes so much less
+    clock time than 10,000 files of 10 Kbytes each, all other parameters
+    remaining unchanged. The trick is to keep the sliding window sliding
+    smoothly over the outgoing data, blasting packets out as fast as the
+    wire will carry it, without ever allowing the window to empty out
+    while you wait for an ack.  Protocols which require short bursts of
+    data from either end constantly, <EM
+>e.g.</EM
+> in the
+    case of remote procedure calls, are called ``ping pong protocols''
+    because they remind you of a table-tennis ball.</P
+><P
+>    With NNTP, this is precisely the problem. The average size
+    of Usenet news messages, including header and body, is
+    3 Kbytes. When thousands of such articles are sent out by
+    NNTP, the sending server has to send the message ID of the
+    first article, then wait for the receiving server to respond
+    with a ``yes'' or ``no.'' Once the sending server gets the
+    ``yes'', it sends out that article, and waits for an ``ok''
+    from the receiving server. Then it sends out the message ID
+    of the second article, and waits for another ``yes'' or
+    ``no.'' And so on. The TCP sliding window never gets to do
+    its job.  </P
+><P
+>    This sub-optimal use of TCP's data pumping ability, coupled with
+    the absence of compression, make for a protocol which is great
+    for synchronous connectivity, <EM
+>e.g.</EM
+> for news
+    reading or real-time
+    updates, but very poor for batched transfer of data which can be
+    delayed and pumped out. All these are precisely reversed in the
+    case of UUCP over TCP.</P
+><P
+>    To decide which protocol, UUCP over TCP or NNTP, is appropriate
+    for your server, you must address two questions:</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+> 
+    How much time can your server afford to wait from the time
+    your upstream server receives an article to the time it
+    passes it on to you?</P
+></LI
+><LI
+><P
+> 
+    Are you receiving the same set of hierarchies from multiple
+    next-door neighbour servers, <EM
+>i.e.</EM
+> is your
+    newsfeed flow pattern a mesh instead of a tree?</P
+></LI
+></OL
+><P
+>    If your answers to the two questions above are ``messages cannot
+    wait'' and ``we operate in a mesh'', then NNTP is the correct
+    protocol for your server to receive its primary feed(s). </P
+><P
+>    In most cases, carrier-class servers operated by major service
+    providers do not want to accept even a minute's delay from the
+    time they receive an article to the time they retransmit it out.
+    They also operate in a mesh with other servers operated by their
+    own organisations (<EM
+>e.g.</EM
+> for redundancy) or
+    others. They usually
+    sit very close to the Internet backbone,
+    <EM
+>i.e.</EM
+> with Tier 1 ISPs,
+    and have extremely fast Internet links, usually more than
+    10 Mbits/sec. The amount of data that flows out of such servers
+    in outgoing feeds is more than the amount that comes in, because
+    each incoming article is retained, not for local consumption,
+    but for retransmission to others lower down in the flow. And
+    these servers boast of a retransmission latency of less than 30
+    seconds, <EM
+>i.e.</EM
+> I will retransmit an article
+    to you within 30 seconds of my having received it.  </P
+><P
+>    However, if your server is used by a company for making Usenet
+    news available for its employees, or by an institute to make the
+    service available for its students and teachers, then you are
+    not operating your server in a mesh pattern, nor do you mind it
+    if messages take a few hours to reach you from your upstream
+    neighbour. </P
+><P
+>    In that case, you have enormous bandwidth to conserve by moving
+    to UUCP.  Even if, in this Internet-dominated era, you have no
+    one to supply you with a newsfeed using dialup point-to-point
+    links, you can pick up a compressed batched newsfeed using UUCP
+    over TCP, over the Internet.  </P
+><P
+>    In this context, we want to mention Taylor UUCP, an excellent
+    UUCP implementation available under GNU GPL. We use this UUCP
+    implementation in preference to the bundled UUCP systems offered
+    by commercial Unix vendors even for dialup connections, because
+    it is far more stable, high performance, and always supports
+    file transfer restart. Over TCP/IP, Taylor is the only one we
+    have tried, and we have no wish to try any others.  </P
+><P
+>    Apart from its robustness, Taylor UUCP has one invaluable
+    feature critical to large Usenet batch transfers: file transfer
+    restart. If it is transferring a 10 MB batch, and the connection
+    breaks after 8 MB, it will restart precisely where it left off
+    last time. Therefore, no bytes of bandwidth are wasted, and
+    queues never get stuck forever.  </P
+><P
+>    Over NNTP, since there is no batching, transfers happen one
+    article at a time. Considering the (relatively) small size of an
+    article compared to multi-megabyte UUCP batches, one would
+    expect that an article would never pose a major problem while
+    being transported; if it can't be pushed across in one attempt,
+    it'll surely be copied the next time.  However, we have
+    experienced entire NNTP feeds getting stuck for days on end
+    because of one article, with logs showing the same article
+    breaking the connection over and over again while being
+    transferred <A
+NAME="AEN1281"
+HREF="#FTN.AEN1281"
+>[1]</A
+>. Some rare articles can be
+    more than a megabyte in size, particularly in
+    <TT
+CLASS="LITERAL"
+>comp.binaries</TT
+>. In each such incident, we have
+    had to manually edit the queue file on the transmitting server
+    and remove the offending article from the head of the queue.
+    Taylor UUCP, on the other hand, has never given us a single
+    hiccup with blocked queues.  </P
+><P
+>    We feel that the overwhelming majority of servers offering the
+    Usenet news service are at the leaf nodes  of the Usenet news
+    flow, not at the heart. These servers are usually connected in a
+    tree, with each server having one upstream ``parent node'', and
+    multiple downstream ``child nodes.'' These servers receive their
+    bulk incoming feed from their upstream server, and their users
+    can tolerate a delay of a few hours for articles to move in and
+    out. If your server is in this class, we feel you should
+    consider using UUCP over TCP and transfer compressed batches.
+    This will minimise bandwidth usage, and if you operate using
+    dialup Internet connections, it will directly reduce your
+    expenses.  </P
+><P
+>    A word about the link between mesh-patterned newsfeed flow and
+    the need to use NNTP. If your server is receiving primary ---
+    as against trickle --- feeds from multiple next-door neighbours,
+    then you have to use NNTP to receive these feeds. The reason
+    lies in the way UUCP batches are accepted. UUCP batches are
+    received in their entirety into your server, and then they are
+    uncompressed and processed. When the sending server is giving
+    you the batch, it is not getting a chance to go through the
+    batch article by article and ask your server whether you have or
+    don't have each article. This way, if multiple servers give you
+    large feeds for the same hierarchies, then you will be bound to
+    receive multiple copies of each article if you go the UUCP way.
+    All the gains of compressed batches will then be neutralised.
+    NNTP's <TT
+CLASS="LITERAL"
+>IHAVE</TT
+> and <TT
+CLASS="LITERAL"
+>SENDME</TT
+>
+    dialogue in effect
+    permits precisely this double-check for each article, and thus
+    you don't receive even a single  article twice. </P
+><P
+>    For Usenet servers which connect to the Internet periodically
+    using dialup connections to fetch news, the UUCP option is
+    especially important. Their primary incoming newsfeed cannot be
+    pushed into them using queued NNTP feeds for reasons described
+    in the above <A
+HREF="x64.html#DIALUPNONNTP"
+>paragraph</A
+>
+    These
+    hapless servers are usually forced to pull out their articles
+    using a pull NNTP feed, which is often very slow. This may lead
+    to long connect times, repeat attempts after every line break,
+    and high Internet connection charges.  </P
+><P
+>    On the other hand, we have been using UUCP over TCP and
+    <TT
+CLASS="LITERAL"
+>gzip</TT
+>'d batches for more than five years now
+    in a variety of sites. Even today, a full feed of all eight
+    standard hierarchies, plus the full
+    <TT
+CLASS="LITERAL"
+>microsoft</TT
+>, <TT
+CLASS="LITERAL"
+>gnu</TT
+>
+    and <TT
+CLASS="LITERAL"
+>netscape</TT
+> hierarchies, minus 
+    <TT
+CLASS="LITERAL"
+>alt</TT
+> and <TT
+CLASS="LITERAL"
+>comp.binaries</TT
+>, can
+    comfortably be handled in just a few hours of connect time every
+    night, dialing up to the 
+    Internet at 33.6 or 56 Kbits/sec. We believe that the proverbial
+    `full feed' with all hierarchies including
+    <TT
+CLASS="LITERAL"
+>alt</TT
+> can be handled comfortably with a 24-hour
+    link at 56 Kbits/sec, provided you forget about NNTP feeds. We
+    usually get compression ratios of 4:1 using
+    <TT
+CLASS="LITERAL"
+>gzip -9</TT
+> on our news batches, incidentally. </P
+></DIV
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="AEN1299">12.2. C-News+NNTPd or INN?</H2
+><P
+>INN and CNews are the two most popular free software implementations
+of Usenet news. Of these two, we prefer CNews, primarily because
+we have been using it across a very large range of Unixen for more
+than one decade, starting from its earliest release --- the so-called
+``Shellscript release'' --- and we have yet to see a need to
+change.<A
+NAME="AEN1302"
+HREF="#FTN.AEN1302"
+>[2]</A
+></P
+><P
+>We have seen INN, and we are not comfortable with a software
+implementation which puts in so much of functionality inside one
+executable. This reminds us of Windows NT, Netscape Communicator,
+and other complex and monolithic systems, which make us uncomfortable
+with their opaqueness. We feel that CNews' architecture, which comprises
+many small programs, intuitively fits into the Unix approach of building
+large and complex systems, where each piece can be understood, debugged,
+and if needed, replaced, individually.</P
+><P
+>Secondly, we seem to see the move towards INN accompanied by a move
+towards NNTP as a primary newsfeed mechanism. This is no fault of INN;
+we suspect it is a sort of cultural difference between INN users and
+CNews users.  We find the issue of UUCP versus NNTP for batched newsfeeds
+a far more serious issue than the choice of CNews versus INN. We simply
+cannot agree with the idea that NNTP is an appropriate protocol for bulk
+Usenet feeds for most sites. Unfortunately, we seem to find that most
+sites which are more comfortable using INN seem to also prefer NNTP over
+UUCP, for reasons not clear to us.</P
+><P
+>Our comments should not be taken as expressing any reservation about
+INN's quality or robustness. Its popularity is testimony to its
+quality; it most certainly ``gets the job done'' as well as anything
+else. In addition, there are a large number of commercial Usenet news
+server implementations which have started with the INN code; we do not
+know of any which have started with the CNews code. The Netwinsite DNews
+system and the Cyclone Typhoon, we suspect, both are INN-spired.</P
+><P
+>We will recommend CNews and NNTPd over INN, because we are more
+comfortable with the CNews architecture for reasons given above, and we
+do not run carrier-class sites. We will continue to support, maintain and
+extend this software base, at least for Linux.  And we see no reason for
+the overwhelming majority of Usenet sites to be forced to use anything
+else. Your viewpoints welcome.</P
+><P
+>Had we been setting up and managing carrier-class sites with their
+near-real-time throughput requirements, we would probably not have
+chosen CNews. And for those situations, our opinion of NNTP versus
+compressed UUCP has been discussed in <A
+HREF="x1243.html#FEEDEFFICIENCY"
+>Section 12.1</A
+>&#62;</P
+><P
+>Suck and Leafnode have their place in the range of options, where they
+appear to be attractive for novices who are intimidated by the ``full
+blown'' appearance of CNews+NNTPd or INN. However, we run CNews + NNTPd
+even on Linux laptops. We suspect INN can be used this way too. We do
+not find these ``full blown'' implementations any more resource
+hungry than their simpler cousins. Therefore, other than administration
+and configuration familiarity, we don't see any other reason why even a
+solitary end-user will choose Leafnode or Suck over CNews+NNTPd. As
+always, contrary opinions invited.</P
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN1281"
+HREF="x1243.html#AEN1281"
+>[1]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>    This lack of a restart facility is something NNTP shares with
+    its older cousin, SMTP, and we have often seen email messages
+    getting stuck in a similar fashion over flaky data links. In
+    many such networks which we manage for our clients, we have
+    moved the inter-server mail transfer to Taylor UUCP, using UUCP
+    over TCP.</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN1302"
+HREF="x1243.html#AEN1302"
+>[2]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>One of us did his first installation with with BNews,
+actually, at the IIT Mumbai. Then we rapidly moved from there to CNews
+Shellscript Release, then CNews Performance Release, CNews Cleanup
+Release, and our current release has fixed some bugs in the latest
+Cleanup Release.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x1208.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="softwarehistory.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Usenet news clients</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Usenet software: a historical perspective</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

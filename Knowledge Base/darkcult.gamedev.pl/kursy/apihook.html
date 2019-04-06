@@ -1,0 +1,409 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Haki</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+
+<style type="text/css">
+<!--
+body { color: #000000; background-color: #000000; }
+.cpp1-assembler { color: #00FF00; }
+.cpp1-character { color: #FF00FF; }
+.cpp1-comment { color: #969696; font-style: italic; }
+.cpp1-float { color: #FF00FF; }
+.cpp1-hexadecimal { color: #FF00FF; }
+.cpp1-identifier { color: #00FF00; }
+.cpp1-illegalchar { background-color: #800000; color: #FF0000; }
+.cpp1-number { color: #FF00FF; }
+.cpp1-octal { color: #FF00FF; }
+.cpp1-preprocessor { color: #00FF00; }
+.cpp1-reservedword { color: #3366FF; font-weight: bold; }
+.cpp1-space { background-color: #464646; color: #FFFFFF; }
+.cpp1-string { color: #FF00FF; }
+.cpp1-symbol { color: #FFFF00; }
+-->
+</style>
+
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>Haki</H1>
+
+<P>
+Enkapsulacja różnych niskopoziomowych operacji w funkcjach Windows API to dla programistów niewątpliwie dobra rzecz. Dzieki temu nie musimy się na przykład grzebać w dokumentacji naszego hardware'u i martwić o to, czy nasz program uruchomi się na innych konfiguracjach sprzętowych (to ostatnie oczywiście nie do końca jest prawdą, ale z pewnością bez WinAPI byłoby pod tym względem dużo, dużo gorzej).
+</P>
+<P>
+Jednak zdarzają się sytuacje, że ta enkapsulacja jest dla nas niemałą przeszkodą. Czasem chciałoby się dostać do &quot;bebechów&quot; Windowsa i trochę pozmieniać jego działanie. W jednej z poprzednich części tego kursu poznaliśmy takie techniki, jak subclassing i superclassing, pozwalające przede wszystkim dokonać pewnych zmian w kontrolkach. Miały one jednak dość wąskie pole zastosowań i sporo ograniczeń. Na szczęście nie są jedynym, co w tej sprawie może nam przyjść z pomocą.
+</P>
+<P>
+Haki (ang. <span class=Inglisz>hooks</span>) to takie miejsca w mechanizmie komunikatów, w których możemy &quot;podstawić&quot; własną procedurę, przechwytującą te komunikaty, zanim dotrą one do swojej docelowej procedury okna. Owa &quot;własna procedura&quot; może sama podejmować decyzję, co z takim komunikatem zrobić. Przede wszystkim - może go przesłać dalej (do docelowej procedury okna) lub też unicestwić. Może również wyciągać różne informacje z komunikatu i wykorzystywać ich do własnych, cnych lub niecnych, celów :-).
+</P>
+<P>
+Przykładowe użycie takiego mechanizmu możemy zaobserwować w znanym i (z konieczności) lubianym komunikatorze GG. Jak powszechnie wiadomo, gdy wyjdziemy na kawę, słoneczko na ikonie programu zachodzi za chmurkę. Skąd GG wie, że użytkownik gdzieś polazł? Oczywiście musi założyć globalny hak, monitorujący komunikaty klawiatury i myszy - jeśli przez określony czas nie przyjdzie żaden taki komunikat, GG uznaje, że użytkownik &quot;zaraz wraca&quot;. I rzeczywiście, w katalogu z programem znajdziemy plik gghook.exe - niewątpliwie zawiera on procedurę hakową, o której zaraz się dowiemy coś więcej.
+</P>
+<P>
+Zanim przejdziemy dalej, umówmy się jeszcze, że odtąd dla uproszczenia hakiem będziemy zwali samą procedurę, która przechwytuje &quot;cudze&quot; komunikaty systemowe.
+</P>
+<P>
+
+</p>
+
+<H2>
+Rodzaje haków
+</H2>
+
+<P>
+Nie ma jednego uniwersalnego haka, który potrafiłby przechwycić każdy komunikat. Zależnie od potrzeb musimy sobie wybrać odpowiedni rodzaj:
+</P>
+<UL>
+<li> <span class=Wazne>WH_CALLWNDPROC</span> oraz <span class=Wazne>WH_CALLWNDPROCRET</span> - pozwalają monitorować komunikaty przeznaczone dla konkretnej procedury okna. WH_CALLWNDPROC przechwytuje komunikat przed jego dotarciem do procedury okna, WH_CALLWNDPROCRET - po.
+
+<li> <span class=Wazne>WH_CBT</span> - nazwa pochodzi od computer-based training (CBT), czyli komputerowej edukacji, dla którego to rodzaju aplikacji przede wszystkim powstał ten hak. W każdym razie hak WH_CBT pozwala przechwytywać komunikaty przed utworzeniem, zniszczeniem, minimalizacją, maksymalizacją, przeniesieniem, zmianą rozmiaru (uff...) okna, przed wykonaniem polecenia systemowego, przed zdjęciem komunikatu myszy lub klawiatury z kolejki komunikatów, przed ustawieniem fokusa oraz przed synchronizacją kolejki komunikatów. Dzięki temu możemy określić, czy nasza aplikacja &quot;pozwala&quot; na te operacje czy też nie. Teraz już co niektórzy mogą kojarzyć - tak, wszelkiego rodzaju komputerowe testy, quizy i programy egzaminacyjne korzystają z tego, by zablokować biednym studentom dostęp do pomocy naukowych ;-).
+
+<li> <span class=Wazne>WH_DEBUG</span> - ten hak wywoływany jest zawsze przed wszystkimi innymi hakami, więc można go użyć do &quot;odpluskwiania&quot; innych haków
+
+<li> <span class=Wazne>WH_FOREGROUNDIDLE</span> - hak pozwalający nam wykonywać różne zadania w tle, gdy system wykryje, że pierwszoplanowy wątek nic w danej chwili nie robi
+
+<li> <span class=Wazne>WH_GETMESSAGE</span> - pozwala przechwycić komunikat, który właśnie ma być zwrócony przez GetMessage lub PeekMessage (w przeciwieństwie do WH_CALLWNDPROC, który przechwytuje komunikat już po wywołaniu DispatchMessage). To jest właśnie najbardziej zalecany hak do przechwytywania komunikatów związanych z myszą i klawiaturą
+
+<li> <span class=Wazne>WH_JOURNALPLAYBACK</span> - ciekawy hak, który umożliwia odtworzenie &quot;nagranych&quot; wcześniej zdarzeń wejściowych (np. ruchu myszy). Jest to hak globalny, dotyczący wszystkich wątków w systemie.
+
+<li> <span class=Wazne>WH_JOURNALRECORD</span> - &quot;nagrywa&quot; zdarzenia do późniejszego wykorzystania przez WH_JOURNALPLAYBACK; oczywiście to również jest hak globalny
+
+<li> <span class=Wazne>WH_KEYBOARD_LL</span> - przechwytuje niskopoziomowe (low-level) zdarzenia, wywołane przez klawiaturę
+
+<li> <span class=Wazne>WH_KEYBOARD</span> - przechwytuje wysokopoziomowe zdarzenia klawiatury (jest to więc wyspecjalizowany wariant haka WH_GETMESSAGE)
+
+<li> <span class=Wazne>WH_MOUSE_LL</span> - przechwytuje niskopoziomowe zdarzenia myszy
+
+<li> <span class=Wazne>WH_MOUSE</span> - przechwytuje wysokopoziomowe zdarzenia myszy (kolejna wyspecjalizowana wersja WH_GETMESSAGE)
+
+<li> <span class=Wazne>WH_MSGFILTER</span> oraz <span class=Wazne>WH_SYSMSGFILTER</span> - dzięki tym hakom możemy monitorować komunikaty pochodzące z menu, pasków przewijania, message box'ów oraz okien dialogowych. Możemy też wykrywać aktywację okna przy pomocy Alt+Tab lub Alt+Esc. Normalnie nie możemy tego wszystkiego zrobić, gdy wykonywana jest jakakolwiek pętla modalna (np. wewnętrzna pętla message box'a). WH_SYSMSGFILTER ma działanie globalne, zaś WH_MSGFILTER dotyczy jedynie aplikacji, która zainstalowała hak
+
+<li> wreszcie <span class=Wazne>WH_SHELL</span> został stworzony po to, byśmy w aplikacji shell'owej (jeśli takową piszemy) mogli otrzymywać istotne powiadomienia systemowe. Domyślnie jest to aktywacja aplikacji shell'owej oraz utworzenie/zniszczenie jej głównego okna.
+</ul>
+
+<p>
+W tym momencie może się jeszcze wydawać, że większość wymienionych rodzajów haków wzajemnie duplikuje swoją funkcjonalność i co za tym idzie, jest to tylko niepotrzebna nadmiarowość wyboru. Zauważmy jednak, że niemal każdy hak działa na nieco innym poziomie w
+indowsowego mechanizmu komunikatów. W prostych przypadkach najczęściej nie ma dużej różnicy, jakiego haka użyjemy, jednak docenisz tę różnorodność, gdy tylko spróbujesz napisać coś naprawdę złożonego :-).
+</P>
+<h2>
+Przykład - przechwytywanie klawiszy
+</h2>
+<P>
+Pora zrobić wreszcie coś konkretnego z hakami. Zacznijmy od przechwytywania klawiatury. Normalnie obsługujemy ją przez komunikaty w rodzaju WM_KEYDOWN. Takie komunikaty generuje dla nas system, często po wielu dość skomplikowanych manewrach. W wyniku tych manewrów czasami dostajemy już jakieś zdarzenie wyższego poziomu. I tak na przykład wciśnięcie kombinacji Alt+F4 zamknie nasze okno i nie będziemy mieli szansy obsłużenia tego przez WM_KEYDOWN. Chyba, że założymy odpowiedni hak:
+</P>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">HHOOK g_MyHook = NULL;
+
+</span></span>
+</code>
+<P>
+Funkcja SetWindowsHookEx założy hak i zwróci do niego uchwyt. Powinniśmy ją wywołać tam, gdzie wykonujemy inicjalizację naszej aplikacji - np. po stworzeniu głównego okna:
+</P>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">g_MyHook = SetWindowsHookEx (WH_KEYBOARD, &amp;AltF4Proc, NULL, GetThreadId (GetCurrentThread()));
+</span></span>
+</code>
+<P>
+Tutaj skojarzyliśmy nasz hak tylko z bieżącym wątkiem. Możemy jednak również tworzyć globalne haki, tyle że takie musimy umieszczać wewnątrz DLL.
+</P>
+<P>
+Od razu, żeby nie zapomnieć, zadbamy o usunięcie haka w momencie zakończenia naszej aplikacji:
+</P><pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">case</span><span class="cpp1-space"> </span><span class="cpp1-identifier">WM_DESTROY</span><span class="cpp1-symbol">:</span><span class="cpp1-space">	    
+     </span><span class="cpp1-identifier">UnhookWindowsHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">g_MyHook</span><span class="cpp1-symbol">);</span><span class="cpp1-space">		
+     </span><span class="cpp1-identifier">PostQuitMessage</span><span class="cpp1-symbol">(</span><span class="cpp1-number">0</span><span class="cpp1-symbol">);</span><span class="cpp1-space">		
+</span><span class="cpp1-reservedword">break</span><span class="cpp1-symbol">;
+</span></span>
+</code></pre>
+<P>
+Teraz najważniejszy etap zabawy, czyli stworzenie procedury hakowej. Jej deklaracja wygląda u nas tak:
+</P>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">LRESULT</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CALLBACK</span><span class="cpp1-space"> </span><span class="cpp1-identifier">AltF4Proc</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">WPARAM</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">LPARAM</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+<P>
+Jak widać, jest całkiem podobna do procedury okna i nie jest to przypadkowe podobieństwo. Pełniona przez nią rola to również obsługa przychodzących komunikatów, różni się właściwie tylko momentem, w którym te komunikaty obsługujemy.
+</P>
+<P>
+Jak się zająć komunikatem, który już dotrze do naszej procedury hakowej? Przede wszystkim musimy zbadać wartość parametru code. Jeśli jest ona mniejsza od 0, to powinniśmy zrezygnować z dalszego przetwarzania i od razu wywołać CallNextHookEx() i zwrócić wartość od niej otrzymaną. Jak się być może domyślasz, funkcja CallNextHookEx() woła kolejną procedurę hakową typu WH_KEYBOARD, o ile taka została zainstalowana. Wywoływanie tej funkcji pozwala więc na współdziałanie wielu haków, pochodzących z różnych aplikacji.
+</P>
+<P>
+Jeśli code jest większe lub równe 0, to możemy normalnie obsłużyć komunikat. Załóżmy, że chcemy aby nasza aplikacja po wciśnięciu Alt+F4 nie zamykała się, tylko wyświetlała jakąś wiadomość. Musimy sprawdzić, czy klawisz którego dotyczy komunikat to F4 oraz dodatkowo czy wciśnięto prawy Alt. Parametr wParam zawiera kod wirtualnego klawisza, zaś lParam dodatkowe flagi - nas interesuje bit numer 29, ustawiony gdy naciśnięto Alt. Maska bitowa odpowiadająca tej fladze to 536870912 (czyli 2^29). Czynimy więc następująco:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">LRESULT</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CALLBACK</span><span class="cpp1-space"> </span><span class="cpp1-identifier">AltF4Proc</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">WPARAM</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">LPARAM</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">)
+{
+</span><span class="cpp1-space">    </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">code</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CallNextHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">);
+
+</span><span class="cpp1-space">    </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">wParam</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">VK_F4</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&amp;&amp;</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">lParam</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&amp;</span><span class="cpp1-space"> </span><span class="cpp1-number">536870912</span><span class="cpp1-symbol">))</span><span class="cpp1-space">    
+    </span><span class="cpp1-symbol">{
+</span><span class="cpp1-space">        </span><span class="cpp1-identifier">MessageBox</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">hwnd</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-string">&quot;Nie zamkniesz mnie tak łatwo!&quot;</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">NULL</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">MB_ICONEXCLAMATION</span><span class="cpp1-symbol">);</span><span class="cpp1-space">        
+        </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">;</span><span class="cpp1-space">    
+    </span><span class="cpp1-symbol">}
+
+</span><span class="cpp1-space">    </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CallNextHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">);
+}
+</span></span>
+</code></pre>
+<P>
+Skoro już przekonaliśmy się, że użytkownik nacisnął Alt+F4, to pokazujemy naszą głupią wiadomość i zwracamy wartość niezerową, co oznacza, że obsłużyliśmy komunikat i nie chcemy przekazywać go dalej. To powoduje, że jest on &quot;konsumowany&quot; i że użytkownik nie będzie mógł w ten sposób zamknąć okna (za to nadal może kliknąć przycisk &quot;X&quot;).
+</P>
+<h2>
+Przykład - odtwarzanie akcji
+</h2>
+<P>
+Teraz coś jeszcze zabawniejszego. Wykorzystamy parę haków WH_JOURNALRECORD i WH_JOURNALPLAYBACK, by odtworzyć dokładnie czynności, które przed chwilą wykonał użytkownik.
+</P>
+<P>
+Najpierw musimy te czynności zarejestrować, instalując hak WH_JOURNALRECORD. Ponieważ jest to hak globalny, umieścimy kod jego procedury w bibliotece DLL. Nie jest to wprawdzie obowiązkowe dla WH_JOURNALRECORD, ale już dla WH_JOURNALPLAYBACK - owszem, więc żeby mieć wszystko w jednym miejscu, zarówno procedurę dla WH_JOURNALRECORD, jak i dla WH_JOURNALPLAYBACK wrzucimy do DLL.
+</P>
+<P>
+Tworzenie DLL omówione jest w odpowiednim artykule, więc nie będziemy się powtarzać. Zaczynamy od niezbędnych deklaracji:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-preprocessor">#include &lt;vector&gt;
+</span><span class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">std</span><span class="cpp1-symbol">;
+
+</span><span class="cpp1-identifier">vector</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">EVENTMSG</span><span class="cpp1-symbol">&gt;
+</span><span class="cpp1-identifier">g_Events</span><span class="cpp1-symbol">;
+</span><span class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-symbol">;
+</span><span class="cpp1-reservedword">bool</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_PlaybackStopped</span><span class="cpp1-symbol">;
+</span><span class="cpp1-identifier">HHOOK</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_RecordHook</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">NULL</span><span class="cpp1-symbol">;
+</span><span class="cpp1-identifier">HHOOK</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_PlaybackHook</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">NULL</span><span class="cpp1-symbol">;
+</span><span class="cpp1-identifier">DWORD</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_StartTime</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;
+</span><span class="cpp1-identifier">HINSTANCE</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_hInst</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">NULL</span><span class="cpp1-symbol">;
+</span></span>
+</code></pre>
+<P>
+Wszystkie akcje wykonywane przez użytkownika będziemy przechowywać w wektorze z STL - nazwiemy go g_Events. Zmienna g_CurrentEvent będzie wykorzystana przy odtwarzaniu i będzie przechowywać numer aktualnie odtwarzanego zdarzenia (coś jakby numer klatki w animacji). Zmienną g_PlaybackStopped deklarujemy na wszelki wypadek, by nie przekroczyć zakresu tablicy g_Events. Dalej mamy uchwyty do naszych dwóch haków g_RecordHook i g_PlaybackHook - musimy je pamiętać, by móc usunąć haki, gdy przestaną być potrzebne (jak w poprzednim rozdziale).
+</P>
+<P>
+W zmiennej g_StartTime będziemy przechowywać czas, w którym rozpoczęliśmy nagrywanie / odtwarzanie. Wyjaśnimy później, po co tak robimy. Wreszcie w g_hInst zapamiętamy sobie uchwyt do modułu DLL, który uzyskamy jako parametr z funkcji DllMain, wyglądającej mniej więcej tak:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">BOOL</span><span class="cpp1-space"> </span><span class="cpp1-identifier">APIENTRY</span><span class="cpp1-space"> </span><span class="cpp1-identifier">DllMain</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">HMODULE</span><span class="cpp1-space"> </span><span class="cpp1-identifier">hModule</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">DWORD</span><span class="cpp1-space"> </span><span class="cpp1-identifier">ul_reason_for_call</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">LPVOID</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lpReserved</span><span class="cpp1-symbol">)
+{
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">g_hInst</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">hModule</span><span class="cpp1-symbol">;
+
+</span><span class="cpp1-space">    </span><span class="cpp1-reservedword">switch</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">ul_reason_for_call</span><span class="cpp1-symbol">)
+</span><span class="cpp1-space">    </span><span class="cpp1-symbol">{</span><span class="cpp1-space">     
+    </span><span class="cpp1-reservedword">case</span><span class="cpp1-space"> </span><span class="cpp1-identifier">DLL_PROCESS_ATTACH</span><span class="cpp1-symbol">:</span><span class="cpp1-space">     
+    </span><span class="cpp1-reservedword">case</span><span class="cpp1-space"> </span><span class="cpp1-identifier">DLL_THREAD_ATTACH</span><span class="cpp1-symbol">:</span><span class="cpp1-space">     
+    </span><span class="cpp1-reservedword">case</span><span class="cpp1-space"> </span><span class="cpp1-identifier">DLL_THREAD_DETACH</span><span class="cpp1-symbol">:</span><span class="cpp1-space">     
+    </span><span class="cpp1-reservedword">case</span><span class="cpp1-space"> </span><span class="cpp1-identifier">DLL_PROCESS_DETACH</span><span class="cpp1-symbol">:</span><span class="cpp1-space">     
+    </span><span class="cpp1-reservedword">break</span><span class="cpp1-symbol">;</span><span class="cpp1-space">    
+    </span><span class="cpp1-symbol">}
+</span><span class="cpp1-space">    
+    </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">TRUE</span><span class="cpp1-symbol">;
+}
+</span></span>
+</code></pre>
+<P>
+Jeśli nie wyjaśniliśmy sobie tego w którymś z pozostałych odcinków kursu WinAPI, to zróbmy to teraz: uchwyty typu HMODULE i HINSTANCE są praktycznie tożsame, dlatego możemy bez obaw przypisać jeden do drugiego, tak jak to czynimy powyżej. Uchwyt taki będzie nam potrzebny do założenia haków.
+</P>
+<P>
+Teraz musimy napisać procedury hakowe. Zaczniemy oczywiście od procedury &quot;nagrywającej&quot; - u nas będzie się ona nazywać RecordProc:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">DLL_API</span><span class="cpp1-space"> </span><span class="cpp1-identifier">LRESULT</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CALLBACK</span><span class="cpp1-space"> </span><span class="cpp1-identifier">RecordProc</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">WPARAM</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">LPARAM</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">)
+{</span><span class="cpp1-space">    
+     </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">code</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CallNextHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">);</span><span class="cpp1-space">        
+     
+     </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">code</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">HC_ACTION</span><span class="cpp1-symbol">)</span><span class="cpp1-space">    
+     </span><span class="cpp1-symbol">{</span><span class="cpp1-space">        
+          </span><span class="cpp1-identifier">EVENTMSG</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">msg</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">EVENTMSG</span><span class="cpp1-symbol">*)</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">          </span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">time</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_StartTime</span><span class="cpp1-symbol">;</span><span class="cpp1-space">        
+          </span><span class="cpp1-identifier">g_Events</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">push_back</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(*</span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">);
+</span><span class="cpp1-space">          </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;</span><span class="cpp1-space">            
+     </span><span class="cpp1-symbol">}
+
+</span><span class="cpp1-space">     </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CallNextHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">);
+}
+</span></span>
+</code></pre>
+<P>
+Działanie makra DLL_API jest opisane w odcinku o DLL, więc nie musimy tutaj tego tłumaczyć. Zajmijmy się ważniejszymi w tej chwili sprawami. Generalnie procedura dla haka &quot;nagrywającego&quot; jest wołana przede wszystkim wtedy, gdy z kolejki komunikatów zdejmowany jest jakiś komunikat. Wtedy parametr code jest równy HC_ACTION, a lParam zawiera wskaźnik do struktury typu EVENTMSG, która opisuje ten komunikat. Struktura ta zawiera między innymi pole time, które oznacza czas wysłania opisywanego przez strukturę komunikatu. Jest to czas bezwględny, więc nic nam po nim - odtwarzanie może równie dobrze mieć miejsce kilka godzin po nagraniu, albo... kilka godzin wcześniej, bo czas jest tutaj liczony w &quot;tyknięciach&quot; zegara systemowego od momentu uruchomienia systemu, a więc gdybyśmy chcieli odtworzyć zdarzenia zapisane w takiej strukturze po zresetowaniu komputera, to mogłoby się okazać, że zostały one nagrane &quot;w przyszłości&quot;. Dlatego lepiej jest liczyć czas względem rozpoczęcia nagrywania i dlatego też odejmujemy wartość zmiennej g_StartTime (w momencie rozpoczęcia nagrywania, a także odtwarzania, musimy tę zmienną ustawić na aktualny czas systemowy). Po tej operacji po prostu dodajemy strukturę wskazywaną przez lParam do wektora i zwracamy dowolną wartość (jest w tym przypadku ignorowana). Poza tymi szczegółami procedura RecordProc działa podobnie jak wszystkie inne procedury hakowe - te ogólne zasady ich bytowania już omówiliśmy wcześniej.
+</P>
+<P>
+Warto wiedzieć, że oprócz HC_ACTION procedura &quot;nagrywająca&quot; może zostać wywołana również z innymi parametrami. Tutaj je ignorujemy dla uproszczenia, jednak jeśli chcemy napisać w 100% poprawną procedurę hakową, powinniśmy je oczywiście uwzględnić - po detale odsyłam do dokumentacji Platform SDK.
+</P>
+<P>
+Teraz pora na drugą procedurę - &quot;odtwarzającą&quot;:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">DLL_API</span><span class="cpp1-space"> </span><span class="cpp1-identifier">LRESULT</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CALLBACK</span><span class="cpp1-space"> </span><span class="cpp1-identifier">PlaybackProc</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">WPARAM</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">LPARAM</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">)
+{
+</span><span class="cpp1-space">    </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">code</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CallNextHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">code</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wParam</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">);
+</span><span class="cpp1-space">    
+    </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">code</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">HC_GETNEXT</span><span class="cpp1-symbol">)
+</span><span class="cpp1-space">    </span><span class="cpp1-symbol">{</span><span class="cpp1-space">        
+    
+        </span><span class="cpp1-identifier">EVENTMSG</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">msg</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">EVENTMSG</span><span class="cpp1-symbol">*)</span><span class="cpp1-space"> </span><span class="cpp1-identifier">lParam</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">        </span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">hwnd</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_Events</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-symbol">].</span><span class="cpp1-identifier">hwnd</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">        </span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">message</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_Events</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-symbol">].</span><span class="cpp1-identifier">message</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">        </span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">paramH</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_Events</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-symbol">].</span><span class="cpp1-identifier">paramH</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">        </span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">paramL</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_Events</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-symbol">].</span><span class="cpp1-identifier">paramL</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">        </span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">time</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_StartTime</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_Events</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-symbol">].</span><span class="cpp1-identifier">time</span><span class="cpp1-symbol">;</span><span class="cpp1-space">    
+            
+        </span><span class="cpp1-identifier">DWORD</span><span class="cpp1-space"> </span><span class="cpp1-identifier">delta</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">time</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-identifier">GetTickCount</span><span class="cpp1-symbol">();
+</span><span class="cpp1-space">        
+        </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">delta</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)
+</span><span class="cpp1-space">            </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">delta</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">        </span><span class="cpp1-reservedword">else
+</span><span class="cpp1-space">            </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;</span><span class="cpp1-space">                     
+    </span><span class="cpp1-symbol">}
+</span><span class="cpp1-space">    </span><span class="cpp1-reservedword">else</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">code</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">HC_SKIP</span><span class="cpp1-symbol">)
+</span><span class="cpp1-space">    </span><span class="cpp1-symbol">{
+</span><span class="cpp1-space">        </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(!</span><span class="cpp1-identifier">g_PlaybackStopped</span><span class="cpp1-symbol">)
+</span><span class="cpp1-space">            </span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-symbol">++;
+</span><span class="cpp1-space">            
+        </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_Events</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">size</span><span class="cpp1-symbol">())
+</span><span class="cpp1-space">        </span><span class="cpp1-symbol">{
+</span><span class="cpp1-space">            </span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">            </span><span class="cpp1-identifier">g_StartTime</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">GetTickCount</span><span class="cpp1-symbol">();
+</span><span class="cpp1-space">            </span><span class="cpp1-identifier">g_PlaybackStopped</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">            </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">        </span><span class="cpp1-symbol">}
+</span><span class="cpp1-space">    </span><span class="cpp1-symbol">}
+</span><span class="cpp1-space">    
+    </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;
+}
+</span></span>
+</code></pre>
+<P>
+Tutaj mamy do obsłużenia co najmniej dwie sytuacje. Pierwsza zachodzi wtedy, gdy parametr code jest równy HC_SKIP i wtedy musimy, zgodnie z dokumentacją, &quot;przygotować następny komunikat do kopiowania&quot;. W naszym przypadku oznacza to po prostu zwiększenie licznika g_CurrentEvent. Dodatkowo sprawdzamy, czy przypadkiem nie skończyły się nam komunikaty, zapamiętane w wektorze g_Events. Jeśli tak, to zerujemy licznik, co oznacza, że odtwarzamy wszystko od początku. W ten sposób odtwarzanie będzie trwało w nieskończoność - a przynajmniej do momentu, gdy użytkownik się zniecierpliwi i coś naciśnie :-).
+</P>
+<P>
+Nie jest jednak obojętne, co takiego naciśnie. Klawiatura i mysz są bowiem &quot;wyłączone&quot; w trakcie odtwarzania. Aktywne są jedynie dwie dobrze znane użytkownikom Windows kombinacje specjalne: Ctrl+Esc i Ctrl+Alt+Del. Obie powodują natychmiastowe przerwanie odtwarzania (a także nagrywania) poprzez usunięcie odpowiedniego hooka. Tak więc żadnego dodatkowego kodu przerywającego nie musimy pisać.
+</P>
+<P>
+Drugą akcją, którą musimy wykonać, jest skopiowanie następnej &quot;klatki animacji&quot; (komunikatu do odtworzenia) z tablicy do struktury wskazywanej przez lParam (code == HC_GETNEXT). Znów musimy &quot;poprawić&quot; pole z czasem. Jak pamiętamy, jest on względny, a system operuje w tym przypadku na czasach bezwględnych. Tak więc aby system się nie pogubił, dodajemy mu czas rozpoczęcia odtwarzania (tak - odtwarzania, a nie nagrywania!) do czasu względnego z tablicy.
+</P>
+<P>
+Kolejnym krokiem jest zwrócenie odpowiedniej wartości. Jeśli będzie ona większa od 0, system zostanie &quot;uśpiony&quot; na tę właśnie ilość czasu. Dzięki temu działania będą odtworzone w dokładnie takim tempie, w jakim zostały nagrane. Żeby obliczyć właściwy interwał czasowy, odejmujemy aktualny czas (pobrany za pomocą funkcji GetTickCount()) od czasu jaki właśnie zapisaliśmy w strukturze.
+</P>
+<P class=UWAGA>W systemie Vista występują problemy z odczekiwaniem żądanego czasu. Prawdopodobnie można to obejść, wołając Sleep(), a z procedury &quot;odtwarzającej&quot; zwracając zawsze 0. Nie sprawdziłem tego jednak, więc nie podpisuję się pod tym rozwiązaniem :-).
+</P>
+<P>
+Aby nasze procedury (umieszczone w DLL) były dostępne dla zewnętrznej aplikacji (którą też zaraz sobie napiszemy), musimy je wyeksportować. Albo nasze dwa haki założymy bezpośrednio z DLL, co będzie dużo wygodniejsze. W tym celu stworzymy sobie interfejs w postaci takich oto dwóch funkcji:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">DLL_API</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">StartRecording</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)
+{
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">g_StartTime</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">GetTickCount</span><span class="cpp1-symbol">();
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">g_RecordHook</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">SetWindowsHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">WH_JOURNALRECORD</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">RecordProc</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_hInst</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">);</span><span class="cpp1-space">    
+</span><span class="cpp1-symbol">}
+
+
+</span><span class="cpp1-identifier">DLL_API</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">StartPlayback</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)
+{
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">g_CurrentEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">g_StartTime</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">GetTickCount</span><span class="cpp1-symbol">();
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">g_PlaybackStopped</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">;
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">UnhookWindowsHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">g_RecordHook</span><span class="cpp1-symbol">);</span><span class="cpp1-space">    	        
+    </span><span class="cpp1-identifier">g_PlaybackHook</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">SetWindowsHookEx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">WH_JOURNALPLAYBACK</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">PlaybackProc</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_hInst</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">);</span><span class="cpp1-space">	
+</span><span class="cpp1-symbol">}
+</span></span>
+</code></pre>
+<P>
+Zakładanie haków w DLL różni się od zakładania ich w &quot;zwykłej&quot; aplikacji praktycznie tylko tym, że musimy pamiętać, by przekazać uchwyt do modułu DLL. Już go sobie zapamiętaliśmy w zmiennej g_hInst, więc nie mamy z tym problemu. Obie funkcje ustawiają zmienną g_StartTime na aktualny czas systemowy - zgodnie z tym, co już wcześniej powiedzieliśmy. Dodatkowo StartPlayback zeruje licznik g_CurrentEvent oraz usuwa hak &quot;nagrywający&quot;. 
+</P>
+<P>
+Jedyne, co musimy teraz wyeksportować z DLL, to nasz interfejs - funkcje StartRecording i StartPlayback:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">extern</span><span class="cpp1-space"> </span><span class="cpp1-string">&quot;C&quot;
+</span><span class="cpp1-symbol">{
+</span><span class="cpp1-identifier">DLL_API</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">StartPlayback</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);
+</span><span class="cpp1-identifier">DLL_API</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">StartRecording</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);
+}</span></span></code></pre>
+<P>
+Teraz przechodzimy do napisania aplikacji, która skorzysta z tego DLL. Najpierw kilka globalnych zmiennych:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">typedef</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(*</span><span class="cpp1-identifier">VOIDFN</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);
+
+</span><span class="cpp1-identifier">VOIDFN</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_Play</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">NULL</span><span class="cpp1-symbol">;
+</span><span class="cpp1-identifier">VOIDFN</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_Record</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">NULL</span><span class="cpp1-symbol">;
+</span><span class="cpp1-identifier">HINSTANCE</span><span class="cpp1-space"> </span><span class="cpp1-identifier">g_hInstDLL</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">NULL</span><span class="cpp1-symbol">;</span></span></code></pre>
+<P>
+Wskaźniki g_Play i g_Record będą nam potrzebne, aby zapamiętać w nich adresy dwóch funkcji z DLL, które przed chwilą stworzyliśmy. Ładujemy więc tego DLL-a (załóżmy, że nazwaliśmy go journal.dll i wrzuciliśmy go do katalogu, gdzie jest projekt naszej aplikacji) i te funkcje:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">HINSTANCE</span><span class="cpp1-space"> </span><span class="cpp1-identifier">hInstDLL</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">LoadLibrary</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-string">&quot;journal.dll&quot;</span><span class="cpp1-symbol">);</span><span class="cpp1-space"> 
+</span><span class="cpp1-identifier">g_Play</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">VOIDFN</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-identifier">GetProcAddress</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">hInstDLL</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-string">&quot;StartPlayback&quot;</span><span class="cpp1-symbol">);</span><span class="cpp1-space"> 
+</span><span class="cpp1-identifier">g_Record</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">VOIDFN</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-identifier">GetProcAddress</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">hInstDLL</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-string">&quot;StartRecording&quot;</span><span class="cpp1-symbol">);</span><span class="cpp1-space"> </span></span></code></pre>
+<P>
+Pozostaje już tylko wywołać obydwie funkcje w odpowiednich momentach. Załóżmy, że nagrywanie chcemy rozpocząć klawiszem F2, a odtwarzanie - F3:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">case</span><span class="cpp1-space"> </span><span class="cpp1-identifier">WM_KEYDOWN</span><span class="cpp1-symbol">:
+{
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">wParam</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">VK_F2</span><span class="cpp1-symbol">)
+</span><span class="cpp1-space"> </span><span class="cpp1-symbol">{
+</span><span class="cpp1-space">  </span><span class="cpp1-identifier">g_Record</span><span class="cpp1-symbol">();</span><span class="cpp1-space">    
+ </span><span class="cpp1-symbol">}
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">else</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">wParam</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">VK_F3</span><span class="cpp1-symbol">)
+</span><span class="cpp1-space"> </span><span class="cpp1-symbol">{
+</span><span class="cpp1-space">  </span><span class="cpp1-identifier">g_Play</span><span class="cpp1-symbol">();</span><span class="cpp1-space">		        
+ </span><span class="cpp1-symbol">}</span><span class="cpp1-space">		
+</span><span class="cpp1-symbol">}
+</span><span class="cpp1-reservedword">break</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> 	
+</span></span>
+</code></pre>
+<P>
+Po wciśnięciu F2 możemy sobie teraz wykonać parę ruchów myszą albo powciskać jakieś klawisze (wszystko jedno w jakim programie - hak jest przecież globalny), po czym naciskając F3 sprawimy, że to wszystko zostanie powtórzone. Oczywiście nie zawsze dokładnie - jeśli zamkniemy okno myszą podczas nagrywania, to podczas odtwarzania mysz kliknie już na czymś innym :-).
+</P>
+<P>
+Przydałaby nam się jeszcze jakaś reakcja na zakończenie odtwarzania. Wprawdzie haki - jak już wspomnieliśmy - usuną się automatycznie, ale w pewnych sytuacjach chcielibyśmy wiedzieć, że użytkownik przerwał odtwarzanie, np. jeśli musimy schować jakiś element GUI, na którym wyświetlaliśmy czas odtwarzania.
+</P>
+<P>
+Otóż jeśli odtwarzanie (lub nagrywanie) zostanie przerwane, np. poprzez wciśnięcie Ctrl+Esc, to dostaniemy komunikat WM_CANCELJOURNAL. Jest z nim jednak pewien problem - nie jest skierowany do konkretnej procedury okna, jego parametr hwnd wynosi NULL. Tak więc jeśli umieścimy jego obsługę w procedurze okna, tak jak jesteśmy przyzwyczajeni, to kod ten po prostu się nie wywoła. Są dwa sposoby, aby temu zaradzić. Możemy albo przechwycić ten jeden komunikat &quot;na dziko&quot;, czyli bezpośrednio w pętli komunikatów, albo... założyć następny hak, który to uczyni (WH_GETMESSAGE). To pierwsze rozwiązanie jest oczywiście prostsze, ale nie można z niego skorzystać, jeśli nie mamy w naszym programie własnej głównej pętli. Załóżmy, że nasz programik przykładowy taką posiada i możemy napisać tak:
+</P>
+<pre>
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">while</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">GetMessage</span><span class="cpp1-symbol">(&amp;</span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">NULL</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">))
+{
+</span><span class="cpp1-space">    </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">message</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">WM_CANCELJOURNAL</span><span class="cpp1-symbol">)
+</span><span class="cpp1-space">    </span><span class="cpp1-symbol">{
+</span><span class="cpp1-space">        </span><span class="cpp1-identifier">MessageBox</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">hwnd</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-string">&quot;Koniec zabawy!&quot;</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-string">&quot;Info&quot;</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">MB_ICONINFORMATION</span><span class="cpp1-symbol">);</span><span class="cpp1-space">	     
+    </span><span class="cpp1-symbol">}
+</span><span class="cpp1-space">	
+		
+</span><span class="cpp1-identifier">    TranslateMessage</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(&amp;</span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">);
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">DispatchMessage</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(&amp;</span><span class="cpp1-identifier">msg</span><span class="cpp1-symbol">);
+}</span></span></code></pre>
+<P>
+Istotne jest, że &quot;dobraliśmy się&quot; do komunikatu, zanim trafił on do DispatchMessage, skąd by już nie wyszedł ;-). Teraz gdy wciśniemy Ctrl+Esc albo Ctrl+Alt+Del podczas działania jednego z naszych dwóch haków, uraczeni zostaniemy miłym komunikatem. 
+</P>
+<P>
+Zauważmy, że nie ma możliwości zwolnienia wykorzystanej przez nas biblioteki DLL. Jej licznik referencji jest bowiem zwiększany dla każdej aplikacji działającej w systemie! Dzieje się tak dlatego, że użyliśmy haka globalnego. Zawołanie FreeLibrary() nic nie da, bo możemy z tej funkcji skorzystać tylko dla naszego własnego procesu. Biblioteka zostanie zwolniona dopiero po zamknięciu wszystkich niejawnie z nią połączonych procesów albo... wtedy, gdy jakimś cudem wszystkie te procesy zwolnią ją przez FreeLibrary(). Oczywiście cudów nie ma, więc wszystkie te aplikacje muszą wiedzieć o istnieniu naszego DLL, co w praktyce oznacza, że musieliśmy je sami napisać ;-).
+</P>
+<P>
+Programik, który sobie napisaliśmy, może służyć nie tylko do głupich żartów. Na pewno znajdziesz niejedno nużące zadanie, podczas którego trzeba wiele razy powtarzać te same czynności. Po paru drobnych ulepszeniach nasz program wykona je za nas :-).
+</P>
+<P>
+Omówiliśmy dokładniej tylko dwa rodzaje haków, ale to powinno w zupełności wystarczyć. Wszystkie inne rodzaje obsłguje się w bardzo podobny sposób. Każdy ma swoje specyficzne zastosowanie, które zapewne znajdziesz, gdy będziesz go potrzebować :-). Oczywiście, każdy niesie za sobą również mnóstwo potencjalnych (i także specyficznych) problemów - pamiętajmy, że używając haków grzebiemy dość głęboko w systemie, a więc musimy najpierw dokładnie wiedzieć, co robimy - ale to już wszystko jest materiałem na podręcznik, a nie króki kurs ;-).
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TR>
+</TABLE>
+
+</HTML>

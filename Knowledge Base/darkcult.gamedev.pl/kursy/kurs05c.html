@@ -1,0 +1,224 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Klasy, cz. 4</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs05b.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="kurs05d.html">Następna część kursu &gt;&gt;</A></TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H2>
+Konwersje obiektów
+</H2>
+
+<P>
+Pewnie nawet sobie nie wyobrażasz, jak wiele niejawnych konwersji jest wykonywanych w twoich programach. A jeśli sobie tego nie wyobrażasz, to trudno ci docenić znaczenie konwersji. Ale nie bój nic, bo podczas zabawy z klasami zwrócisz uwagę na bardzo wiele rzeczy, których wcześniej nie dostrzegałeś ;-).
+</P>
+<P>
+Kiedyś zdarzy ci się zapewne napisać klasę, która będzie bardzo podobna do wbudowanych w C++ typów, na przykład klasę <SPAN CLASS=T>String</SPAN>, zachowującą się podobnie jak łańcuchy typu <SPAN CLASS=K>char*</SPAN>, albo klasę <SPAN CLASS=T>NowyInt</SPAN>, stanowiącą rozszerzenie typu podstawowego <SPAN CLASS=K>int</SPAN>. W takim przypadku, aby nasza nowa klasa mogła w pełni współpracować z C++, niezbędne będą konwersje z typów wbudowanych do naszej klasy - oraz odwrotnie. Weźmy ten drugi przykład, czyli klasę <SPAN CLASS=T>NowyInt</SPAN>. W praktyce będzie to zwykły <SPAN CLASS=K>int</SPAN>, na którym w dodatku nie będzie można wykonywać żadnych operacji oprócz wpisywania do niego liczb, ale dodatkowe operacje można sobie będzie zawsze zdefiniować, a jeśli umożliwimy konwersję z <SPAN CLASS=T>NowyInt</SPAN> do <SPAN CLASS=K>int</SPAN>, to na obiektach naszej nowej klasy będzie można wykonywać wszystko to, co na zwykłych <SPAN CLASS=K>int</SPAN>. Oto nasza klasa <SPAN CLASS=T>NowyInt</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> NowyInt<BR>
+{<BR>
+<SPAN CLASS=K>private</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> liczba;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;NowyInt(<SPAN CLASS=K>int</SPAN>=<SPAN CLASS=L>0</SPAN>);<BR>
+};<BR>
+<BR>
+NowyInt::NowyInt(<SPAN CLASS=K>int</SPAN> n=<SPAN CLASS=L>0</SPAN>) { liczba=n; }<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Klasa jest, jak widać, niezbyt skomplikowana ;-). W zasadzie możemy tylko zainicjalizować obiekt typu <SPAN CLASS=T>NowyInt</SPAN> i nic więcej. Ale przy okazji wynajęliśmy sobie jednego murzyna do odwalania konwersji różnych typów wbudowanych do naszego typu <SPAN CLASS=T>NowyInt</SPAN>. Przecież taki zapis:
+</P>
+
+<SPAN CLASS=T>
+NowyInt test = <SPAN CLASS=L>17</SPAN>;<BR>
+</SPAN>
+
+<P>
+...to właśnie konwersja. Mogłoby się wydawać, że daje nam to niewiele poza możliwością łatwej inicjalizacji obiektu. Mogłoby się też wydawać, że nasza klasa jest zbyt prymitywna, żeby po inicjalizacji raz wpisanej wartości nie można już zmienić. Ale kryje się tu pewien podstęp:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+NowyInt test;<BR>
+test = (NowyInt)<SPAN CLASS=L>17</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wygląda podejrzanie, ale jest jak najbardziej prawidłowe. Możemy więc wykonać zwykłą, jawną konwersję, a dzięki niej wpisywać liczby typu <SPAN CLASS=K>int</SPAN> do naszego obiektu w dowolnym momencie programu. Jakim cudem? Przyjrzyj się drugiej linijce, możemy ją sobie zapisać nawet w alternatywnej postaci:
+</P>
+
+<SPAN CLASS=T>
+test = NowyInt(<SPAN CLASS=L>17</SPAN>);<BR>
+</SPAN>
+
+<P>
+...w której wyraźnie widać, że konwersja odbyła się przy pomocy... Kostruktora klasy <SPAN CLASS=T>NowyInt</SPAN>!. Konstruktor stworzył nam z liczby <SPAN CLASS=K>17</SPAN> nowy obiekt typu <SPAN CLASS=T>NowyInt</SPAN>, a następnie przy pomocy domyślnego konstruktora kopiującego, wygenerowanego przez kompilator, przypisał go do zmiennej <SPAN CLASS=T>test</SPAN>.
+</P>
+<P>
+Tak więc potrafimy przekonwertować typ <SPAN CLASS=K>int</SPAN> do naszego typu <SPAN CLASS=T>NowyInt</SPAN>. A co z konwersją w drugą stronę? Tu już nie ma tak łatwo, bo przecież konstruktory klasy <SPAN CLASS=K>int</SPAN> nie znają naszego <SPAN CLASS=T>NowyInt</SPAN>! Dlatego też musimy stworzyć w naszej nowej klasie funkcję, która będzie dokonywała konwersji obiektu <SPAN CLASS=T>NowyInt</SPAN> na zmienną typu <SPAN CLASS=K>int</SPAN>. Będzie on wyglądał tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>operator int</SPAN>() { <SPAN CLASS=K>return</SPAN> liczba; };
+</TD></TR>
+</TABLE>
+
+<P>
+Ostatecznie, nasza nowa klasa, wzbogacona o możliwość konwersji na typ <SPAN CLASS=K>int</SPAN> będzie wyglądała następująco:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> NowyInt<BR>
+{<BR>
+<SPAN CLASS=K>private</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> liczba;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;NowyInt(<SPAN CLASS=K>int</SPAN>=<SPAN CLASS=L>0</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>operator int</SPAN>() { <SPAN CLASS=K>return</SPAN> liczba; }<BR>
+};<BR>
+<BR>
+NowyInt::NowyInt(<SPAN CLASS=K>int</SPAN> n=<SPAN CLASS=L>0</SPAN>) { liczba=n; }<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście używanie tej klasy jest kompletnie bez sensu, gdyż ma ona teraz takie same możliwości, jak wbudowany typ <SPAN CLASS=K>int</SPAN>, ale po dodaniu do niej paru fajnych funkcji składowych możemy stworzyć klasę, która potrafi wszystko to, co <SPAN CLASS=K>int</SPAN>, a dodatkowo jeszcze to, co sobie do niej dodamy :-).
+</P>
+
+<H2>
+Przeciążanie operatorów
+</H2>
+<P>
+Jedną z najfajniejszych cech C++ jest możliwość przeciążania operatorów, czyli nadawanie im nowych znaczeń. Wykorzystujemy to najczęściej do redefiniowania działań wykonywanych przez standardowe operatory dla zdefiniowanych przez siebie klas. Na przykład - przy wykorzystaniu standardowego "plusa" nie możesz dodać dwóch obiektów typu <SPAN CLASS=T>Punkt</SPAN>. Ale nic nie stoi na przeszkodzie, aby np. "nauczyć" C++ dodawania punktów czy wektorów.
+</P>
+<P>
+Zanim jednak w to się pobawimy, powiem kilka ważnych rzeczy o przeciążaniu operatorów. Po pierwsze: każda klasa ma swoje własne definicje operatorów, a więc redefiniując np. dodawanie dla swojej klasy <SPAN CLASS=T>Punkt</SPAN> możesz się nie obawiać, że dodawanie np. dwóch liczb typu <SPAN CLASS=K>int</SPAN> przestanie być możliwe (jeśli czyta to ktoś bardziej doświadczonym, to pewnie się uśmiecha w tym miejscu, ale wiem, że "nowi" miewają czasem tego typu obawy). Po prostu dla dwóch <SPAN CLASS=K>int</SPAN>-ów będzie wywoływana jedna funkcja operatorowa, a dla obiektów <SPAN CLASS=T>Punkt</SPAN> - inna.
+</P>
+<P>
+Po drugie: nie wszystkie operatory da się przeciążać. Takich, jak: <SPAN CLASS=T>.</SPAN>, <SPAN CLASS=T>.*</SPAN>, <SPAN CLASS=T>::</SPAN>, <SPAN CLASS=T>?:</SPAN>, <SPAN CLASS=K>sizeof</SPAN>, oraz symboli <SPAN CLASS=C>#</SPAN> i <SPAN CLASS=C>##</SPAN> nawet nie dotykaj :-). Zresztą gdyby się dobrze zastanowić, byłoby to albo bez sensu, albo bardzo trudne do zaimplementowania w języku, więc nie ma co żałować ;-).
+</P>
+<P>
+Po trzecie: każdy z redefiniowanych operatorów jest ściśle związany ze swoim "pierwowzorem", więc ma taki sam priorytet, łączność, liczbę argumentów. Reguła ta wydaje się trochę usztywniać mechanizm przeciążania operatorów, ale nie martw się - to, co nam wolno, w zupełności wystarczy ;-).
+</P>
+<P>
+Warto jeszcze wiedzieć, że jeśli nie przeciążymy żadnego operatora, to niektóre w naszej nowej klasie będą działać i tak (podobnie jak jest w przypadku konstruktora kopiującego). Oprócz wymienionych operatorów (których przeciążać nie można w ogóle), są to: <SPAN CLASS=T>=</SPAN> (jako operator przypisania), <SPAN CLASS=T>&</SPAN> (jako operator pobrania adresu) i przecinek <SPAN CLASS=T>,</SPAN>. Wszystkie trzy możemy redefiniować jeśli mamy ochotę, ale jeśli tego nie zrobimy, to mimo wszystko będą sobie funkcjonować - co najwyżej niezupełnie tak, jakbyśmy chcieli ;-).
+</P>
+<P>
+Czas na konkrety. Jeden operator właściwie już sobie przeciążyliśmy przed chwilą - był to nawias okrągły jako operator konwersji. Przeciążanie pozostałych operatorów jest właściwie równie proste. Najpierw redefiniujemy operator dodawania <SPAN CLASS=T>+</SPAN> dla klasy <SPAN CLASS=T>Punkt</SPAN> (będzie ona reprezentowała punkt na płaszczyźnie, wektor, liczbę zespoloną czy jak to jeszcze nazwiemy):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Punkt<BR>
+{<BR>
+<SPAN CLASS=K>private:<BR>
+&nbsp;int</SPAN> x,y;<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Punkt(<SPAN CLASS=K>int</SPAN> nx=<SPAN CLASS=L>0</SPAN>, <SPAN CLASS=K>int</SPAN> ny=<SPAN CLASS=L>0</SPAN>);<BR>
+<SPAN CLASS=C>//tutaj powinna być reszta klasy...<BR>
+//ale nie chce mi się jej wpisywać ;-)</SPAN><BR>
+&nbsp;Punkt <SPAN CLASS=K>operator+</SPAN>(Punkt);<BR>
+};<BR>
+<BR>
+Punkt Punkt::<SPAN CLASS=K>operator+</SPAN>(Punkt p)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> Punkt(x+p.x, y+p.y);<BR>
+}<BR>
+<BR>
+<SPAN CLASS=C>//Pisać definicję konstruktora? Eee, nie chce mi się ;-)</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Nasza klasa jest raczej trywialna, właściwie jest to dość prowizoryczna implementacja punktu, ale nie czepiajmy się ;-). Funkcja redefiniująca operator ma nazwę złożoną ze słowa <SPAN CLASS=K>operator</SPAN> i symbolu danego operatora (tutaj plusik). Poza tym jest to najzwyczajniejsza w świecie funkcja. Musisz jednak pamiętać, by miała ona odpowiedni typ zwracany oraz argumenty - tutaj akurat nie możesz się wykazać własną fantazją, lecz dopasować to wszystko do odpowiedniego standardowego operatora.
+</P>
+<P>
+Nie będę podawał, w jaki sposób przeciążać każdy jeden operator - możesz do tego dojść sam lub ewentualnie pomóc sobie wszelką dostępną literaturą (polecam Megatutorial - zobacz dział 'Linki');
+</P>
+<P>
+Żeby zrozumieć, jak działa nasza funkcja operatorowa w praktyce, musisz wiedzieć, że instrukcję typu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+A = B + C;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...można zapisać w postaci:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+A = B.<SPAN CLASS=K>operator+</SPAN>(C);
+</TD></TR>
+</TABLE>
+
+<P>
+Taka postać jest oczywiście mniej ekonomiczna (zużycie klawiatury ;-)), ale wiele tłumaczy. Widzimy już, jak działa dodawanie: wywoływana jest odpowiednia funkcja operatorowa dla pierwszego składnika (czyli <SPAN CLASS=K>this</SPAN> wewnątrz tej funkcji operatorowej wskazuje na pierwszy składnik) z drugim składnikiem w postaci argumentu dla funkcji operatorowej. 
+</P>
+<P>
+Napiszmy sobie jeszcze operator relacyjny <SPAN CLASS=T>==</SPAN>. Jest on w tym przypadku równie banalny co dodawanie, ale chcę, żebyś miał więcej przykładów:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Punkt<BR>
+{<BR>
+<SPAN CLASS=C>//resztę dopisz sam ;-)</SPAN><BR>
+&nbsp;<SPAN CLASS=K>int operator==</SPAN>(Punkt);<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> Punkt::<SPAN CLASS=K>operator==</SPAN>(Punkt p)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(p.x==x && p.y==y) <SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>-1</SPAN>;<BR>
+&nbsp;<SPAN CLASS=K>else return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Ponieważ nasza prosta klasa jest tylko "opakowaniem" na dwie zmienne typu <SPAN CLASS=K>int</SPAN>, więc i funkcje operatorowe wykonują po prostu "rozbicie" danego operatora na dwa operatory wbudowane - tak samo, jak w przypadku dodawania. Nie musimy się więc babrać w jakichś niskopoziomowych operacjach na "gołej" pamięci, gdyż implementacja poszczególnych operatorów może wykorzystywać funkcje operatorowe innych klas - w tym przypadku są to operatory dla typu wbudowanego <SPAN CLASS=K>int</SPAN>. 
+</P>
+
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs05b.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="kurs05d.html">Następna część kursu &gt;&gt;</A></TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

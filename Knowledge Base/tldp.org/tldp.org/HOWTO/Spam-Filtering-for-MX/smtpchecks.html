@@ -1,0 +1,1137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>SMTP checks</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Techniques"
+HREF="techniques.html"><LINK
+REL="PREVIOUS"
+TITLE="DNS Checks"
+HREF="dnschecks.html"><LINK
+REL="NEXT"
+TITLE="Greylisting"
+HREF="greylisting.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="dnschecks.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 2. Techniques</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="greylisting.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="smtpchecks"
+></A
+>2.3. SMTP checks</H1
+><P
+>&#13;      Once the SMTP dialogue is underway, you can perform various
+      checks on the commands and arguments presented by the remote
+      host.  For instance, you will want to ensure that the name
+      presented in the Hello greeting is valid.
+    </P
+><P
+>&#13;      However, even if you decide to reject the delivery attempt early
+      in the SMTP transaction, you may not want to perform the actual
+      rejection right away.  Instead, you may stall the sender with
+      SMTP transaction delays until after the <B
+CLASS="command"
+>RCPT
+      TO:</B
+>, then reject the mail at that point.
+    </P
+><P
+>&#13;      The reason is that some ratware does not understand rejections
+      early in the SMTP transaction; they keep trying.  On the other
+      hand, most of them give up if the <B
+CLASS="command"
+>RCPT TO:</B
+>
+      fails.
+    </P
+><P
+>&#13;      Besides, this gives a nice opportunity to do a little
+      <EM
+>teergrubing</EM
+>.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="helocheck"
+></A
+>2.3.1. Hello (HELO/EHLO) checks</H2
+><P
+>&#13;	Per RFC 2821, the first SMTP command issued by the client
+	should be EHLO (or if unsupported, HELO), followed by its
+	primary, <A
+HREF="gloss.html#fqdn"
+><I
+CLASS="glossterm"
+>Fully Qualified Domain Name</I
+></A
+>.  This is known as the Hello
+	greeting.  If no meaningful FQDN is available, the client can
+	supply its IP address enclosed in square brackets:
+	"[1.2.3.4]".  This last form is known as an IPv4 address
+	"literal" notation.
+      </P
+><P
+>&#13;	Quite understandably, <A
+HREF="gloss.html#ratware"
+><I
+CLASS="glossterm"
+>Ratware</I
+></A
+> rarely present
+	their own FQDN in the Hello greeting.  Rather, greetings from
+	ratware usually attempt to conceal the sending host's
+	identity, and/or to generate confusing and/or misleading
+	"Received:" trails in the message header.  Some examples of
+	such greetings are:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	    Unqualified names (i.e. names without a period), such as
+	    the <SPAN
+CLASS="QUOTE"
+>"local part"</SPAN
+> (username) of the
+	    recipient address.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    A plain IP address (i.e. not an IP literal); usually
+	    yours, but can be a random one.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    Your domain name, or the FQDN of your server.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    Third party domain names, such as
+	    <TT
+CLASS="option"
+>yahoo.com</TT
+> and
+	    <TT
+CLASS="option"
+>hotmail.com</TT
+>.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    Non-existing domain names, or domain names with
+	    non-existing name servers.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    No greeting at all.
+	  </P
+></LI
+></UL
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="helosyntax"
+></A
+>2.3.1.1. Simple HELO/EHLO syntax checks</H3
+><P
+>&#13;	  Some of these RFC 2821 violations are both easy to check
+	  against, and clear indications that the sending host is
+	  running some form of <A
+HREF="gloss.html#ratware"
+><I
+CLASS="glossterm"
+>Ratware</I
+></A
+>.  You can
+	  reject such greetings -- either right away, or e.g. after
+	  the <B
+CLASS="command"
+>RCPT TO:</B
+> command.
+	</P
+><P
+>&#13;	  First, feel free to reject plain IP addresses in the Hello
+	  greeting.  Even if you wish to generously allow everything
+	  RFC 2821 mandates, recommends, and suggests, you will note
+	  that IP addresses should always be enclosed in square
+	  brackets when presented in lieu of a name.
+	  <A
+NAME="AEN718"
+HREF="#FTN.AEN718"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>
+	</P
+><P
+>&#13;	  In particular, you may wish to issue a strongly worded
+	  rejection message to hosts that introduce themselves using
+	  <EM
+>your</EM
+> IP address - or for that matter,
+	  your host name.  They are plainly lying.  Perhaps you want
+	  to stall the sender with an exceedingly long SMTP
+	  transaction delay in response to such a greeting; say,
+	  hours.
+	</P
+><P
+>&#13;	  For that matter, my own experience indicates that
+	  <EM
+>no</EM
+> legitimate sites on the internet
+	  present themselves to other internet sites using an IP
+	  address literal (the [x.y.z.w] notation) either.  Nor should
+	  they; all hosts sending mail directly on the internet should
+	  use their valid <A
+HREF="gloss.html#fqdn"
+><I
+CLASS="glossterm"
+>Fully Qualified Domain Name</I
+></A
+>.  The only use of use
+	  of IP literals I have come across is from mail user agents
+	  on my local area network, such as Ximian Evolution,
+	  configured to use my server as outgoing SMTP server
+	  (smarthost).  Indeed, I only accept literals from my own
+	  LAN.
+	</P
+><P
+>&#13;	  You may or may not also wish to reject unqualified host
+	  names (host names without a period).  I find that these are
+	  rarely (but not never - how's that for double negative
+	  negations) legitimate.
+	</P
+><P
+>&#13;	  Similarly, you can reject host names that contain invalid
+	  characters.  For internet domains, only alphanumeric letters
+	  and hyphen are valid characters; a hyphen is not allowed as
+	  the first character.  (You may also want to consider the
+	  underscore a valid character, because it is quite common to
+	  see this from misconfigured, but ultimately well-meaning,
+	  Windows clients).
+	</P
+><P
+>&#13;	  Finally, if you receive a <B
+CLASS="command"
+>MAIL FROM:</B
+>
+	  command without first having received a Hello greeting,
+	  well, polite people greet first.
+	</P
+><P
+>&#13;	  On my servers, I reject greetings that fail any of these
+	  syntax checks.  However, the rejection does not actually
+	  take place until after the <B
+CLASS="command"
+>RCPT TO:</B
+>
+	  command.  In the mean time, I impose a 20 second transaction
+	  delay after each SMTP command (<B
+CLASS="command"
+>HELO/EHLO</B
+>,
+	  <B
+CLASS="command"
+>MAIL FROM:</B
+>, <B
+CLASS="command"
+>RCPT TO:</B
+>).
+	</P
+></DIV
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="heloverify"
+></A
+>2.3.1.2. Verifying the Hello greeting via DNS</H3
+><P
+>&#13;	  Hosts that make it this far have presented at least a
+	  superficially credible greeting.  Now it is time to verify
+	  the provided name via DNS.  You can:
+	</P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	      Perform a forward lookup of the provided name, and
+	      match the result against the peer's IP address
+	    </P
+></LI
+><LI
+><P
+>&#13;	      Perform a reverse lookup of the peer's IP address, and
+	      match it against name provided in the greeting.
+	    </P
+></LI
+></UL
+><P
+>&#13;	  If either of these two checks succeeds, the name has been
+	  verified.
+	</P
+><P
+>&#13;	  Your MTA may have a built-in option to perform this check.
+	  For instance, in Exim (see <A
+HREF="exim.html"
+>Appendix A</A
+>),
+	  you want to set "helo_try_verify_hosts = *", and create ACLs
+	  that take action based on the "verify = helo" condition.
+	</P
+><P
+>&#13;	  This check is a little more expensive in terms of processing
+	  time and network resources than the simple syntax checks.
+	  Moreover, unlike the syntax checks, a mismatch does not
+	  always indicate ratware; several large internet sites, such
+	  as hotmail.com, yahoo.com, and amazon.com, frequently
+	  present unverifiable Hello greetings.
+	</P
+><P
+>&#13;	  On my servers, I do a DNS validation of the Hello greeting
+	  if I am not already stalling the sender with transaction
+	  delays based on prior checks.  Then, if this check fails, I
+	  impose a 20 second delay on every SMTP command from this
+	  point forward.  I also prepare a
+	  <SPAN
+CLASS="QUOTE"
+>"X-HELO-Warning:"</SPAN
+> header that I will later add
+	  to the message(s), and use to increase the <A
+HREF="datachecks.html#spamassassin"
+>SpamAssassin</A
+> score for
+	  possible rejection after the message data has been received.
+	</P
+></DIV
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="senderchecks"
+></A
+>2.3.2. Sender Address Checks</H2
+><P
+>&#13;	After the client has presented the
+	<B
+CLASS="command"
+>MAIL FROM:</B
+> &#60;<TT
+CLASS="parameter"
+><I
+>address</I
+></TT
+>&#62;
+	command, you can validate the supplied
+	<A
+HREF="gloss.html#envfrom"
+><I
+CLASS="glossterm"
+>Envelope Sender</I
+></A
+> address as follows.
+	<A
+NAME="AEN756"
+HREF="#FTN.AEN756"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+>
+      </P
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="sendersyntax"
+></A
+>2.3.2.1. Sender Address Syntax Check</H3
+><P
+>&#13;	  Does the supplied address conform to the format
+	  &#60;<TT
+CLASS="parameter"
+><I
+>localpart</I
+></TT
+>@<TT
+CLASS="parameter"
+><I
+>domain</I
+></TT
+>&#62;?
+	  Is the <TT
+CLASS="parameter"
+><I
+>domain</I
+></TT
+> part a syntactically
+	  valid <A
+HREF="gloss.html#fqdn"
+><I
+CLASS="glossterm"
+>Fully Qualified Domain Name</I
+></A
+>?
+	</P
+><P
+>&#13;	  Often, your MTA performs these checks by default.
+	</P
+></DIV
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="impostor"
+></A
+>2.3.2.2. Impostor Check</H3
+><P
+>&#13;	  In the case where you and your users send all your outgoing
+	  mail only through a select few servers, you can reject
+	  messages from other hosts in which the <SPAN
+CLASS="QUOTE"
+>"domain"</SPAN
+>
+	  of the sender address is your own.
+	</P
+><P
+>&#13;	  A more general alternative to this check is
+	  <A
+HREF="senderauth.html#spf"
+>Sender Policy Framework</A
+>.
+	</P
+></DIV
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="sendervalid"
+></A
+>2.3.2.3. Simple Sender Address Validation</H3
+><P
+>&#13;	  If the address is local, is the <SPAN
+CLASS="QUOTE"
+>"local part"</SPAN
+>
+	  (the part before the @ sign) a valid mailbox on your
+	  system?
+	</P
+><P
+>&#13;	  If the address is remote, does the <SPAN
+CLASS="QUOTE"
+>"domain"</SPAN
+>
+	  (the part after the @ sign) exist?
+	</P
+></DIV
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="callback"
+></A
+>2.3.2.4. Sender Callout Verification</H3
+><P
+>&#13;	  This is a mechanism that is offered by some MTAs, such as
+	  Exim and Postfix, to validate the <SPAN
+CLASS="QUOTE"
+>"local part"</SPAN
+>
+	  of a remote sender address.  In Postfix terminology, it is
+	  called <SPAN
+CLASS="QUOTE"
+>"Sender Address Verification"</SPAN
+>.
+	</P
+><P
+>&#13;	  Your server contacts the MX for the
+	  <TT
+CLASS="parameter"
+><I
+>domain</I
+></TT
+> provided in the sender
+	  address, attempting to initiate a secondary SMTP transaction
+	  as if delivering mail to this address.  It does not actually
+	  send any mail; rather, once the <B
+CLASS="command"
+>RCPT TO:</B
+>
+	  command has been either accepted or rejected by the remote
+	  host, your server sends <B
+CLASS="command"
+>QUIT</B
+>.
+	</P
+><P
+>&#13;	  By default, Exim uses an empty envelope sender address for
+	  such callout verifications.  The goal is to determine if a
+	  <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+> would be accepted if returned to the
+	  sender.
+	</P
+><P
+>&#13;	  Postfix, on the other hand, defaults to the sender address
+	  &#60;<TT
+CLASS="option"
+>postmaster@</TT
+><TT
+CLASS="parameter"
+><I
+>domain</I
+></TT
+>&#62;
+	  for address verification purposes
+	  (<TT
+CLASS="parameter"
+><I
+>domain</I
+></TT
+> is taken from the
+	  <TT
+CLASS="option"
+>$myorigin</TT
+> variable).  For this reason, you
+	  may wish to treat this sender address the same way that you
+	  treat the NULL envelope sender (for instance, avoid <A
+HREF="smtpdelays.html"
+>SMTP transaction delays</A
+> or <A
+HREF="greylisting.html"
+>Greylisting</A
+>, but
+	  require <A
+HREF="collateral.html#signedsender"
+>Envelope Sender Signature</A
+>s in recipient
+	  addresses).  More on this in the implementation appendices.
+	</P
+><P
+>&#13;	  You may find that this check alone may not be suitable as a
+	  trigger to reject incoming mail.  Occasionally, legitimate
+	  mail, such as a recurring billing statement, is sent out
+	  from automated services with an invalid return address.
+	  Also, an unfortunate side effect of spam is that some users
+	  tend to mangle the return address in their outgoing mails
+	  (though this may affect the <SPAN
+CLASS="QUOTE"
+>"From:"</SPAN
+> header in
+	  the message itself more often than the <A
+HREF="gloss.html#envfrom"
+><I
+CLASS="glossterm"
+>Envelope Sender</I
+></A
+>).
+	</P
+><P
+>&#13;	  Moreover, this check only verifies that an address is valid,
+	  not that it was authentic as the sender of this particular
+	  message (but see also <A
+HREF="collateral.html#signedsender"
+>Envelope Sender Signature</A
+>).
+	</P
+><P
+>&#13;	  Finally, there are reports of sites, such as
+	  <SPAN
+CLASS="QUOTE"
+>"aol.com"</SPAN
+>, that will unconditionally blacklist
+	  any system from which they discover sender callout requests.
+	  These sites may be frequent victims of <A
+HREF="gloss.html#joejob"
+><I
+CLASS="glossterm"
+>Joe Job</I
+></A
+>s, and as a result, receive storms of
+	  sender callout requests.  By taking part in these DDoS
+	  (Distributed Denial-of-Servcie) attacks, you are effectively
+	  turning yourself into a pawn in the hands of the spammer.
+	</P
+></DIV
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="rcptchecks"
+></A
+>2.3.3. Recipient Address Checks</H2
+><P
+>&#13;	This should be simple, you say.  A recipient address is either
+	valid, in which case the mail is delivered, or invalid, in
+	which case your MTA takes care of the rejection by default.
+      </P
+><P
+>&#13;	Let us have a look, shall we?
+      </P
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="relayprevent"
+></A
+>2.3.3.1. Open Relay Prevention</H3
+><P
+>&#13;	  <EM
+>Do not relay mail from remote hosts to remote
+	  addresses!</EM
+> (Unless the sender is authenticated).
+	</P
+><P
+>&#13;	  This may seem obvious to most of us, but apparently this is
+	  a frequently overlooked consideration.  Also, not everyone
+	  may have a full grasp of the various internet standards
+	  related to e-mail addresses and delivery paths (consider
+	  <SPAN
+CLASS="QUOTE"
+>"percent hack domains"</SPAN
+>, <SPAN
+CLASS="QUOTE"
+>"bang (!) 
+	  paths"</SPAN
+>, etc).
+	</P
+><P
+>&#13;	  If you are unsure whether your MTA acts as an an <A
+HREF="gloss.html#openrelay"
+><I
+CLASS="glossterm"
+>Open Relay</I
+></A
+>, you can test it via
+	  <SPAN
+CLASS="QUOTE"
+>"relay-test.mail-abuse.org"</SPAN
+>.
+	  At a shell prompt on your server, type:
+
+	  <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>telnet relay-test.mail-abuse.org</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	</P
+><P
+>&#13;	  This is a service that will use various tests to see whether
+	  your SMTP server appears to forward mail to remote e-mail
+	  addresses, and/or any number of address <SPAN
+CLASS="QUOTE"
+>"hacks"</SPAN
+>
+	  such as the ones mentioned above.
+	</P
+><P
+>&#13;	  Preventing your servers from acting as open relays is
+	  extremely important.  If your server is an open relay, and
+	  spammers find you, you will be listed in numerous DNS
+	  blacklists instantly.  If the maintainers of certain other
+	  DNS blacklists find you (by probing, and/or by acting on
+	  complaints), you will be listed in those for an extended
+	  period of time.
+	</P
+></DIV
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="rcptvalid"
+></A
+>2.3.3.2. Recipient Address Lookups</H3
+><P
+>&#13;	  This, too may seem banal to most of us.  It is not always so.
+	</P
+><P
+>&#13;	  If your users' mail accounts and mailboxes are stored
+	  directly on your incoming mail exchanger, you can simply
+	  check that the <SPAN
+CLASS="QUOTE"
+>"local part"</SPAN
+> of the recipient
+	  address corresponds to a valid mailbox.  No problem here.
+	</P
+><P
+>&#13;	  There are two scenarios where verification of the recipient
+	  address is more cumbersome:
+	</P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	      If your machine is a backup MX for the recipient
+	      domain.
+	    </P
+></LI
+><LI
+><P
+>&#13;	      If your machine forwards all mail for your domain to
+	      another (presumably internal) server.
+	    </P
+></LI
+></UL
+><P
+>&#13;	  The alternative to recipient address verification is to
+	  accept all recipient addresses within these respective
+	  domains, which in turn means that you or the destination
+	  server might have to generate a <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+> for
+	  recipient addresses that later turn out to be invalid.
+	  Ultimately, this means that you would be generating
+	  collateral spam.
+	</P
+><P
+>&#13;	  With that in mind, let us see how we can verify the
+	  recipient in the scenarios listed above.
+	</P
+><DIV
+CLASS="section"
+><H4
+CLASS="section"
+><A
+NAME="callforward"
+></A
+>2.3.3.2.1. Recipient Callout Verification</H4
+><P
+>&#13;	    This is a mechanism that is offered by some MTAs, such as
+	    Exim and Postfix, to verify the <SPAN
+CLASS="QUOTE"
+>"local part"</SPAN
+>
+	    of a remote recipient address (see <EM
+><A
+HREF="smtpchecks.html#callback"
+>Sender Callout Verification</A
+></EM
+> for a description of how
+	    this works).  In Postfix terminology, this is called
+	    <SPAN
+CLASS="QUOTE"
+>"Recipient Address Verification"</SPAN
+>.
+	  </P
+><P
+>&#13;	    In this case, server attempts to contact the final
+	    destination host to validate each recipient address before
+	    you, in turn, accept the <B
+CLASS="command"
+>RCPT TO:</B
+>
+	    command from your peer.
+	  </P
+><P
+>&#13;	    This solution is simple and elegant.  It works with any
+	    MTA that might be running on the final destination host,
+	    and without access to any particular directory service.
+	    Moreover, if that MTA happens to perform a fuzzy match on
+	    the recipient address (this is the case with Lotus Domino
+	    servers), this check will accurately reflect whether the
+	    recipient address is eventually going to be accepted or
+	    not - something which may not be true for the mechanisms
+	    described below.
+	  </P
+><P
+>&#13;	    Be sure to keep the original <A
+HREF="gloss.html#envfrom"
+><I
+CLASS="glossterm"
+>Envelope Sender</I
+></A
+>
+	    intact for the recipient callout, or the response from the
+	    destination host may not be accurate.  For instance, it
+	    may reject bounces (i.e. mail with no envelope sender) for
+	    system users and aliases, as described in <A
+HREF="collateral.html#dsnrealuser"
+>Accept Bounces Only for Real Users</A
+>.
+	  </P
+><P
+>&#13;	    Among major MTAs, Exim and Postfix support this mechanism.
+	  </P
+></DIV
+><DIV
+CLASS="section"
+><H4
+CLASS="section"
+><A
+NAME="ldap"
+></A
+>2.3.3.2.2. Directory Services</H4
+><P
+>&#13;	    Another good solution would be a directory service
+	    (e.g. one or more LDAP servers) that can be queried by
+	    your MTA.  The most common MTAs all support LDAP, NIS,
+	    and/or various other backends that are commonly used to
+	    provide user account information.
+	  </P
+><P
+>&#13;	    The main sticking point is that unless the final
+	    destination host of the e-mail already uses such a
+	    directory service to map user names to mailboxes, there
+	    may be some work involved in setting this up.
+	  </P
+></DIV
+><DIV
+CLASS="section"
+><H4
+CLASS="section"
+><A
+NAME="replicdir"
+></A
+>2.3.3.2.3. Replicated Mailbox Lists</H4
+><P
+>&#13;	    If none of the options above are viable, you could fall
+	    back to a <SPAN
+CLASS="QUOTE"
+>"poor man's directory service"</SPAN
+>,
+	    where you would periodically copy a current list of
+	    mailboxes from the machine where they are located, to your
+	    MX host(s).  Your MTA would then consult this list to
+	    validate <B
+CLASS="command"
+>RCPT TO:</B
+> commands in incoming
+	    mail.
+	  </P
+><P
+>&#13;	    If the machine(s) that host(s) your mailboxes is/are
+	    running on some flavor of UNIX or Linux, you could write a
+	    script to first generate such a list, perhaps from the
+	    local <SPAN
+CLASS="QUOTE"
+>"/etc/passwd"</SPAN
+> file, and then copy it to
+	    your MX host(s) using the <SPAN
+CLASS="QUOTE"
+>"scp"</SPAN
+> command from
+	    the <A
+HREF="http://www.openssh.org/"
+TARGET="_top"
+>OpenSSH</A
+>
+	    suite.  You could then set up a <SPAN
+CLASS="QUOTE"
+>"cron"</SPAN
+> job
+	    (type <B
+CLASS="command"
+>man cron</B
+> for details) to
+	    periodically run this script.
+	  </P
+></DIV
+></DIV
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="rcptmisses"
+></A
+>2.3.3.3. Dictionary Attack Prevention</H3
+><P
+>&#13;	  <EM
+>Dictionary Attack</EM
+> is a term used to
+	  describe SMTP transactions where the sending host keeps
+	  issuing <B
+CLASS="command"
+>RCPT TO:</B
+> commands to probe for
+	  possible recipient addresses based on common names (often
+	  alphabetically starting with <SPAN
+CLASS="QUOTE"
+>"aaron"</SPAN
+>, but
+	  sometimes starting later in the alphabet, and/or at random).
+	  If a particular address is accepted by your server, that
+	  address is added into the spammer's arsenal.
+	</P
+><P
+>&#13;	  Some sites, particularly larger ones, find that they are
+	  frequent targets of such attacks.  From the spammer's
+	  perspective, chances of finding a given username on a
+	  large site is better than on sites with only a few users.
+	</P
+><P
+>&#13;	  One effective way to combat dictionary attacks is to issue
+	  increasing transaction delays for each failed address.  For
+	  instance, the first non-existing recipient address can be
+	  rejected with a 20-second delay, the second address with a
+	  30-second delay, and so on.
+	</P
+></DIV
+><DIV
+CLASS="section"
+><H3
+CLASS="section"
+><A
+NAME="dsnonercpt"
+></A
+>2.3.3.4. Accept only one recipient for DSNs</H3
+><P
+>&#13;	  Legitimate <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+>s should be sent to only one
+	  recipient address - the originator of the original message
+	  that triggered the notification.  You can drop the
+	  connection if the <A
+HREF="gloss.html#envfrom"
+><I
+CLASS="glossterm"
+>Envelope Sender</I
+></A
+> address is
+	  empty, but there are more than one recipients.
+	</P
+></DIV
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN718"
+HREF="smtpchecks.html#AEN718"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;	      Although this check is normally quite effective at
+	      weeding out junk, there are reports of buggy L-Soft
+	      <A
+HREF="http://www.lsoft.com/products/default.asp?item=listserv"
+TARGET="_top"
+>listserv</A
+>
+	      installations that greet with the plain IP address of
+	      the list server.
+	    </P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN756"
+HREF="smtpchecks.html#AEN756"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;	    A special case is the NULL envelope sender address
+	    (i.e. <B
+CLASS="command"
+>MAIL FROM:</B
+> &#60;&#62;) used in
+	    <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+>s and other automatically generated
+	    responses.  This address should always be accepted.
+	  </P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="dnschecks.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="greylisting.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>DNS Checks</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="techniques.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Greylisting</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

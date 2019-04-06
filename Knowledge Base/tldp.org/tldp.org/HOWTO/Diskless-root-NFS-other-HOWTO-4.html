@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root over NFS - Another Approach: Preparing the boot disk</TITLE>
+ <LINK HREF="Diskless-root-NFS-other-HOWTO-5.html" REL=next>
+ <LINK HREF="Diskless-root-NFS-other-HOWTO-3.html" REL=previous>
+ <LINK HREF="Diskless-root-NFS-other-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Diskless-root-NFS-other-HOWTO-5.html">Next</A>
+<A HREF="Diskless-root-NFS-other-HOWTO-3.html">Previous</A>
+<A HREF="Diskless-root-NFS-other-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Preparing the boot disk</A></H2>
+
+<P>To prepare a boot disk we just want a kernel, <CODE>syslinux</CODE> and a 1,44MB diskette. <CODE>Syslinux</CODE> is tiny boot
+loader, designed specifically to boot a kernel and pass some arguments through its command line using a diskette.
+As we will see it very easy to configure, too.
+<P>
+<H2><A NAME="ss4.1">4.1 Building a kernel</A>
+</H2>
+
+<P>Always choose the newest kernel to build. As of this time of writing (Wed Sep 12 17:28:22 2001)
+the newest kernel is 2.4.9. Building an older kernel can only save you time updating the nesessary programms.
+Also, be sure you have the program versions described in <CODE>/usr/src/linux/Documentation/Changes</CODE>.
+It is a good idea to compile the kernel using the base system to be served. The kernel can be build according to
+your needs of drivers, but it must contain the following options:
+<UL>
+<LI>Build in support for the cient 's network card (<CODE>Network device support ---> Select your card driver</CODE>).</LI>
+<LI>Build in support for the BOOTP protocol (<CODE>Networking options ---> IP: kernel level autoconfiguration ---> IP: BOOTP support</CODE>).</LI>
+<LI>Build in support for NFS and root over NFS (<CODE>File systems ---> Network File Systems ---> NFS file system support</CODE>
+and <CODE>File systems ---> Network File Systems ---> NFS file system support ---> Root over NFS</CODE>).
+</LI>
+<LI> Build in support for loopback devices (<CODE>Block devices ---> Loopback device support</CODE>).</LI>
+</UL>
+
+Do not forget to compile in the VESA framebuffer driver. Then go on with the familiar kernel compilation routine.
+Unless you have build the kernel using the base system, copy all the modules created to the <CODE>base/lib/modules</CODE> directory
+of the exported directory structure.
+The new kernel resides at <CODE>/usr/src/linux/arch/i386/boot</CODE>.
+<P>You also have to set the root device to your kernel. You have to use the <CODE>rdev</CODE> programm. Execute the following commands:
+<BLOCKQUOTE><CODE>
+<PRE>
+mknod /dev/boot255 c 0 255
+rdev /path/to/kernel/file /dev/boot255
+</PRE>
+</CODE></BLOCKQUOTE>
+<H2><A NAME="ss4.2">4.2 Creating the boot disk</A>
+</H2>
+
+<P>Now, we have to use the <CODE>syslinux</CODE> programm. Insert a disk into the first floppy drive and run:
+<BLOCKQUOTE><CODE>
+<PRE>
+syslinux -s /dev/fd0
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Mount the floppy and notice that syslinux has written 2 files: <CODE>syslinux.cfg</CODE> and <CODE>ldlinux.sys</CODE>.
+The second is the boot loader executable. The <CODE>syslinux.cfg</CODE> is the programm configuration file.
+A typical structure for that file is the following:
+<BLOCKQUOTE><CODE>
+<PRE>
+default linux
+   append init=/sbin/init root=/dev/nfs
+        ip=:195.251.160.10:195.251.160.254:255.255.255.0:::'bootp'
+        nfsroot=195.251.160.10:/usr/local/linux/ws/\%s vga=0x318
+
+   prompt 1
+   timeout 30
+   readinfo 2
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The default statment is the kernel name to be booted and the append is the command line
+to be passed to the kernel. Now, you have to copy the kernel you have created to the floppy and rename it to 'linux'.
+<P>
+<H2><A NAME="ss4.3">4.3 The kernel command line</A>
+</H2>
+
+<P>To boot a diskless client, its kernel must have the following command line options:
+<UL>
+<LI><CODE>init=/sbin/init</CODE>: If your init programm is elsewhere just change the path.</LI>
+<LI><CODE>root=/dev/nfs</CODE>: An alias to say the kernel that it has to mount its root directory over nfs</LI>
+<LI><CODE>ip</CODE>: This command line option tells the kernel how to get it's IP address and which is the NFS server's address</LI>
+<LI><CODE>nfsroot</CODE>: Tells the kernel to mount this directory as its root. The % is an alias to the host 's IP address.</LI>
+<LI><CODE>vga</CODE>: If you want to be able to start X windows in framebuffer mode, switch to a framebuffer mode. The one given stands for 1024x768@16M colors.</LI>
+</UL>
+<P>All these options are discussed in detail in <CODE>/usr/src/linux/Documentation/nfsroot.txt</CODE>.
+Read it and adjust the given command line to your needs.
+<P>Now you have created the boot disk you are ready to test the system you have build. Start the NFS and BOOTP services and boot a
+client with the boot disk. No one has been able to do it from the first time. So go on to the next section!
+<P>
+<HR>
+<A HREF="Diskless-root-NFS-other-HOWTO-5.html">Next</A>
+<A HREF="Diskless-root-NFS-other-HOWTO-3.html">Previous</A>
+<A HREF="Diskless-root-NFS-other-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

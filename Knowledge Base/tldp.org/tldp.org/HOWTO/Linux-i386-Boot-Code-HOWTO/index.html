@@ -1,0 +1,620 @@
+<HTML
+><HEAD
+><TITLE
+>Linux i386 Boot Code HOWTO</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="NEXT"
+TITLE="Introduction"
+HREF="intro.html"></HEAD
+><BODY
+CLASS="article"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="ARTICLE"
+><DIV
+CLASS="TITLEPAGE"
+><H1
+CLASS="title"
+><A
+NAME="AEN2"
+></A
+>Linux i386 Boot Code HOWTO</H1
+><H3
+CLASS="author"
+><A
+NAME="AEN4"
+>Feiyun Wang</A
+></H3
+><DIV
+CLASS="affiliation"
+><DIV
+CLASS="address"
+><P
+CLASS="address"
+><TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:feiyunw@yahoo.com"
+>feiyunw@yahoo.com</A
+>&#62;</TT
+></P
+></DIV
+></DIV
+><P
+CLASS="pubdate"
+>2004-01-23<BR></P
+><DIV
+CLASS="revhistory"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="TOP"
+COLSPAN="3"
+><B
+>Revision History</B
+></TH
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+>Revision 1.0</TD
+><TD
+ALIGN="LEFT"
+>2004-02-19</TD
+><TD
+ALIGN="LEFT"
+>Revised by: FW</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+COLSPAN="3"
+>Initial release, reviewed by LDP</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+>Revision 0.3.3</TD
+><TD
+ALIGN="LEFT"
+>2004-01-23</TD
+><TD
+ALIGN="LEFT"
+>Revised by: fyw</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+COLSPAN="3"
+>Add decompress_kernel() details;
+            Fix bugs reported in TLDP final review.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+>Revision 0.3</TD
+><TD
+ALIGN="LEFT"
+>2003-12-07</TD
+><TD
+ALIGN="LEFT"
+>Revised by: fyw</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+COLSPAN="3"
+>Add contents on SMP, GRUB and LILO; Fix and enhance.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+>Revision 0.2</TD
+><TD
+ALIGN="LEFT"
+>2003-08-17</TD
+><TD
+ALIGN="LEFT"
+>Revised by: fyw</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+COLSPAN="3"
+>Adapt to Linux 2.4.20.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+>Revision 0.1</TD
+><TD
+ALIGN="LEFT"
+>2003-04-20</TD
+><TD
+ALIGN="LEFT"
+>Revised by: fyw</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+COLSPAN="3"
+>Change to DocBook XML format.</TD
+></TR
+></TABLE
+></DIV
+><DIV
+><DIV
+CLASS="abstract"
+><A
+NAME="AEN37"
+></A
+><P
+></P
+><P
+>&#13;         This document describes Linux i386 boot code,
+         serving as a study guide and source commentary.
+         In addition to C-like pseudocode source commentary, it also presents
+         keynotes of toolchains and specs related to kernel development.
+         It is designed to help:
+         <P
+></P
+><UL
+><LI
+><P
+>kernel newbies to understand Linux i386 boot code, and</P
+></LI
+><LI
+><P
+>kernel veterans to recall Linux boot procedure.</P
+></LI
+></UL
+>
+        </P
+><P
+></P
+></DIV
+></DIV
+><HR></DIV
+><DIV
+CLASS="TOC"
+><DL
+><DT
+><B
+>Table of Contents</B
+></DT
+><DT
+>1. <A
+HREF="intro.html"
+>Introduction</A
+></DT
+><DD
+><DL
+><DT
+>1.1. <A
+HREF="intro.html#copyright"
+>Copyright and License</A
+></DT
+><DT
+>1.2. <A
+HREF="intro.html#disclaimer"
+>Disclaimer</A
+></DT
+><DT
+>1.3. <A
+HREF="intro.html#credits"
+>Credits / Contributors</A
+></DT
+><DT
+>1.4. <A
+HREF="intro.html#feedback"
+>Feedback</A
+></DT
+><DT
+>1.5. <A
+HREF="intro.html#translations"
+>Translations</A
+></DT
+></DL
+></DD
+><DT
+>2. <A
+HREF="makefiles.html"
+>Linux Makefiles</A
+></DT
+><DD
+><DL
+><DT
+>2.1. <A
+HREF="makefiles.html#linux_makefile"
+>linux/Makefile</A
+></DT
+><DT
+>2.2. <A
+HREF="makefiles.html#vmlinux.lds"
+>linux/arch/i386/vmlinux.lds</A
+></DT
+><DT
+>2.3. <A
+HREF="makefiles.html#i386_makefile"
+>linux/arch/i386/Makefile</A
+></DT
+><DT
+>2.4. <A
+HREF="makefiles.html#i386_boot_makefile"
+>linux/arch/i386/boot/Makefile</A
+></DT
+><DT
+>2.5. <A
+HREF="makefiles.html#i386_boot_compressed_makefile"
+>linux/arch/i386/boot/compressed/Makefile</A
+></DT
+><DT
+>2.6. <A
+HREF="makefiles.html#i386_tools_build.c"
+>linux/arch/i386/tools/build.c</A
+></DT
+><DT
+>2.7. <A
+HREF="makefiles.html#makefile_ref"
+>Reference</A
+></DT
+></DL
+></DD
+><DT
+>3. <A
+HREF="bootsect.html"
+>linux/arch/i386/boot/bootsect.S</A
+></DT
+><DD
+><DL
+><DT
+>3.1. <A
+HREF="bootsect.html#move_bootsect"
+>Move Bootsect</A
+></DT
+><DT
+>3.2. <A
+HREF="bootsect.html#get_disk_para"
+>Get Disk Parameters</A
+></DT
+><DT
+>3.3. <A
+HREF="bootsect.html#load_setup"
+>Load Setup Code</A
+></DT
+><DT
+>3.4. <A
+HREF="bootsect.html#load_compressed"
+>Load Compressed Image</A
+></DT
+><DT
+>3.5. <A
+HREF="bootsect.html#go_setup"
+>Go Setup</A
+></DT
+><DT
+>3.6. <A
+HREF="bootsect.html#read_disk"
+>Read Disk</A
+></DT
+><DT
+>3.7. <A
+HREF="bootsect.html#bootsect_helper"
+>Bootsect Helper</A
+></DT
+><DT
+>3.8. <A
+HREF="bootsect.html#bootsect_misc"
+>Miscellaneous</A
+></DT
+><DT
+>3.9. <A
+HREF="bootsect.html#bootsect_ref"
+>Reference</A
+></DT
+></DL
+></DD
+><DT
+>4. <A
+HREF="setup.html"
+>linux/arch/i386/boot/setup.S</A
+></DT
+><DD
+><DL
+><DT
+>4.1. <A
+HREF="setup.html#setup_header"
+>Header</A
+></DT
+><DT
+>4.2. <A
+HREF="setup.html#check_code"
+>Check Code Integrity</A
+></DT
+><DT
+>4.3. <A
+HREF="setup.html#check_loader"
+>Check Loader Type</A
+></DT
+><DT
+>4.4. <A
+HREF="setup.html#get_mem_size"
+>Get Memory Size</A
+></DT
+><DT
+>4.5. <A
+HREF="setup.html#hw_support"
+>Hardware Support</A
+></DT
+><DT
+>4.6. <A
+HREF="setup.html#apm_support"
+>APM Support</A
+></DT
+><DT
+>4.7. <A
+HREF="setup.html#prepare_protmode"
+>Prepare for Protected Mode</A
+></DT
+><DT
+>4.8. <A
+HREF="setup.html#enable_a20"
+>Enable A20</A
+></DT
+><DT
+>4.9. <A
+HREF="setup.html#switch_protmode"
+>Switch to Protected Mode</A
+></DT
+><DT
+>4.10. <A
+HREF="setup.html#setup_misc"
+>Miscellaneous</A
+></DT
+><DT
+>4.11. <A
+HREF="setup.html#setup_ref"
+>Reference</A
+></DT
+></DL
+></DD
+><DT
+>5. <A
+HREF="compressed_head.html"
+>linux/arch/i386/boot/compressed/head.S</A
+></DT
+><DD
+><DL
+><DT
+>5.1. <A
+HREF="compressed_head.html#decompress_kernel"
+>Decompress Kernel</A
+></DT
+><DT
+>5.2. <A
+HREF="compressed_head.html#gunzip"
+>gunzip()</A
+></DT
+><DT
+>5.3. <A
+HREF="compressed_head.html#inflate"
+>inflate()</A
+></DT
+><DT
+>5.4. <A
+HREF="compressed_head.html#chead_ref"
+>Reference</A
+></DT
+></DL
+></DD
+><DT
+>6. <A
+HREF="kernel_head.html"
+>linux/arch/i386/kernel/head.S</A
+></DT
+><DD
+><DL
+><DT
+>6.1. <A
+HREF="kernel_head.html#enable_paging"
+>Enable Paging</A
+></DT
+><DT
+>6.2. <A
+HREF="kernel_head.html#get_kernel_para"
+>Get Kernel Parameters</A
+></DT
+><DT
+>6.3. <A
+HREF="kernel_head.html#check_cpu_type"
+>Check CPU Type</A
+></DT
+><DT
+>6.4. <A
+HREF="kernel_head.html#go_start_kernel"
+>Go Start Kernel</A
+></DT
+><DT
+>6.5. <A
+HREF="kernel_head.html#khead_misc"
+>Miscellaneous</A
+></DT
+><DT
+>6.6. <A
+HREF="kernel_head.html#khead_ref"
+>Reference</A
+></DT
+></DL
+></DD
+><DT
+>7. <A
+HREF="init_main.html"
+>linux/init/main.c</A
+></DT
+><DD
+><DL
+><DT
+>7.1. <A
+HREF="init_main.html#start_kernel"
+>start_kernel()</A
+></DT
+><DT
+>7.2. <A
+HREF="init_main.html#init_proc"
+>init()</A
+></DT
+><DT
+>7.3. <A
+HREF="init_main.html#idle_proc"
+>cpu_idle()</A
+></DT
+><DT
+>7.4. <A
+HREF="init_main.html#main_ref"
+>Reference</A
+></DT
+></DL
+></DD
+><DT
+>8. <A
+HREF="smpboot.html"
+>SMP Boot</A
+></DT
+><DD
+><DL
+><DT
+>8.1. <A
+HREF="smpboot.html#before_smpinit"
+>Before smp_init()</A
+></DT
+><DT
+>8.2. <A
+HREF="smpboot.html#smp_init"
+>smp_init()</A
+></DT
+><DT
+>8.3. <A
+HREF="smpboot.html#trampoline"
+>linux/arch/i386/kernel/trampoline.S</A
+></DT
+><DT
+>8.4. <A
+HREF="smpboot.html#initialize_secondary"
+>initialize_secondary()</A
+></DT
+><DT
+>8.5. <A
+HREF="smpboot.html#start_secondary"
+>start_secondary()</A
+></DT
+><DT
+>8.6. <A
+HREF="smpboot.html#smpboot_ref"
+>Reference</A
+></DT
+></DL
+></DD
+><DT
+>A. <A
+HREF="kbuild.html"
+>Kernel Build Example</A
+></DT
+><DT
+>B. <A
+HREF="internel_lds.html"
+>Internal Linker Script</A
+></DT
+><DT
+>C. <A
+HREF="bootloader.html"
+>GRUB and LILO</A
+></DT
+><DD
+><DL
+><DT
+>C.1. <A
+HREF="bootloader.html#grub"
+>GNU GRUB</A
+></DT
+><DT
+>C.2. <A
+HREF="bootloader.html#lilo"
+>LILO</A
+></DT
+><DT
+>C.3. <A
+HREF="bootloader.html#bootloader_ref"
+>Reference</A
+></DT
+></DL
+></DD
+><DT
+>D. <A
+HREF="faq.html"
+>FAQ</A
+></DT
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="intro.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Introduction</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

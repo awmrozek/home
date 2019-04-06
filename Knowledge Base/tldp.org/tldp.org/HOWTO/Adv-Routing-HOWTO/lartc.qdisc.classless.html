@@ -1,0 +1,698 @@
+<HTML
+><HEAD
+><TITLE
+>Simple, classless Queueing Disciplines</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Queueing Disciplines for Bandwidth Management"
+HREF="lartc.qdisc.html"><LINK
+REL="PREVIOUS"
+TITLE="Queues and Queueing Disciplines explained"
+HREF="lartc.qdisc.explain.html"><LINK
+REL="NEXT"
+TITLE="Advice for when to use which queue"
+HREF="lartc.qdisc.advice.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.qdisc.explain.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 9. Queueing Disciplines for Bandwidth Management</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.qdisc.advice.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.QDISC.CLASSLESS"
+></A
+>9.2. Simple, classless Queueing Disciplines</H1
+><P
+>As said, with queueing disciplines, we change the way data is sent.
+Classless queueing disciplines are those that, by and large accept data and
+only reschedule, delay or drop it.</P
+><P
+>These can be used to shape traffic for an entire interface, without any
+subdivisions. It is vital that you understand this part of queueing before
+we go on the the classful qdisc-containing-qdiscs!</P
+><P
+>By far the most widely used discipline is the pfifo_fast qdisc - this is the
+default. This also explains why these advanced features are so robust. They
+are nothing more than 'just another queue'.</P
+><P
+>Each of these queues has specific strengths and weaknesses. Not all of them
+may be as well tested.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN463"
+></A
+>9.2.1. pfifo_fast</H2
+><P
+>This queue is, as the name says, First In, First Out, which means that no
+packet receives special treatment. At least, not quite. This queue has 3 so
+called 'bands'. Within each band, FIFO rules apply. However, as long as
+there are packets waiting in band 0, band 1 won't be processed. Same goes
+for band 1 and band 2.</P
+><P
+>The kernel honors the so called Type of Service flag of packets, and takes
+care to insert 'minimum delay' packets in band 0. </P
+><P
+>Do not confuse this classless simple qdisc with the classful PRIO one!
+Although they behave similarly, pfifo_fast is classless and you cannot add
+other qdiscs to it with the tc command.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN468"
+></A
+>9.2.1.1. Parameters &#38; usage</H3
+><P
+>You can't configure the pfifo_fast qdisc as it is the hardwired default.
+This is how it is configured by default:
+<P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>priomap</DT
+><DD
+><P
+>Determines how packet priorities, as assigned by the kernel, map to bands.
+Mapping occurs based on the TOS octet of the packet, which looks like this:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>   0     1     2     3     4     5     6     7
++-----+-----+-----+-----+-----+-----+-----+-----+
+|                 |                       |     |
+|   PRECEDENCE    |          TOS          | MBZ |
+|                 |                       |     |
++-----+-----+-----+-----+-----+-----+-----+-----+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The four TOS bits (the 'TOS field') are defined as:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Binary Decimcal  Meaning
+-----------------------------------------
+1000   8         Minimize delay (md)
+0100   4         Maximize throughput (mt)
+0010   2         Maximize reliability (mr)
+0001   1         Minimize monetary cost (mmc)
+0000   0         Normal Service</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>As there is 1 bit to the right of these four bits, the actual value of the
+TOS field is double the value of the TOS bits. Tcpdump -v -v shows you the
+value of the entire TOS field, not just the four bits. It is the value you
+see in the first column of this table:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>TOS     Bits  Means                    Linux Priority    Band
+------------------------------------------------------------
+0x0     0     Normal Service           0 Best Effort     1
+0x2     1     Minimize Monetary Cost   1 Filler          2
+0x4     2     Maximize Reliability     0 Best Effort     1
+0x6     3     mmc+mr                   0 Best Effort     1
+0x8     4     Maximize Throughput      2 Bulk            2
+0xa     5     mmc+mt                   2 Bulk            2
+0xc     6     mr+mt                    2 Bulk            2
+0xe     7     mmc+mr+mt                2 Bulk            2
+0x10    8     Minimize Delay           6 Interactive     0
+0x12    9     mmc+md                   6 Interactive     0
+0x14    10    mr+md                    6 Interactive     0
+0x16    11    mmc+mr+md                6 Interactive     0
+0x18    12    mt+md                    4 Int. Bulk       1
+0x1a    13    mmc+mt+md                4 Int. Bulk       1
+0x1c    14    mr+mt+md                 4 Int. Bulk       1
+0x1e    15    mmc+mr+mt+md             4 Int. Bulk       1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Lots of numbers. The second column contains the value of the relevant four
+TOS bits, followed by their translated meaning. For example, 15 stands for a
+packet wanting Minimal Monetary Cost, Maximum Reliability, Maximum
+Throughput AND Minimum Delay. I would call this a 'Dutch Packet'.</P
+><P
+>The fourth column lists the way the Linux kernel interprets the TOS bits, by
+showing to which Priority they are mapped. </P
+><P
+>The last column shows the result of the default priomap. On the command line,
+the default priomap looks like this:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>1, 2, 2, 2, 1, 2, 0, 0 , 1, 1, 1, 1, 1, 1, 1, 1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This means that priority 4, for example, gets mapped to band number 1. The
+priomap also allows you to list higher priorities (&#62; 7) which do not
+correspond to TOS mappings, but which are set by other means.</P
+><P
+>This table from RFC 1349 (read it for more details) tells you how
+applications might very well set their TOS bits:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>TELNET                   1000           (minimize delay)
+FTP
+	Control          1000           (minimize delay)
+        Data             0100           (maximize throughput)
+
+TFTP                     1000           (minimize delay)
+
+SMTP 
+	Command phase    1000           (minimize delay)
+        DATA phase       0100           (maximize throughput)
+
+Domain Name Service
+	UDP Query        1000           (minimize delay)
+	TCP Query        0000
+	Zone Transfer    0100           (maximize throughput)
+
+NNTP                     0001           (minimize monetary cost)
+
+ICMP
+	Errors           0000
+	Requests         0000 (mostly)
+	Responses        &#60;same as request&#62; (mostly)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DD
+><DT
+>txqueuelen</DT
+><DD
+><P
+>The length of this queue is gleaned from the interface configuration, which
+you can see and set with ifconfig and ip. To set the queue length to 10,
+execute: ifconfig eth0 txqueuelen 10</P
+><P
+>You can't set this parameter with tc!</P
+></DD
+></DL
+></DIV
+></P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN495"
+></A
+>9.2.2. Token Bucket Filter</H2
+><P
+>The Token Bucket Filter (TBF) is a simple qdisc that only passes packets
+arriving at a rate which is not exceeding some administratively set rate, but
+with the possibility to allow short bursts in excess of this rate.</P
+><P
+>TBF is very precise, network- and processor friendly. It should be your
+first choice if you simply want to slow an interface down!</P
+><P
+>The TBF implementation consists of a buffer (bucket), constantly filled by
+some virtual pieces of information called tokens, at a specific rate (token
+rate). The most important parameter of the bucket is its size, that is the
+number of tokens it can store.</P
+><P
+>Each arriving token collects one incoming data packet from the data queue
+and is then deleted from the bucket. Associating this algorithm
+with the two flows -- token and data, gives us three possible scenarios:</P
+><P
+>&#13;<P
+></P
+><UL
+><LI
+><P
+> The data arrives in TBF at a rate that's <EM
+>equal</EM
+> to the rate
+of incoming tokens. In this case each incoming packet has its matching token
+and passes the queue without delay.&#13;</P
+></LI
+><LI
+><P
+> The data arrives in TBF at a rate that's <EM
+>smaller</EM
+> than the
+token rate. Only a part of the tokens are deleted at output of each data packet
+that's sent out the queue, so the tokens accumulate, up to the bucket size.
+The unused tokens can then be used to send data a a speed that's exceeding the
+standard token rate, in case short data bursts occur.&#13;</P
+></LI
+><LI
+><P
+> The data arrives in TBF at a rate <EM
+>bigger</EM
+> than the token rate.
+This means that the bucket will soon be devoid of tokens, which causes the
+TBF to throttle itself for a while. This is called an 'overlimit situation'.
+If packets keep coming in, packets will start to get dropped.</P
+></LI
+></UL
+>&#13;</P
+><P
+>The last scenario is very important, because it allows to
+administratively shape the bandwidth available to data that's passing
+the filter.</P
+><P
+>The accumulation of tokens allows a short burst of overlimit data to be
+still passed without loss, but any lasting overload will cause packets to be
+constantly delayed, and then dropped.</P
+><P
+>Please note that in the actual implementation, tokens correspond to bytes,
+not packets.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN515"
+></A
+>9.2.2.1. Parameters &#38; usage</H3
+><P
+>Even though you will probably not need to change them, tbf has some knobs
+available. First the parameters that are always available:
+<P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>limit or latency</DT
+><DD
+><P
+>Limit is the number of bytes that can be queued waiting for tokens to become
+available. You can also specify this the other way around by setting the
+latency parameter, which specifies the maximum amount of time a packet can
+sit in the TBF. The latter calculation takes into account the size of the
+bucket, the rate and possibly the peakrate (if set).</P
+></DD
+><DT
+>burst/buffer/maxburst</DT
+><DD
+><P
+>Size of the bucket, in bytes. This is the maximum amount of bytes that
+tokens can be available for instantaneously. In general, larger shaping
+rates require a larger buffer. For 10mbit/s on Intel, you need at least
+10kbyte buffer if you want to reach your configured rate!</P
+><P
+>If your buffer is too small, packets may be dropped because more tokens
+arrive per timer tick than fit in your bucket.</P
+></DD
+><DT
+>mpu</DT
+><DD
+><P
+>A zero-sized packet does not use zero bandwidth. For ethernet, no packet
+uses less than 64 bytes. The Minimum Packet Unit determines the minimal
+token usage for a packet.</P
+></DD
+><DT
+>rate</DT
+><DD
+><P
+>The speedknob. See remarks above about limits!</P
+></DD
+></DL
+></DIV
+></P
+><P
+>If the bucket contains tokens and is allowed to empty, by default it does so
+at infinite speed. If this is unacceptable, use the following parameters:</P
+><P
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>peakrate</DT
+><DD
+><P
+>If tokens are available, and packets arrive, they are sent out immediately
+by default, at 'lightspeed' so to speak. That may not be what you want,
+especially if you have a large bucket. </P
+><P
+>The peakrate can be used to specify how quickly the bucket is allowed to be
+depleted. If doing everything by the book, this is achieved by releasing a
+packet, and then wait just long enough, and release the next. We calculated
+our waits so we send just at peakrate.</P
+><P
+>However, due to de default 10ms timer resolution of Unix, with 10.000 bits
+average packets, we are limited to 1mbit/s of peakrate!</P
+></DD
+><DT
+>mtu/minburst</DT
+><DD
+><P
+>The 1mbit/s peakrate is not very useful if your regular rate is more than
+that. A higher peakrate is possible by sending out more packets per
+timertick, which effectively means that we create a second bucket!</P
+><P
+>This second bucket defaults to a single packet, which is not a bucket at
+all.</P
+><P
+>To calculate the maximum possible peakrate, multiply the configured mtu by
+100 (or more correctly, HZ, which is 100 on Intel, 1024 on Alpha).</P
+></DD
+></DL
+></DIV
+></P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN551"
+></A
+>9.2.2.2. Sample configuration</H3
+><P
+>A simple but *very* useful configuration is this:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc qdisc add dev ppp0 root tbf rate 220kbit latency 50ms burst 1540</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Ok, why is this useful? If you have a networking device with a large queue,
+like a DSL modem or a cable modem, and you talk to it over a fast device,
+like over an ethernet interface, you will find that uploading absolutely
+destroys interactivity.</P
+><P
+>This is because uploading will fill the queue in the modem, which is
+probably *huge* because this helps actually achieving good data throughput
+uploading. But this is not what you want, you want to have the queue not too
+big so interactivity remains and you can still do other stuff while sending
+data.</P
+><P
+>The line above slows down sending to a rate that does not lead to a queue in
+the modem - the queue will be in Linux, where we can control it to a limited
+size.</P
+><P
+>Change 220kbit to your uplink's *actual* speed, minus a few percent. If you
+have a really fast modem, raise 'burst' a bit. </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="LARTC.SFQ"
+></A
+>9.2.3. Stochastic Fairness Queueing</H2
+><P
+>Stochastic Fairness Queueing (SFQ) is a simple implementation of the fair
+queueing algorithms family. It's less accurate than others, but it also
+requires less calculations while being almost perfectly fair.</P
+><P
+>The key word in SFQ is conversation (or flow), which mostly corresponds to a
+TCP session or a UDP stream. Traffic is divided into a pretty large number
+of FIFO queues, one for each conversation. Traffic is then sent in a round
+robin fashion, giving each session the chance to send data in turn.</P
+><P
+>This leads to very fair behaviour and disallows any single conversation from
+drowning out the rest. SFQ is called 'Stochastic' because it doesn't really
+allocate a queue for each session, it has an algorithm which divides traffic
+over a limited number of queues using a hashing algorithm. </P
+><P
+>Because of the hash, multiple sessions might end up in the same bucket, which
+would halve each session's chance of sending a packet, thus halving the
+effective speed available. To prevent this situation from becoming
+noticeable, SFQ changes its hashing algorithm quite often so that any two
+colliding sessions will only do so for a small number of seconds.</P
+><P
+>It is important to note that SFQ is only useful in case your actual outgoing
+interface is really full! If it isn't then there will be no queue on your
+linux machine and hence no effect. Later on we will describe how to combine
+SFQ with other qdiscs to get a best-of-both worlds situation.</P
+><P
+>Specifically, setting SFQ on the ethernet interface heading to your
+cable modem or DSL router is pointless without further shaping!</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN567"
+></A
+>9.2.3.1. Parameters &#38; usage</H3
+><P
+>The SFQ is pretty much self tuning:
+<P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>perturb</DT
+><DD
+><P
+>Reconfigure hashing once this many seconds. If unset, hash will never be
+reconfigured. Not recommended. 10 seconds is probably a good value.</P
+></DD
+><DT
+>quantum</DT
+><DD
+><P
+>Amount of bytes a stream is allowed to dequeue before the next queue gets a
+turn. Defaults to 1 maximum sized packet (MTU-sized). Do not set below the
+MTU!</P
+></DD
+></DL
+></DIV
+></P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN579"
+></A
+>9.2.3.2. Sample configuration</H3
+><P
+>If you have a device which has identical link speed and actual available
+rate, like a phone modem, this configuration will help promote fairness:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc qdisc add dev ppp0 root sfq perturb 10
+# tc -s -d qdisc ls
+qdisc sfq 800c: dev ppp0 quantum 1514b limit 128p flows 128/1024 perturb 10sec 
+ Sent 4812 bytes 62 pkts (dropped 0, overlimits 0) </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The number 800c: is the automatically assigned handle number, limit means
+that 128 packets can wait in this queue. There are 1024 hashbuckets
+available for accounting, of which 128 can be active at a time (no more
+packets fit in the queue!) Once every 10 seconds, the hashes are
+reconfigured.</P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.explain.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.advice.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Queues and Queueing Disciplines explained</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Advice for when to use which queue</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

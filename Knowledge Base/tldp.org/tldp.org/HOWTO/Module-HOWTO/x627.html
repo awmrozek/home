@@ -1,0 +1,962 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Technical Details</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Loadable Kernel Module HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Persistent Data"
+HREF="x615.html"><LINK
+REL="NEXT"
+TITLE="Writing Your Own Loadable Kernel Module"
+HREF="x839.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Loadable Kernel Module HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x615.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x839.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN627"
+></A
+>10. Technical Details</H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="HOWTHEYWORK"
+></A
+>10.1. How They Work</H2
+><P
+><B
+CLASS="COMMAND"
+>insmod</B
+> makes an <TT
+CLASS="FUNCTION"
+>init_module</TT
+>
+system call to load the LKM into kernel memory.  Loading it is the
+easy part, though.  How does the kernel know to use it?  The answer is
+that the <TT
+CLASS="FUNCTION"
+>init_module</TT
+> system call invokes the
+LKM's initialization routine right after it loads the LKM.
+<B
+CLASS="COMMAND"
+>insmod</B
+> passes to <TT
+CLASS="FUNCTION"
+>init_module</TT
+>
+the address of the subroutine in the LKM named
+<TT
+CLASS="FUNCTION"
+>init_module</TT
+> as its initialization routine.</P
+><P
+>(This is confusing -- every LKM has a subroutine named
+<TT
+CLASS="FUNCTION"
+>init_module</TT
+>, and the base kernel has a system
+call by that same name, which is accessible via a subroutine in the
+standard C library also named <TT
+CLASS="FUNCTION"
+>init_module</TT
+>).</P
+><P
+>The LKM author set up <TT
+CLASS="FUNCTION"
+>init_module</TT
+> to call a
+kernel function that registers the subroutines that the LKM contains.
+For example, a character device driver's
+<TT
+CLASS="FUNCTION"
+>init_module</TT
+> subroutine might call the kernel's
+<TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+> subroutine, passing the major and
+minor number of the device it intends to drive and the address of its
+own "open" routine among the arguments.
+<TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+> records in base kernel tables
+that when the kernel wants to open that particular device, it should
+call the open routine in our LKM.</P
+><P
+>But the astute reader will now ask how the LKM's
+<TT
+CLASS="FUNCTION"
+>init_module</TT
+> subroutine knew the address of the
+base kernel's <TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+> subroutine.  This
+is not a system call, but an ordinary subroutine bound into the base
+kernel.  Calling it means branching to its address.  So how does our
+LKM, which was not compiled anywhere near the base kernel, know that
+address?  The answer to this is the relocation that happens at
+<B
+CLASS="COMMAND"
+>insmod</B
+> time.</P
+><P
+>How that relocation happens is fundamentally different between Linux
+2.4 and Linux 2.6.  In 2.6, <B
+CLASS="COMMAND"
+>insmod</B
+> pretty much just
+passes the verbatim contents of the LKM file (.ko file) to the kernel
+and the kernel does the relocation.  In 2.4, <B
+CLASS="COMMAND"
+>insmod</B
+> does
+the relocation and passes a fully linked module image, ready to stuff
+into kernel memory, to the kernel.  <EM
+>The description below
+covers the 2.4 case.</EM
+></P
+><P
+><B
+CLASS="COMMAND"
+>insmod</B
+> functions as a relocating linker/loader.
+The LKM object file contains an external reference to the symbol
+<TT
+CLASS="VARNAME"
+>register_chrdev</TT
+>.  <B
+CLASS="COMMAND"
+>insmod</B
+> does a
+<TT
+CLASS="FUNCTION"
+>query_module</TT
+> system call to find out the
+addresses of various symbols that the existing kernel exports.
+<TT
+CLASS="VARNAME"
+>register_chrdev</TT
+> is among these.
+<TT
+CLASS="FUNCTION"
+>query_module</TT
+> returns the address for which
+<TT
+CLASS="VARNAME"
+>register_chrdev</TT
+> stands and
+<B
+CLASS="COMMAND"
+>insmod</B
+> patches that into the LKM where the LKM
+refers to <TT
+CLASS="VARNAME"
+>register_chrdev</TT
+>.</P
+><P
+>If you want to see the kind of information <B
+CLASS="COMMAND"
+>insmod</B
+>
+can get from a <TT
+CLASS="FUNCTION"
+>query_module</TT
+> system call, look at
+the contents of <TT
+CLASS="FILENAME"
+>/proc/ksyms</TT
+>.</P
+><P
+>Note that some LKMs call subroutines in other LKMs.  They can do this
+because of the <TT
+CLASS="LITERAL"
+>__ksymtab</TT
+> and
+<TT
+CLASS="LITERAL"
+>.kstrtab</TT
+> sections in the LKM object files.  These
+sections together list the external symbols within the LKM object file
+that are supposed to be accessible by other LKMs inserted in the
+future.  <B
+CLASS="COMMAND"
+>insmod</B
+> looks at
+<TT
+CLASS="LITERAL"
+>__ksymtab</TT
+> and <TT
+CLASS="LITERAL"
+>.kstrtab</TT
+> and tells
+the kernel to add those symbols to its exported kernel symbols table.</P
+><P
+>To see this for yourself, insert the LKM <TT
+CLASS="FILENAME"
+>msdos.o</TT
+>
+and then notice in <TT
+CLASS="FILENAME"
+>/proc/ksyms</TT
+> the symbol
+<TT
+CLASS="VARNAME"
+>fat_add_cluster</TT
+> (which is the name of a subroutine
+in the <TT
+CLASS="FILENAME"
+>fat.o</TT
+> LKM).  Any subsequently inserted LKM
+can branch to <TT
+CLASS="VARNAME"
+>fat_add_cluster</TT
+>, and in fact
+<TT
+CLASS="FILENAME"
+>msdos.o</TT
+> does just that.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="MODINFO"
+></A
+>10.2. The .modinfo Section</H2
+><P
+>An ELF object file consists of various named sections.  Some of them
+are basic parts of an object file, for example the
+<TT
+CLASS="LITERAL"
+>.text</TT
+> section contains executable code that a
+loader loads.  But you can make up any section you want and have it
+used by special programs.  For the purposes of Linux LKMs, there is
+the <TT
+CLASS="LITERAL"
+>.modinfo</TT
+> section.  An LKM doesn't have to have
+a section named <TT
+CLASS="LITERAL"
+>.modinfo</TT
+> to work, but the macros
+you're supposed to use to code an LKM cause one to be generated, so
+they generally do.</P
+><P
+>To see the sections of an object file, including the
+<TT
+CLASS="LITERAL"
+>.modinfo</TT
+> section if it exists, use the
+<B
+CLASS="COMMAND"
+>objdump</B
+> program.  For example:</P
+><P
+>To see all the sections in the object file for the msdos LKM:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>objdump msdos.o --section-headers</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+To see the contents of the <TT
+CLASS="LITERAL"
+>.modinfo</TT
+> section:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>objdump msdos.o --full-contents --section=.modinfo</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>You can use the <B
+CLASS="COMMAND"
+>modinfo</B
+> program to interpret the
+contents of the <TT
+CLASS="LITERAL"
+>.modinfo</TT
+> section.</P
+><P
+>So what is in the <TT
+CLASS="LITERAL"
+>.modinfo</TT
+> section and who uses it?
+<B
+CLASS="COMMAND"
+>insmod</B
+> uses the <TT
+CLASS="LITERAL"
+>.modinfo</TT
+> section
+for the following:
+<P
+></P
+><UL
+><LI
+><P
+>It contains the kernel release number for which the module was built.
+I.e. of the kernel source tree whose header files were used in
+compiling the module.</P
+><P
+><B
+CLASS="COMMAND"
+>insmod</B
+> uses that information as explained in 
+<A
+HREF="basekerncompat.html"
+>Section 6</A
+>.</P
+></LI
+><LI
+><P
+>It describes the form of the LKM's parameters.
+<B
+CLASS="COMMAND"
+>insmod</B
+> uses this information to format the
+parameters you supply on the <B
+CLASS="COMMAND"
+>insmod</B
+> command line
+into data structure initial values, which <B
+CLASS="COMMAND"
+>insmod</B
+>
+inserts into the LKM as it loads it.</P
+></LI
+></UL
+></P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN712"
+></A
+>10.3. The __ksymtab And .kstrtab Sections</H2
+><P
+>Two other sections you often find in an LKM object file are named
+<TT
+CLASS="LITERAL"
+>__ksymtab</TT
+> and <TT
+CLASS="LITERAL"
+>.kstrtab</TT
+>.
+Together, they list symbols in the LKM that should be accessible
+(exported) to other parts of the kernel.  A symbol is just a text name
+for an address in the LKM.  LKM A's object file can refer to an
+address in LKM B by name (say, <TT
+CLASS="LITERAL"
+>getBinfo</TT
+>").  When
+you insert LKM A, after having inserted LKM B,
+<B
+CLASS="COMMAND"
+>insmod</B
+> can insert into LKM A the actual address
+within LKM B where the data/subroutine named
+<TT
+CLASS="LITERAL"
+>getBinfo</TT
+> is loaded.</P
+><P
+>See <A
+HREF="x627.html#HOWTHEYWORK"
+>Section 10.1</A
+> for more mind-numbing details of symbol binding.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN722"
+></A
+>10.4. Ksymoops Symbols</H2
+><P
+><B
+CLASS="COMMAND"
+>insmod</B
+> adds a bunch of exported symbols to the LKM
+as it loads it.  These symbols are all intended to help
+<B
+CLASS="COMMAND"
+>ksymoops</B
+> do its job.  <B
+CLASS="COMMAND"
+>ksymoops</B
+>
+is a program that interprets and "oops" display.  And
+"oops" display is stuff that the Linux kernel displays when
+it detects an internal kernel error (and consequently terminates a
+process).  This information contains a bunch of addresses in the
+kernel, in hexadecimal.</P
+><P
+><B
+CLASS="COMMAND"
+>ksymoops</B
+> looks at the hexadecimal addresses, looks
+them up in the kernel symbol table (which you see in
+<TT
+CLASS="FILENAME"
+>/proc/ksyms</TT
+> (Linux 2.4) or
+<TT
+CLASS="FILENAME"
+>/proc/kallsyms</TT
+> (Linux 2.6), and translates the
+addresses in the oops message to symbolic addresses, which you might
+be able to look up in an assembler listing.</P
+><P
+>So lets say you have an LKM crash on you.  The oops message contains
+the address of the instruction that choked, and what you want 
+<B
+CLASS="COMMAND"
+>ksymoops</B
+> to tell you is 1) in what LKM is that 
+instruction, and 2) where is the instruction relative to an assembler
+listing of that LKM?  Similar questions arise for the data addresses
+in the oops message.</P
+><P
+>To answer those questions, <B
+CLASS="COMMAND"
+>ksymoops</B
+> must be able to
+get the loadpoints and lengths of the various sections of the LKM from
+the kernel symbol table.</P
+><P
+>Well, in Linux 2.4, <B
+CLASS="COMMAND"
+>insmod</B
+> knows those addresses,
+so it just creates symbols for them and includes them in the symbols
+it loads with the LKM.</P
+><P
+>In particular, those symbols are named (and you can see this for
+yourself by looking at <TT
+CLASS="FILENAME"
+>/proc/ksyms</TT
+>):</P
+><P
+><TT
+CLASS="LITERAL"
+>__insmod_</TT
+><TT
+CLASS="VARNAME"
+>name</TT
+><TT
+CLASS="LITERAL"
+>_S</TT
+><TT
+CLASS="VARNAME"
+>sectionname</TT
+><TT
+CLASS="LITERAL"
+>_L</TT
+><TT
+CLASS="VARNAME"
+>length</TT
+></P
+><P
+><TT
+CLASS="VARNAME"
+>name</TT
+> is the LKM name (as you would see in
+<TT
+CLASS="FILENAME"
+>/proc/modules</TT
+>.</P
+><P
+><TT
+CLASS="VARNAME"
+>sectionname</TT
+> is the section name, e.g. <TT
+CLASS="LITERAL"
+>.text</TT
+>
+(don't forget the leading period).</P
+><P
+><TT
+CLASS="VARNAME"
+>length</TT
+> is the length of the section, in decimal.</P
+><P
+>The value of the symbol is, of course, the address of the section.</P
+><P
+>Insmod also adds a pretty useful symbol that tells from what file
+the LKM was loaded.  That symbol's name is</P
+><P
+><TT
+CLASS="LITERAL"
+>__insmod_</TT
+><TT
+CLASS="VARNAME"
+>name</TT
+><TT
+CLASS="LITERAL"
+>_O</TT
+><TT
+CLASS="VARNAME"
+>filespec</TT
+><TT
+CLASS="LITERAL"
+>_M</TT
+><TT
+CLASS="VARNAME"
+>mtime</TT
+><TT
+CLASS="LITERAL"
+>_V<TT
+CLASS="VARNAME"
+>version</TT
+></TT
+></P
+><P
+><TT
+CLASS="VARNAME"
+>name</TT
+> is the LKM name, as above.</P
+><P
+><TT
+CLASS="VARNAME"
+>filespec</TT
+> is the file specification that was used to
+identify the file containing the LKM when it was loaded.  Note that it
+isn't necessarily still under that name, and there are multiple
+file specifications that might have been used to refer to the same
+file.  For example, <TT
+CLASS="FILENAME"
+>../dir1/mylkm.o</TT
+> and
+<TT
+CLASS="FILENAME"
+>/lib/dir1/mylkm.o</TT
+>.</P
+><P
+><TT
+CLASS="VARNAME"
+>mtime</TT
+> is the modification time of that file, in
+the standard Unix representation (seconds since 1969), in hexadecimal.</P
+><P
+><TT
+CLASS="VARNAME"
+>version</TT
+> tells the kernel version level for which
+the LKM was built (same as in the <TT
+CLASS="LITERAL"
+>.modinfo</TT
+> section).
+It is the value of the macro <TT
+CLASS="LITERAL"
+>LINUX_VERSION_CODE</TT
+>
+in Linux's <TT
+CLASS="FILENAME"
+>linux/version.h</TT
+> file.  For example,
+<TT
+CLASS="LITERAL"
+>132101</TT
+>.</P
+><P
+>The value of this symbol is meaningless.</P
+><P
+>In Linux 2.6, it works differently.  (I haven't figured out how yet).</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN782"
+></A
+>10.5. Other Symbols</H2
+><P
+><B
+CLASS="COMMAND"
+>insmod</B
+>
+adds another symbol, similar to the <B
+CLASS="COMMAND"
+>ksymoops</B
+>
+symbols.  This one tells where the persistent data lives in the
+LKM, which <B
+CLASS="COMMAND"
+>rmmod</B
+> needs to know in order to save
+the persistent data.</P
+><P
+><TT
+CLASS="LITERAL"
+>__insmod_</TT
+><TT
+CLASS="VARNAME"
+>name</TT
+><TT
+CLASS="LITERAL"
+>_P</TT
+><TT
+CLASS="VARNAME"
+>length</TT
+></P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN793"
+></A
+>10.6. Debugging Symbols</H2
+><P
+>There is another kind of symbol that relates to an LKM: kallsyms
+symbols.  These are not exported symbols; they do not show up in
+<TT
+CLASS="FILENAME"
+>proc/ksyms</TT
+>.  They refer to addresses in the
+kernel that are nobody's business except the module they are in, and
+are not meant to be referenced by anything except a debugger.  Kdb,
+the kernel debugger that comes with the Linux kernel, is one user of
+kallsyms symbols.</P
+><P
+>The kallsyms facility works for both the base kernel and LKMs.  For the
+base kernel, you select it when you build the base kernel, with the 
+CONFIG_KALLSYMS configuration option.  When you do that, the kernel
+contains a kallsyms symbol for all the symbols in the base kernel
+object files.  You know your base kernel is participating in the kallsyms
+facility if you see the symbol <TT
+CLASS="LITERAL"
+>__start___kallsyms</TT
+>
+in <TT
+CLASS="FILENAME"
+>/proc/ksyms</TT
+>.</P
+><P
+>For an LKM, you decide at load time whether it will contain kallsyms
+symbols.  You include the kallsyms definitions in the data you pass to
+the <TT
+CLASS="LITERAL"
+>init_module</TT
+> system call to load the LKM.
+<B
+CLASS="COMMAND"
+>insmod</B
+> does this if either 1) you specify the
+<TT
+CLASS="LITERAL"
+>--kallsyms</TT
+> option, or 2) <B
+CLASS="COMMAND"
+>insmod</B
+>
+determines, by looking at <TT
+CLASS="FILENAME"
+>/proc/ksyms</TT
+>, that the
+base kernel is participating in the kallsyms facility.  The kallsyms that
+<B
+CLASS="COMMAND"
+>insmod</B
+> defines are all the symbols in the LKM
+object file.  To wit, those are the symbols you see when you run
+<B
+CLASS="COMMAND"
+>nm</B
+> on the LKM object file.</P
+><P
+>Each loaded LKM that is participating in kallsyms has its own kallsyms
+symbol table.  When the base kernel is participating in the kallsyms
+facility, the individual LKM kallysms symbol tables are linked into a
+master symbol table so that a debugger can look up a symbol anywhere
+in the kernel.  When the base kernel is not participating in kallsyms,
+a debugger must look explicitly at a particular LKM to find symbols
+for that LKM.  Kdb, for one, cannot do this.  So the basic rule is: If
+you're going to do any kernel debugging, use CONFIG_KALLSYMS.</P
+><P
+>Note that the <TT
+CLASS="LITERAL"
+>__kallsyms</TT
+> section has nothing to do
+with LKMs.  That's a section in the base kernel object module.  The
+base kernel doesn't have the luxury of something as high-level as
+sophisticated as <B
+CLASS="COMMAND"
+>insmod</B
+> to load it, so it needs
+that extra object file section to facilitate its participation in
+kallsyms.</P
+><P
+>Similarly, the program <B
+CLASS="COMMAND"
+>kallsyms</B
+> has nothing to do with
+LKMs.  It is what creates the <TT
+CLASS="LITERAL"
+>__kallsyms</TT
+> section.</P
+><P
+>There is another kind of debugging symbol -- the kind that
+<B
+CLASS="COMMAND"
+>gcc</B
+> creates with its <TT
+CLASS="LITERAL"
+>-g</TT
+> option.
+These are unrelated to the kallsyms facility.  They do not get loaded
+into kernel memory.  Kdb does not use them.  But Kgdb (which gets
+information both from kernel memory and source and object files) does.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="MEMALLOC"
+></A
+>10.7. Memory Allocation For Loading</H2
+><P
+>This section is about how Linux allocates memory in which to load an LKM.
+It is not about how an LKM dynamically allocates memory, which is the same
+as for any other part of the kernel.</P
+><P
+>The memory where an LKM resides is a little different from that where
+the base kernel resides.  The base kernel is always loaded into one
+big contiguous area of real memory, whose real addresses are equal to
+its virtual addresses.  That's possible because the base kernel is the
+first thing ever to get loaded (besides the loader) -- it has a wide
+open empty space in which to load.  And since the Linux kernel is not
+pageable, it stays in its homestead forever.</P
+><P
+>By the time you load an LKM, real memory is all fragmented -- you
+can't simply add the LKM to the end of the base kernel.  But the LKM
+needs to be in contiguous virtual memory, so Linux uses
+<TT
+CLASS="FUNCTION"
+>vmalloc</TT
+> to allocate a contiguous area of virtual
+memory (in the kernel address space), which is probably not contiguous
+in real memory.  But <EM
+>the memory is still not
+pageable</EM
+>.  The LKM gets loaded into real page frames from
+the start, and stays in those real page frames until it gets unloaded.</P
+><P
+>This design is based on the principle that it's much easier to get a
+large contiguous area of virtual memory than to get a large contiguous
+area of real memory because there is orders of magnitude more virtual
+address space than real memory.  In the early days of virtual memory,
+that was certainly true -- a 32 bit machine had a 4GiB virtual address
+space and rarely more than 64 MiB of real memory.  Now, however, it's
+quite often just the reverse, with virtual address space being the
+constrained resource.  So this LKM loading strategy may not make sense
+on your system.</P
+><P
+>Some CPUs can take advantage of the properties of the base kernel to 
+effect faster access to base kernel memory.  For example, on one 
+machine, the entire base kernel is covered by one page table entry
+and consequently one entry in the translation lookaside buffer (TLB).
+Naturally, that TLB entry is virtually always present.  For LKMs on
+this machine, there is a page table entry for each memory page into
+which the LKM is loaded.  Much more often, the entry for a page is not
+in the TLB when the CPU goes to access it, which means a slower access.</P
+><P
+>This effect is probably trivial.</P
+><P
+>It is also said that PowerPC Linux does something with its address
+translation so that transferring between accessing base kernel memory
+to accessing LKM memory is costly.  I don't know anything solid about
+that.</P
+><P
+>The base kernel contains within its prized contiguous domain a large
+expanse of reusable memory -- the kmalloc pool.  In some versions of
+Linux, the module loader tries first to get contiguous memory from
+that pool into which to load an LKM and only if a large enough space
+was not available, go to the vmalloc space.  Andi Kleen submitted code
+to do that in Linux 2.5 in October 2002.  He claims the difference is
+in the several per cent range.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN830"
+></A
+>10.8. Linux internals</H2
+><P
+>If you're interested in the internal workings of the Linux kernel with 
+respect to LKMs, this section can get you started.  You should not need
+to know any of this in order to develop, build, and use LKMs.</P
+><P
+>The code to handle LKMs is in the source files 
+<TT
+CLASS="FILENAME"
+>kernel/module.c</TT
+> in the Linux source tree.</P
+><P
+>The kernel module loader (see <A
+HREF="x197.html#AUTOLOAD"
+>Section 5.4</A
+>) lives in 
+<TT
+CLASS="FILENAME"
+>kernel/kmod.c</TT
+>.</P
+><P
+>(Ok, that wasn't much of a start, but at least I have a framework here
+for adding this information in the future).</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x615.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x839.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Persistent Data</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Writing Your Own Loadable Kernel Module</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

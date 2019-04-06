@@ -1,0 +1,356 @@
+<HTML
+><HEAD
+><TITLE
+>Using XML-RPC with Perl</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="XML-RPC HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="A Sample API: sumAndDifference"
+HREF="xmlrpc-howto-api.html"><LINK
+REL="NEXT"
+TITLE="Using XML-RPC with Python"
+HREF="xmlrpc-howto-python.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>XML-RPC HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="xmlrpc-howto-api.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="xmlrpc-howto-python.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="xmlrpc-howto-perl"
+>6. Using XML-RPC with Perl</A
+></H1
+><P
+>Ken MacLeod has implemented XML-RPC for Perl. You can find his
+    Frontier::RPC module at his <A
+HREF="http://bitsko.slc.ut.us/~ken/xml-rpc/"
+TARGET="_top"
+>website</A
+> or through
+    <A
+HREF="http://www.cpan.org/"
+TARGET="_top"
+>CPAN</A
+>.</P
+><P
+>To install Frontier::RPC, download the package and compile
+    it in the standard fashion:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>bash$ gunzip -c Frontier-RPC-0.07b1.tar.gz | tar xvf -
+bash$ cd Frontier-RPC-0.07b1
+bash$ perl Makefile.PL
+bash$ make
+bash$ make test
+bash$ su -c 'make install'</PRE
+></TD
+></TR
+></TABLE
+><P
+>(The process will be slightly different on Windows systems, or if
+    you don't have root access. Consult your Perl documentation for
+    details.)</P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="xmlrpc-howto-perl-client"
+>6.1. A Perl Client</A
+></H2
+><P
+>The following program shows how to call an XML-RPC server from
+      Perl:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>use Frontier::Client;
+
+# Make an object to represent the XML-RPC server.
+$server_url = 'http://xmlrpc-c.sourceforge.net/api/sample.php';
+$server = Frontier::Client-&#62;new(url =&#62; $server_url);
+
+# Call the remote server and get our result.
+$result = $server-&#62;call('sample.sumAndDifference', 5, 3);
+$sum = $result-&#62;{'sum'};
+$difference = $result-&#62;{'difference'};
+
+print "Sum: $sum, Difference: $difference\n";</PRE
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="xmlrpc-howto-perl-server"
+>6.2. A Stand-Alone Perl Server</A
+></H2
+><P
+>The following program shows how to write an XML-RPC server in
+      Perl:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>use Frontier::Daemon;
+
+sub sumAndDifference {
+    my ($x, $y) = @_;
+    return {'sum' =&#62; $x + $y, 'difference' =&#62; $x - $y};
+}
+
+# Call me as http://localhost:8080/RPC2
+$methods = {'sample.sumAndDifference' =&#62; \&#38;sumAndDifference};
+Frontier::Daemon-&#62;new(LocalPort =&#62; 8080, methods =&#62; $methods)
+    or die "Couldn't start HTTP server: $!";</PRE
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="xmlrpc-howto-perl-cgi"
+>6.3. A CGI-Based Perl Server</A
+></H2
+><P
+><TT
+CLASS="literal"
+>Frontier::RPC2</TT
+> doesn't provide built-in
+      support for CGI-based servers. It <EM
+>does</EM
+>, however,
+      provide most of the pieces you'll need.</P
+><P
+>Save the following code as
+      <TT
+CLASS="filename"
+>sumAndDifference.cgi</TT
+> in your web server's
+      <TT
+CLASS="filename"
+>cgi-bin</TT
+> directory. (On Unix systems, you'll need
+      to make it executable by typing <TT
+CLASS="literal"
+>chmod +x
+      sumAndDifference.cgi</TT
+>.)</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>#!/usr/bin/perl -w
+
+use strict;
+use Frontier::RPC2;
+
+sub sumAndDifference {
+    my ($x, $y) = @_;
+    return {'sum' =&#62; $x + $y, 'difference' =&#62; $x - $y};
+}
+
+process_cgi_call({'sample.sumAndDifference' =&#62; \&#38;sumAndDifference});
+
+
+#==========================================================================
+#  CGI Support
+#==========================================================================
+#  Simple CGI support for Frontier::RPC2. You can copy this into your CGI
+#  scripts verbatim, or you can package it into a library.
+#  (Based on xmlrpc_cgi.c by Eric Kidd &#60;http://xmlrpc-c.sourceforge.net/&#62;.)
+
+# Process a CGI call.
+sub process_cgi_call ($) {
+    my ($methods) = @_;
+
+    # Get our CGI request information.
+    my $method = $ENV{'REQUEST_METHOD'};
+    my $type = $ENV{'CONTENT_TYPE'};
+    my $length = $ENV{'CONTENT_LENGTH'};
+
+    # Perform some sanity checks.
+    http_error(405, "Method Not Allowed") unless $method eq "POST";
+    http_error(400, "Bad Request") unless $type eq "text/xml";
+    http_error(411, "Length Required") unless $length &#62; 0;
+
+    # Fetch our body.
+    my $body;
+    my $count = read STDIN, $body, $length;
+    http_error(400, "Bad Request") unless $count == $length; 
+
+    # Serve our request.
+    my $coder = Frontier::RPC2-&#62;new;
+    send_xml($coder-&#62;serve($body, $methods));
+}
+
+# Send an HTTP error and exit.
+sub http_error ($$) {
+    my ($code, $message) = @_;
+    print &#60;&#60;"EOD";
+Status: $code $message
+Content-type: text/html
+
+&#60;title&#62;$code $message&#60;/title&#62;
+&#60;h1&#62;$code $message&#60;/h1&#62;
+&#60;p&#62;Unexpected error processing XML-RPC request.&#60;/p&#62;
+EOD
+    exit 0;
+}
+
+# Send an XML document (but don't exit).
+sub send_xml ($) {
+    my ($xml_string) = @_;
+    my $length = length($xml_string);
+    print &#60;&#60;"EOD";
+Status: 200 OK
+Content-type: text/xml
+Content-length: $length
+
+EOD
+    # We want precise control over whitespace here.
+    print $xml_string;
+}</PRE
+></TD
+></TR
+></TABLE
+><P
+>You can copy the utility routines into your own CGI
+      scripts.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="xmlrpc-howto-api.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="xmlrpc-howto-python.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>A Sample API: <TT
+CLASS="function"
+>sumAndDifference</TT
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Using XML-RPC with Python</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,340 @@
+<HTML
+><HEAD
+><TITLE
+>Setting up the loop device</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Cryptoloop HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Getting the user space tools"
+HREF="userspace-tools.html"><LINK
+REL="NEXT"
+TITLE="Mounting the encrypted file system"
+HREF="mounting-filesystem.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Cryptoloop HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="userspace-tools.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="mounting-filesystem.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="loopdevice-setup"
+></A
+>5. Setting up the loop device</H1
+><P
+>Cryptoloop can be used either on a file or an entire file system. The following describes how to
+set it up on a particular partition. This partition can be any partition you like; the following
+example uses <TT
+CLASS="filename"
+>/dev/sda1</TT
+>. I have chosen to use AES as a cipher, but you can substitute any cipher
+you like that has been enabled in the kernel. You can get a list of the algorithms supported by
+your currently running kernel by looking into <TT
+CLASS="filename"
+>/proc/crypto</TT
+>. An excellent resource, discussing the
+different cryptographic algorithms, are Bruce Schneier's books, Applied Cryptography and Practical
+Cryptography. Both AES and Serpent are probably a reasonable choice. AES has been cryptanalyzed a lot
+and no serious weaknesses have been discovered so far. Serpent has not been analyzed as much, but is
+considered to be even a little bit stronger than AES. However, Serpent is also slower than AES.
+Stay away from DES, it is both slow and weak. Triple-DES may be an option, but AES is probably more
+secure and faster, so there is really no reason to use Triple-DES anymore.
+</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>It is recommended that you format your partition and fill it with random data before you create the encrypted file system on it. This will make it harder for an attacker to detect patterns in your encrypted partition.
+</P
+><P
+><EM
+>WARNING!</EM
+> </P
+><P
+>Be careful what you type here for your partition. If you do make a mistake, you can easily overwrite the wrong partition with random garbage! </P
+><P
+>Filling a partition with random data can be done as follows:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>dd if=/dev/urandom of=/dev/sda1 bs=1M
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You may get an error message that the device is full. You can ignore it.</P
+></LI
+><LI
+><P
+>Select a cipher and key size. A list of ciphers supported by your kernel can be obtained from <TT
+CLASS="filename"
+>/proc/crypto</TT
+>. I recommend that you use AES with a 256-bit key.</P
+></LI
+><LI
+><P
+>Set up the loop device. This is done using the <B
+CLASS="command"
+>losetup</B
+> command from the util-linux package. The following command creates an encrypted filesystem using the loop device 0 using the AES cipher with a 256-bit key on the device <TT
+CLASS="filename"
+>/dev/sda1</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>losetup -e aes-256 /dev/loop0 /dev/sda1
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The command prompts for a password. Select a strong password and try to remember it without having to stick a Post-It note to your monitor. 
+        There is one big downside to using Cryptoloop. Since the password is hashed to create the encryption key, it is not easy to change the password later on. 
+        The most straight-forward way of changing the password is to create a new encrypted partition or file and move all data into it. For this reason, make 
+        sure you select a strong password from the start.  AES may be a strong algorithm, but if you chose a weak password, that security goes down the drain.
+        </P
+><P
+>If <B
+CLASS="command"
+>losetup</B
+> fails with an INVALID ARGUMENT error message, there is a problem with your util-linux package. 
+         Make sure you have followed the instructions above on how to install a patched version of util-linux. Older and unpatched version use a 
+         different way of passing the key size, and do not work with the 2.6 Crypto API.
+        </P
+></LI
+><LI
+><P
+>Create a file system. You can chose whatever file system you like. The following creates an ext3 file system using the loop device:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mkfs.ext3 /dev/loop0
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></LI
+><LI
+><P
+>Mount the encrypted file system. First you need to create a mount point, such as <TT
+CLASS="filename"
+>/mnt/crypto</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mkdir /mnt/crypto</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Then you need to mount the file system. At this stage you need to tell mount explicitly which loop device to use:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mount -t ext3 /dev/loop0 /mnt/crypto
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></LI
+><LI
+><P
+>You can now play with your encrypted file system until you are bored.</P
+></LI
+><LI
+><P
+>Unmount the file system. After you are done playing, unmount the filesystem:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>umount /mnt/crypto</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></LI
+><LI
+><P
+>Detach the loop device. The loop device is still attached to your partition. Detach it with:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>losetup -d /dev/loop0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></LI
+></OL
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="userspace-tools.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="mounting-filesystem.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Getting the user space tools</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Mounting the encrypted file system</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

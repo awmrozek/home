@@ -1,0 +1,302 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>IP Masquerading multiple internal networks</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Other IP Masquerade Issues and Software Support "
+HREF="ipmasq-support-portfw-and-stronger-rulesets.html"><LINK
+REL="PREVIOUS"
+TITLE="Stronger firewall rulesets to run after initial testing"
+HREF="stronger-firewall-examples.html"><LINK
+REL="NEXT"
+TITLE="IP Masquerade and Dial-on-Demand Connections"
+HREF="dial-on-demand.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="stronger-firewall-examples.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 6. Other IP Masquerade Issues and Software Support</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="dial-on-demand.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="MULTIPLE-MASQED-LANS"
+></A
+>6.5. IP Masquerading multiple internal networks</H1
+><P
+>Masquerading more than one internal network is fairly simple.  You need to 
+first make sure that all of your networks are running correctly (both internal 
+and external).  You then need to enable traffic to pass to both the other internal 
+interfaces and to be MASQed to the Internet.</P
+><P
+>Next, you need to enable Masquerading on the INTERNAL interfaces.  This 
+example uses a total of THREE interfaces:  EXTIF stands for the eth0 interface 
+which is the EXTERNAL connection to the Internet.  INTIF stands for the eth1 interface
+and is the 192.168.0.0 network. Finally, INTIF2 stands for the eth2 interface and 
+is the 192.168.1.0 network.  Both INTIF and INTIF2 will be MASQed out of 
+interface eth0 or EXTIF.  In your rc.firewall-* ruleset next to the existing 
+MASQ at the very end of the ruleset, add the following:</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="IPTABLES-MASQING-MULTIPLE-LANS"
+></A
+>6.5.1. iptables support for multiple internal lans</H2
+><P
+></P
+><UL
+><LI
+><P
+>     <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># 2.6.x and 2.4.x kernels with IPTABLES
+#
+# The following rules build upon the rc.firewall-iptables-stronger ruleset.
+# Please see that ruleset in Section 6 for how all variables get set, etc.
+
+
+  #Enable internal interfaces to communication between each other
+  #
+  $IPTABLES -A FORWARD -i $EXTIF -o $INTIF2 -m state --state ESTABLISHED,RELATED \
+ -j ACCEPT
+  $IPTABLES -A FORWARD -i $INTIF -o $INTIF2 -m state --state ESTABLISHED,RELATED \
+ -j ACCEPT
+  $IPTABLES -A FORWARD -i $INTIF2 -o $INTIF -m state --state ESTABLISHED,RELATED \
+ -j ACCEPT
+
+  $IPTABLES -t nat -A POSTROUTING -o $EXTIF -j SNAT --to $EXTIP
+     </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>  
+    </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="IPCHAINS-MASQING-MULTIPLE-LANS"
+></A
+>6.5.2. ipchains support for multiple internal lans</H2
+><P
+></P
+><UL
+><LI
+><P
+>     <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># 2.2.x kernels with IPCHAINS
+#
+# The following rules build upon the rc.firewall-ipchains-stronger ruleset.
+# Please see that ruleset in Section 6 for how all variables get set, etc.
+
+  #Enable internal interfaces to communication between each other
+  $IPCHAINS -A forward -i eth1 -d 192.168.0.0/24 -j ACCEPT
+  $IPCHAINS -A forward -i eth2 -d 192.168.1.0/24 -j ACCEPT
+
+  #Enable internal interfaces to MASQ out to the Internet
+  $IPCHAINS -A forward -j MASQ -i eth0 -s 192.168.0.0/24 -d 0.0.0.0/0
+  $IPCHAINS -A forward -j MASQ -i eth0 -s 192.168.1.0/24 -d 0.0.0.0/0
+     </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>  
+    </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="IPFWADM-MASQING-MULTIPLE-LANS"
+></A
+>6.5.3. ipfwadm support for multiple internal lans</H2
+><P
+></P
+><UL
+><LI
+><P
+>     <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># 2.0.x kernels with IPFWADM
+#
+# The following rules build upon the rc.firewall-ipfwadm-stronger ruleset.
+# Please see that ruleset in Section 6 for how all variables get set, etc.
+
+  #Enable internal interfaces to communication between each other
+  /sbin/ipfwadm -F -a accept -V 192.168.0.1 -D 192.168.1.0/24
+  /sbin/ipfwadm -F -a accept -V 192.168.1.1 -D 192.168.0.0/24
+
+  #Enable internal interfaces to MASQ out to the Internet 
+  /sbin/ipfwadm -F -a masq -W eth0 -S 192.168.0.0/24 -D 0.0.0.0/0
+  /sbin/ipfwadm -F -a masq -W eth0 -S 192.168.1.0/24 -D 0.0.0.0/0
+     </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></LI
+></UL
+><P
+>Please note that it is CORRECT to have "eth0" specified multiple times for the
+exmples shown above.  The reason for this is the Linux kernel needs to know
+which interface is used for OUTGOING traffic.  Since eth0 in the above examples
+is the Internet connection, it is listed for each internal interface.
+ </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="stronger-firewall-examples.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="dial-on-demand.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Stronger firewall rulesets to run after initial testing</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="ipmasq-support-portfw-and-stronger-rulesets.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>IP Masquerade and Dial-on-Demand Connections</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

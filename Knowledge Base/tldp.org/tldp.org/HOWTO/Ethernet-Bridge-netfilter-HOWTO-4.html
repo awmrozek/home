@@ -1,0 +1,344 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Ethernet Bridge + netfilter Howto: Test your new bridged environment! </TITLE>
+ <LINK HREF="Ethernet-Bridge-netfilter-HOWTO-5.html" REL=next>
+ <LINK HREF="Ethernet-Bridge-netfilter-HOWTO-3.html" REL=previous>
+ <LINK HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ethernet-Bridge-netfilter-HOWTO-5.html">Next</A>
+<A HREF="Ethernet-Bridge-netfilter-HOWTO-3.html">Previous</A>
+<A HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="TESTING_Testing_grounds"></A> <A NAME="s4">4.</A> <A HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4">Test your new bridged environment! </A></H2>
+
+
+
+
+
+<H2><A NAME="ss4.1">4.1</A> <A HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4.1">Testing Grounds</A>
+</H2>
+
+<P>We imagine this scenario or similar: 
+<BLOCKQUOTE><CODE>
+<PRE>
+                                                          /\
+          Ethernet           Ethernet           ATM    /-/  \
+---------          ---------          ---------     /-/      |
+|  Box  |----------|Bridge |----------|Router |-----| Inter-  \
+---------          ---------          ---------     \  net  ---|
+         ^        ^         ^        ^               \     /
+         |        |         |        |                \---/
+        eth0     eth0      eth1     if0                 ^
+         |        |         |        |                  |
+      10.0.3.2   none/10.0.3.1      195.137.15.7    anything else
+                  \         /
+                   \       /
+   ^                \-br0-/
+   |                                      ^             ^
+   |                   ^                  |             |
+   |                   |                  |             |
+  own                 own              foreign        hostile
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Our administrative power includes only machines marked with <CODE>own</CODE>, the Router is 
+completely off-limits and so is the Internet, of course.<BR>
+That means, if we want to control the flying bits'n'bytes on the ethernet wire we can 
+chose to integrate a common firewall or file in a bridge. <BR>
+Drawback of the standard 
+way is you have to change the default gateway route on every and any single host in 
+your net. And this is really a heavy weighting drawback, nobody wants to change more 
+than 5 default routes on 5 different hosts more than one time. Keep the time in mind, 
+this will consume, also! Not to forget, this is a error-prone way to handle the more 
+about security..<BR>
+The other way is clean, less time-consuming, more secure and less error-prone.
+More secure in that we won't have the need to assign any IP address. No IP, no danger. 
+So far the theory, we hope, our stacks are safe. (Although this hope should better not 
+relied on..) The overall advantage is, this bridge-setup is completely transparent, 
+no IP, MAC, .. changes at all. <BR>
+So it's up to you to chose your preferred method. But we will handle just the fancy one here ;-)</P>
+
+
+<H2><A NAME="ss4.2">4.2</A> <A HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4.2">Ping it, Jim!</A>
+</H2>
+
+<P>We will configure the Box' eth0 as usual. The bridge's interfaces 
+are configured as described in 
+<A HREF="Ethernet-Bridge-netfilter-HOWTO-3.html#SETUP_Linux_brctl">Setup</A>.<BR>
+<A NAME="TESTING_routing"></A> 
+If we are to use forwarding we might perhaps do this one: ;-)
+<BLOCKQUOTE><CODE>
+<PRE>
+root@bridge:~> echo "1" > /proc/sys/net/ipv4/ip_forward
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Optionally, we set up a default route:
+<BLOCKQUOTE><CODE>
+<PRE>
+root@bridge:~> route add default gw 10.0.3.129
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Then we set up some iptables rules on host <CODE>bridge</CODE>:
+<A NAME="TESTING_iptables_listing"></A> 
+<BLOCKQUOTE><CODE>
+<PRE>
+root@bridge:~> iptables -P FORWARD DROP
+root@bridge:~> iptables -F FORWARD
+root@bridge:~> iptables -I FORWARD -j ACCEPT
+root@bridge:~> iptables -I FORWARD -j LOG
+root@bridge:~> iptables -I FORWARD -j DROP
+root@bridge:~> iptables -A FORWARD -j DROP
+root@bridge:~> iptables -x -v --line-numbers -L FORWARD
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The last line gives us the following output:
+<BLOCKQUOTE><CODE>
+<PRE>
+Chain FORWARD (policy DROP 0 packets, 0 bytes)
+num      pkts      bytes target   prot opt in     out     source   destination
+1           0        0 DROP       all  --  any    any     anywhere anywhere
+2           0        0 LOG        all  --  any    any     anywhere anywhere      LOG level warning
+3           0        0 ACCEPT     all  --  any    any     anywhere anywhere
+4           0        0 DROP       all  --  any    any     anywhere anywhere
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The <CODE>LOG</CODE> target logs every packet via <CODE>syslogd</CODE>. Beware, this is intended for 
+testing purposes only, remove in production environment. Else you end up either with 
+filled logs and harddisk partitions by you yourself or anyone else does this Denial 
+of Service to you. You've been warned.<BR>
+Test this ruleset now. Ping the router interface's IP (195.137.15.7) on host <CODE>box</CODE>:
+<BLOCKQUOTE><CODE>
+<PRE>
+root@box:~> ping -c 3 195.137.15.7
+PING router.provider.net (195.137.15.7) from 10.0.3.2 : 56(84) bytes of data.
+--- router.provider.net ping statistics ---
+3 packets transmitted, 0 received, 100% loss, time 2020ms
+^C
+root@box:~> 
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+By default, we <CODE>DROP</CODE> everything. No response, no logged packet. This netfilter 
+setup is designed to <CODE>DROP</CODE> all packets unless we delete the rule that drops every 
+packet (rule no. 1 above) before the <CODE>LOG</CODE> target matches:
+<BLOCKQUOTE><CODE>
+<PRE>
+root@bridge:~> iptables -D FORWARD 1
+root@bridge:~> iptables -x -v --line-numbers -L FORWARD
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Now, the rules are:
+<BLOCKQUOTE><CODE>
+<PRE>
+Chain FORWARD (policy DROP 0 packets, 0 bytes)
+num      pkts      bytes target   prot opt in     out     source   destination
+2           0        0 LOG        all  --  any    any     anywhere anywhere      LOG level warning
+3           0        0 ACCEPT     all  --  any    any     anywhere anywhere
+4           0        0 DROP       all  --  any    any     anywhere anywhere
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+And any packet may pass through. Test it with a ping on host <CODE>box</CODE>:
+<BLOCKQUOTE><CODE>
+<PRE>
+root@box:~> ping -c 3 195.137.15.7
+PING router.provider.net (195.137.15.7) from 10.0.3.2 : 56(84) bytes of data.
+64 bytes from router.provider.net (195.137.15.7): icmp_seq=1 ttl=255 time=0.103 ms
+64 bytes from router.provider.net (195.137.15.7): icmp_seq=2 ttl=255 time=0.082 ms
+64 bytes from router.provider.net (195.137.15.7): icmp_seq=3 ttl=255 time=0.083 ms
+
+--- router.provider.net ping statistics ---
+3 packets transmitted, 3 received, 0% loss, time 2002ms
+rtt min/avg/max/mdev = 0.082/0.089/0.103/0.012 ms
+root@box:~> 
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Yippeah! The router is alive, up and running. (Well it has been all day long.. ;-)</P>
+<P>
+<DL>
+<DT><B>Important Note:</B><DD><P>
+<A NAME="TESTING_Important_note"></A> 
+When we just fired up the bridge interface it takes about roughly 30 seconds 
+until the bridge is fully operational. This is due the 30-seconds-learning phase
+of the bridge interface. During this phase, the bridge ports are learning what
+MAC addresses exist on what port. The bridge author, Lennert, tells us in his
+TODO file, the 30-seconds-learning phase is subjected to some improvement in a
+timely manner some time.<BR>
+During the test phase, no packet will we forwarded. No ping be answered. 
+Remind this!</P>
+</DL>
+</P>
+
+<H2><A NAME="ss4.3">4.3</A> <A HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4.3">Actual configuration</A>
+</H2>
+
+<P>
+<A NAME="TESTING_actual_configuration"></A> 
+This section is intended to give you, dear reader, some hints about
+how your system should look and feel after having processed this 
+howto successfully.</P>
+
+<H3>Interface configuration</H3>
+
+<P>The output of your <CODE>ifconfig</CODE> command might look similar to
+this:
+<BLOCKQUOTE><CODE>
+<PRE>
+root@bridge:~> ifconfig
+br0       Link encap:Ethernet  HWaddr 00:04:75:81:D2:1D
+          inet addr:10.0.3.129  Bcast:195.30.198.255  Mask:255.255.255.128
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:826 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:737 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:161180 (157.4 Kb)  TX bytes:66708 (65.1 Kb)
+
+eth0      Link encap:Ethernet  HWaddr 00:04:75:81:ED:B7
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:5729 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:3115 errors:0 dropped:0 overruns:0 carrier:656
+          collisions:0 txqueuelen:100
+          RX bytes:1922290 (1.8 Mb)  TX bytes:298837 (291.8 Kb)
+          Interrupt:11 Base address:0xe400
+
+eth1      Link encap:Ethernet  HWaddr 00:04:75:81:D2:1D
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:1 frame:0
+          TX packets:243 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:100
+          RX bytes:342 (342.0 b)  TX bytes:48379 (47.2 Kb)
+          Interrupt:7 Base address:0xe800
+
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+          RX packets:1034 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:1034 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:82068 (80.1 Kb)  TX bytes:82068 (80.1 Kb)
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<H3>Routing configuration</H3>
+
+<P>The output of your <CODE>route</CODE> command might look similar to
+this:
+<BLOCKQUOTE><CODE>
+<PRE>
+root@bridge:~> route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+10.0.3.129      0.0.0.0         255.255.255.128 U     0      0        0 br0
+0.0.0.0         10.0.3.129      0.0.0.0         UG    0      0        0 br0
+root@bridge:~>
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<H3>Iptables configuration</H3>
+
+<P>Please have a look at the 
+<A HREF="#TESTING_iptables_listing">Ping it, Jim!</A> section.</P>
+
+<H2><A NAME="final-note"></A> <A NAME="ss4.4">4.4</A> <A HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4.4">Final note (Important!) </A>
+</H2>
+
+<P>I'd like to hear from you! :-)<BR>
+Did you enjoy the trip? <BR>
+Do you miss anything? <BR>
+Need help? (Call you local assistant ;-) or rtfm.<BR>
+You are still online? Then drop me a msg via email. I'd be really glad.<BR>
+Wanna send me a cheque? Pitty, Don't accept these.. (Just kidding;)<BR>
+Make it worth my time, just send me some nice words, that's enough.<BR>
+Nothing motivates more than happy participants giving you valuable feedback.<BR>
+So, go on, invest a minute and hack me a mail!<BR>
+Thank you!</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Nils
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+
+<H2><A NAME="ss4.5">4.5</A> <A HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4.5">Bug-Notes</A>
+</H2>
+
+<P>
+<A NAME="HINT_False_positive"></A> 
+Apparently, there must have been a bug in the br-nf code:
+<BLOCKQUOTE><CODE>
+<PRE>
+From: Bart De Schuymer &lt;bart.de.schuymer_@_pandora.be>
+Date: Sun, 1 Sep 2002 21:52:46 +0200
+To: Nils Radtke &lt;Nils.Radtke_@_Think-Future.de>
+Subject: Re: Ethernet-Brigde-netfilter-HOWTO
+
+Hello Nils,
+
+[...]
+Also, network packet filtering debugging is generally a bad idea with the
+br-nf patch. It can gives a lot of false warnings (about bugs) in the logs.
+[...]
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>Personally, I never had false positives in my log. Maybe, that bug has been 
+fixed. This mailed to Bart, he wrote:
+<BLOCKQUOTE><CODE>
+<PRE>
+From: Bart De Schuymer &lt;bart.de.schuymer_@_pandora.be>
+Date: Mon, 2 Sep 2002 18:30:25 +0200
+To: Nils Radtke &lt;Nils.Radtke_@_Think-Future.de>
+Subject: Re: Ethernet-Brigde-netfilter-HOWTO
+
+On Monday 02 September 2002 00:39, Nils Radtke wrote:
+> Will the revision of the nf-debug code in br-nf be subject of improvement?
+
+I must admit I haven't been running any kernel with netfilter debugging
+lately. It sure used to give false positives a few months ago (the bridge
+mailing list has posts about that), I've been lacking time to see why and if
+it is still the case. It's on my todo list.
+[...]
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+But (as of writing this 2002-09-19) I haven't found an official announcement, 
+this particular bug has been closed. So have a constant look at this topic on 
+the 
+<A HREF="Ethernet-Bridge-netfilter-HOWTO-6.html#LINK_Mailinglist">ethernet bridge mailinglist</A>
+, if you are interested in it's cure.</P>
+
+
+
+<HR>
+<A HREF="Ethernet-Bridge-netfilter-HOWTO-5.html">Next</A>
+<A HREF="Ethernet-Bridge-netfilter-HOWTO-3.html">Previous</A>
+<A HREF="Ethernet-Bridge-netfilter-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

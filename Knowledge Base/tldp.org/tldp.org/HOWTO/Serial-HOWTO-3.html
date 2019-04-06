@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Serial HOWTO: How the Hardware Transfers Bytes </TITLE>
+ <LINK HREF="Serial-HOWTO-4.html" REL=next>
+ <LINK HREF="Serial-HOWTO-2.html" REL=previous>
+ <LINK HREF="Serial-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Serial-HOWTO-4.html">Next</A>
+<A HREF="Serial-HOWTO-2.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="how_hdw_xfers"></A> <A NAME="s3">3.</A> <A HREF="Serial-HOWTO.html#toc3">How the Hardware Transfers Bytes </A></H2>
+
+<P> Below is an introduction to the topic, but for a more advanced
+treatment of it see 
+<A HREF="Serial-HOWTO-19.html#fifo_">FIFOs</A>.</P>
+
+<H2><A NAME="ss3.1">3.1</A> <A HREF="Serial-HOWTO.html#toc3.1">Transmitting</A>
+</H2>
+
+<P> Transmitting is sending bytes out of the serial port away from the
+computer.  Once you understand transmitting, receiving is easy to
+understand since it's similar.  The first explanation given here will
+be grossly oversimplified.  Then more detail will be added in later
+explanations.  When the computer wants to send a byte out the serial
+port (to the external cable) the CPU sends the byte on the bus inside
+the computer to the I/O (Input Output) address of the serial port.
+I/O is often written as just IO.  The serial port takes the byte, and
+sends it out one bit at a time (a serial bit-stream) on the transmit
+pin of the serial cable connector.  For what a bit (and byte) look
+like electrically see 
+<A HREF="Serial-HOWTO-21.html#volt_shape">Voltage Waveshapes</A>.</P>
+<P>Here's a replay of the above in a little more detail (but still very
+incomplete).  Most of the work at the serial port is done by the UART
+chip (or the like).  To transmit a byte, the serial device driver
+program (running on the CPU) sends a byte to the serial port"s I/O
+address.  This byte gets into a 1-byte "transmit shift register" in
+the serial port.  From this shift register bits are taken from the
+byte one-by-one and sent out bit-by-bit on the serial line.  Then when
+the last bit has been sent and the shift register needs another byte
+to send it could just ask the CPU to send it another byte.  Thus would
+be simple but it would likely introduce delays since the CPU might not
+be able to get the byte immediately.  After all, the CPU is usually
+doing other things besides just handling the serial port.</P>
+<P>A way to eliminate such delays is to arrange things so that the CPU
+gets the byte before the shift register needs it and stores it in a
+serial port buffer (in hardware).  Then when the shift register has
+sent out its byte and needs a new byte immediately, the serial port
+hardware just transfers the next byte from its own buffer to the shift
+register.  No need to call the CPU to fetch a new byte.</P>
+<P>The size of this serial port buffer was originally only one byte, but
+today it is usually 16 bytes (more in higher priced serial ports).
+Now there is still the problem of keeping this buffer sufficiently
+supplied with bytes so that when the shift register needs a byte to
+transmit it will always find one there (unless there are no more bytes
+to send).  This is done by contacting the CPU using an interrupt.</P>
+<P>First we'll explain the case of the old fashioned one-byte buffer,
+since 16-byte buffers work similarly (but are more complex).  When the
+shift register grabs the byte out of the buffer and the buffer needs
+another byte, it sends an interrupt to the CPU by putting a voltage on
+a dedicated wire on the computer bus.  Unless the CPU is doing
+something very important, the interrupt forces it to stop what it was
+doing and start running a program which will supply another byte to
+the port's buffer.  The purpose of this buffer is to keep an extra
+byte (waiting to be sent) queued in hardware so that there will be no
+gaps in the transmission of bytes out the serial port cable.</P>
+<P>Once the CPU gets the interrupt, it will know who sent the interrupt
+since there is a dedicated interrupt wire for each serial port (unless
+interrupts are shared).  Then the CPU will start running the serial
+device driver which checks registers at I/0 addresses to find out what
+has happened.  It finds out that the serial's transmit buffer is empty
+and waiting for another byte.  So if there are more bytes to send, it
+sends the next byte to the serial port's I/0 address.  This next byte
+should arrive when the previous byte is still in the transmit shift
+register and is still being transmitted bit-by-bit.</P>
+<P>In review, when a byte has been fully transmitted out the transmit
+wire of the serial port and the shift register is now empty the
+following 3 things happen almost simultaneously:</P>
+<P>
+<OL>
+<LI> The next byte is moved from the transmit buffer into
+the transmit shift register</LI>
+<LI> The transmission of this new byte (bit-by-bit) begins</LI>
+<LI> Another interrupt is issued to tell the device driver to send
+yet another byte to the now empty transmit buffer</LI>
+</OL>
+</P>
+<P>Thus we say that the serial port is interrupt driven.  Each time the
+serial port issues an interrupt, the CPU sends it another byte.  Once
+a byte has been sent to the transmit buffer by the CPU, then the CPU
+is free to pursue some other activity until it gets the next
+interrupt.  The serial port transmits bits at a fixed rate which is
+selected by the user (or an application program).  It's sometimes
+called the baud rate.  The serial port also adds extra bits to each
+byte (start, stop and perhaps parity bits) so there are often 10 bits
+sent per byte.  At a rate (also called speed) of 19,200 bits per
+second (bps), there are thus 1,920 bytes/sec (and also 1,920
+interrupts/sec).</P>
+<P>Doing all this is a lot of work for the CPU.  This is true for many
+reasons.  First, just sending one 8-bit byte at a time over a 32-bit
+data bus (or even 64-bit) is not a very efficient use of bus width.
+Also, there is a lot of overhead in handing each interrupt.  When the
+interrupt is received, the device driver only knows that something
+caused an interrupt at the serial port but doesn't know that it's
+because a character has been sent.  The device driver has to make
+various checks to find out what happened.  The same interrupt could
+mean that a character was received, one of the control lines changed
+state, etc.</P>
+<P>A major improvement has been the enlargement of the buffer size of the
+serial port from 1-byte to 16-bytes.  This means that when the CPU
+gets an interrupt it gives the serial port up to 16 new bytes to
+transmit.  This is fewer interrupts to service but data must still be
+transferred one byte at a time over a wide bus.  The 16-byte buffer is
+actually a FIFO (First In First Out) queue and is often called a FIFO.
+See 
+<A HREF="Serial-HOWTO-19.html#fifo_">FIFOs</A> for details about the FIFO along
+with a repeat of some of the above info.</P>
+
+<H2><A NAME="ss3.2">3.2</A> <A HREF="Serial-HOWTO.html#toc3.2">Receiving</A>
+</H2>
+
+<P> Receiving bytes by a serial port is similar to sending them only
+it's in the opposite direction.  It's also interrupt driven.  For the
+obsolete type of serial port with 1-byte buffers, when a byte is fully
+received from the external cable it goes into the 1-byte receive
+buffer.  Then the port gives the CPU an interrupt to tell it to pick
+up that byte so that the serial port will have room for storing the
+next byte which is currently being received.  For newer serial ports
+with 16-byte buffers, this interrupt (to fetch the bytes) may be sent
+when 14 bytes are in the receive buffer.  The CPU then stops what it
+was doing, runs the interrupt service routine, and picks up 14 to 16
+bytes from the port.  For an interrupt sent when the 14th byte has
+been received, there could be 16 bytes to get if 2 more bytes have
+arrived since the interrupt.  But if 3 more bytes should arrive
+(instead of 2), then the 16-byte buffer will overrun.  It also may
+pick up less than 14 bytes by setting it up that way or due to
+timeouts.  See 
+<A HREF="Serial-HOWTO-19.html#fifo_">FIFOs</A> for more details.</P>
+
+<H2><A NAME="ss3.3">3.3</A> <A HREF="Serial-HOWTO.html#toc3.3">The Large Serial Buffers</A>
+</H2>
+
+<P> We've talked about small 16-byte serial port hardware
+buffers but there are also much larger buffers in main memory.  When
+the CPU takes some bytes out of the receive buffer of the hardware, it
+puts them into a much larger (say 8k-byte) receive buffer in main
+memory.  Then a program that is getting bytes from the serial port
+takes the bytes it's receiving out of that large buffer (using a
+"read" statement in a program).  A similar situation exists for
+bytes that are to be transmitted.  When the CPU needs to fetch some
+bytes to be transmitted it takes them out of a large (8k-byte)
+transmit buffer in main memory and puts them into the small 16-byte
+transmit buffer in the uart hardware.</P>
+
+<HR>
+<A HREF="Serial-HOWTO-4.html">Next</A>
+<A HREF="Serial-HOWTO-2.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

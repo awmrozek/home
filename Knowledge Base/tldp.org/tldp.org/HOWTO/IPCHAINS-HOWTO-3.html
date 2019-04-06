@@ -1,0 +1,349 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux IPCHAINS-HOWTO: I'm confused!  Routing, masquerading, portforwarding, ipautofw...</TITLE>
+ <LINK HREF="IPCHAINS-HOWTO-4.html" REL=next>
+ <LINK HREF="IPCHAINS-HOWTO-2.html" REL=previous>
+ <LINK HREF="IPCHAINS-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="IPCHAINS-HOWTO-4.html">Next</A>
+<A HREF="IPCHAINS-HOWTO-2.html">Previous</A>
+<A HREF="IPCHAINS-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. I'm confused!  Routing, masquerading, portforwarding, ipautofw...</A></H2>
+
+<P>This HOWTO is about packet filtering.  This means deciding whether a
+packet should be allowed to pass or not.  However, Linux being the
+hacker's playground that it is, you probably want to do more than
+that.
+<P>
+<P>One problem is that the same tool (``ipchains'') is used to control
+both masquerading and transparent proxying, although these are
+notionally separate from packet filtering (the current Linux
+implementation blurs these together unnaturally, leaving the
+impression that they are closely related).
+<P>
+<P>Masquerading and proxying are covered by separate HOWTOs, and the auto
+forwarding and port forwarding features are controlled by separate
+tools, but since so many people keep asking me about it, I'll include
+a set of common scenarios and indicate when each one should be
+applied.  The security merits of each setup will not be discussed
+here.
+<P>
+<H2><A NAME="ss3.1">3.1 Rusty's Three-Line Guide To Masquerading</A>
+</H2>
+
+<P>This assumes that your <B>external</B> interface is called `ppp0'.
+Use ifconfig to find out, and adjust to taste.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -P forward DENY
+# ipchains -A forward -i ppp0 -j MASQ
+# echo 1 > /proc/sys/net/ipv4/ip_forward
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss3.2">3.2 Gratuitous Promotion: WatchGuard Rules</A>
+</H2>
+
+<P>You can buy off-the-shelf firewalls.  An excellent one is WatchGuard's
+FireBox.  It's excellent because I like it, it's secure, it's
+Linux-based, and because they funded the maintenance of ipchains as
+well as the new firewalling code (for 2.4).  In short, WatchGuard were
+paying for me to eat while I work for you.  So please consider their
+stuff.
+<P>
+<A HREF="http://www.watchguard.com">http://www.watchguard.com</A><P>
+<H2><A NAME="ss3.3">3.3 Common Firewall-like Setups</A>
+</H2>
+
+<P>You run littlecorp.com.  You have an internal network, and a single
+dialup (PPP) connection to the Internet (firewall.littlecorp.com which
+is 1.2.3.4).  You run Ethernet on your local network, and your
+personal machine is called "myhost".
+<P>
+<P>This section will illustrate the different arrangement which are
+common.  Read carefully, because they are each subtly different.
+<P>
+<H3>Private Network: Traditional Proxies</H3>
+
+<P>In this scenario, packets from the private network never traverse the
+Internet, and vice versa.  The IP addresses of the private network
+should be assigned from the RFC1918 Address Allocation for Private
+Internets (ie. 10.*.*.*, 172.16.*.*-172.31.*.* or 192.168.*.*).
+<P>
+<P>The only way things ever connect to the Internet is by connecting to
+the firewall, which is the only machine on both networks which
+connects onwards.  You run a program (on the firewall) called a proxy
+to do this (there are proxies for FTP, web access, telnet, RealAudio,
+Usenet News and other services).  See the Firewall HOWTO.
+<P>
+<P>Any services you wish the Internet to access must be on the firewall.
+(But see 
+<A HREF="#limited-services">Limited Internal Services</A>
+below).
+<P>
+<P>Example: Allowing web access from private network to the Internet.
+<OL>
+<LI> The private network is assigned 192.168.1.* addresses, with
+myhost being 192.168.1.100, and the firewall's Ethernet interface
+being assigned 192.168.1.1.
+</LI>
+<LI> A web proxy (eg. "squid") is installed and configured on the
+firewall, say running on port 8080.
+</LI>
+<LI> Netscape on the private network is configured to use the
+firewall port 8080 as a proxy.
+</LI>
+<LI> DNS does not need to be configured on the private network.
+</LI>
+<LI> DNS does need to be configured on the firewall.
+</LI>
+<LI> No default route (aka gateway) needs to be configured on the
+private network.</LI>
+</OL>
+<P>
+<P>Netscape on myhost reads http://slashdot.org.
+<OL>
+<LI> Netscape connects to the firewall port 8080, using port 1050 on
+myhost.  It asks for the web page of "http://slashdot.org".
+</LI>
+<LI> The proxy looks up the name "slashdot.org", and gets
+207.218.152.131.  It then opens a connection to that IP address (using
+port 1025 on the firewall's external interface), and asks the web
+server (port 80) for the web page.
+</LI>
+<LI> As it receives the web page from its connection to the web
+server, it copies the data to the connection from Netscape.
+</LI>
+<LI> Netscape renders the page.</LI>
+</OL>
+<P>ie.  From slashdot.org's point of view, the connection is made from
+1.2.3.4 (firewall's PPP interface) port 1025 to 207.218.152.131
+(slashdot.org) port 80.  From myhost's point of view, the connection
+is made from 192.168.1.100 (myhost) port 1050, to 192.168.1.1
+(firewall's Ethernet interface) port 8080.
+<P>
+<P>
+<H3>Private Network: Transparent Proxies</H3>
+
+<P>In this scenario, packets from the private network never traverse the
+Internet, and vice versa.  The IP addresses of the private network
+should be assigned from the RFC1918 Address Allocation for Private
+Internets (ie. 10.*.*.*, 172.16.*.*-172.31.*.* or 192.168.*.*).
+<P>
+<P>The only way things ever connect to the Internet is by connecting to
+the firewall, which is the only machine on both networks, which
+connects onwards.  You run a program (on the firewall) called a
+transparent proxy to do this; the kernel sends outgoing packets to the
+transparent proxy instead of sending them onwards (ie. it bastardizes
+routing).
+<P>
+<P>Transparent proxying means that the clients don't need to know there
+is a proxy involved.
+<P>
+<P>Any services you wish the Internet to access must be on the firewall.
+(But see 
+<A HREF="#limited-services">Limited Internal Services</A>
+below).
+<P>
+<P>Example: Allowing web access from private network to the Internet.
+<OL>
+<LI> The private network is assigned 192.168.1.* addresses, with
+myhost being 192.168.1.100, and the firewall's Ethernet interface
+being assigned 192.168.1.1.
+</LI>
+<LI> A transparent web proxy (I believe there are patches for squid
+to allow it to operate in this manner, or try "transproxy") is
+installed and configured on the firewall, say running on port 8080.
+</LI>
+<LI> The kernel is told to redirect connections to port 80 to the
+proxy, using ipchains. 
+</LI>
+<LI> Netscape on the private network is configured to connect directly.
+</LI>
+<LI> DNS needs to be configured on the private network (ie. you need
+to run a DNS server as a proxy on the firewall).
+</LI>
+<LI> The default route (aka gateway) needs to be configured on the
+private network, to send packets to the firewall.</LI>
+</OL>
+<P>
+<P>Netscape on myhost reads http://slashdot.org.
+<OL>
+<LI> Netscape looks up the name "slashdot.org", and gets
+207.218.152.131.  It then opens a connection to that IP address, using
+local port 1050, and asks the web server (port 80) for the web page.
+</LI>
+<LI> As the packets from myhost (port 1050) to slashdot.org (port
+80) pass through the firewall, they are redirected to the waiting
+transparent proxy on port 8080.  The transparent proxy opens a
+connection (using local port 1025) to 207.218.152.131 port 80 (which
+is where the original packets were going).
+</LI>
+<LI> As the proxy receives the web page from its connection to the
+web server, it copies the data to the connection from Netscape.
+</LI>
+<LI> Netscape renders the page.</LI>
+</OL>
+<P>ie.  From slashdot.org's point of view, the connection is made from
+1.2.3.4 (firewall's PPP interface) port 1025 to 207.218.152.131
+(slashdot.org) port 80.  From myhost's point of view, the connection
+is made from 192.168.1.100 (myhost) port 1050, to 207.218.152.131
+(slashdot.org) port 80, but it's actually talking to the transparent
+proxy.
+<P>
+<H3>Private Network: Masquerading</H3>
+
+<P>In this scenario, packets from the private network never traverse the
+Internet without special treatment, and vice versa.  The IP addresses
+of the private network should be assigned from the RFC1918 Address
+Allocation for Private Internets (ie. 10.*.*.*, 172.16.*.*-172.31.*.*
+or 192.168.*.*).
+<P>
+<P>Instead of using a proxy, we use a special kernel facility called
+"masquerading".  Masquerading rewrites packets as they pass through
+the firewall, so that they always seem to come from the firewall
+itself.  It then rewrites the responses so that they look like they
+are going to the original recipient.
+<P>
+<P>Masquerading has separate modules to handle "tricky" protocols, such
+as FTP, RealAudio, Quake, etc.  For really hard-to-handle protocols,
+the "auto forwarding" facility can handle some of them by
+automatically setting up port forwarding for related sets of ports:
+look for ``ipportfw'' (2.0 kernels) or ``ipmasqadm'' (2.1 kernels).
+<P>
+<P>Any services you wish the Internet to access must be on the firewall.
+(But see 
+<A HREF="#limited-services">Limited Internal Services</A>
+below).
+<P>
+<P>Example: Allowing web access from private network to the Internet.
+<OL>
+<LI> The private network is assigned 192.168.1.* addresses, with
+myhost being 192.168.1.100, and the firewall's Ethernet interface
+being assigned 192.168.1.1.
+</LI>
+<LI> The firewall is set up to masquerade any packets coming from
+the private network and going to port 80 on an Internet host.
+</LI>
+<LI> Netscape is configured to connect directly.
+</LI>
+<LI> DNS must be configured correctly on the private network.
+</LI>
+<LI> The firewall should be the default route (aka gateway) for the
+private network.</LI>
+</OL>
+<P>Netscape on myhost reads http://slashdot.org.
+<OL>
+<LI> Netscape looks up the name "slashdot.org", and gets
+207.218.152.131.  It then opens a connection to that IP address, using
+local port 1050, and asks the web server (port 80) for the web page.
+</LI>
+<LI> As the packets from myhost (port 1050) to slashdot.org (port
+80) pass through the firewall, they are rewritten to come from the PPP
+interface of the firewall, port 65000.  The firewall has a valid
+Internet address (1.2.3.4) so reply packets from slashdot.org get
+routed back OK.
+</LI>
+<LI> As packets from slashdot.org (port 80) to
+firewall.littlecorp.com (port 65000) come in, they are rewritten to go
+to myhost, port 1050.  This is the real magic of masquerading: it
+remembers when it rewrites outgoing packets to it can write them back
+as replies come in.
+</LI>
+<LI> Netscape renders the page.</LI>
+</OL>
+<P>ie.  From the slashdot.org's point of view, the connection is made
+from 1.2.3.4 (firewall's PPP interface) port 65000 to 207.218.152.131
+(slashdot.org) port 80.  From the myhost's point of view, the
+connection is made from 192.168.1.100 (myhost) port 1050, to
+207.218.152.131 (slashdot.org) port 80.
+<P>
+<P>
+<H3>Public Network</H3>
+
+<P>In this scenario, your personal network is a part of the Internet:
+packets can flow without change across both networks.  The IP
+addresses of the internal network must be assigned by applying for a
+block of IP addresses, so the rest of the network will know how to get
+packets to you.  This implies a permanent connection.
+<P>
+<P>In this role, packet filtering is used to restrict which packets can
+be forwarded between your network and the rest of the Internet, eg. to
+restrict the rest of the Internet to only accessing your internal web
+servers.
+<P>
+<P>Example: Allowing web access from private network to the Internet.
+<OL>
+<LI> Your internal network is assigned according to the IP address
+block you have registered, (say 1.2.3.*).
+</LI>
+<LI> The firewall is set up to allow all traffic.
+</LI>
+<LI> Netscape is configured to connect directly.
+</LI>
+<LI> DNS must be configured correctly on your network.
+</LI>
+<LI> The firewall should be the default route (aka gateway) for the
+private network.</LI>
+</OL>
+<P>Netscape on myhost reads http://slashdot.org.
+<OL>
+<LI> Netscape looks up the name "slashdot.org", and gets
+207.218.152.131.  It then opens a connection to that IP address, using
+local port 1050, and asks the web server (port 80) for the web page.
+</LI>
+<LI> Packets pass through your firewall, just as they pass through
+several other routers between you and slashdot.org.
+</LI>
+<LI> Netscape renders the page.</LI>
+</OL>
+<P>ie.  There is only one connection: from 1.2.3.100 (myhost) port
+1050, to 207.218.152.131 (slashdot.org) port 80.
+<P>
+<H3><A NAME="limited-services"></A> Limited Internal Services</H3>
+
+<P>There are a few tricks you can pull to allow the Internet to access
+your internal services, rather than running the services on the
+firewall.  These will work with either a proxy or masquerading based
+approach for external connections.
+<P>
+<P>The simplest approach is to run a "redirector", which is a poor-man's
+proxy which waits for a connection on a given port, and then open a
+connection a fixed internal host and port, and copies data between the
+two connections.  An example of this is the "redir" program.  From the
+Internet point of view, the connection is made to your firewall.
+From your internal server's point of view, the connection is made from
+the internal interface of the firewall to the server.
+<P>
+<P>Another approach (which requires a 2.0 kernel patched for ipportfw, or
+a 2.1 or later kernel) is to use port forwarding in the kernel.  This
+does the same job as "redir" in a different way: the kernel rewrites
+packets as they pass through, changing their destination address and
+ports to point them at an internal host and port.  From the Internet's
+point of view, the connection is made to your firewall.  From your
+internal server's point of view, a direct connection is made from the
+Internet host to the server.
+<P>
+<H2><A NAME="ss3.4">3.4 More Information on Masquerading</A>
+</H2>
+
+<P>David Ranch has written an excellent new HOWTO on Masquerading, which
+has a large amount of overlap with this HOWTO.  You can currently find
+that HOWTO at
+<P>
+<A HREF="http://www.linuxdoc.org/HOWTO/IP-Masquerade-HOWTO.html">http://www.linuxdoc.org/HOWTO/IP-Masquerade-HOWTO.html</A><P>
+<P>The official Masquerading home page is at 
+<P>
+<A HREF="http://ipmasq.cjb.net">http://ipmasq.cjb.net</A><P>
+<P>
+<HR>
+<A HREF="IPCHAINS-HOWTO-4.html">Next</A>
+<A HREF="IPCHAINS-HOWTO-2.html">Previous</A>
+<A HREF="IPCHAINS-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

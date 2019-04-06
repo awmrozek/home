@@ -1,0 +1,416 @@
+<HTML
+><HEAD
+><TITLE
+>GRUB and LILO</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux i386 Boot Code HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Internal Linker Script"
+HREF="internel_lds.html"><LINK
+REL="NEXT"
+TITLE="FAQ"
+HREF="faq.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux i386 Boot Code HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="internel_lds.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="faq.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="bootloader"
+></A
+>C. GRUB and LILO</H1
+><P
+>&#13;   Both <A
+HREF="http://www.gnu.org/software/grub"
+TARGET="_top"
+>GNU GRUB</A
+> and
+   <A
+HREF="http://freshmeat.net/projects/lilo"
+TARGET="_top"
+>LILO</A
+>
+   understand the real-mode kernel header format and will load
+   the bootsect (one sector), setup code
+   (<EM
+>setup_sects</EM
+> sectors) and
+   compressed kernel image (<EM
+>syssize</EM
+>*16 bytes) into memory.
+   They fill out the loader identifier (<EM
+>type_of_loader</EM
+>)
+   and try to pass appropriate parameters and options to the kernel.
+   After they finish their jobs, control is passed to setup code.
+  </P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="grub"
+></A
+>C.1. GNU GRUB</H2
+><P
+>&#13;     The following GNU GRUB program outline is based on grub-0.93.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>stage2/stage2.c:cmain()
+`-- run_menu()
+    `-- run_script();
+        |-- builtin = find_command(heap);
+        |-- kernel_func();              // builtin-&#62;func() for command "kernel"
+        |   `-- load_image();           // search BOOTSEC_SIGNATURE in boot.c
+        |   /* memory from 0x100000 is populated by and in the order of
+        |    *   (bvmlinux, bbootsect, bsetup) or (vmlinux, bootsect, setup) */
+        |-- initrd_func();              // for command "initrd"
+        |   `-- load_initrd();
+        `-- boot_func();                // for implicit command "boot"
+            `-- linux_boot();           // defined in stage2/asm.S
+                or big_linux_boot();    //   not in grub/asmstub.c!
+
+// In stage2/asm.S
+linux_boot:
+        /* copy kernel */
+        move system code from 0x100000 to 0x10000 (linux_text_len bytes);
+big_linux_boot:
+        /* copy the real mode part */
+        EBX = linux_data_real_addr;
+        move setup code from linux_data_tmp_addr (0x100000+text_len)
+            to linux_data_real_addr (0x9100 bytes);
+        /* change %ebx to the segment address */
+        linux_setup_seg = (EBX &#62;&#62; 4) + 0x20;
+        /* XXX new stack pointer in safe area for calling functions */
+        ESP = 0x4000;
+        stop_floppy();
+        /* final setup for linux boot */
+        prot_to_real();
+        cli;
+        SS:ESP = BX:9000;
+        DS = ES = FS = GS = BX;
+        /* jump to start, i.e. ljmp linux_setup_seg:0
+         * Note that linux_setup_seg is just changed to BX. */
+        .byte   0xea
+        .word   0
+linux_setup_seg:
+        .word   0
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;     Refer to "<B
+CLASS="command"
+>info grub</B
+>" for GRUB manual.
+    </P
+><P
+>&#13;     One
+<A
+HREF="http://mail.gnu.org/archive/html/bug-grub/2003-03/msg00030.html"
+TARGET="_top"
+>&#13;     reported GNU GRUB bug</A
+> should be noted if you are
+     porting grub-0.93 and making changes to <EM
+>bsetup</EM
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="lilo"
+></A
+>C.2. LILO</H2
+><P
+>&#13;     Unlike GRUB, LILO does not check the configuration file
+     when booting system.
+     Tricks happen when <B
+CLASS="command"
+>lilo</B
+> is invoked from terminal.
+    </P
+><P
+>&#13;     The following LILO program outline is based on lilo-22.5.8.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>lilo.c:main()
+|-- cfg_open(config_file);
+|-- cfg_parse(cf_options);
+|-- bsect_open(boot_dev, map_file, install, delay, timeout);
+|   |-- open_bsect(boot_dev);
+|   `-- map_create(map_file);
+|-- cfg_parse(cf_top)
+|   `-- cfg_do_set();
+|       `-- do_image();             // walk-&#62;action for "image=" section
+|           |-- cfg_parse(cf_image) -&#62; cfg_do_set();
+|           |-- bsect_common(&#38;descr, 1);
+|           |   |-- map_begin_section();
+|           |   |-- map_add_sector(fallback_buf);
+|           |   `-- map_add_sector(options);
+|           |-- boot_image(name, &#38;descr) or boot_device(name, range, &#38;descr);
+|           |   |-- int fd = geo_open(&#38;descr, name, O_RDONLY);
+|           |   |   read(fd, &#38;buff, SECTOR_SIZE);
+|           |   |   map_add(&#38;geo, 0, image_sectors);
+|           |   |   map_end_section(&#38;descr-&#62;start, setup_sects+2+1);
+|           |   |       /* two sectors created in bsect_common(),
+|           |   |        *   another one sector for bootsect */
+|           |   |   geo_close(&#38;geo);
+|           |   `-- fd = geo_open(&#38;descr, initrd, O_RDONLY);
+|           |       map_begin_section();
+|           |       map_add(&#38;geo, 0, initrd_sectors);
+|           |       map_end_section(&#38;descr-&#62;initrd,0);
+|           |       geo_close(&#38;geo);
+|           `-- bsect_done(name, &#38;descr);
+`-- bsect_update(backup_file, force_backup, 0); // update boot sector
+    |-- make_backup();
+    |-- map_begin_section();
+    |   map_add_sector(table);
+    |   map_write(&#38;param2, keytab, 0, 0);
+    |   map_close(&#38;param2, here2);
+    |-- // ... perform the relocation of the boot sector
+    |-- // ... setup bsect_wr to correct place
+    |-- write(fd, bsect_wr, SECTOR_SIZE);
+    `-- close(fd);</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     <EM
+>map_add(), map_add_sector()</EM
+> and
+     <EM
+>map_add_zero()</EM
+> may call
+     <EM
+>map_register()</EM
+> to complete their jobs,
+     while <EM
+>map_register()</EM
+> will keep a list for
+     all (CX, DX, AL) triplets (data structure SECTOR_ADDR) used to
+     identify all registered sectors.
+    </P
+><P
+>&#13;     LILO runs <TT
+CLASS="filename"
+>first.S</TT
+> and <TT
+CLASS="filename"
+>second.S</TT
+>
+     to boot a system.
+     It calls <EM
+>second.S:doboot()</EM
+> to load map file,
+     bootsect and setup code.
+     Then it calls <EM
+>lfile()</EM
+> to load the system code,
+     calls <EM
+>launch2() -&#62; launch() -&#62; cl_wait() -&#62; start_setup()
+     -&#62; start_setup2()</EM
+> and finnaly executes
+     "jmpi 0,SETUPSEG" instruction to run setup code.
+    </P
+><P
+>&#13;     Refer to "<B
+CLASS="command"
+>man lilo</B
+>" and
+     "<B
+CLASS="command"
+>man lilo.conf</B
+>" for LILO details.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="bootloader_ref"
+></A
+>C.3. Reference</H2
+><P
+>&#13;    <P
+></P
+><UL
+><LI
+><P
+>&#13;<A
+HREF="http://www.gnu.org/software/grub/"
+TARGET="_top"
+>GNU GRUB</A
+>
+        </P
+></LI
+><LI
+><P
+>&#13;<A
+HREF="http://www.openbg.net/sto/os/xml/grub.html"
+TARGET="_top"
+>GRUB Tutorial</A
+>
+        </P
+></LI
+><LI
+><P
+>&#13;<A
+HREF="http://freshmeat.net/projects/lilo"
+TARGET="_top"
+>LILO (freshmeat.net)</A
+>
+        </P
+></LI
+><LI
+><P
+>&#13;<A
+HREF="http://www.tldp.org/HOWTO/HOWTO-INDEX/os.html#OSBOOT"
+TARGET="_top"
+>&#13;         LDP HOWTO-INDEX: Boot Loaders and Booting the OS</A
+>
+        </P
+></LI
+></UL
+>
+    </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="internel_lds.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="faq.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Internal Linker Script</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>FAQ</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

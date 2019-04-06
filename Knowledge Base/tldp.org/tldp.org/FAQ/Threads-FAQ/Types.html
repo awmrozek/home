@@ -1,0 +1,99 @@
+<HTML>
+<HEAD>
+   <TITLE>Linux Threads Home Page: What are threads (user/kernel)?</TITLE>
+</HEAD>
+<BODY BACKGROUND="GraySea.gif">
+<P><FONT SIZE=+3>What are threads (user/kernel)?</FONT></P>
+
+<UL>
+<P>Threads are &quot;light weight processes&quot; (LWPs). The idea is a
+process has five fundamental parts: code (&quot;text&quot;), data (VM),
+stack, file I/O, and signal tables. &quot;Heavy-weight processes&quot;
+(HWPs) have a significant amount of overhead when switching: all the tables
+have to be flushed from the processor for each task switch. Also, the only
+way to achieve shared information between HWPs is through pipes and &quot;shared
+memory&quot;. If a HWP spawns a child HWP using fork(), the only part that
+is shared is the text.</P>
+
+<P>Threads reduce overhead by sharing fundamental parts. By sharing these
+parts, switching happens much more frequently and efficiently. Also, sharing
+information is not so &quot;difficult&quot; anymore: everything can be
+shared. There are two types of threads: <A HREF="#UserSpace">user-space</A>
+and <A HREF="#KernelSpace">kernel-space</A>.</P>
+</UL>
+
+<P><A NAME="UserSpace"></A>User-Space Threads</P>
+
+<UL>
+<P>User-space avoids the kernel and manages the tables itself. Often this
+is called &quot;cooperative multitasking&quot; where the task defines a
+set of routines that get &quot;switched to&quot; by manipulating the stack
+pointer. Typically each thread &quot;gives-up&quot; the CPU by calling
+an explicit switch, sending a signal or doing an operation that involves
+the switcher. Also, a timer signal can force switches. User threads typically
+can switch faster than kernel threads [however, Linux kernel threads' switching
+is actually pretty close in performance].</P>
+
+<P>Disadvantages. User-space threads have a problem that a single thread
+can monopolize the timeslice thus starving the other threads within the
+task. Also, it has no way of taking advantage of SMPs (Symmetric MultiProcessor
+systems, e.g. dual-/quad-Pentiums). Lastly, when a thread becomes I/O blocked,
+all other threads within the task lose the timeslice as well.</P>
+
+<P>Solutions/work arounds. Some user-thread libraries have addressed these
+problems with several work-arounds. First timeslice monopolization can
+be controlled with an external monitor that uses its own clock tick. Second,
+some SMPs can support user-space multithreading by firing up tasks on specified
+CPUs then starting the threads from there [this form of SMP threading seems
+tenuous, at best]. Third, some libraries solve the I/O blocking problem
+with special wrappers over system calls, or the task can be written for
+nonblocking I/O.</P>
+</UL>
+
+<P><A NAME="KernelSpace"></A>Kernel-Space Threads</P>
+
+<UL>
+<P>Kernel-space threads often are implemented in the kernel using several
+tables (each task gets a table of threads). In this case, the kernel schedules
+each thread within the timeslice of each process. There is a little more
+overhead with mode switching from user-&gt;kernel-&gt; user and loading
+of larger contexts, but initial performance measures indicate a negligible
+increase in time.</P>
+
+<P>Advantages. Since the clocktick will determine the switching times,
+a task is less likely to hog the timeslice from the other threads within
+the task. Also I/O blocking is not a problem. Lastly, if properly coded,
+the process automatically can take advantage of SMPs and will run incrementally
+faster with each added CPU.</P>
+</UL>
+
+<P>Combination</P>
+
+<UL>
+<P>Some implementations support both user- and kernel-space threads. This
+gives the advantages of each to the running task. However, since Linux's
+kernel-space threads nearly perform as well as user-space, the only advantage
+of using user-threads would be the cooperative multitasking.</P>
+</UL>
+
+
+<P><HR SIZE=4 WIDTH="100%"></P>
+<CENTER><TABLE CELLSPACING=0 CELLPADDING=0 >
+<TR>
+<TD><A HREF="index.html"><CENTER><IMG SRC="ArrowLeft.gif" ALT="[Left Arrow]" BORDER=0 HEIGHT=40 WIDTH=40></CENTER></A></TD>
+<TD><A HREF="index.html"><CENTER><IMG SRC="House.gif" ALT="[Home]" BORDER=0 HEIGHT=40 WIDTH=40></CENTER></A></TD>
+<TD><A HREF="Dictionary.html"><CENTER><IMG SRC="BookSearch.gif" ALT="[Book Search]" BORDER=0 HEIGHT=40 WIDTH=40></CENTER></A></TD>
+<TD><A HREF="mailto:walton@oclc.org"><CENTER><IMG SRC="MailBox.gif" ALT="[Mailbox]" BORDER=0 HEIGHT=40 WIDTH=40></CENTER></A></TD>
+<TD><A HREF="Problems.html"><CENTER><IMG SRC="ArrowRight.gif" ALT="[Right Arrow]" BORDER=0 HEIGHT=40 WIDTH=40></CENTER></A></TD>
+</TR>
+<TR>
+<TD><A HREF="index.html">[Previous Page]</A></TD>
+<TD><A HREF="index.html">[First Page]</A></TD>
+<TD><A HREF="Dictionary.html">[Dictionary]</A></TD>
+<TD><A HREF="mailto:walton@oclc.org">[Email Author]</A></TD>
+<TD><A HREF="Problems.html">[Next Page]</A></TD>
+</TR>
+</TABLE></CENTER>
+
+</BODY>
+</HTML>

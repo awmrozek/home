@@ -1,0 +1,512 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Unicode HOWTO: Making your programs Unicode aware</TITLE>
+ <LINK HREF="Unicode-HOWTO-7.html" REL=next>
+ <LINK HREF="Unicode-HOWTO-5.html" REL=previous>
+ <LINK HREF="Unicode-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Unicode-HOWTO-7.html">Next</A>
+<A HREF="Unicode-HOWTO-5.html">Previous</A>
+<A HREF="Unicode-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Making your programs Unicode aware</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss6.1">6.1 C/C++</A>
+</H2>
+
+<P>
+<P>The C `<CODE>char</CODE>' type is 8-bit and will stay 8-bit because it denotes
+the smallest addressable data unit. Various facilities are available:
+<P>
+<H3>For normal text handling</H3>
+
+<P>
+<P>The ISO/ANSI C standard contains, in an amendment which was added in 1995,
+a "wide character" type `<CODE>wchar_t</CODE>', a set of functions like those
+found in <CODE>&lt;string.h&gt;</CODE> and <CODE>&lt;ctype.h&gt;</CODE> (declared in
+<CODE>&lt;wchar.h&gt;</CODE> and <CODE>&lt;wctype.h&gt;</CODE>, respectively), and
+a set of conversion functions between `<CODE>char *</CODE>' and
+`<CODE>wchar_t *</CODE>' (declared in <CODE>&lt;stdlib.h&gt;</CODE>).
+<P>Good references for this API are
+<UL>
+<LI>the GNU libc-2.1 manual, chapters 4 "Character Handling" and
+6 "Character Set Handling",</LI>
+<LI>the manual pages
+<A HREF="ftp://ftp.ilog.fr/pub/Users/haible/utf8/man-mbswcs.tar.gz">man-mbswcs.tar.gz</A>, now contained in
+<A HREF="ftp://ftp.win.tue.nl/pub/linux-local/manpages/man-pages-1.29.tar.gz">ftp://ftp.win.tue.nl/pub/linux-local/manpages/man-pages-1.29.tar.gz</A>,</LI>
+<LI>the OpenGroup's introduction
+<A HREF="http://www.unix-systems.org/version2/whatsnew/login_mse.html">http://www.unix-systems.org/version2/whatsnew/login_mse.html</A>,</LI>
+<LI>the OpenGroup's Single Unix specification
+<A HREF="http://www.UNIX-systems.org/online.html">http://www.UNIX-systems.org/online.html</A>,</LI>
+<LI>the ISO/IEC 9899:1999 (ISO C 99) standard. The latest draft before it was
+adopted is called n2794. You find it at
+<A HREF="ftp://ftp.csn.net/DMK/sc22wg14/review/">ftp://ftp.csn.net/DMK/sc22wg14/review/</A>
+or
+<A HREF="http://java-tutor.com/docs/c/">http://java-tutor.com/docs/c/</A>.</LI>
+<LI>Clive Feather's introduction
+<A HREF="http://www.lysator.liu.se/c/na1.html">http://www.lysator.liu.se/c/na1.html</A>,</LI>
+<LI>the Dinkumware C library reference
+<A HREF="http://www.dinkumware.com/htm_cl/">http://www.dinkumware.com/htm_cl/</A>.</LI>
+</UL>
+<P>Advantages of using this API:
+<UL>
+<LI>It's a vendor independent standard.</LI>
+<LI>The functions do the right thing, depending on the user's locale.
+All a program needs to call is <CODE>setlocale(LC_ALL,"");</CODE>.</LI>
+</UL>
+<P>Drawbacks of this API:
+<UL>
+<LI>Some of the functions are not multithread-safe, because they keep a hidden
+internal state between function calls.</LI>
+<LI>There is no first-class locale datatype. Therefore this API cannot reasonably
+be used for anything that needs more than one locale or character set at the
+same time.</LI>
+<LI>The OS support for this API is not good on most OSes.</LI>
+</UL>
+<P>
+<H3>Portability notes</H3>
+
+<P>
+<P>A `<CODE>wchar_t</CODE>' may or may not be encoded in Unicode; this is
+platform and sometimes also locale dependent. A multibyte sequence
+`<CODE>char *</CODE>' may or may not be encoded in UTF-8; this is platform
+and sometimes also locale dependent.
+<P>In detail, here is what the
+<A HREF="http://www.UNIX-systems.org/online.html">Single Unix specification</A>
+says about the `<CODE>wchar_t</CODE>' type:
+<EM>All wide-character codes in a given process consist of an equal number
+of bits. This is in contrast to characters, which can consist of a
+variable number of bytes. The byte or byte sequence that represents a 
+character can also be represented as a wide-character code.  
+Wide-character codes thus provide a uniform size for manipulating text
+data. A wide-character code having all bits zero is the null
+wide-character code, and terminates wide-character strings. The
+wide-character value for each member of the Portable Character Set</EM> (i.e. ASCII) <EM>will equal its value when used as the lone character in an integer
+character constant. Wide-character codes for other characters are
+locale- and implementation-dependent. State shift bytes do not have a
+wide-character code representation.</EM>
+<P>One particular consequence is that in portable programs you shouldn't use
+non-ASCII characters in string literals. That means, even though you
+know the Unicode double quotation marks have the codes U+201C and U+201D,
+you shouldn't write a string literal <CODE>L"\u201cHello\u201d, he said"</CODE>
+or <CODE>"\xe2\x80\x9cHello\xe2\x80\x9d, he said"</CODE> in C programs. Instead,
+use GNU gettext, write it as <CODE>gettext("'Hello', he said")</CODE>, and create
+a message database en.po which translates "'Hello', he said" to
+"\u201cHello\u201d, he said".
+<P>Here is a survey of the portability of the ISO/ANSI C facilities on various
+Unix flavours.
+<P>
+<DL>
+<DT><B>GNU glibc-2.2.x</B><DD><P>
+<UL>
+<LI>&lt;wchar.h&gt; and &lt;wctype.h&gt; exist.</LI>
+<LI>Has wcs/mbs functions, fgetwc/fputwc/wprintf, everything.</LI>
+<LI>Has five UTF-8 locales.</LI>
+<LI>mbrtowc works.</LI>
+</UL>
+<DT><B>GNU glibc-2.0.x, glibc-2.1.x</B><DD><P>
+<UL>
+<LI>&lt;wchar.h&gt; and &lt;wctype.h&gt; exist.</LI>
+<LI>Has wcs/mbs functions, but no fgetwc/fputwc/wprintf.</LI>
+<LI>No UTF-8 locale.</LI>
+<LI>mbrtowc returns EILSEQ for bytes &gt;= 0x80.</LI>
+</UL>
+<DT><B>AIX 4.3</B><DD><P>
+<UL>
+<LI>&lt;wchar.h&gt; and &lt;wctype.h&gt; exist.</LI>
+<LI>Has wcs/mbs functions, fgetwc/fputwc/wprintf, everything.</LI>
+<LI>Has many UTF-8 locales, one for every country.</LI>
+<LI>Needs -D_XOPEN_SOURCE=500 in order to define mbstate_t.</LI>
+<LI>mbrtowc works.</LI>
+</UL>
+<DT><B>Solaris 2.7</B><DD><P>
+<UL>
+<LI>&lt;wchar.h&gt; and &lt;wctype.h&gt; exist.</LI>
+<LI>Has wcs/mbs functions, fgetwc/fputwc/wprintf, everything.</LI>
+<LI>Has the following UTF-8 locales:
+en_US.UTF-8, de.UTF-8, es.UTF-8, fr.UTF-8, it.UTF-8, sv.UTF-8.</LI>
+<LI>mbrtowc returns -1/EILSEQ (instead of -2) for bytes &gt;= 0x80.</LI>
+</UL>
+<DT><B>OSF/1 4.0d</B><DD><P>
+<UL>
+<LI>&lt;wchar.h&gt; and &lt;wctype.h&gt; exist.</LI>
+<LI>Has wcs/mbs functions, fgetwc/fputwc/wprintf, everything.</LI>
+<LI>Has an add-on universal.utf8@ucs4 locale, see "man 5 unicode".</LI>
+<LI>mbrtowc does not know about UTF-8.</LI>
+</UL>
+<DT><B>Irix 6.5</B><DD><P>
+<UL>
+<LI>&lt;wchar.h&gt; and &lt;wctype.h&gt; exist.</LI>
+<LI>Has wcs/mbs functions and fgetwc/fputwc, but not wprintf.</LI>
+<LI>Has no multibyte locales.</LI>
+<LI>Has only a dummy definition for mbstate_t.</LI>
+<LI>Doesn't have mbrtowc.</LI>
+</UL>
+<DT><B>HP-UX 11.00</B><DD><P>
+<UL>
+<LI>&lt;wchar.h&gt; exists, &lt;wctype.h&gt; does not.</LI>
+<LI>Has wcs/mbs functions and fgetwc/fputwc, but not wprintf.</LI>
+<LI>Has a C.utf8 locale.</LI>
+<LI>Doesn't have mbstate_t.</LI>
+<LI>Doesn't have mbrtowc.</LI>
+</UL>
+</DL>
+<P>As a consequence, I recommend to use the restartable and multithread-safe
+wcsr/mbsr functions, forget about those systems which don't have them (Irix,
+HP-UX, AIX), and use the UTF-8 locale plug-in libutf8_plug.so (see below)
+on those systems which permit you to compile programs which use these
+wcsr/mbsr functions (Linux, Solaris, OSF/1).
+<P>A similar advice, given by Sun in
+<A HREF="http://www.sun.com/software/white-papers/wp-unicode/">http://www.sun.com/software/white-papers/wp-unicode/</A>,
+section "Internationalized Applications with Unicode", is:
+<P><EM>To properly internationalize an application, use the following
+guidelines:</EM>
+<OL>
+<LI><EM>Avoid direct access with Unicode. This is a task of the platform's
+internationalization framework.</EM></LI>
+<LI><EM>Use the POSIX model for multibyte and wide-character interfaces.</EM></LI>
+<LI><EM>Only call the APIs that the internationalization framework
+provides for language and cultural-specific operations.</EM></LI>
+<LI><EM>Remain code-set independent.</EM></LI>
+</OL>
+<P>If, for some reason, in some piece of code, you really have to assume that
+`wchar_t' is Unicode (for example, if you want to do special treatment of
+some Unicode characters), you should make that piece of code conditional
+upon the result of <CODE>is_locale_utf8()</CODE>. Otherwise you will mess up
+your program's behaviour in different locales or other platforms. The
+function <CODE>is_locale_utf8</CODE> is declared in
+<A HREF="ftp://ftp.ilog.fr/pub/Users/haible/utf8/utf8locale.h">utf8locale.h</A>
+and defined in
+<A HREF="ftp://ftp.ilog.fr/pub/Users/haible/utf8/utf8locale.c">utf8locale.c</A>.
+<P>
+<H3>The libutf8 library</H3>
+
+<P>
+<P>A portable implementation of the ISO/ANSI C API, which supports 8-bit locales
+and UTF-8 locales, can be found in
+<A HREF="ftp://ftp.ilog.fr/pub/Users/haible/utf8/libutf8-0.7.3.tar.gz">libutf8-0.7.3.tar.gz</A>.
+<P>Advantages:
+<UL>
+<LI>Unicode UTF-8 support now, portably, even on OSes whose multibyte character
+support does not work or which don't have multibyte/wide character support
+at all.</LI>
+<LI>The same binary works in all OS supported 8-bit locales and in UTF-8 locales.</LI>
+<LI>When an OS vendor adds proper multibyte character support, you can take
+advantage of it by simply recompiling without -DHAVE_LIBUTF8 compiler option.</LI>
+</UL>
+<P>
+<H3>The Plan9 way</H3>
+
+<P>
+<P>The Plan9 operating system, a variant of Unix, uses UTF-8 as character
+encoding in all applications. Its wide character type is called
+`<CODE>Rune</CODE>', not `<CODE>wchar_t</CODE>'. Parts of its libraries, written by
+Rob Pike and Howard Trickey, are available at
+<A HREF="ftp://ftp.cdrom.com/pub/netlib/research/9libs/9libs-1.0.tar.gz">ftp://ftp.cdrom.com/pub/netlib/research/9libs/9libs-1.0.tar.gz</A>.
+Another similar library, written by Alistair G. Crooks, is
+<A HREF="ftp://ftp.cdrom.com/pub/NetBSD/packages/distfiles/libutf-2.10.tar.gz">ftp://ftp.cdrom.com/pub/NetBSD/packages/distfiles/libutf-2.10.tar.gz</A>.
+In particular, each of these libraries contains an UTF-8 aware regular
+expression matcher.
+<P>Drawback of this API:
+<UL>
+<LI>UTF-8 is compiled in, not optional. Programs compiled in this universe lose
+support for the 8-bit encodings which are still frequently used in Europe.</LI>
+</UL>
+<P>
+<H3>For graphical user interface</H3>
+
+<P>
+<P>The Qt-2.0 library
+<A HREF="http://www.troll.no/">http://www.troll.no/</A>
+contains a fully-Unicode QString class. You can use the member functions
+QString::utf8 and QString::fromUtf8 to convert to/from UTF-8 encoded text.
+The QString::ascii and QString::latin1 member functions should not be used
+any more.
+<P>
+<H3>For advanced text handling</H3>
+
+<P>
+<P>The previously mentioned libraries implement Unicode aware versions of
+the ASCII concepts. Here are libraries which deal with Unicode concepts,
+such as titlecase (a third letter case, different from uppercase and
+lowercase), distinction between punctuation and symbols, canonical
+decomposition, combining classes, canonical ordering and the like.
+<P>
+<DL>
+<DT><B>ucdata-2.4</B><DD><P>The ucdata library by Mark Leisher
+<A HREF="http://crl.nmsu.edu/~mleisher/ucdata.html">http://crl.nmsu.edu/~mleisher/ucdata.html</A>
+deals with character properties, case conversion, decomposition, combining
+classes. The companion package ure-0.5
+<A HREF="http://crl.nmsu.edu/~mleisher/ure-0.5.tar.gz">http://crl.nmsu.edu/~mleisher/ure-0.5.tar.gz</A>
+is a Unicode regular expression matcher.
+<P>
+<DT><B>ustring</B><DD><P>The ustring C++ library by Rodrigo Reyes
+<A HREF="http://ustring.charabia.net/">http://ustring.charabia.net/</A>
+deals with character properties, case conversion, decomposition, combining
+classes, and includes a Unicode regular expression matcher.
+<P>
+<DT><B>ICU</B><DD><P>International Components for Unicode
+<A HREF="http://oss.software.ibm.com/icu/">http://oss.software.ibm.com/icu/</A>.
+IBM's very comprehensive internationalization library featuring Unicode strings,
+resource bundles, number formatters, date/time formatters, message formatters,
+collation and more. Lots of supported locales. Portable to Unix and Win32,
+but compiles out of the box only on Linux libc6, not libc5.
+<P>
+<DT><B>libunicode</B><DD><P>The GNOME libunicode library
+<A HREF="http://cvs.gnome.org/lxr/source/libunicode/">http://cvs.gnome.org/lxr/source/libunicode/</A>
+by Tom Tromey and others. It covers character set conversion, character
+properties, decomposition.
+<P>
+</DL>
+<P>
+<H3>For conversion</H3>
+
+<P>
+<P>Two kinds of conversion libraries, which support UTF-8 and a large number
+of 8-bit character sets, are available:
+<P>
+<H3>iconv</H3>
+
+<P>
+<P>The iconv implementation by Ulrich Drepper, contained in the GNU glibc-2.2.
+<A HREF="ftp://ftp.gnu.org/pub/gnu/glibc/glibc-2.2.tar.gz">ftp://ftp.gnu.org/pub/gnu/glibc/glibc-2.2.tar.gz</A>.
+The iconv manpages are now contained in
+<A HREF="ftp://ftp.win.tue.nl/pub/linux-local/manpages/man-pages-1.29.tar.gz">ftp://ftp.win.tue.nl/pub/linux-local/manpages/man-pages-1.29.tar.gz</A>.
+<P>The portable iconv implementation by Bruno Haible.
+<A HREF="ftp://ftp.ilog.fr/pub/Users/haible/gnu/libiconv-1.5.1.tar.gz">ftp://ftp.ilog.fr/pub/Users/haible/gnu/libiconv-1.5.1.tar.gz</A><P>The portable iconv implementation by Konstantin Chuguev.
+<A HREF="mailto:joy@urc.ac.ru">&lt;joy@urc.ac.ru&gt;</A>
+<A HREF="ftp://ftp.urc.ac.ru/pub/local/OS/Unix/converters/iconv-0.4.tar.gz">ftp://ftp.urc.ac.ru/pub/local/OS/Unix/converters/iconv-0.4.tar.gz</A><P>Advantages:
+<UL>
+<LI>iconv is POSIX standardized, programs using iconv to convert from/to UTF-8
+will also run under Solaris. However, the names for the character sets differ
+between platforms. For example, "EUC-JP" under glibc is "eucJP" under HP-UX.
+(The official IANA name for this character set is "EUC-JP", so it's clearly
+a HP-UX deficiency.)</LI>
+<LI>On glibc-2.1 systems, no additional library is needed. On other systems, one of
+the two other iconv implementations can be used.</LI>
+</UL>
+<P>
+<H3>librecode</H3>
+
+<P>
+<P>librecode by Fran&ccedil;ois Pinard
+<A HREF="ftp://ftp.gnu.org/pub/gnu/recode/recode-3.6.tar.gz">ftp://ftp.gnu.org/pub/gnu/recode/recode-3.6.tar.gz</A>.
+<P>Advantages:
+<UL>
+<LI>Support for transliteration, i.e. conversion of non-ASCII characters
+to sequences of ASCII characters in order to preserve readability by
+humans, even when a lossless transformation is impossible.</LI>
+</UL>
+<P>Drawbacks:
+<UL>
+<LI>Non-standard API.</LI>
+<LI>Slow initialization.</LI>
+</UL>
+<P>
+<H3>ICU</H3>
+
+<P>
+<P>International Components for Unicode 1.7
+<A HREF="http://oss.software.ibm.com/icu/">http://oss.software.ibm.com/icu/</A>.
+IBM's internationalization library also has conversion facilities, declared
+in `<CODE>ucnv.h</CODE>'.
+<P>Advantages:
+<UL>
+<LI>Comprehensive set of supported encodings.</LI>
+</UL>
+<P>Drawbacks:
+<UL>
+<LI>Non-standard API.</LI>
+</UL>
+<P>
+<H3>Other approaches</H3>
+
+<P>
+<P>
+<DL>
+<DT><B>libutf-8</B><DD><P>libutf-8 by G. Adam Stanislav
+<A HREF="mailto:adam@whizkidtech.net">&lt;adam@whizkidtech.net&gt;</A>
+contains a few functions for on-the-fly conversion from/to UTF-8 encoded
+`FILE*' streams.
+<A HREF="http://www.whizkidtech.net/i18n/libutf-8-1.0.tar.gz">http://www.whizkidtech.net/i18n/libutf-8-1.0.tar.gz</A><P>Advantages:
+<UL>
+<LI>Very small.</LI>
+</UL>
+<P>Drawbacks:
+<UL>
+<LI>Non-standard API.</LI>
+<LI>UTF-8 is compiled in, not optional. Programs compiled with this library
+lose support for the 8-bit encodings which are still frequently used in Europe.</LI>
+<LI>Installation is nontrivial: Makefile needs tweaking, not autoconfiguring.</LI>
+</UL>
+<P>
+</DL>
+<P>
+<H2><A NAME="ss6.2">6.2 Java</A>
+</H2>
+
+<P>
+<P>Java has Unicode support built into the language. The type `char' denotes
+a Unicode character, and the `java.lang.String' class denotes a string
+built up from Unicode characters.
+<P>Java can display any Unicode characters through its windowing system AWT,
+provided that
+1. you set the Java system property "user.language" appropriately,
+2. the /usr/lib/java/lib/font.properties.<I>language</I> font set
+definitions are appropriate, and
+3. the fonts specified in that file are installed.
+For example, in order to display text containing japanese characters,
+you would install japanese fonts and run "java -Duser.language=ja ...".
+You can combine font sets: In order to display western european, greek
+and japanese characters simultaneously, you would create a combination
+of the files "font.properties" (covers ISO-8859-1), "font.properties.el"
+(covers ISO-8859-7) and "font.properties.ja" into a single file.
+??This is untested??
+<P>The interfaces java.io.DataInput and java.io.DataOutput have methods called
+`readUTF' and `writeUTF' respectively. But note that they don't use UTF-8;
+they use a modified UTF-8 encoding: the NUL character is encoded as the
+two-byte sequence 0xC0 0x80 instead of 0x00, and a 0x00 byte is added at
+the end. Encoded this way, strings can contain NUL characters and nevertheless
+need not be prefixed with a length field - the C &lt;string.h&gt; functions
+like strlen() and strcpy() can be used to manipulate them.
+<P>
+<H2><A NAME="ss6.3">6.3 Lisp</A>
+</H2>
+
+<P>
+<P>The Common Lisp standard specifies two character types: `base-char' and
+`character'. It's up to the implementation to support Unicode or not.
+The language also specifies a keyword argument `:external-format' to `open',
+as the natural place to specify a character set or encoding.
+<P>Among the free Common Lisp implementations, only CLISP
+<A HREF="http://clisp.cons.org/">http://clisp.cons.org/</A>
+supports Unicode. You need a CLISP version from March 2000 or newer.
+<A HREF="ftp://clisp.cons.org/pub/lisp/clisp/source/clispsrc.tar.gz">ftp://clisp.cons.org/pub/lisp/clisp/source/clispsrc.tar.gz</A>.
+The types `base-char' and `character' are both equivalent to 16-bit Unicode.
+The functions <CODE>char-width</CODE> and <CODE>string-width</CODE> provide an
+API comparable to <CODE>wcwidth()</CODE> and <CODE>wcswidth()</CODE>.
+The encoding used for file or socket/pipe I/O can be specified through the
+`:external-format' argument. The encodings used for tty I/O and the default
+encoding for file/socket/pipe I/O are locale dependent.
+<P>Among the commercial Common Lisp implementations:
+<P>LispWorks
+<A HREF="http://www.xanalys.com/software_tools/products/">http://www.xanalys.com/software_tools/products/</A>
+supports Unicode.
+The type `base-char' is equivalent to ISO-8859-1, and the type `simple-char'
+(subtype of `character') contains all Unicode characters.
+The encoding used for file I/O can be specified through the
+`:external-format' argument, for example '(:UTF-8).
+Limitations: Encodings cannot be used for socket I/O. The editor cannot edit
+UTF-8 encoded files.
+<P>Eclipse
+<A HREF="http://www.elwood.com/eclipse/eclipse.htm">http://www.elwood.com/eclipse/eclipse.htm</A>
+supports Unicode. See
+<A HREF="http://www.elwood.com/eclipse/char.htm">http://www.elwood.com/eclipse/char.htm</A>.
+The type `base-char' is equivalent
+to ISO-8859-1, and the type `character' contains all Unicode characters.
+The encoding used for file I/O can be specified through a combination of
+the `:element-type' and `:external-format' arguments to `open'.
+Limitations: Character attribute functions are locale dependent. Source and
+compiled source files cannot contain Unicode string literals.
+<P>The commercial Common Lisp implementation Allegro CL, in version 6.0, has
+Unicode support. The types `base-char' and `character' are both equivalent
+to 16-bit Unicode. The encoding used for file I/O can be specified through the
+`:external-format' argument, for example <CODE>:external-format :utf8</CODE>.
+The default encoding is locale dependent. More details are at
+<A HREF="http://www.franz.com/support/documentation/6.0/doc/iacl.htm">http://www.franz.com/support/documentation/6.0/doc/iacl.htm</A>.
+<P>
+<H2><A NAME="ss6.4">6.4 Ada95</A>
+</H2>
+
+<P>
+<P>Ada95 was designed for Unicode support and the Ada95 standard library
+features special ISO 10646-1 data types Wide_Character and Wide_String,
+as well as numerous associated procedures and functions. The GNU Ada95
+compiler (gnat-3.11 or newer) supports UTF-8 as the external encoding of
+wide characters. This allows you to use UTF-8 in both source code and
+application I/O. To activate it in the application, use "WCEM=8" in the
+FORM string when opening a file, and use compiler option "-gnatW8" if
+the source code is in UTF-8. See the GNAT
+(
+<A HREF="ftp://cs.nyu.edu/pub/gnat/">ftp://cs.nyu.edu/pub/gnat/</A>)
+and Ada95
+(
+<A HREF="ftp://ftp.cnam.fr/pub/Ada/PAL/userdocs/docadalt/rm95/index.htm">ftp://ftp.cnam.fr/pub/Ada/PAL/userdocs/docadalt/rm95/index.htm</A>)
+reference manuals for details.
+<P>
+<H2><A NAME="ss6.5">6.5 Python</A>
+</H2>
+
+<P>
+<P>Python 2.0
+(
+<A HREF="http://www.python.org/2.0/">http://www.python.org/2.0/</A>,
+<A HREF="http://www.python.org/pipermail/python-announce-list/2000-October/000889.html">http://www.python.org/pipermail/python-announce-list/2000-October/000889.html</A>,
+<A HREF="http://starship.python.net/crew/amk/python/writing/new-python/new-python.html#SECTION000300000000000000000">http://starship.python.net/crew/amk/python/writing/new-python/new-python.html</A>)
+contains Unicode support. It has a new fundamental data type
+`unicode', representing a Unicode string, a module `unicodedata' for the
+character properties, and a set of converters for the most important encodings.
+See
+<A HREF="http://starship.python.net/crew/lemburg/unicode-proposal.txt">http://starship.python.net/crew/lemburg/unicode-proposal.txt</A>,
+or the file <CODE>Misc/unicode.txt</CODE> in the distribution, for details.
+<P>
+<H2><A NAME="ss6.6">6.6 JavaScript/ECMAscript</A>
+</H2>
+
+<P>
+<P>Since JavaScript version 1.3, strings are always Unicode. There is no
+character type, but you can use the \uXXXX notation for Unicode characters
+inside strings. No normalization is done internally, so it expects to receive
+Unicode Normalization Form C, which the W3C recommends. See
+<A HREF="http://developer.netscape.com/docs/manuals/communicator/jsref/js13.html#Unicode">http://developer.netscape.com/docs/manuals/communicator/jsref/js13.html#Unicode</A>
+for details and
+<A HREF="http://developer.netscape.com/docs/javascript/e262-pdf.pdf">http://developer.netscape.com/docs/javascript/e262-pdf.pdf</A>
+for the complete ECMAscript specification.
+<P>
+<H2><A NAME="ss6.7">6.7 Tcl</A>
+</H2>
+
+<P>
+<P>Tcl/Tk started using Unicode as its base character set with version 8.1.
+Its internal representation for strings is UTF-8. It supports the \uXXXX
+notation for Unicode characters. See
+<A HREF="http://dev.scriptics.com/doc/howto/i18n.html">http://dev.scriptics.com/doc/howto/i18n.html</A>.
+<P>
+<H2><A NAME="ss6.8">6.8 Perl</A>
+</H2>
+
+<P>
+<P>Perl 5.6 stores strings internally in UTF-8 format, if you write
+<BLOCKQUOTE><CODE>
+<PRE>
+use utf8;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+at the beginning of your script. <CODE>length()</CODE> returns the number of
+characters of a string. For details, see the Perl-i18n FAQ at
+<A HREF="http://rf.net/~james/perli18n.html">http://rf.net/~james/perli18n.html</A>.
+<P>Support for other (non-8-bit) encodings is available through the iconv
+interface module
+<A HREF="http://cpan.perl.org/modules/by-module/Text/Text-Iconv-1.1.tar.gz">http://cpan.perl.org/modules/by-module/Text/Text-Iconv-1.1.tar.gz</A>.
+<P>
+<H2><A NAME="ss6.9">6.9 Related reading</A>
+</H2>
+
+<P>
+<P>Tomohiro Kubota has written an introduction to internationalization
+<A HREF="http://www.debian.org/doc/manuals/intro-i18n/">http://www.debian.org/doc/manuals/intro-i18n/</A>.
+The emphasis of his document is on writing software that runs in any locale,
+using the locale's encoding.
+<P>
+<HR>
+<A HREF="Unicode-HOWTO-7.html">Next</A>
+<A HREF="Unicode-HOWTO-5.html">Previous</A>
+<A HREF="Unicode-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

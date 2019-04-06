@@ -1,0 +1,456 @@
+<HTML
+><HEAD
+><TITLE
+>Troubleshooting, tips, tricks, and useful links</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Network Boot and Exotic Root HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="How to create diskless MS-Windows stations?"
+HREF="x537.html"><LINK
+REL="NEXT"
+TITLE="Non-Volatile Memory chips"
+HREF="a610.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Network Boot and Exotic Root HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x537.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="a610.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN542">8. Troubleshooting, tips, tricks, and useful links</H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN544">8.1. Transparently handling workstations'specific files</H2
+><P
+>&#13;      The previous sections discussed a simple way to handle workstations'specific files and directories like <TT
+CLASS="FILENAME"
+>/var</TT
+>. Most of them are simply build on the fly and put on ramdisks, you may however prefer to deal with this problem on the NFS server. The clusternfs project provides a network filesystem server that can serve different files based on several criteria including the client's IP address or host name. The basic idea is that if the client whose IP address is 10.2.12.42 requests a file named, for instance, <TT
+CLASS="FILENAME"
+>myfile</TT
+>, the server will look for a file named <TT
+CLASS="FILENAME"
+>myfile$$IP=10.2.12.42$$</TT
+> and serve this file instead of <TT
+CLASS="FILENAME"
+>myfile</TT
+> if it is available.
+
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN551">8.2. Reducing diskless workstations'memory usage</H2
+><P
+>One simple way to reduce memory consumption is to put several dynamically created directories on the same ramdisk. For instance, let's say the first ramdisk will contain the <TT
+CLASS="FILENAME"
+>/tmp</TT
+> directory. Then, one may move the <TT
+CLASS="FILENAME"
+>/var/tmp</TT
+> directory on that ramdisk with the following commands issued on the server:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>mkdir /nfsroot/tmp/var
+        <TT
+CLASS="PROMPT"
+># </TT
+>chmod 0 /nfsroot/tmp/var
+        <TT
+CLASS="PROMPT"
+># </TT
+>ln -s /tmp/var /nfsroot/var/tmp
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    </P
+><P
+>Another good way to reduce memory consumption if you don't have local hard drives and do not swap over a network block device is to disable the <B
+CLASS="COMMAND"
+>Swapping to block devices</B
+> option during kernel compilation.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN562">8.3. Swapping over NFS</H2
+><P
+>If your stations do not have enough memory and do not have local drives, you may want to swap over NFS. You have to be warned the cod eto do so is still under development and this method is generally quite slow. The full documentation for this can be found at <A
+HREF="http://www.instmath.rwth-aachen.de/~heine/nfs-swap/"
+TARGET="_top"
+>http://www.instmath.rwth-aachen.de/~heine/nfs-swap/</A
+>.</P
+><P
+>The first thing to do if you want to apply this solution is to patch your kernel (you need a kernel version 2.2 or above). First download the patch at the above url, and cd to <TT
+CLASS="FILENAME"
+>/usr/src/linux</TT
+>. I assume the patch is in <TT
+CLASS="FILENAME"
+>/usr/src/patch</TT
+>. Then issue the following command:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>cat ../patch | patch -p1 -l -s
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+      Then, compile your kernel normally and enable the <B
+CLASS="COMMAND"
+>Swapping via network sockets (EXPERIMENTAL)</B
+> and <B
+CLASS="COMMAND"
+>Swapping via NFS (EXPERIMENTAL)</B
+> options.
+
+    </P
+><P
+>Then export a directory read-write and no_root_squash from the NFS server. Setup the clients so that they will mount it somewhere (say on <TT
+CLASS="FILENAME"
+>/mnt/swap</TT
+>). It should be mounted with a rsize and wsize smaller than the page size used by the kernel (ie. 4 kilobytes on Intel architectures), otherwise your machine may run out of memory due to memory fragmentation; see the nfs manual page for details about rsize and wsize. Now, to create a 20 MB swap file, issue the following commands (which should be placed in the clients'initialization scripts):
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>dd if=/dev/zero of=/mnt/swap/swapfile bs=1k count=20480
+	<TT
+CLASS="PROMPT"
+># </TT
+>mkswap /mnt/swap/swapfile
+	<TT
+CLASS="PROMPT"
+># </TT
+>swapon /mnt/swap/swapfile
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+      Of course, this was just for an example, because if you have several workstations, you will have to change the swap file name or directory, or all your workstations will use the same swap file for their swap...
+
+    </P
+><P
+>Let's say a word about the drawbacks of NFS swapping: the first drawback is that it is generally slow, except you have specially fast network cards. Then, this possibility has not been very well tested yet. At last, this is not secure at all: anyone on the network is able to read the swapped data.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN580">8.4. Swapping over network block devices</H2
+><P
+>Although I have never tried it personally, I got report that the trick described below works, at least with recent kernels.</P
+><P
+>The general principle for swapping over network block devices is the same than to swap over NFS. The good point is you won't have to patch the kernel. But most of the same drawbacks also apply to the NBD method.</P
+><P
+>To create a 20 MB swap file, you will have to first create it on the server, export it to the client, and do an <B
+CLASS="COMMAND"
+>mkswap</B
+> on the file. Note that the <B
+CLASS="COMMAND"
+>mkswap</B
+> must be done on the server, because mkswap uses system calls which are not handled by NBD. Moreover, this command must be issued after the server starts exporting the file, because the data on the file may be destroyed when the server starts exporting it. If we assume the server's name is NBDserver, the client's name is NBDclient, and the TCP port used for the export is 1024, the commands to issue on the server are the following:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>dd if=/dev/zero of=/swap/swapfile bs=1k count=20480
+	<TT
+CLASS="PROMPT"
+># </TT
+>nbd-server NBDclient 1024 /swap/swapfile
+	<TT
+CLASS="PROMPT"
+># </TT
+>mkswap /swap/swapfile
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    Now, the client should use the following command:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>swapon /dev/nd0
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    </P
+><P
+>Again, this was just to show the general principle. The files'names should also be dependant on the workstations'names or IPs.</P
+><P
+>Another solution to swap over a network block device is to create an ext2 filesystem on the NBD, then create a regular file on this filesystem, and at last, use <B
+CLASS="COMMAND"
+>mkswap</B
+> and <B
+CLASS="COMMAND"
+>swapon</B
+> to start swapping on this file. This second method method is closer to the swap over NFS method than the first solution.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN597">8.5. Getting rid of error messages about <TT
+CLASS="FILENAME"
+>/etc/mtab</TT
+> or unmounted directories on shutdown</H2
+><P
+>The following commands, issued on the server may solve the problem:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>ln -s /proc/mounts /nfsroot/etc/mtab
+        <TT
+CLASS="PROMPT"
+># </TT
+>touch /nfsroot/proc/mounts
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN604">8.6. Installing new packages on workstations</H2
+><P
+>A simple way to do so is to use, on the server, a chroot and then execute your favourite installation commands normally. To chroot to the appropriate place, use the following command:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>chroot /nfsroot
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>Debian users will be particularly interested in the --root option of dpkg, which simply tells dpkg where the root of the target system is.
+    </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x537.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="a610.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>How to create diskless MS-Windows stations?</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Non-Volatile Memory chips</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

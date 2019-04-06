@@ -1,0 +1,90 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>The Software-RAID HOWTO: Reconstruction</TITLE>
+ <LINK HREF="Software-RAID-HOWTO-9.html" REL=next>
+ <LINK HREF="Software-RAID-HOWTO-7.html" REL=previous>
+ <LINK HREF="Software-RAID-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-RAID-HOWTO-9.html">Next</A>
+<A HREF="Software-RAID-HOWTO-7.html">Previous</A>
+<A HREF="Software-RAID-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8.</A> <A HREF="Software-RAID-HOWTO.html#toc8">Reconstruction</A></H2>
+
+<P><B>This HOWTO is deprecated; the Linux RAID HOWTO is maintained as a wiki by the
+linux-raid community at 
+<A HREF="http://raid.wiki.kernel.org/">http://raid.wiki.kernel.org/</A></B></P>
+<P>If you have read the rest of this HOWTO, you should already have a pretty
+good idea about what reconstruction of a degraded RAID involves. Let us
+summarize: 
+<UL>
+<LI>Power down the system</LI>
+<LI>Replace the failed disk</LI>
+<LI>Power up the system once again.</LI>
+<LI>Use <CODE>raidhotadd /dev/mdX /dev/sdX</CODE> to re-insert the disk
+in the array</LI>
+<LI>Have coffee while you watch the automatic reconstruction running</LI>
+</UL>
+
+And that's it.</P>
+<P>Well, it usually is, unless you're unlucky and your RAID has been
+rendered unusable because more disks than the ones redundant
+failed. This can actually happen if a number of disks reside on the
+same bus, and one disk takes the bus with it as it crashes. The other
+disks, however fine, will be unreachable to the RAID layer, because
+the bus is down, and they will be marked as faulty.  On a RAID-5 where
+you can spare one disk only, loosing two or more disks can be fatal.</P>
+<P>The following section is the explanation that Martin Bene gave to me,
+and describes a possible recovery from the scary scenario outlined
+above. It involves using the <CODE>failed-disk</CODE> directive in your
+<CODE>/etc/raidtab</CODE> (so for people running patched 2.2 kernels, this will only
+work on kernels 2.2.10 and later).</P>
+
+<H2><A NAME="ss8.1">8.1</A> <A HREF="Software-RAID-HOWTO.html#toc8.1">Recovery from a multiple disk failure</A>
+</H2>
+
+<P>The scenario is:
+<UL>
+<LI>A controller dies and takes two disks offline at the same time,</LI>
+<LI>All disks on one scsi bus can no longer be reached if a disk dies,</LI>
+<LI>A cable comes loose...</LI>
+</UL>
+
+In short: quite often you get a <EM>temporary</EM> failure of several
+disks at once; afterwards the RAID superblocks are out of sync and you
+can no longer init your RAID array.</P>
+<P>If using mdadm, you could first try to run:
+<PRE>
+  mdadm --assemble --force
+</PRE>
+
+If not, there's one thing left: rewrite the RAID superblocks by 
+<CODE>mkraid --force</CODE></P>
+<P>To get this to work, you'll need to have an up to date <CODE>/etc/raidtab</CODE> - if
+it doesn't <B>EXACTLY</B> match devices and ordering of the original
+disks this will not work as expected, but <B>will most likely
+completely obliterate whatever data you used to have on your
+disks</B>.</P>
+<P>Look at the sylog produced by trying to start the array, you'll see the
+event count for each superblock; usually it's best to leave out the disk
+with the lowest event count, i.e the oldest one.</P>
+<P>If you <CODE>mkraid</CODE> without <CODE>failed-disk</CODE>, the recovery
+thread will kick in immediately and start rebuilding the parity blocks
+- not necessarily what you want at that moment.</P>
+<P>With <CODE>failed-disk</CODE> you can specify exactly which disks you want
+to be active and perhaps try different combinations for best
+results. BTW, only mount the filesystem read-only while trying this
+out... This has been successfully used by at least two guys I've been in
+contact with.</P>
+
+
+
+<HR>
+<A HREF="Software-RAID-HOWTO-9.html">Next</A>
+<A HREF="Software-RAID-HOWTO-7.html">Previous</A>
+<A HREF="Software-RAID-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

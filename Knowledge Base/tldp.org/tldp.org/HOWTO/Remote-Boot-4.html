@@ -1,0 +1,1137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Remote-Boot mini-HOWTO:  Configuring Remote-Boot Workstations         with Linux, DOS, Windows 95/98 and Windows NT: The Configuration How-To</TITLE>
+ <LINK HREF="Remote-Boot-5.html" REL=next>
+ <LINK HREF="Remote-Boot-3.html" REL=previous>
+ <LINK HREF="Remote-Boot.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Remote-Boot-5.html">Next</A>
+<A HREF="Remote-Boot-3.html">Previous</A>
+<A HREF="Remote-Boot.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. The Configuration How-To</A></H2>
+
+<P>First, arrange to have the following two machines within arm's reach:
+<UL>
+<LI>the <B>server</B>, usually a Unix or Windows NT machine</LI>
+<LI>the <B>client</B>, a PC with a bootprom enabled, and nothing
+valuable on the hard disk. </LI>
+</UL>
+
+If you want to test the configuration but you do not yet have a 
+bootprom, you can download the TCP/IP BootProm demo diskette 
+from InCom GmbH at
+<CODE>
+<A HREF="http://www.incom.de">http://www.incom.de</A></CODE>.
+This diskette will make your computer behave like if it had a TCP/IP
+Bootprom plugged in.
+<P>If you already have a Boot ROM, you need to enable it. If you are using Incom
+TCP/IP Bootprom, you can do that using a special program from your 
+network card manufacturer. If you have a PXE Bootprom, you can do it
+simply from BIOS setup, by changing the default boot device.
+<P>For student computers, we configured the boot on network
+first, and disabled hard-disk and floppy-disk boot. For assistant
+computers, we also configured network-boot first,
+but we allow hard-disk and floppy-disk boot.
+<P>
+<H2><A NAME="ss4.1">4.1 Server-side configuration</A>
+</H2>
+
+<P>On the server, you will need the following services:
+<OL>
+<LI>A BOOTP/DHCP server</LI>
+<LI>May be a Proxy DHCP server</LI>
+<LI>A TFTP server</LI>
+</OL>
+
+<B>Note for PXE Boot ROM users:</B> We found after severals hours of tedious
+search that PXE Boot ROMs with version before 0.99
+do not follow the IP protocol and
+discard all packets that have the <EM>Don't Fragment</EM> (DF) flag set.
+That means, you will have to disable <EM>Path MTU Discovery</EM> on the server,
+or the Boot ROM will not see any of its packets. On Solaris, use 
+<CODE>ndd /dev/ip ip_path_mtu_discovery</CODE> to see if you have it enabled
+and <CODE>ndd -set /dev/ip ip_path_mtu_discovery 0</CODE> to disable it.
+However, this fix only works for non-broadcast packets (ask SUN why...).
+That means, it will work for TFTP but not for DHCP :-(. Intel has recently 
+fixed this bug, and if you bought your computer after June 1998, you surely
+have a corrected PXE implementation.
+<P>
+<H3>Setting up DHCP</H3>
+
+<P>The role of the DHCP server is to give to the client an IP
+address and to make it load the
+file named <CODE>bpbatch.P</CODE> from the TFTP server.
+DHCP is a superprotocol over BOOTP. If you are using InCom
+TCP/IP Bootprom, you may live without DHCP (using an old BOOTP server).
+<P>On Windows NT, you will probably use the native DHCP server.
+If you are using InCom TCP/IP Bootprom, you will have to use
+a special trick to specify the boot file name (get more info
+from InCom WWW site). If you are using a PXE Bootrom, you will
+need a Proxy DHCP server, but no other trick is needed as
+the boot file name will be provided by the Proxy DHCP server.
+<P>On Linux, the best choice is the standard DHCP server from the
+Internet Software Consortium. If you are
+using a PXE Bootrom, in addition to the usual options, you will need
+to add the following ones:
+<UL>
+<LI><CODE>option dhcp-class-identifier "PXEClient"</CODE></LI>
+<LI><CODE>option vendor-encapsulated-options ff;</CODE></LI>
+</UL>
+<P>On Solaris, you can either use the Internet Software Consortium
+DHCP server
+(available on the Web), or use Solaris DHCP server (available
+since Solaris 2.5). However, as Solaris DHCP server does not seems
+to be able to insert a client class identifier in its DHCP offer,
+you must install a Proxy DHCP server. Morever, this Proxy DHCP server
+must reside on another computer since Solaris DHCP server locks
+the DHCP port.
+<P>We suggest giving infinite lease time for remote-boot clients.
+Don't forget that BOOTP/DHCP requests are bounded by subnets. If the client
+and the server do not reside on the same subnet, you should install
+a BOOTP/DHCP Relay agent on any computer between the two. 
+For now, just assume that both machines are on the same subnet.
+<P>
+<H3>Setting up a Proxy DHCP</H3>
+
+<P>The role of the Proxy DHCP server is to overcome limitions of some DHCP
+servers and to provide PXE specific extensions. A proxy DHCP server
+only makes sense for a PXE Boot rom.
+<P>As BpBatch itself is quite powerfull, 
+you wont need to use any PXE specific DHCP extension (menus, etc.).
+However, if your DHCP server is not able to show minimal PXE compliance,
+you will need a Proxy DHCP server or your PXE Boot ROM will not accept
+to go further.
+<P>On Windows NT, you can try to use Intel WfM PDK (available from their
+web site), but it is not very easy to use. We rather suggest having
+a Linux machine on the subnet and using our small Proxy DHCP.
+The major advantage of our Proxy DHCP Server for BpBatch is that
+our server will let you specify an option 155 vendor tag that will
+be interpreted by BpBatch as a command line.
+<P>On Linux and Solaris, you can run our Proxy DHCP program, that simply
+takes as argument the TFTP server IP address, boot file name and
+optional arguments, and does everything for you.
+If the DHCP port on the server is already requested by another daemon,
+the proxy DHCP server will run on port 4011. In this case, it is
+necessary that the other daemon on DHCP port answer a DHCP offer with
+client class <CODE>PXEClient</CODE> so that the PXE client knows that it must
+try on port 4011.
+<P>If you want to understand better PXE extensions to DHCP, there is
+an extensive description available on Intel WWW site. However, be warned
+that the documents are quite confusing, as the protocol has been
+extended to a number of optional stages, in order to allow for a
+maximal flexibility. The key to understand it is that all what a PXE
+client needs is a complete <EM>enhanced DHCP answer</EM>. If it receives
+only a standard DHCP offer, it will look further until it gets
+<OL>
+<LI>a client class (T60) set to <CODE>PXEClient</CODE></LI>
+<LI>vendor encapsulated options (T43) (possibly empty, ie. hex <CODE>ff</CODE>)</LI>
+<LI>a non-empty boot filename</LI>
+</OL>
+
+The PXE specific negociation ends as soon as all these infos are received,
+but can lead to a very complex process (install server discovery, etc.)
+if some are missing.
+<P>
+<H3>Setting up TFTP</H3>
+
+<P>The TFTP server is a very simple file server. In its basic version,
+TFTP use 512 bytes data blocks, which are quite inefficients.
+InCom TCP/IP Bootprom and PXE Boot ROMs allow to use larger
+blocks (1408 bytes), which speeds up transfers a lot. However,
+this can only work with an enhanced TFTP server.
+<P>On Windows NT, we suggest using InCom enhanced TFTP server, available
+on their web site.
+<P>On Linux, you can use our enhanced TFTP server, available at
+<CODE>
+<A HREF="soft/etftpd.tar.gz">http://cuiwww.unige.ch/info/pc/remote-boot/soft/etftpd.tar.gz</A></CODE>.
+<P>On Solaris, you should use InCom enhanced TFTP serer, available
+on the utility disk provided with the TCP/IP Bootprom.
+<P><B>If you prefer using a standard TFTP daemon, remove
+the <CODE>P</CODE> in all boot image name extensions, in order to tell the
+Bootprom to use only the standard TFTP port (This trick was introduced
+by InCom GmbH for the TCP/IP Bootprom. We still use it as an easy way
+to select the default TFTP port with PXE bootproms).</B>
+<P>
+<H2><A NAME="ss4.2">4.2 Client-side configuration</A>
+</H2>
+
+<P>First, we will do set up the part common to all operating systems, ie.
+the batch-file interpreter.
+Then, for each operating system, we will go through the following steps:
+<OL>
+<LI>Setup a stand-alone client</LI>
+<LI>Save its configuration on the server</LI>
+<LI>Test it as a remote-boot client</LI>
+<LI>Adapt it so that it works for any similar client machine</LI>
+</OL>
+
+Once this is done, you will be able to setup any supplemental 
+client just by plugging a Boot ROM in it (or buying a Wired for Management
+ready computer...) and adding one line
+in the DHCP configuration file.
+<P>Our examples assume that you have a hard disk of 1.4 Gb or more.
+If you have less, reduce the sizes of the partitions, but remember
+the you need to leave a few hundreds megabytes unallocated (that is,
+the last partition must not take up to the last cylinder) to leave
+free room for the special cache partition. Moreover, as the cache always
+starts at the cylinder following the last allocated cylinder, if you
+do not use the same total size for all your tests, you will have to
+download several times the same files (the cache will be automatically
+cleared).
+<P>Never despair. If you can't get it to work, first look in the 
+<EM>Troubleshooting</EM> section if your problem is not already solved
+(get the latest version from the Web). 
+Then, take a look in the BpBatch forum. Perhaps someone else had the
+same troubles as you have, and the answer can be found in the forum.
+Forum's URL :
+<CODE>
+<A HREF="forum/">http://cuiwww.unige.ch/info/pc/remote-boot/forum/</A></CODE>.
+If it still does not work, think about monitoring network traffic
+for network related problems (use <CODE>tcpdump</CODE> on Linux or
+<CODE>snoop</CODE> on Solaris). If you really cannot get it to work,
+you can send an E-mail to <CODE>David.Clerc@cui.unige.ch</CODE> or
+<CODE>Marc.VuilleumierStuckelberg@cui.unige.ch</CODE>.
+If your problem is strictly related with the remote-boot configuration
+and if we are not overflowed, we will try to solve your problem.
+<P>
+<H2><A NAME="ss4.3">4.3 Setting Up the Boot Process</A>
+</H2>
+
+<P>Get the <CODE>BpBatch</CODE> software, either as <CODE>.zip</CODE> or as <CODE>.tar.gz</CODE>.
+The executables are available at
+<UL>
+<LI><CODE>
+<A HREF="soft/bpb-exe.zip">http://cuiwww.unige.ch/info/pc/remote-boot/soft/bpb-exe.zip</A></CODE></LI>
+<LI><CODE>
+<A HREF="soft/bpb-exe.tar.gz">http://cuiwww.unige.ch/info/pc/remote-boot/soft/bpb-exe.tar.gz</A></CODE></LI>
+</UL>
+
+The source code (Assembler and C) is also available on request.
+<P>In the server <CODE>/tftpboot</CODE> directory, put the following three special
+boot images, which together make our pre-boot batch file interpreter:
+<UL>
+<LI><CODE>bpbatch.P</CODE>, the dynamic loader (respect the uppercase !)</LI>
+<LI><CODE>bpbatch.ovl</CODE>, the relocated interpreter</LI>
+<LI><CODE>bpbatch.hlp</CODE>, the on-line help file</LI>
+</UL>
+
+Then add an entry in the DHCP configuration file for your client, with
+the boot file set to <CODE>"bpbatch.P"</CODE>. Define a vendor option tag 155
+(decimal) with the value <CODE>"-i"</CODE>
+(on the standard DHCP server, this is done by the following
+command: <CODE>option option-155 "-i";</CODE>). It is interpreted by <CODE>bpbatch</CODE>
+as the command line, and <CODE>-i</CODE> stands for "interactive".
+<P>Boot the client computer. You might shortly see
+<UL>
+<LI>The Boot ROM copyright</LI>
+<LI>The string <CODE>DHCP</CODE> while the client waits for a DHCP reply</LI>
+<LI>The string <CODE>TFTP</CODE> while the client waits for the first TFTP packet</LI>
+<LI>The string <CODE>Loading BpBatch</CODE> while the loader download the
+interpreter</LI>
+<LI>And finaly our banner, followed by a nice <I>greather-than</I> prompt</LI>
+</UL>
+
+Congratulations ! You have started the batch interpreter...
+If you are curious about what you can do with it, continue reading
+the next section. If you are on a hurry, skip it and go directly
+install the operating system of your choice. If you have any doubt
+about a command within the interpreter, type <CODE>help</CODE>.
+<P>Note that you can run the same interpreter within DOS and Linux by
+running the <CODE>MrBatch</CODE> program. There are a only very few differences
+(the Linux version do not have graphics support and the DOS version
+can only send BOOTP and TFTP requests if the BootProm is not hidden
+by the operating system).
+<P>It may be a good idea to read now the section about the
+<EM>Syntax Rules</EM> of <CODE>BpBatch</CODE>, and in particular the paragraphs
+on <EM>File References</EM> and on <EM>The Cache Filesystem</EM>.
+This will help you understand the examples.
+<P>Once all operating systems will be set up, you will have to make a
+menu to let the user choose the one he wants. You should be able
+to discover by yourself how to make such a menu. All
+necessary commands are documented at the end of this document.
+<P>
+<H3>Discovering BpBatch</H3>
+
+<P>Try to type <CODE>LogVars</CODE>. You should get about thirty variables
+listed. Roughly, the first are BpBatch settings, then come
+all parameters extracted from the BOOTP/DHCP reply, and the last
+variable is a list of disks sizes, in Megabytes.
+<P>Type <CODE>GetPartitions part</CODE>, then <CODE>LogVars</CODE> again. There should be
+one more variable containing the list of defined partitions on your
+first hard-drive. Assuming that the first partition is either
+BIGDOS, FAT32 or LINUX-EXT2, try <CODE>LogDir "{:1}"</CODE> to get the
+content of the root directory, then <CODE>LogDir "{:1}/usr"</CODE> if
+there is an <CODE>usr</CODE> directory. You can even try 
+<CODE>LogTree "{:1}/etc"</CODE> to get a directory tree.
+<P>Put a GIF file (format GIF-87a, interlaced or not, but NOT GIF-89a)
+on your TFTP server. We will suppose that the file is named <CODE>image.gif</CODE>.
+You can copy it wherever you want with the following command:
+<CODE>Copy "image.gif" "{:1}/temp/image.gif"</CODE>. Or you can use it
+directly from the server. Now type <CODE>Logvars "V*"</CODE> and look at
+the value of the <CODE>VESA</CODE> variable. If it is <CODE>On</CODE>, which is most
+probable, that means you have a VESA-compliant video adapter. You can list
+the available video modes using <CODE>Echo "$VESA-Modes"</CODE>. To display your 
+image try the following command: <CODE>DrawGif "image.gif"</CODE>. 
+The image should be on the upper
+left corner of the screen. You can draw it on another place by specifying
+X and Y coordinates after the image name. You can also draw text
+with <CODE>DrawText 200 200 "Hello world" yellow</CODE>. Or draw an empty
+window with <CODE>DrawWindow 200 200 300 150</CODE>. To insert a title when you
+create a new window, try <CODE>DrawWindow 200 200 300 150 "My Window"</CODE>.
+When you are tired of graphic mode, simply type <CODE>CloseGraph</CODE>.
+<P>Note on graphics : by default, all graphical routines work in the 800x600
+VESA mode (with 256 colors), which is the first field of the <CODE>VESA-Modes</CODE>
+variable. If you want to use a different video mode, change the variable in
+order to have the requested video mode as the first field of the list.
+<P>Now take a text editor, and create a file named <CODE>test.bpb</CODE>
+in the <CODE>tftpboot</CODE> directory with the following content:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+:again
+DrawWindow 150 200 400 160 "Identity check"
+TextAttr Black LightGray
+At 15,20 Print "Username : "
+Input username 8
+At 17,20 Print "Password : "
+Getpasswd userpass 8
+if "$username" != "smith" goto again
+if not "$userpass" match-passwd "BpR8oiIlRR9bo" goto again
+#
+clear
+DrawWindow 200 200 150 100 green blue "Congratulations"
+DrawText 220 250 "You got it !" yellow
+WaitForKey 3
+CloseGraph
+interact
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+
+In your BOOTP/DHCP configuration, change the option-155 from <CODE>"-i"</CODE>
+to <CODE>"test"</CODE>, and reboot the client computer. The small script
+should run automatically, and ask you for a username and password.
+If you do not type <CODE>smith</CODE> and <CODE>justdoit</CODE>, you wont be able to
+boot the computer. Later you will learn how to use a Unix, NT or Radius
+server to check valid user names.
+<P>
+<H2><A NAME="ss4.4">4.4 Setting Up Linux</A>
+</H2>
+
+<P>In order to set up Linux, you will need to boot the floppy disk
+provided with the RedHat Linux distribution. BpBatch includes a
+command that can redirect the boot to the floppy: <CODE>FloppyBoot</CODE>.
+<P>Set up 
+<A HREF="http://www.redhat.com">RedHat Linux</A> on your client, with network support,
+and any packages you may want. You may want to recompile the
+kernel to better fit your hardware, but it is not necessary.
+<P>
+<H3>Configuring the Client</H3>
+
+<P>It is probably a good idea to include BOOTP support to the kernel, so
+that you do not have to customize the client IP address manually.
+<P>In order to reduce network load, you might also want to setup the
+<CODE>filecache</CODE> for caching on the hard disk files that are
+loaded by NFS. 
+Roughly, the principle of the filecache
+is that whenever a symbolic link from the <CODE>cache</CODE> subdirectory
+is followed, it is replaced by its target. If the target is itself a
+subdirectory, each entry of the subdirectory becomes a symbolic link
+to the original entry of the foreign filesystem.
+The filecache has been written by Unifix GmbH, and is part of 
+Unifix Linux 2.0. It is freely distributable, and you can get the
+necessary files from <CODE>
+<A HREF="soft/filecache.tar.gz">http://cuiwww.unige.ch/info/pc/remote-boot/soft/filecache.tar.gz</A></CODE>.
+In order to use the filecache, you have to
+<UL>
+<LI>apply a patch to the kernel (file <CODE>patch-filecache</CODE>),
+enable filecache support through <CODE>make config</CODE> or whatever
+you prefer, and recompile the kernel</LI>
+<LI>copy the filecache binary file to <CODE>/sbin</CODE></LI>
+<LI>create a mount point called <CODE>/mnt/nfs</CODE> (using <CODE>mkdir</CODE>)</LI>
+<LI>copy <CODE>filecache.conf</CODE> to <CODE>/etc</CODE>. This file contains
+the following lines:
+<PRE>
+Max 100 MB 50 % #
+Cache /mnt/nfs/usr /usr
+Cache /mnt/nfs/opt /opt
+</PRE>
+</LI>
+<LI>copy the content of <CODE>/usr</CODE> and <CODE>/opt</CODE> to the server, 
+export them read-only
+with <CODE>anon=0</CODE> (for allowing root access) and mount them under
+<CODE>/mnt/nfs</CODE> (add a line for that in <CODE>/etc/fstab</CODE>)</LI>
+<LI>rename <CODE>/usr</CODE> as <CODE>/usr.orig</CODE></LI>
+<LI>link <CODE>/usr</CODE> to <CODE>/mnt/nfs/usr</CODE></LI>
+<LI>rename <CODE>/opt</CODE> as <CODE>/opt.orig</CODE></LI>
+<LI>link <CODE>/opt</CODE> to <CODE>/mnt/nfs/opt</CODE></LI>
+<LI>ensure that <CODE>/usr</CODE> and <CODE>/opt</CODE> are not empty and contains
+the correct directories</LI>
+<LI>recursively remove <CODE>/usr.orig</CODE> and <CODE>/opt.orig</CODE></LI>
+<LI>copy <CODE>filecache.init</CODE> to <CODE>/etc/rc.d/init.d</CODE></LI>
+<LI>And finally link <CODE>/etc/rc.d/rc3.d/S35filecache</CODE> to <CODE>/etc/rc.d/init.d/filecache.init</CODE></LI>
+</UL>
+
+If you successfully followed each of these steps, you should have the
+filecache working next time you boot, as long as you do not forget to
+use your patched kernel.
+<P>
+<H3>Testing the Configuration</H3>
+
+<P>Copy your compressed kernel image (<CODE>zImage</CODE>, <CODE>bzImage</CODE>, <CODE>vmlinuz</CODE>
+or whatever you call it) to the 
+server <CODE>/tftpboot</CODE> directory as <CODE>linux.krn</CODE>. If you had to unplug
+the bootprom from the PC, you can now plug it again. When <CODE>BpBatch</CODE>
+starts, type <CODE>LinuxBoot "linux.krn" "root=/dev/hda1 BOOT_IMAGE=linux"</CODE>
+(assuming
+that the root ext2 filesystem is on the first partition). Alternatively,
+if you did setup your configuration on a computer without bootprom,
+just boot let it boot using the loader you installed (lilo, ...). But
+in the later case, if you want the filecache to work, you should have
+explicitely installed your kernel with filecache support at the right place.
+<P>Wait until the system comes up.
+If you installed the filecache, you can check that <CODE>/usr</CODE> has
+exploded into a directory with some symlinks and some already-exploded
+directories. Now start the programs that the end-users will use most of 
+the time, in order to load them once for all to the hard disk.
+<P>You can still make adjustements to your configuration, like on
+any stand-alone linux station.
+<P>
+<H3>Building the Disk Image</H3>
+
+<P>When you are happy with your configuration, login as <CODE>root</CODE>,
+go to the <CODE>/tmp</CODE> directory and
+run our <CODE>mrzip</CODE> program.
+<CODE>MrZip</CODE> is a command interpreter like <CODE>BpBatch</CODE>, but it can
+understand more commands than <CODE>BpBatch</CODE> does. In particular, it
+can understand the following commands:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+showlog
+filter -"tmp/*"
+filter -"var/log/*"
+fullzip "/" "/tmp/linux.imz"
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+
+This will create a disk image in <CODE>/tmp/linux.imz</CODE>. Move it to
+the server <CODE>/tftpboot</CODE> directory. Then copy the following
+batch file to <CODE>/tftpboot/linux.bpb</CODE>:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+hidelog
+setpartitions "linux-ext2:992 linux-swap:32"
+fullunzip "linux.imz" 1
+clean 2
+linuxboot "linux.krn" "root=/dev/hda1 BOOT_IMAGE=linux"
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>The <CODE>BOOT_IMAGE</CODE> argument is to stay compatible with <CODE>lilo</CODE> for
+RedHat 5.1 and later <CODE>rc.sysinit</CODE>.
+<P>Your remote-boot linux configuration is ready ! You can now either
+set the BOOTP-option-155 to <CODE>"linux"</CODE>, or type <CODE>include "linux.bpb"</CODE>
+from within BpBatch to test it.
+<P>
+<H3>System Maintenance and Upgrades</H3>
+
+<P>If you want later to upgrade software, install bug fixes and 
+security fixes, proceed as follow:
+<UL>
+<LI>Remote-boot a client computer to get a fresh linux install</LI>
+<LI>Make your changes</LI>
+<LI>Redo the disk image</LI>
+<LI>Copy the new image in place of the old one on the server</LI>
+</UL>
+
+That means, you can upgrade software on your server-based configuration
+as if it were a purely local install.
+<P>
+<H2><A NAME="ss4.5">4.5 Setting up DOS 6 and Windows 3.1</A>
+</H2>
+
+<P>On the client computer, boot on your favorite dos floppy disk (either
+remove the bootprom or type <CODE>FloppyBoot</CODE> within BpBatch).
+Format the dos partition of your hard-drive with the <CODE>/S</CODE> 
+option, in order to put the operating system on it.
+The size of the partition is not important, as disk archives created
+with <CODE>MrZip</CODE> 
+Create a <CODE>DOS</CODE> subdirectory, copy DOS in it. Install your
+favorite network client (for instance Microsoft LanManager),
+Windows 3.1, and so on. If you use Microsoft LanManager,
+do not use DHCP for the IP configuration as it is a very poor
+implementation that will almost surely fail with reasonable
+network load. To do that, add the following lines in your <CODE>protocol.ref</CODE>
+file, in the section that loads <CODE>tcptsr</CODE> (of course, replaces the <CODE>xxx</CODE>
+by your true IP parameters):
+<PRE>
+        IPADDRESS0 = xxx xxx xxx xxx
+        SUBNETMASK0 = 255 255 xxx xxx
+        DEFAULTGATEWAY0 = xxx xxx xxx xxx
+        DISABLEDHCP = 1
+</PRE>
+<P>Do not be afraid to use EMM386 to optimize the memory usage, and
+even to include the area where you put your network adapter ROM,
+since it is not used anymore at this time. But carefully exclude
+the network adapter RAM, or you will not be able to connect to your
+server. Use the <CODE>NOEMS</CODE> parameter.
+<P>If you want to ensure that the client machine cannot be used without
+a valid login name, download our <CODE>nobreak</CODE>
+pseudo-device driver (available at <CODE>
+<A HREF="soft/nobreak.zip">http://cuiwww.unige.ch/info/pc/remote-boot/soft/nobreak.zip</A></CODE>)
+and run it at the beginning of your
+<CODE>config.sys</CODE>. Then add something like this to your <CODE>autoexec.bat</CODE>:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+rem -- we use the dummy file c:\logged as a flag
+del c:\logged >nul
+:loginneeded
+cls
+echo Please type in your login name and password
+echo.
+net logon *
+rem -- the login script should have created c:\logged
+if not exist c:\logged goto loginneeded
+del c:\logged
+rem -- now enable break again
+echo Yes >NOBRK
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Ensure that your client boot well
+by rebooting the client and evaluating the following commands
+within <CODE>BpBatch</CODE> interactive mode:
+<PRE>
+        HideBootprom
+        HdBoot
+</PRE>
+<P>
+<H3>Building the Disk Image</H3>
+
+<P>On the server, make a share called <CODE>admin</CODE> for instance, on
+which you will put some stuff for the system administrator.
+If the server is a Unix machine, it is a good opportunity to put
+in <CODE>admin</CODE> a softlink to the <CODE>/tftpboot</CODE> subdirectory,
+so that you can put images in it directly from the client.
+Within <CODE>admin</CODE>, create a <CODE>/utils</CODE> subdirectory
+and put the following files in it:
+<UL>
+<LI><CODE>mrbatch.exe</CODE>,
+the DOS version of <CODE>BpBatch</CODE></LI>
+<LI><CODE>mrzip.exe</CODE>,
+the DOS version of the program for building disk images</LI>
+<LI><CODE>bpbatch.hlp</CODE>,
+the on-line help file</LI>
+</UL>
+
+You might also like to put in the same directory a simple MrZip script 
+named <CODE>zipdos.mrz</CODE>
+file that contains the commands needed for building a DOS image, like this
+one:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+showlog
+filter -"lanman.dos/lmuser.ini"
+filter -"temp/*"
+filter -"*.swp"
+fullzip "c:/" "L:/tftpboot/dos.imz"
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Now go back to your client, mount the <CODE>admin</CODE> volume on drive
+<CODE>L:</CODE>, go to your <CODE>utils</CODE> directory and type the following command:
+<PRE>
+        mrzip -b zipdos
+</PRE>
+<P>One minute later, you will have a new file in the server
+<CODE>/tftpboot</CODE> subdirectory called <CODE>dos.imz</CODE>, which is a
+compressed image of your hard disk. Copy the following
+batch file to <CODE>/tftpboot/dos.bpb</CODE>:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+hidelog
+setpartitions "bigdos:1024"
+setbootpart 1
+fullunzip "dos.imz" 1
+hidebootprom
+hdboot :1
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Your remote-boot DOS configuration is ready ! You can now either
+set the BOOTP-option-155 to <CODE>"dos"</CODE>, or type <CODE>include "dos.bpb"</CODE>
+from within BpBatch to test it.
+<P>
+<H3>Adapting the configuration for other machines</H3>
+
+<P>If you want to customize some settings according to the machine,
+typically the IP settings since Micro$oft DHCP is buggy,
+you can setup <CODE>BpBatch</CODE> to change some files before booting.
+Firsti go to the <CODE>lanman.dos</CODE> directory and do
+<PRE>
+        copy *.ini *.ref
+</PRE>
+
+Then edit the <CODE>.ref</CODE> files and replace all fixed parameters with
+BOOTP variable names as in the following examples:
+<PRE>
+        computername = ${BOOTP-Host-Name}
+        ipaddress0 = ${MS-IPAddress}
+        subnetmask0 = ${MS-IPSubnet}
+        defaultgateway = ${MS-IPRouter}
+</PRE>
+
+Then rebuild the disk image as previously.
+Note that for IP parameters, we do not use the BOOTP variables directly
+because LanManager needs then as space-separated numbers instead of
+dot-separated numbers. Change <CODE>dos.bpb</CODE> to the following:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+hidelog
+setpartitions "bigdos:1024"
+setbootpart 1
+fullunzip "dos.imz" 1
+set MS-IPAddress="$BOOTP-Your-IP"/.= /
+set MS-IPSubnet="$BOOTP-Subnet-Mask"/.= /
+set MS-IPRouter="$BOOTP-Routers"/.= /
+patch "{:1}lanman.dos/protocol.ref" "{:1}lanman.dos/protocol.ini"
+patch "{:1}lanman.dos/tcpputils.ref" "{:1}lanman.dos/tcputils.ini"
+patch "{:1}lanman.dos/lanman.ref" "{:1}lanman.dos/lanman.ini"
+hidebootprom
+hdboot :1
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+
+If you prefer, you can also put the <CODE>.ref</CODE> files in the server
+<CODE>/tftpboot</CODE> directory instead of in the disk image.
+<P>We like to be able to easily change the computers configuration
+without rebuilding the image. To do that, copy your <CODE>autoexec.bat</CODE>
+and <CODE>config.sys</CODE> as <CODE>autoexec.ref</CODE> and <CODE>config.ref</CODE> to the
+server <CODE>/tftpboot</CODE>
+and add the following two lines to the batch file above:
+<PRE>
+        patch "autoexec.ref" "{:1}autoexec.bat"
+        patch "config.ref" "{:1}config.sys"
+</PRE>
+
+You can then freely change the files and even customize them
+with machine-dependant values obtained from BOOTP.
+<P>After making any change to the client machine configuration,
+do not forget to rebuild the disk image using <CODE>mrzip</CODE>
+if you want to preserve your changes.
+<P>
+<H3>System Maintenance and Upgrades</H3>
+
+<P>If you want later to add new software or change anything else,
+proceed as follow:
+<UL>
+<LI>Remote-boot a client computer to get a fresh install</LI>
+<LI>Make your changes</LI>
+<LI>Redo the disk image</LI>
+<LI>Copy the new image in place of the old one on the server</LI>
+</UL>
+
+That means, you can upgrade software on your server-based configuration
+as if it were a purely local install.
+<P>
+<H2><A NAME="ss4.6">4.6 Setting up Windows 95</A>
+</H2>
+
+<P>In previous versions of this document, we used
+the Microsoft server-based installation of Windows 95, but it
+was really too much pain and not much worth:
+<UL>
+<LI>It is very, very bogus</LI>
+<LI>Many software package do not support it and their install will fail. 
+Among them, Microsoft Internet Explorer, OnNet 32, Novell's
+Protected-mode client (which is MUCH more secure than Microsoft
+Client for Netware).</LI>
+<LI>It cannot be used with the Microsoft Network client over TCP/IP,
+since Microsoft provides no real-mode driver for TCP/IP
+compatibe with Windows 95. That means, it cannot be used
+with Samba</LI>
+<LI>It makes software upgrades almost impossible since every client
+turned on will lock many DLLs on the server, and thus produce
+<EM>sharing violations</EM> if you try to upgrade them.</LI>
+</UL>
+
+Consequently, we throwed away of this document all the informations
+and bug-workaround collected during months (you can still find
+them as a HTML document at 
+<A HREF="win95old/win95old.html">http://cuiwww.unige.ch/info/pc/remote-boot/win95old/win95old.html</A>)
+and turned to our new disk-based remote-boot concept.
+Basically, the configuration for Windows 95 is now almost as easy
+the configuration for DOS.
+<P>
+<H3>Setting up a Stand-Alone Client</H3>
+
+<P>Setup a regular Windows 95 client, either starting from scratch
+as explained in the configuration of a DOS client, starting from
+the DOS client and installing over the network (that is what we did).
+You can also start with a preconfigured Windows machine, but you
+will probably have less knowledge of what stuff is on the hard disk.
+<P>Proceed as described above for a DOS client. It is usually NOT necessary
+to use EMM386 with Windows 95.
+If you are using Windows 95 OSR2 (alias MSWIN 4.1, alias Windows 95 
+service pack 1, alias Windows 95 with Internet Explorer), you should
+add the following line in the <CODE>[Options]</CODE> section of
+<CODE>MSDOS.SYS</CODE> (yes, it is a text file):
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+AUTOSCAN=0
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+
+This will let Windows know that you do not want ScanDisk to be runned
+automatically at boot time.
+<P>If you want to reduce network and server load (which will improve your system
+performances) while keeping all softwares on the server, you should
+consider installing the excellent Shared LAN Cache, from Measurement
+Techniques, Inc (see
+<A HREF="http://www.lancache.com">http://www.lancache.com</A>). 
+This software runs on each client computer, and caches to the local
+hard disk every data obtained from the network. Even MS-Office starts
+much faster the second time you run it... You need one license
+per client computer, but 
+it is not very expensive, and the firm make special prices for universities
+and colleges. The best thing to do is to go to their Web site and
+download the free evaluation copy.
+<P>
+<H3>Building the Disk Image</H3>
+
+<P>Your MrZip script will be named <CODE>zipwin95.mrz</CODE> and contain:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+showlog
+filter -"temp/*"
+filter -"*.swp"
+fullzip "c:/" "L:/tftpboot/win95.imz"
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>To build the image, mount the <CODE>admin</CODE> volume on drive
+<CODE>L:</CODE>, go to your <CODE>utils</CODE> directory and type the following command:
+<PRE>
+        mrzip -b zipwin95
+</PRE>
+<P>A few minutes later, you will have a new file if the server
+<CODE>/tftpboot</CODE> subdirectory called <CODE>win95.imz</CODE>, which is a
+compressed image of your hard disk. If your compressed image was bigger 
+than 87 MB, it has probably been splitted in two or more fragments.
+These fragments will automatically loaded one after the other when
+needed. Note that an image bigger than 87 MB will usually take
+More than one minute to uncompress and may irritate your users.
+Our Windows 95 image is only 70 MB big, because most software (except
+Office and Explorer) completely reside on the server. Only 45 seconds
+are needed to uncompress the image and restore the full disk.
+<P>Copy the following batch file to <CODE>/tftpboot/win95.bpb</CODE>:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+hidelog
+setpartitions "bigdos:1024"
+setbootpart 1
+fullunzip "win95.imz" 1
+hidebootprom
+hdboot :1
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Your remote-boot Windows 95 configuration is ready ! You can now either
+set the BOOTP-option-155 to <CODE>"win95"</CODE>, or type <CODE>include "win95.bpb"</CODE>
+from within BpBatch to test it.
+<P>
+<H3>Adapting the configuration for other Machines</H3>
+
+<P>The big difference between Windows 3.1 and Windows 95 is that the
+later includes code for Plug-and-play , ie. automatic detection
+of your hardware. This not a bad thing in itself, but the trouble is
+that it is often too sensible, and that it sometimes fails.
+<P>If you try to start another client with exactly the same boot image,
+you will probably get several messages during startup telling that
+Windows has detected new hardware: a new sound card, a new hard-disk,
+a new network card, and even a new mouse... There can be two reasons
+for that:
+<UL>
+<LI>the devices may not use the same ressources (for instance the mouse
+is not connected on the same port, or the sound card is not
+connected in the same slot - yes, that is detected)</LI>
+<LI>the devices may tell to Windows 95 their personal serial number
+(for instance, every Windows 95 differenciate every network
+card on the basis of its world-wide unique ethernet address)</LI>
+</UL>
+
+The fact that Windows 95 discover that the hardware has changed may not
+be a problem if the plug-and-play works as-is, but it become a problem
+when the plug-and-play does not work. For instance, Windows 95 
+plug-and-play for our Logitech PS2/aux mouse does not work, and result
+in no mouse at all. To solve such kind of problems, arrange to have
+all computers as similar as possible, or make different images for
+different hardware. Later, you will discover that you can simply use
+the same image and just have several copies of the registery, that
+you can copy after having restoring the disk image but before booting.
+<P>The thing you cannot avoid to differ between computers is the network
+card. PCI cards usually do not mind, but ISA Plug and Play do.
+Bad luck for us, the plug-and-play code for our SMC EtherEZ card
+hangs the computer. The only solution is to let Windows 95 believe
+that it already know the network card, and that it is not necessary
+to trigger plug-and-play. The trick for doing that is to automatically
+insert an entry for the network card in Windows 95 registery, before
+starting it.
+Note that this trick is not any more needed with most PCI cards.
+<P>Move the <CODE>autoexec.bat</CODE> to the server as described above for DOS.
+Edit it (on the server) and add the following lines:
+<PRE>
+rem --- Patch Windows registery in order to avoid plug-and-play detection
+regedit /L:c:\windows\system.dat /R:c:\windows\user.dat c:\temp\patch.reg
+</PRE>
+
+<CODE>regedit</CODE> is a standard Windows 95 program that let you browse
+the registery if you start it from within Windows 95, or do simple
+operations on the registery if you call it from DOS.
+Run <CODE>regedit</CODE> under Windows 95, search for your network card,
+usually under
+<PRE>
+        HKEY_LOCAL_MACHINE\Enum\ISAPNP
+</PRE>
+
+and export the branch using the <EM>File</EM> menu. This will create a text
+file, that you should same as <CODE>patch.ref</CODE> in the server <CODE>/tftpboot</CODE>
+diretory. Edit this file and find out where the card ethernet address
+is stored (do that on two different machines and compare the files
+if you can't find it by yourself). Replace it by a pettern in the
+form <CODE>${MACID}</CODE>.
+Then add lines to the <CODE>win95.bpb</CODE> script like this:
+<PRE>
+        set macid = "$BOOTP-Client-ID"
+        patch "patch.ref" "{:1}temp/patch.reg"
+</PRE>
+
+(do any necessary string manipulation for setting <CODE>MACID</CODE> if it is
+not exactly the client Ethernet address).
+That's all, your clients should not any more try to autodect the network
+card.
+<P>Once again, this whole trick is not necessary when using PCI network
+adapters.
+Incidentally, we can use the same mechanism for automatically 
+configuring the hostname, which Windows 95 does not seem to take 
+into account when configuring through DHCP. We just add the
+following line to our <CODE>patch.ref</CODE> file:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\VNETSUP]
+"ComputerName"="${BOOTP-Host-Name}"
+
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\MSTCP]
+"HostName"="${BOOTP-Host-Name}"
+
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\control\ComputerName\ComputerName]
+"ComputerName"="${BOOTP-Host-Name}"
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Using this small registery trick, your configuration should normally be
+portable for all machines with similar configurations. If you cannot avoid
+that Windows detect some hardware as new on one machine, try to rebuild
+the disk image from this machine. This will include the registery
+configuration specific to this machine into the image, and hopefully
+supress the problem.
+<P>
+<H3>System Maintenance and Upgrades</H3>
+
+<P>If you want later to upgrade software, install bug fixes and 
+security fixes, proceed as follow:
+<UL>
+<LI>Remote-boot a client computer to get a fresh install</LI>
+<LI>Make your changes</LI>
+<LI>Redo the disk image</LI>
+<LI>Copy the new image in place of the old one on the server</LI>
+</UL>
+
+That means, you can upgrade software on your server-based configuration
+as if it were a purely local install.
+<P>
+<H2><A NAME="ss4.7">4.7 Setting up Windows NT</A>
+</H2>
+
+<P>We do not use Windows NT for remote-boot client computers but we
+have tested our system to ensure that it work as well. And it works.
+<P>As our utilities currently have no support for NTFS (we neither
+have the documentation nor the time to do that, but I would be
+happy to help anyone who is interested in doing it), you will have to
+install NT on FAT16 (simply do not convert your partitions to NTFS
+during the setup).
+<P>Copy your <CODE>win95.bpb</CODE> boot script to <CODE>winnt.bpb</CODE>.
+Change the <CODE>setpartitions</CODE> line in <CODE>winnt.bpb</CODE> to the following:
+<PRE>
+        setpartitions "BIGDOS:512 BIGDOS:512"
+</PRE>
+
+Then boot Windows 95 using this script, and install
+your NT client on drive C. Do not worry about the second partition for now. 
+Do not install too much stuff, or you will
+get a really large and slow-to-uncompress image.
+Remove Windows 95 from the disk disk C, you do not need it
+in a Windows NT image (the boot menu is handled by the bootprom,
+not by NT boot loader).
+<P>Reboot your computer in without overwriting the hard disk, ie. do not
+execute the <CODE>winnt</CODE> script but just
+<PRE>
+        hidebootprom
+        hdboot
+</PRE>
+
+Your NT station should start-up correctly. Make any 
+necessary customization.
+<P>
+<H3>Building the Disk Image</H3>
+
+<P>The trouble with Windows NT is that direct disk access is prohibed
+by the kernel. That means, <CODE>MrZip</CODE> will not even be able to read the
+boot sectors. The best way to do an image is then to boot Windows 95
+and to run <CODE>MrZip</CODE> from a DOS window. To do that, change the
+<CODE>winnt.bpb</CODE> script so that the Windows 95 image is not restored
+on the first but on the second partition:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+hidelog
+setpartitions "BIGDOS:512 BIGDOS:512"
+setbootpart 2
+fullunzip "win95.imz" 2
+hidebootprom
+hdboot :2
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+
+(if you have any supplementary patch, change the <CODE>"{:1}"</CODE> to
+<CODE>"{:2}"</CODE>). Boot with this script; you should have Windows
+95 running, but a new drive <CODE>D:</CODE> should be available, with 
+Windows NT inside.
+<P>Make your disk image as usual (but on <CODE>D:</CODE>, of course), and
+save it as <CODE>winnt.imz</CODE> on the server <CODE>/tftpboot</CODE> directory.
+Edit one last time the <CODE>winnt.bpb</CODE> script like this:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+hidelog
+setpartitions "BIGDOS:512 BIGDOS:512"
+setbootpart 1
+fullunzip "winnt.imz" 1
+clean 2
+#fullunzip "win95.imz" 2
+hidebootprom
+hdboot :1
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+
+Your Windows NT remote-boot configuration is ready. Of course, if you do
+not like to have two partitions, you can setup a single partition
+instead. But when you have to rebuild the image, you will have to setup
+the second partition again for booting Windows 95.
+<P>
+<H3>System Maintenance and Upgrades</H3>
+
+<P>If you want later to upgrade software, install bug fixes and 
+security fixes, proceed as follow:
+<UL>
+<LI>Remote-boot a client computer to get a fresh install</LI>
+<LI>Make your changes</LI>
+<LI>Edit <CODE>winnt.bpb</CODE>: comment the <CODE>clean</CODE> and winnt <CODE>fullunzip</CODE>, 
+uncomment win95 <CODE>fullunzip</CODE></LI>
+<LI>Redo the disk image</LI>
+<LI>Copy the new image in place of the old one on the server</LI>
+</UL>
+
+That's all, folks !
+<P>
+<H2><A NAME="ss4.8">4.8 Troubleshooting (FAQ)</A>
+</H2>
+
+<P>This section lists most frequently encountered problems.
+<DL>
+<DT><B>The image download never ends</B><DD><P>You are probably using a standard TFTP server, and it cannot handle more
+than 65535 packets of 512 bytes (or even 32767 packets for the Solaris
+server). That is, your image must be fragmented in pieces of no more
+than 30 MB (or 15 MB for Solaris). See under <EM>CopyArchive</EM> for
+instructions on fragmenting an existing image. But you should seriously
+thing about using InCom's extended TFTP server, as it is much more
+efficient (it uses packets of 1408 bytes instead of 512 bytes).
+<DT><B>The archive decompression fails immediately</B><DD><P>There are three possibilities. Either the image is really corrupted on the
+server (try use MrZip to see if it is the case), or the file transfer
+has failed because of TFTP timeout, or because of incompatible protocol.
+<P>TFTP timeout occurs when the network
+is too heavily loaded (for instance if you try to download a huge image
+with more than four clients at a time). In this case, <CODE>BpBatch</CODE>
+does not retry indefinitely because it would not help. Shut down
+a few computers and retry with no more than four computers (or maybe
+even three).
+If you often need to download images for a lot of computers, you can
+try our special Broadcast TFTP server (see the section dedicated to it).
+<P>Incompatible protocol is caused by using a standard TFTP server
+(typically the one built-in in your UNIX server) while asking
+BpBatch to work with enhanced TFTP. If you use a standard TFTP
+server, <B>you should remove the .P extension</B> (see the explanation
+in the next question).
+<P>
+<DT><B>The computer hangs instead of downloading/unzipping (1)</B><DD><P>If you are using Incom's TFTP server, try to add -s 1408 59 to the command
+line. If you are not using an enhanced TFTP server, remove the <CODE>.P</CODE>
+extension from BpBatch filename on the server and in <CODE>bootptab</CODE>.
+<P>Detailed explanation :
+this problem occurs if you did not setup an extended TFTP server but
+you used <CODE>bpbatch.P</CODE> as the bootfilename DHCP/BOOTP tag. BpBatch will 
+indeed try to connect to an extended TFTP server when the bootfilename 
+ends with
+a <CODE>.P</CODE> extension. To solve this problem, you can either remove the <CODE>.P</CODE>
+extension at the end of the bootfilename (it will tell BpBatch to use standard
+TFTP) or install an extended TFTP server.
+The only supported extended TFTP server today is the
+one provided by Incom. You can find compiled binaries on their web site, or
+on our distribution directory. For Incom's TFTP server to properly work with
+the extended TFTP feature, you must add <CODE>-s 1408 59</CODE> to the command line.
+<DT><B>The computer hangs instead of downloading/unzipping (2)</B><DD><P>May be your computer has a bad VESA support. Try giving the <CODE>-v</CODE>
+command-line argument or setting the VESA variable to <CODE>"OFF"</CODE>.
+<DT><B>VESA scrolling is broken</B><DD><P>We use a VESA 1.1 function for scrolling. If your video adapter does not
+support VESA 1.1, forget it. If the scrolling works for one page, but
+then produces a strange strippled pattern, do not worry. This is a known
+bug, I will fix it as soon as I have time for it (VESA scrolling is not
+really essential...)
+<DT><B>There is a corrupted file in the cache</B><DD><P>When a file in the cache is corrupted by an external program,
+it is automatically removed from the cache. When a file in the cache
+is not fully written (because the computer is turned off during the
+file transfer), it is also automatically removed. But if the server
+transmits a corrupted file or if the transfer aborts from the server
+side, it is possible that this file stays in the cache. You can clean-up
+the cache simply by holding both shift down while <CODE>BpBatch</CODE> access
+it for the first time. Alternatively, you can evaluate <CODE>clean -1</CODE>
+in interactive mode.
+<DT><B>The EXIT command does not work in a batch file</B><DD><P>This is not a bug. Exit is not a command.
+There is no exit or quit command because it does not make any sense
+to exit from a boot script without booting. And MrBatch is
+really the same program as BpBatch.
+What you can do instead is calling HdBoot. This makes sense, and the
+DOS version will cleanly exit instead of rebooting.
+Note that you can exit from the DOS version at any time by
+pressing Ctrl-Break. This will restore all hooked interrupts
+before leaving.
+<DT><B>The Print command does not print</B><DD><P>If you try to print something and immediately enter interactive mode,
+you may not see your text. This is because your text was written
+on the <EM>runtime</EM> screen and the <CODE>Interact</CODE> command has
+switched the display to the <EM>Log</EM> screen. Just put a <CODE>GetKey</CODE>
+after the print commands and you will see the text output.
+<DT><B>MrZip says <CODE>Malloc failed</CODE></B><DD><P>MrZip needs a lot of conventional memory to run. 
+If you encounter this problem, first ensure that you have unloaded
+the bootprom either using <CODE>HideBootprom</CODE> or using InCom's <CODE>bputil</CODE>.
+If you run MrZip from
+bare MS-DOS (not within Windows 95 DOS box), you should use EMM386
+to load the network drivers high in order to get as much conventional
+memory as possible. From a Windows 95 DOS box, there is usually no
+problem (as long as you have not left your old 16-bit stuff in
+your <CODE>autoexec.bat</CODE> when you installed Windows 95).
+<DT><B>MrZip aborts while reading directories</B><DD><P>This bug has already been fixed once. Get the latest release of
+<CODE>MrZip</CODE>. If the problem persists,
+try to build your image with <CODE>Trace</CODE> set to <CODE>"ON"</CODE> (and usually
+<CODE>PauseLog</CODE> set to <CODE>"OFF"</CODE>); this will let you discover which
+file causes the problem. Send a detailled bug report.
+<DT><B>MrZip cannot access some file</B><DD><P>MrZip is probably trying to read a locked, open or special file, 
+such as Windows swap
+file. Such files should usually not be included in
+the image and should be filtered out (using the <CODE>filter</CODE> command).
+It is also possible that the operating system is playing you a trick. 
+If MrZip does not tell you what file causes the problem,
+try to build your image with <CODE>Trace</CODE> set to <CODE>"ON"</CODE> (and usually
+<CODE>PauseLog</CODE> set to <CODE>"OFF"</CODE>).
+You can also try to use direct
+disk access (that is, do not refer the source partition as
+<CODE>"C:"</CODE> or <CODE>"/"</CODE> but as <CODE>"{:1}"</CODE> or 
+whatever partition it is). Using
+direct disk access is usually slower because we have less buffers than
+the operating system, but it may be sometimes more reliable.
+<DT><B>Disk images are always reloaded from the server</B><DD><P>Disk images are stored in the special cache area and should not be
+reloaded if they have not changed on the server. However, as the cache
+area always starts after the last used partition, changing the total
+size of partitions will move the location of the cache and thus destroy
+its content. Another possible reason for a file disappearing from the
+cache is that the previous file has grown more than one-and-an-half
+times its initial size. The file would then have been overwritten and
+need to be downloaded once again. This should almost never occurs.
+A third possible reason is a too small cache area. If the free space
+left outside the partitions is less than one-and-an-half times the sum
+of all compressed image sizes, only the most recently used images will
+be present in the cache and the other will have to be reloaded on demand.
+<DT><B>Red Hat Linux 5.1 does not boot properly</B><DD><P>This distribution assumes Linux was booted using <CODE>lilo</CODE> and checks
+for the <CODE>BOOT_IMAGE</CODE> command line argument (in 
+<CODE>/etc/rc.d/rc.sysinit</CODE>). Simply add it in the <CODE>linuxboot</CODE>
+call, or change your <CODE>rc.sysinit</CODE>.
+<DT><B>The broadcast TFTP ramdisk hangs (<EM>Got in bound state</EM>)</B><DD><P>Linux dhcp client is a program that dynamically changes the
+IP address of the client according to DHCP offers. If the address
+is offered forever (infinite lease time), the DHCP client just 
+set the address and returns (this is what we expect). 
+However, if the lease time is
+limited, the DHCP client must remain loaded and ask for new
+addresses every few minutes. And if the
+DHCP client does not return, MrBatch will never be loaded...
+The solution is to give an infinite lease time (sometimes
+encoded as -1).
+<DT><B>File access hangs under BpBatch, but not under MrBatch</B><DD><P>This problem occured on an AMI BIOS dated 94/07/25. We investigated
+a little bit, and found no solution. It seems that this problem is
+due to a bug in this BIOS (some register or memory location must
+be destroyed).
+<DT><B>Unzip of a fragmented archive fails (Malloc failed)</B><DD><P>This problem was introduced with PXE compatibility, but has now been
+fixed. Please get the latest version.
+<DT><B>MrBatch and MrZip complain about the terminal under RedHat 5.x</B><DD><P>This problem has been fixed in the 9th of August version of MrBatch/MrZip.
+There was a problem with a new version of ncurses which has been released
+with RedHat 5.1. 
+<DT><B>"libncurses.so.3.0: cannot open shared object file" under Linux</B><DD><P>MrZip has been linked to the version 3.0 of libncurses. You can use other
+versions of libncurses only if they are newer than version 3.0. To use a 
+newer libncurses, all you have to do is to create a soft link from 
+libncurses.so.3.0 to your libncurses.so.xx file.
+With RedHat 5.1, you can use the following command :
+<CODE>cd /usr/lib ; ln -s libncurses.4.2 libncurses.3.0</CODE>
+You can also download a version recent version of mrzip/mrbatch. Starting
+from the 10/25/98, mrbatch is now compiled under RedHat 5.1.
+<DT><B>MrBatch and MrZip do not start under Linux (file not found)</B><DD><P>This problem is the reverse of the previous one. Now that the distribution
+is libc6 ready, it cannot be used any more with libc5. If you encounter
+this problem, simply upgrade your Linux box (Well, if we hear too
+much complaints, we might try to keep two distributions...).
+<DT><B>I can not access other mode than the default 800x600 VESA mode</B><DD><P>You should first display the contents of the <CODE>VESA-Modes</CODE> variable, to
+see if your hardware support the mode you would like to use.
+Then, try one of the two ways to select a special VESA mode :
+<UL>
+<LI><CODE>InitGraph "mode"</CODE>: Try InitGraph "1024x768", and then run the
+graphical primitive you are interested in (e.g <CODE>DrawGif</CODE>).</LI>
+<LI><CODE>VESA-Modes</CODE>: The first field of the <CODE>VESA-Modes</CODE> variable is
+the name of the default mode. If you change the VESA-Modes variable, all
+graphical primitive will use the mode you specified.</LI>
+</UL>
+<DT><B>BpBatch prints a "Malloc failed" message when restoring multiple fragments images</B><DD><P>We corrected a bug in the memory allocation functions of BpBatch. You should make sure that you have a version of BpBatch which has been released after september the 22nd 1998.
+<DT><B>Fullunzip using the Linux version of MrBatch always fails</B><DD><P>We corrected this problem in the 09/22/1998 release.
+<DT><B>Scandisk says my disk is corrupted</B><DD><P>The 10/25/98 release did correct a problem with large images. Try to download a recent version of BpBatch.
+<DT><B>My RedHat boot floppydisk does not work with FloppyBoot</B><DD><P>This bug has been corrected in the 10/25/98 release.
+<DT><B>My FAT32 disk image does not boot properly</B><DD><P>This bug has been corrected in the 02/09/99 release.
+</DL>
+<P>
+<HR>
+<A HREF="Remote-Boot-5.html">Next</A>
+<A HREF="Remote-Boot-3.html">Previous</A>
+<A HREF="Remote-Boot.html#toc4">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,185 @@
+<HTML
+><HEAD
+><TITLE
+>close()</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="System calls"
+HREF="syscalls.html"><LINK
+REL="PREVIOUS"
+TITLE="poll()"
+HREF="poll.html"><LINK
+REL="NEXT"
+TITLE="mmap()"
+HREF="mmap.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="poll.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. System calls</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="mmap.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="CLOSE">7.5. close()</H1
+><DIV
+CLASS="FORMALPARA"
+><P
+><B
+>close(int sg_fd). </B
+>Preferably a close() should be done after all issued write()s have had
+their corresponding read() calls completed. Unfortunately this is not
+always possible (e.g. the user may choose to send a kill signal to a
+running process). The sg driver implements "fast" close semantics and thus
+will  return more or less immediately (i.e. not wait on any event). This
+is application friendly but requires the sg driver to arrange for an 
+orderly cleanup of those packets that are still "in flight". </P
+></DIV
+><P
+>When close() leaves outstanding SCSI commands still awaiting responses,
+the sg driver maintains its internal structures for the now defunct
+file descriptor. These internal structures are maintained until all
+outstanding responses (some might be timeouts) are received. When the
+sg driver is loaded as a module and has any open file descriptors or
+"defunct" file descriptors then it cannot be unloaded. An attempt to
+call <B
+CLASS="COMMAND"
+>rmmod sg</B
+> will report the driver is busy. Defunct
+file descriptors that remain for some time, perhaps awaiting a timeout,
+can be observed with the <B
+CLASS="COMMAND"
+>cat /proc/scsi/sg/debug</B
+>
+command. In this case "closed=1" will be set on the defunct file descriptor
+[see <A
+HREF="sg_debug.html"
+>Section 11.1</A
+>]. Defunct file descriptors do not impede
+attempts by applications to open() new file descriptors on the same SCSI
+device.</P
+><P
+>The kernel arranges for only the last close() on a file descriptor to be
+seen by a driver (and to emphasize this, the corresponding sg driver call 
+is named sg_release() rather than sg_close()). This is only significant when
+an application uses fork() or dup(). </P
+><P
+>Returns 0 if successful, otherwise -1 implies an error.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="poll.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="mmap.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>poll()</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="syscalls.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>mmap()</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

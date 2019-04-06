@@ -1,0 +1,210 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux IPCHAINS-HOWTO: Packet Filtering Basics</TITLE>
+ <LINK HREF="IPCHAINS-HOWTO-3.html" REL=next>
+ <LINK HREF="IPCHAINS-HOWTO-1.html" REL=previous>
+ <LINK HREF="IPCHAINS-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="IPCHAINS-HOWTO-3.html">Next</A>
+<A HREF="IPCHAINS-HOWTO-1.html">Previous</A>
+<A HREF="IPCHAINS-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Packet Filtering Basics</A></H2>
+
+<H2><A NAME="ss2.1">2.1 What?</A>
+</H2>
+
+<P>All traffic through a network is sent in the form of <B>packets</B>.  For
+example, downloading this package (say it's 50k long) might cause you
+to receive 36 or so packets of 1460 bytes each, (to pull numbers at
+random).
+<P>
+<P>The start of each packet says where it's going, where it came from,
+the type of the packet, and other administrative details.  This start
+of the packet is called the <B>header</B>.  The rest of the packet,
+containing the actual data being transmitted, is usually called the
+<B>body</B>.
+<P>
+<P>Some protocols, such <B>TCP</B>, which is used for web traffic, mail, and
+remote logins, use the concept of a `connection' -- before any packets
+with actual data are sent, various setup packets (with special
+headers) are exchanged saying `I want to connect', `OK' and `Thanks'.
+Then normal packets are exchanged.
+<P>
+<P>A packet filter is a piece of software which looks at the <EM>header</EM>
+of packets as they pass through, and decides the fate of the entire
+packet.  It might decide to <B>deny</B> the packet (ie. discard the
+packet as if it had never received it), <B>accept</B> the packet
+(ie. let the packet go through), or <B>reject</B> the packet (like deny,
+but tell the source of the packet that it has done so).
+<P>
+<P>Under Linux, packet filtering is built into the kernel, and there are
+a few trickier things we can do with packets, but the general
+principle of looking at the headers and deciding the fate of the
+packet is still there.
+<P>
+<H2><A NAME="ss2.2">2.2 Why?</A>
+</H2>
+
+<P>Control.  Security.  Watchfulness.
+<P>
+<P>
+<DL>
+<DT><B>Control:</B><DD><P>when you are using a Linux box to connect your internal
+network to another network (say, the Internet) you have an opportunity
+to allow certain types of traffic, and disallow others.  For example,
+the header of a packet contains the destination address of the packet,
+so you can prevent packets going to a certain part of the outside
+network.  As another example, I use Netscape to access the Dilbert
+archives.  There are advertisements from doubleclick.net on the page,
+and Netscape wastes my time by cheerfully downloading them.
+Telling the packet filter not to allow any packets to or from the
+addresses owned by doubleclick.net solves that problem (there are
+better ways of doing this though).
+<P>
+<DT><B>Security:</B><DD><P>when your Linux box is the only thing between the
+chaos of the Internet and your nice, orderly network, it's nice to
+know you can restrict what comes tromping in your door.  For example,
+you might allow anything to go out from your network, but you might be
+worried about the well-known `Ping of Death' coming in from malicious
+outsiders.  As another example, you might not want outsiders
+telnetting to your Linux box, even though all your accounts have
+passwords; maybe you want (like most people) to be an observer on the
+Internet, and not a server (willing or otherwise) -- simply don't let
+anyone connect in, by having the packet filter reject incoming packets
+used to set up connections.
+<P>
+<DT><B>Watchfulness:</B><DD><P>sometimes a badly configured machine on the local
+network will decide to spew packets to the outside world.  It's nice
+to tell the packet filter to let you know if anything abnormal occurs;
+maybe you can do something about it, or maybe you're just curious by
+nature.
+</DL>
+<P>
+<H2><A NAME="basics-how"></A> <A NAME="ss2.3">2.3 How?</A>
+</H2>
+
+<H3>A Kernel With Packet Filtering</H3>
+
+<P>You need a kernel which has the new IP firewall chains in it.
+You can tell if the kernel you are running right now has this
+installed by looking for the file `/proc/net/ip_fwchains'.  If it
+exists, you're in.
+<P>
+<P>If not, you need to make a kernel that has IP firewall chains.
+First, download the source to the kernel you want.  If you have a
+kernel numbered 2.1.102 or higher, you won't need to patch it (it's in
+the mainstream kernel now).  Otherwise, apply the patch from the web
+page listed above, and set the configuration as detailed below.  If
+you don't know how to do this, don't panic -- read the Kernel-HOWTO.
+<P>
+<P>
+<P>The configuration options you will need to set <EM>for the 2.0-series
+kernel</EM> are:
+<P>
+<HR>
+<PRE>
+        CONFIG_EXPERIMENTAL=y
+        CONFIG_FIREWALL=y
+        CONFIG_IP_FIREWALL=y
+        CONFIG_IP_FIREWALL_CHAINS=y
+</PRE>
+<HR>
+<P>For the <EM>2.1 or 2.2 series kernels</EM>:
+<HR>
+<PRE>
+        CONFIG_FIREWALL=y
+        CONFIG_IP_FIREWALL=y
+</PRE>
+<HR>
+<P>
+<P>The tool <CODE>ipchains</CODE> talks to the kernel and tells it what packets to
+filter.  Unless you are a programmer, or overly curious, this is how
+you will control the packet filtering.
+<P>
+<H3>ipchains</H3>
+
+<P>The <CODE>ipchains</CODE> tool inserts and deletes rules from the kernel's packet
+filtering section.  This means that whatever you set up, it will be
+lost upon reboot; see 
+<A HREF="#permanent">Making Rules Permanent</A> 
+for how to make sure they are restored the next time Linux is booted.
+<P>
+<P><CODE>ipchains</CODE> replaces <CODE>ipfwadm</CODE>, which was used for the
+old IP Firewall code.  There is a set of useful scripts available from
+the ipchains ftp site:
+<P>
+<A HREF="http://netfilter.filewatcher.org/ipchains/ipchains-scripts-1.1.2.tar.gz">http://netfilter.filewatcher.org/ipchains/ipchains-scripts-1.1.2.tar.gz</A><P>
+<P>This contains a shell script called <CODE>ipfwadm-wrapper</CODE> which
+allows you to do packet filtering as it was done before.  You probably
+shouldn't use this script unless you want a quick way of upgrading a
+system which uses <CODE>ipfwadm</CODE> (it's slower, and doesn't check
+arguments, etc).  In that case, you don't need this HOWTO much either.
+<P>See Appendix 
+<A HREF="IPCHAINS-HOWTO-8.html#ipfwadm-diff">Differences between ipchains and ipfwadm</A> 
+and Appendix 
+<A HREF="IPCHAINS-HOWTO-9.html#upgrade">Using the `ipfwadm-wrapper' script</A> 
+for more details on <CODE>ipfwadm</CODE> issues.
+<P>
+<H3><A NAME="permanent"></A> Making Rules Permanent</H3>
+
+<P>Your current firewall setup is stored in the kernel, and thus will
+be lost on reboot.  I recommend using the `ipchains-save' and
+`ipchains-restore' scripts to make your rules permanent.  To do this,
+set up your rules, then run (as root):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains-save > /etc/ipchains.rules
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Create a script like the following:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#! /bin/sh
+# Script to control packet filtering.
+
+# If no rules, do nothing.
+[ -f /etc/ipchains.rules ] || exit 0
+
+case "$1" in
+    start)
+        echo -n "Turning on packet filtering:"
+        /sbin/ipchains-restore &lt; /etc/ipchains.rules || exit 1
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+        echo "."
+        ;;
+    stop)
+        echo -n "Turning off packet filtering:"
+        echo 0 > /proc/sys/net/ipv4/ip_forward
+        /sbin/ipchains -F
+        /sbin/ipchains -X
+        /sbin/ipchains -P input ACCEPT
+        /sbin/ipchains -P output ACCEPT
+        /sbin/ipchains -P forward ACCEPT
+        echo "."
+        ;;
+    *)
+        echo "Usage: /etc/init.d/packetfilter {start|stop}"
+        exit 1
+        ;;
+esac
+
+exit 0
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Make sure this is run early in the bootup procedure.  In my case
+(Debian 2.1), I make a symbolic link called `S39packetfilter' in the
+`/etc/rcS.d' directory (this will be run before S40network).
+<P>
+<HR>
+<A HREF="IPCHAINS-HOWTO-3.html">Next</A>
+<A HREF="IPCHAINS-HOWTO-1.html">Previous</A>
+<A HREF="IPCHAINS-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

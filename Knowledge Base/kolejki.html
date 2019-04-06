@@ -1,0 +1,371 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html><head><title>3.2.2 Kolejki komunikatow</title></head><body>
+
+<em><a href="http://rainbow.mimuw.edu.pl/SO/Linux/index03.html">Do spisu tresci tematu 3</a></em>
+<h1 align="center">3.2.2 Kolejki komunikatow</h1><br><br>
+
+
+<br>
+<h2 align="center">Spis tresci</h2>
+<ul>
+<li><a href="#WPROWADZENIE">Wprowadzenie</a>
+</li><li><a href="#STRUKTURY">Struktury danych</a>:
+    <a href="#STRUKTURY-WPROWADZENIE">wprowadzenie</a>,
+    <a href="#STRUKTURY-MSQID_DS"><code>msqid_ds</code></a>,
+    <a href="#STRUKTURY-MSG"><code>msg</code></a>
+</li><li><a href="#FUNKCJE">Funkcje i ich implementacja</a>:
+    <a href="#FUNKCJE-WPROWADZENIE">wprowadzenie</a>,
+    <a href="#FUNKCJE-MSGGET"><code>msgget()</code></a>,
+    <a href="#FUNKCJE-MSGSND"><code>msgsnd()</code></a>,
+    <a href="#FUNKCJE-MSGRCV"><code>msgrcv()</code></a>,
+    <a href="#FUNKCJE-MSGCTL"><code>msgctl()</code></a>
+</li><li><a href="#BIBLIOGRAFIA">Bibliografia</a>
+</li><li><a href="#PYTANIA">Pytania i odpowiedzi</a>
+</li></ul>
+
+
+
+<hr>
+<a name="WPROWADZENIE"></a><h2 align="center">Wprowadzenie</h2>
+
+Kolejki komunikatow to specjalne listy (kolejki) w jadrze, zawierajace
+odpowiednio sformatowane dane i umozliwiajace ich wymiane poprzez dowolne
+procesy w systemie. Istnieje mozliwosc umieszczania komunikatow w okreslonych
+kolejkach (z zachowaniem kolejnosci ich wysylania przez procesy) oraz odbierania
+komunikatu na pare roznych sposobow (zaleznie od typu, czasu przybycia itp.).
+
+
+
+<hr>
+<a name="STRUKTURY"></a><h2 align="center">Struktury danych</h2>
+
+<br><a name="STRUKTURY-WPROWADZENIE"></a><h3>Wprowadzenie</h3>
+
+Za kazda kolejke komunikatow odpowiada jedna struktura typu <code>msqid_ds</code>.
+Komunikaty danej kolejki przechowywane sa na liscie, ktorej elementami sa
+struktury typu <code>msg</code> - kazda z nich posiada informacje o typie komunikatu,
+wskaznik do nastepnej struktury <code>msg</code> oraz wskaznik do miejsca w pamieci,
+gdzie przechowywana jest wlasciwa tresc komunikatu. Dodatkowo, kazdej kolejce
+komunikatow przydziela sie dwie kolejki typu <code>wait_queue</code>, na ktorych
+spia procesy zawieszone podczas wykonywania operacji czytania badz pisania
+do danej kolejki. Ponizszy rysunek przedstawia wyzej omowione zaleznosci:
+
+<p></p><center><img src="kolejki_files/kolejki.gif" alt="(rysunek)"></center><p>
+
+W pliku <code>include/linux/msg.h</code> zdefiniowane sa ograniczenia na liczbe i wielkosc
+kolejek oraz komunikatow w nich umieszczanych:
+</p><pre>#define MSGMNI 128    /* &lt;= 1K    max # kolejek komunikatow          */
+#define MSGMAX 4056   /* &lt;= 4056  max rozmiar komunikatu (w bajtach) */
+#define MSGMNB 16384  /* ?        max wielkosc kolejki (w bajtach)   */
+</pre>
+
+
+<br><a name="STRUKTURY-MSQID_DS"></a><h3>Struktura <code>msqid_ds</code></h3>
+
+Oto dokladna definicja struktury <code>msqid_ds</code> z pliku
+<code>include/linux/msg.h</code>:
+<pre>/* jedna struktura msg dla kazdej kolejki w systemie */
+struct msqid_ds {
+  struct ipc_perm     msg_perm;
+  struct msg         *msg_first;    /* pierwszy komunikat w kolejce */
+  struct msg         *msg_last;     /* ostatni komunikat w kolejce */
+  __kernel_time_t     msg_stime;    /* czas ostatniego msgsnd */
+  __kernel_time_t     msg_rtime;    /* czas ostatniego msgrcv */
+  __kernel_time_t     msg_ctime;    /* czas ostatniej zmiany */
+  struct wait_queue  *wwait;
+  struct wait_queue  *rwait;
+  unsigned short      msg_cbytes;   /* liczba bajtow w kolejce */
+  unsigned short      msg_qnum;     /* liczba komunikatow w kolejce */
+  unsigned short      msg_qbytes;   /* maksymalna liczba bajtow w kolejce */
+  __kernel_ipc_pid_t  msg_lspid;    /* pid ostatniego msgsnd */
+  __kernel_ipc_pid_t  msg_lrpid;    /* pid ostatniego receive*/
+};
+</pre>
+
+Dodatkowe wyjasnienia:
+<dl>
+<dt><strong><code>msg_perm</code></strong>
+</dt><dd>Jest to instancja struktury <code>ipc_perm</code>, zdefiniowanej w pliku
+<code>linux/ipc.h</code>. Zawiera informacje o prawach dostepu do danej kolejki
+oraz o jej zalozycielu.
+<p>
+</p></dd><dt><strong><code>wwait, rwait</code></strong>
+</dt><dd>Przydzielone danej kolejce komunikatow dwie kolejki typu <code>wait_queue</code>,
+na ktorych spia procesy zawieszone podczas wykonywania operacji odpowiednio
+czytania oraz pisania w danej kolejce komunikatow.
+</dd></dl>
+
+
+<br><a name="STRUKTURY-MSG"></a><h3>Struktura <code>msg</code></h3>
+
+Oto dokladna definicja struktury <code>msg</code> z pliku
+<code>include/linux/msg.h</code>:
+<pre>/* jedna struktura msg dla kazdego komunikatu */
+struct msg {
+  struct msg *msg_next;   /* nastepny komunikat w kolejce */
+  long        msg_type;          
+  char       *msg_spot;
+  time_t      msg_stime;  /* czas wyslania tego komunikatu */
+  short       msg_ts;     /* dlugosc wlasciwej tresci komunikatu */
+};
+</pre>
+Dodatkowe wyjasnienia:
+<dl>
+<dt><strong><code>msg_type</code></strong>
+</dt><dd>Typ przechowywanego komunikatu. Wysylanemu do kolejki komunikatowi nadawca przypisuje
+dodatnia liczbe naturalna, stajaca sie jego typem. Przy odbiorze komunikatu mozna
+zazadac komunikatow okreslonego typu (patrz opis funkcji <code>msgrcv()</code>).
+<p>
+</p></dd><dt><strong><code>msg_spot</code></strong>
+</dt><dd>Wskaznik do miejsca w pamieci, gdzie przechowywana jest wlasciwa tresc
+komunikatu. Na kazdy komunikat przydzielane jest oddzielne miejsce w pamieci.
+</dd></dl>
+
+
+
+<hr>
+<a name="FUNKCJE"></a><h2 align="center">Funkcje i ich implementacja</h2>
+
+<br><a name="FUNKCJE-WPROWADZENIE"></a><h3>Wprowadzenie</h3>
+
+Istnieja cztery funkcje systemowe do obslugi komunikatow: <code>msgget()</code> sluzy do
+uzyskania identyfikatora kolejki komunikatow uzywanego przez pozostale funkcje,
+<code>msgctl()</code> umozliwia ustawianie i pobieranie wartosci parametrow
+zwiazanych z kolejkami komunikatow oraz usuwanie kolejek, <code>msgsnd()</code>
+wysyla komunikat, a <code>msgrcv()</code> komunikat odbiera.
+
+
+<br><a name="FUNKCJE-MSGGET"></a><h3>Funkcja
+<a href="http://rainbow.mimuw.edu.pl/SO/Linux/Kod/ipc/msg.c.html#MSGGET"><code>msgget()</code></a></h3>
+
+Funkcja ta sluzy do utworzenia nowej kolejki komunikatow, lub uzyskania dostepu
+do kolejki istniejacej.
+<pre>DEFINICJA: int msgget(key_t key, int msgflg)
+    WYNIK: identyfikator kolejki w przypadku sukcesu
+           -1, gdy blad: errno = EACCESS (brak praw)
+                                 EEXIST  (kolejka o podanym kluczu istnieje,
+                                          wiec niemozliwe jest jej utworzenie)
+                                 EIDRM   (kolejka zostala w miedzyczasie skasowana)
+                                 ENOENT  (kolejka nie istnieje),
+                                 EIDRM  (kolejka zostala w miedzyczasie skasowana)
+                                 ENOMEM  (brak pamieci na kolejke)
+                                 ENOSPC  (liczba kolejek w systemie jest rowna
+                                          maksymalnej)
+</pre>
+
+Pierwszym argumentem funkcji jest wartosc klucza, porownywana z istniejacymi
+wartosciami kluczy. Zwracana jest kolejka o podanym kluczu, przy czym flaga
+<strong>IPC_CREAT</strong> powoduje utworzenie kolejki w przypadku braku kolejki
+o podanym kluczu, zas flaga <strong>IPC_EXCL</strong> uzyta z <strong>IPC_CREAT</strong>
+powoduje blad EEXIST, jesli kolejka o podanym kluczu juz istnieje. Wartosc klucza
+rowna <strong>IPC_PRIVATE</strong> zawsze powoduje utworzenie nowej kolejki.
+<p>
+Dzialanie funkcji jest analogiczne do odpowiednich funkcji na semaforach
+oraz segmentach pamieci dzielonej (patrz opis algorytmu *get w rozdziale
+,,Cechy wspolne IPC''). W przypadku koniecznosci utworzenia
+nowej kolejki alokowana jest nowa struktura typu <code>msqid_ds</code>.
+
+<br><a name="FUNKCJE-MSGSND"></a></p><h3>Funkcja
+<a href="http://rainbow.mimuw.edu.pl/SO/Linux/Kod/ipc/msg.c.html#MSGSND"><code>msgsnd()</code></a></h3>
+- sluzy do wyslania komunikatu do kolejki.
+<pre>DEFINICJA: int msgsnd(int msqid, struct msgbuf *msgp, int msgsz,
+                      int msgflg)
+    WYNIK: 0 w przypadku sukcesu
+           -1, gdy blad: errno = EAGAIN (pelna kolejka (IPC_NOWAIT))
+                                 EACCES (brak praw zapisu)
+                                 EFAULT (zly adres msgp)
+                                 EIDRM  (kolejka zostala w miedzyczasie skasowana)
+                                 EINTR  (otrzymano sygnal podczas czekania)
+                                 EINVAL (zly identyfikator kolejki, typ lub rozmiar
+                                         komunikatu)
+                                 ENOMEM (brak pamieci na komunikat)
+</pre>
+Pierwszym argumentem funkcji jest identyfikator kolejki. <code>msgp</code> jest
+wskaznikiem do struktury typu <code>msgbuf</code>, zawierajacej wysylany komunikat.
+Struktura ta jest zdefiniowana w pliku <code>linux/msg.h</code> nastepujaco:
+
+<pre>/* message buffer for msgsnd and msgrcv calls */
+struct msgbuf {
+  long mtype;         /* typ komunikatu   */
+  char mtext[1];      /* tresc komunikatu */
+};
+</pre>
+
+Jest to jedynie przykladowa postac tej struktury; programista moze zdefiniowac sobie
+a nastepnie wysylac dowolna inna strukture, pod warunkiem, ze jej pierwszym polem
+bedzie wartosc typu long, zas rozmiar nie bedzie przekraczac wartosci <code>MSGMAX</code>
+(=4096). Wartosc <code>msgsz</code> w wywolaniu funkcji <code>msgsnd</code> jest rowna
+rozmiarowi komunikatu (w bajtach), nie liczac typu komunikatu (<code>sizeof(long)</code>).
+Flaga <strong>IPC_NOWAIT</strong> zapewnia, ze w przypadku braku miejsca w kolejce
+funkcja natychmiast zwroci blad EAGAIN.
+<p>
+Implementacja funkcji:
+</p><pre>{
+   sprawdzenie poprawnosci parametrow msqid, msgp i msgsz;
+   if ( msgque[msqid] == IPC_UNUSED || msgque[msqid] == IPC_NOID )
+      return( EIDRM );
+   if ( ipc_perm.seq != msqid/MSGMNI )
+      return( EINVAL );  /* patrz rozdzial o cechach wspolnych IPC */
+   while (nie ma wolnego miejsca w kolejce) do
+   {
+      if ( flaga IPC_NOWAIT )
+         return( EAGAIN );
+      interruptible_sleep_on( msqid_ds.wwait );  /* spimy w kolejce */
+      if ( przyczyna przebudzenia bylo przerwanie )
+         return( EINTR );
+   }
+   if ( msgque[msqid] == IPC_UNUSED || msgque[msqid] == IPC_NOID )
+      return( EIDRM );
+   if ( ipc_perm.seq != msqid/MSGMNI )
+      return( EINVAL );  /* patrz rozdzial o cechach wspolnych IPC */
+   przydzielenie nowej struktury msg oraz bufora na wlasciwy komunikat;
+   przepisanie tekstu od uzytkownika oraz nadanie odpowiednich wartosci
+      pozostalym polom struktury msg;
+   zamaskowanie przerwan na czas dolaczenia struktury msg na koniec
+      kolejki komunikatow;
+   aktualizacja statystyk kolejki;
+   wake_up( msqid_ds.rwait ); /*obudzenie kolejki czekajacych na czytanie */
+}
+</pre>
+
+
+<br><a name="FUNKCJE-MSGRCV"></a><h3>Funkcja
+<a href="http://rainbow.mimuw.edu.pl/SO/Linux/Kod/ipc/msg.c.html#MSGRCV"><code>msgrcv()</code></a></h3>
+- sluzy do odebrania komunikatu z kolejki.
+<pre>DEFINICJA: int msgrcv(int msgqid, struct msgbuf *msgp, int msgsz,
+                      long type, int msgflg)
+    WYNIK: liczba bajtow skopiowanych do bufora w przypadku sukcesu
+           -1, gdy blad: errno = E2BIG  (dlugosc komunikatu wieksza od msgsz)
+                                 EACCES (brak praw odczytu)
+                                 EFAULT (zly adres msgp)
+                                 EIDRM  (kolejka zostala w miedzyczasie skasowana)
+                                 EINTR  (otrzymano sygnal podczas czekania)
+                                 EINVAL (zly identyfikator kolejki lub msgsz &lt; 0)
+                                 ENOMSG (brak komunikatu (IPC_NOWAIT))
+</pre>
+Pierwszym argumentem funkcji jest identyfikator kolejki. <code>msgp</code>
+wskazuje na adres bufora, do ktorego ma byc przekopiowany odbierany
+komunikat. <code>msgsz</code> to rozmiar owego bufora, z wylaczeniem pola
+<code>mtype</code> (<code>sizeof(long)</code>). <code>mtype</code> wskazuje na rodzaj
+komunikatu, ktory chcemy odebrac. Jadro przydzieli nam najstarszy komunikat
+zadanego typu, przy czym:
+<ul>
+<li>jesli <code>mtype</code> = 0, to otrzymamy najstarszy komunikat w kolejce
+</li><li>jesli <code>mtype</code> &gt; 0, to otrzymamy komunikat odpowiedniego typu
+</li><li>jesli <code>mtype</code> &lt; 0, to otrzymamy komunikat najmniejszego typu
+     mniejszego od wartosci absolutnej <code>mtype</code>
+</li><li>jesli <code>msgflg</code> jest ustawiona na <strong>MSG_EXCEPT</strong>, to
+    otrzymamy dowolny komunikat o typie roznym od podanego
+</li></ul>
+Ponadto, flaga <strong>IPC_NOWAIT</strong> w przypadku braku odpowiedniego komunikatu powoduje
+natychmiastowe wyjscie z bledem, zas <strong>MSG_NOERROR</strong> powoduje brak
+bledu w przypadku, gdy komunikat nie miesci sie w buforze (zostaje przekopiowane
+tyle, ile sie miesci).
+<p>
+
+Implementacja funkcji:
+</p><pre>{
+   sprawdzenie poprawnosci parametrow msqid, msgp i msgsz;
+   if ( msgque[msqid] == IPC_UNUSED || msgque[msqid] == IPC_NOID )
+      return( EIDRM );
+   if ( ipc_perm.seq != msqid/MSGMNI )
+      return( EINVAL );  /* patrz rozdzial o cechach wspolnych IPC */
+   while (nie ma w kolejce interesujacego nas komunikatu) do
+   {
+      if ( flaga IPC_NOWAIT )
+         return( EAGAIN );
+      interruptible_sleep_on( msqid_ds.rwait );   /* spimy w kolejce */
+      if ( przyczyna przebudzenia bylo przerwanie )
+         return( EINTR );
+   }
+   if ( msgque[msqid] == IPC_UNUSED || msgque[msqid] == IPC_NOID )
+      return( EIDRM );
+   if ( ipc_perm.seq != msqid/MSGMNI )
+      return( EINVAL );  /* patrz rozdzial o cechach wspolnych IPC */
+   if ( ( za duzy komunikat ) &amp;&amp; ( ! flaga MSG_NOERROR ) )
+      return( E2BIG );
+   zamaskowanie przerwan na czas usuwania struktury msg z kolejki komunikatow;
+   aktualizacja statystyk kolejki;
+   wake_up( msqid_ds.wwait );   /* obudzenie kolejki czekajacych na pisanie */
+   przepisanie komunikatu do uzytkownika oraz zwolnienie struktury msg;
+}
+</pre>
+
+
+<br><a name="FUNKCJE-MSGCTL"></a><h3>Funkcja
+<a href="http://rainbow.mimuw.edu.pl/SO/Linux/Kod/ipc/msg.c.html#MSGCTL"><code>msgctl()</code></a></h3>
+- sluzy do modyfikowania oraz odczytu rozmaitych wlasciwosci kolejki.
+<pre>DEFINICJA: int msgctl(int msgqid, int cmd, struct msqid_ds *buf)
+    WYNIK: 0 w przypadku sukcesu
+           -1, gdy blad: errno = EACCES (brak praw czytania (IPC_STAT))
+                                 EFAULT (zly adres buf)
+                                 EIDRM  (kolejka zostala w miedzyczasie skasowana)
+                                 EINVAL (zly identyfikator kolejki lub msgsz &lt; 0)
+                                 EPERM  (brak praw zapisu (IPC_SET lub IPC_RMID))
+</pre>
+Dopuszczalne komendy to:
+<ul>
+<li><strong>IPC_STAT</strong>: uzyskanie struktury <code>msgqid_ds</code>
+    odpowiadajacej kolejce (zostaje ona skopiowana pod adres wskazywany
+    przez <code>buf</code>)
+</li><li><strong>IPC_SET</strong>: modyfikacja wartosci struktury <code>ipc_perm</code>
+    odpowiadajacej kolejce
+</li><li><strong>IPC_RMID</strong>: skasowanie kolejki
+</li></ul>
+<p>
+Dzialanie funkcji sprowadza sie do przekopiowania odpowiednich wartosci
+od lub do uzytkownika, lub skasowania kolejki. Usuniecie kolejki wyglada
+nastepujaco:
+</p><pre>{
+   msqid_ds.ipc_perm.seq+=1;     /* patrz opis struktury ipc_perm w rozdziale
+                                    o cechach wspolnych mechanizmow IPC */
+   msg_seq+=1;        /* zwiekszenie wartosci globalnej zmiennej zwiazanej z
+                         ipc_perm.seq - patrz tenze rozdzial */
+   uaktualnienie statystyk;
+   msgque[msqid]=IPC_UNUSED;
+   obudzenie czekajacych na pisanie lub czytanie do/z usuwanej kolejki;
+   zwolnienie struktur przydzielonych kolejce;
+}
+</pre>
+
+
+
+<hr>
+<a name="BIBLIOGRAFIA"></a><h2 align="center">Bibliografia</h2>
+
+<ol>
+<li>Pliki zrodlowe Linuxa:
+    <ul>
+    <li><code><a href="http://rainbow.mimuw.edu.pl/SO/Linux/Kod/include/linux/msg.h.html">include/linux/msg.h</a></code> (naglowki funkcji i definicje stalych)
+    </li><li><code><a href="http://rainbow.mimuw.edu.pl/SO/Linux/Kod/ipc/msg.c.html">ipc/msg.c</a></code> (implementacja)
+    </li></ul>
+</li><li>Sven Goldt, Sven van der Meer, Scott Burkett, Matt Welsh:
+    <a href="http://linuxwww.db.erau.edu/LPG/node27.html#SECTION00742000000000000000"><em>The Linux
+    Programmer's Guide</em> - rozdzial o kolejkach komunikatow</a>
+</li></ol>
+
+
+<hr>
+<a name="PYTANIA"></a><h2 align="center">Pytania i odpowiedzi</h2>
+<dl>
+<dt><strong>1. Po umieszczeniu nowego komunikatu proces, ktory to uczynil,
+    budzi wszystkich czekajacych w kolejce <code>msqid_ds.rwait</code>
+    wywolujac funkcje <code>wake_up()</code>. Czy zapewnia to brak zaglodzenia,
+    tj. procesy, ktore czekaja najdluzej, pierwsze zostana obudzone,
+    czy tez kolejnosc budzenia ich bedzie przypadkowa?</strong>
+<p>
+</p></dt><dd>Teoretycznie moze dojsc do zaglodzenia. Wywolanie funkcji 
+    <code>wake_up()</code> spowoduje obudzenie wszystkich spiacych
+    procesow. Nie mozna przewidziec, ktory z nich odbierze nowy komunikat.
+</dd></dl>
+
+
+<p>
+</p><hr>
+<address>
+Autor: Tomasz Lukaszewicz
+</address>
+<hr>
+
+
+</body></html>

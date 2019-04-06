@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Framebuffer HOWTO: Using framebuffer devices on Atari m68k platforms</TITLE>
+ <LINK HREF="Framebuffer-HOWTO-7.html" REL=next>
+ <LINK HREF="Framebuffer-HOWTO-5.html" REL=previous>
+ <LINK HREF="Framebuffer-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Framebuffer-HOWTO-7.html">Next</A>
+<A HREF="Framebuffer-HOWTO-5.html">Previous</A>
+<A HREF="Framebuffer-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Using framebuffer devices on Atari m68k platforms</A></H2>
+
+<P>
+<P>This section describes framebuffer options on Atari m68k platforms. 
+<P>
+<H2><A NAME="ss6.1">6.1 What modes are available on Atari m68k platforms?</A>
+</H2>
+
+<P>
+<P>
+<PRE>
+Colours   320x200 320x480 640x200 640x400 640x480 896x608 1280x960
+--------+---------------------------------------------------------
+ 1 bit  |                         sthigh   vga2    falh2   tthigh
+ 2 bits |                 stmid            vga4
+ 4 bits | stlow                         ttmid/vga16 falh16
+ 8 bits |         ttlow                   vga256
+</PRE>
+<P><CODE>ttlow, ttmid and tthigh</CODE> are only used by the TT, whilst <CODE>vga2,
+vga4, vga15, vga256, falh3 and falh16</CODE> are only used by the Falcon.
+<P>When used with the kernel option <CODE>video=xxx</CODE>, and no suboption is
+given, the kernel will probe for the modes in the following order until
+it finds a mode that is possible with the given hardware:
+<P>
+<UL>
+<LI><CODE>ttmid</CODE></LI>
+<LI><CODE>tthigh</CODE></LI>
+<LI><CODE>vga16</CODE></LI>
+<LI><CODE>sthigh</CODE></LI>
+<LI><CODE>stmid</CODE></LI>
+</UL>
+<P>You may specify the particular mode you wish to use, if you don't wish to
+auto-probe for the modes you desire. For example, <CODE>video=vga16</CODE> gives
+you a 4 bit 640x480 display.
+<P>
+<H2><A NAME="ss6.2">6.2 Additional suboptions on Atari m68k platforms</A>
+</H2>
+
+<P>
+<P>There are a number of suboptions available with the <CODE>video=xxx</CODE>
+parameter:
+<P>
+<UL>
+<LI><CODE>inverse</CODE> - inverts the display so that the background/foreground
+colours are reversed. Normally the background is black, but with this
+suboption, it gets sets to white.</LI>
+<LI><CODE>font</CODE> - sets the font to use in text modes. Currently you can
+only select <CODE>VGA8x8</CODE>, <CODE>VGA8x16</CODE>, <CODE>PEARL8x8</CODE>. The default is to
+use the <CODE>VGA8x8</CODE> only if the vertical size of the display is less than
+400 pixels, otherwise it defaults to <CODE>VGA8x16</CODE>.</LI>
+<LI><CODE>internal</CODE> - a very interesting option. See the next section for
+information.</LI>
+<LI><CODE>external</CODE> - as above.</LI>
+<LI><CODE>monitorcap</CODE> - describes the capabilities for multisyncs. DON'T
+use with a fixed sync monitor! </LI>
+</UL>
+<P>
+<H2><A NAME="ss6.3">6.3 Using the internal suboption on Atari m68k platforms</A>
+</H2>
+
+<P>
+<P>Syntax: <CODE>internal:(xres);(yres)[;(xres_max);(yres_max);(offset)]</CODE>
+<P>This option specifies the capabilities of some extended internal video
+hardware, i.e OverScan modes. <CODE>(xres)</CODE> and <CODE>(yres)</CODE> gives the
+extended dimensions of the screen.
+<P>If your OverScan mode needs a black border, you'll need to write the last
+three arguments of the <CODE>internal:</CODE> suboption. <CODE>(xres_max)</CODE> is the
+maximum line length that the hardware allows, <CODE>(yres_max)</CODE> is the
+maximum number of lines, and <CODE>(offset)</CODE> is the offset of the visible
+part of the screen memory to its physical start, in bytes.
+<P>Often extended internal video hardware has to be activated, for this you
+will need the <CODE>"switches=*"</CODE> options. [Note: Author would like extra
+information on this, please. The m68k documentation in the kernel isn't
+clear enough on this point, and he doesn't have an Atari! Examples would
+be helpful too]
+<P>
+<H2><A NAME="ss6.4">6.4 Using the external suboption on Atari m68k platforms</A>
+</H2>
+
+<P>
+<P>Syntax:
+<CODE>external:(xres);(yres);(depth);(org);(scrmem)[;(scrlen)[;(vgabase)[;(colw)[;(coltype)[;(xres_virtual)]]]]]</CODE>
+<P>This is quite complicated, so this document will attempt to explain as
+clearly as possible, but the Author would appreciate if someone would give
+this a look over and see that he hasn't fscked something up! :o)
+<P>This suboption specifies that you have an external video hardware (most
+likely a graphic board), and how to use it with Linux. The kernel is
+basically limited to what it knows of the internal video hardware, so you
+have to supply the parameters it needs in order to be able to use external
+video hardware. There are two limitations; you must switch to that mode
+before booting, and once booted, you can't change modes. 
+<P>The first three parameters are obvious; gives the dimensions of the screen
+as pixel height, width and depth. The depth supplied should be the number
+of colours is 2^n that of the number of planes required. For example, if
+you desire to use a 256 colour display, then you need to give 8 as the
+depth. This depends on the external graphic hardware, though so you will
+be limited by what the hardware can do. 
+<P>Following from this, you also need to tell the kernel how the video memory
+is organised - supply a letter as the <CODE>(org)</CODE> parameter
+<P>
+<UL>
+<LI><CODE>n</CODE> - use normal planes, i.e one whole plane after another</LI>
+<LI><CODE>i</CODE> - use interleaved planes, i.e. 16 bits of the first plane,
+then the 16 bits of the next plane and so on. Only built-in Atari video
+modes uses this - and there are no graphic card that supports this mode. </LI>
+<LI><CODE>p</CODE> - use packed pixels, i.e consecutive bits stands for all
+planes for a pixel. This is the most common mode for 256 colour displays
+on graphic cards.</LI>
+<LI><CODE>t</CODE> - use true colour, i.e this is actually packed pixels, but
+does not require a colour lookup table like what other packed pixel modes
+uses. These modes are normally 24 bit displays - gives you 16.8 million
+colours. </LI>
+</UL>
+<P><EM>However</EM>, for monochrome modes, the <CODE>(org)</CODE> parameter has a
+different meaning
+<P>
+<UL>
+<LI><CODE>n</CODE> - use normal colours, i.e 0=white, 1=black</LI>
+<LI><CODE>i</CODE> - use inverted colours, i.e. 0=black, 1=white</LI>
+</UL>
+<P>The next important item about the video hardware is the base address of
+the video memory. That is given by the <CODE>(scrmem)</CODE> parameter as a
+hexadecimal number with an <CODE>0x</CODE> prefix. You will need to find this out
+from the documentation that comes with your external video hardware.
+<P>The next paramter <CODE>(scrlen)</CODE> tells the kernel about the size of the
+video memory. If it's missing, this is calculated from the <CODE>(xres)</CODE>,
+<CODE>(yres)</CODE> and <CODE>(depth)</CODE> parameters. It's not useful to write a value
+here these days anyway. To leave this empty, give two consecutive
+semicolons if you need to give the <CODE>(vgabase)</CODE> parameter, otherwise,
+just leave it.
+<P>The <CODE>(vgabase)</CODE> parameter is optional. If it isn't given, the kernel
+can't read/write any colour registers of the video hardware, and thus you
+have to set up the appropriate colours before you boot Linux. But if your
+card is VGA compatible, you can give it the address where it can locate
+the VGA register set so it can change the colour lookup tables. This
+information can be found in your external video hardware documentation. To
+make this <EM>clear</EM>, <CODE>(vgabase)</CODE> is the <EM>base</EM> address, i.e a 4k
+aligned address. For reading/writing the colour registers, the kernel uses
+the address range between <CODE>(vgabase) + 0x3c7</CODE> and <CODE>(vgabase) +
+0x3c9</CODE>. This parameter is given in hexadecimal and must have a <CODE>0x</CODE>
+prefix, just like <CODE>(scrmem)</CODE>.
+<P><CODE>(colw)</CODE> is only meaningful, if the <CODE>(vgabase)</CODE> parameter is
+specified. It tells the kernel how wide each of the colour register is,
+i.e the number of bits per single colour (red/green/blue). Default is
+usually 6 bits, but it is also common to specify 8 bits.
+<P><CODE>(coltype)</CODE> is used with the <CODE>(vgabase)</CODE> parameter, it tells the
+kernel about the colour register model of your graphic board. Currently
+the types supported are <CODE>vga</CODE> and <CODE>mv300</CODE>. <CODE>vga</CODE> is the default.
+<P><CODE>(xres_virtual)</CODE> is only required for the ProMST/ET4000 cards where the
+physical linelength differs from the visible length. With ProMST, you need
+to supply 2048, whilst for ET4000, it depends on the initialisation of the
+video board.
+<P>
+<HR>
+<A HREF="Framebuffer-HOWTO-7.html">Next</A>
+<A HREF="Framebuffer-HOWTO-5.html">Previous</A>
+<A HREF="Framebuffer-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

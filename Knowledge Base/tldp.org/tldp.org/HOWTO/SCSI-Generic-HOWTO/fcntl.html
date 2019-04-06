@@ -1,0 +1,202 @@
+<HTML
+><HEAD
+><TITLE
+>fcntl(sg_fd, F_SETFL, oflags | FASYNC)</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="System calls"
+HREF="syscalls.html"><LINK
+REL="PREVIOUS"
+TITLE="mmap()"
+HREF="mmap.html"><LINK
+REL="NEXT"
+TITLE="Errors reported in errno"
+HREF="errors.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="mmap.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. System calls</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="errors.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="FCNTL">7.7. fcntl(sg_fd, F_SETFL, oflags | FASYNC)</H1
+><DIV
+CLASS="FORMALPARA"
+><P
+><B
+>fcntl(int sg_fd, int cmd, long arg). </B
+>There are several uses for this system call in association with a sg
+file descriptor. The following pseudo code shows code that is useful for
+scanning the sg devices, taking care not to be caught in a wait for
+an O_EXCL lock by another process, and when the appropriate device is
+found, switching to normal blocked io. A working example of this logic
+is in the sg_scan utility program.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>open("/dev/sg0", O_RDONLY | O_NONBLOCK)
+/* check device, EBUSY means some other process has O_EXCL lock on it */
+/* when the device you want is found then ... */
+flags = fcntl(sg_fd, F_GETFL)
+fcntl(sg_fd, F_SETFL, flags &#38; (~ O_NONBLOCK))
+/* since, with simple apps, it is easier to use normal blocked io */</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><P
+>The sg driver supports asynchronous notification.
+This is a non-blocking mode of operation in which, when the driver receives
+data back from a device so that a read() can be done, it sends a SIGPOLL
+(aka SIGIO) signal to the owning process. Here is a code snippet from
+the sg_poll test program.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>sigemptyset(&#38;sig_set)
+sigaddset(&#38;sig_set, SIGPOLL)
+sigaction(SIGPOLL, &#38;s_action, 0)
+fcntl(sg_fd, F_SETOWN, getpid())
+flags = fcntl(sg_fd, F_GETFL);
+fcntl(sg_fd, F_SETFL, flags | O_ASYNC)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="mmap.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="errors.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>mmap()</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="syscalls.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Errors reported in errno</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

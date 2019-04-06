@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>ISP-Hookup-HOWTO: How do I automate the connection procedure?</TITLE>
+ <LINK HREF="ISP-Hookup-HOWTO-7.html" REL=next>
+ <LINK HREF="ISP-Hookup-HOWTO-5.html" REL=previous>
+ <LINK HREF="ISP-Hookup-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="ISP-Hookup-HOWTO-7.html">Next</A>
+<A HREF="ISP-Hookup-HOWTO-5.html">Previous</A>
+<A HREF="ISP-Hookup-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. How do I automate the connection procedure?</A></H2>
+
+<P>Automated handling of news and email is quite easy to implement
+in Linux.
+<P>First and foremost one should make a
+<!--
+/usr/lib/ppp/ppp-on
+-->
+ /usr/lib/ppp/ppp-on
+that initiates the ISP connection.  Often, this file will simply
+contain the following:
+<BLOCKQUOTE><CODE>
+<PRE>
+/usr/sbin/pppd
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+pppd
+-->
+ Further specification will be performed in
+<!--
+/etc/ppp/options
+-->
+ /etc/ppp/options:
+<BLOCKQUOTE><CODE>
+<PRE>
+connect "/usr/lib/ppp/chat -v -f /etc/ppp/chatscript"
+crtscts
+modem
+defaultroute
+asyncmap 00000000
+user dirk
+/dev/modem 38400
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To end a connection, use the supplied version of
+<!--
+/usr/lib/ppp/ppp-off
+-->
+
+/usr/lib/ppp/ppp-off.
+<P>Having tested the functionality of these two scripts, one must
+then write scripts that perform the various tasks. The script to
+collect email has been described before, and we will here assume
+it is located at /home/dirk/pop.
+<P>A script for exchange of email can then be produced in
+/root/mail:
+<BLOCKQUOTE><CODE>
+<PRE>
+#! /bin/sh
+#
+# exchange mail
+# 10 minutes timeout:
+TIMEOUT=600
+DT=10
+
+# kick sendmail:
+sendmail -q &amp;
+
+# retrieve mail:
+su dirk -c /home/dirk/pop
+
+# wait for sendmail to terminate:
+t=0
+while ! mailq | grep -q "Mail queue is empty"; do
+    t=$[$t+$DT]
+    if [ $t -gt $TIMEOUT ] ; then
+     echo "sendmail -q timeout ($TIMEOUT).."
+     exit 1
+    fi
+    sleep $DT
+done
+
+exit 0
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The script to exchange news may be placed in
+/usr/lib/news/news:
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+#
+# exchange news
+# must be run as news:
+cd /usr/lib/news
+
+#update the outgoing batch (C News):
+/usr/lib/newsbin/input/newsrun &lt; /dev/null
+
+#exchange news:
+/usr/lib/newsbin/newsx acme news.acme.xz
+
+#and flush the incoming batch:
+/usr/lib/newsbin/input/newsrun &lt; /dev/null
+</PRE>
+</CODE></BLOCKQUOTE>
+
+A script to connect the various bits and pieces remains, and can
+be placed in /root/news+mail:
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+#
+# exchange news and email
+# must be run as root
+#
+if ! /usr/lib/ppp/ppp-on; then
+    exit 1
+fi
+trap "/usr/lib/ppp/ppp-off" 1 2 3 15
+
+#exchange news+mail:
+/root/mail &amp;
+su news -c ~news/news
+wait
+
+#disconnect..
+/usr/lib/ppp/ppp-off
+
+#update the incoming batch (C News):
+su news -c /usr/lib/newsbin/input/newsrun &lt; /dev/null &amp;
+
+exit 0
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>It is quite easy to make an extension to the above that only will
+establish a connection if outgoing email and news is present.
+Lets call it 
+<!--
+/root/news+mail.cond
+-->
+
+/root/news+mail.cond, and keep in mind that the name
+of the outgoing news-spool must be updated to suit:
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+#
+# exchange news and email, only if outgoing news or mail
+# (C News spool)
+if [ -s /var/spool/news/out.going/acme/togo ] ||
+    ! ( mailq | grep -q "Mail queue is empty"); then
+     /root/news+mail
+fi
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The only thing remaining is to specify when all this is going to
+happen.  This is done using the command <CODE>crontab -e</CODE>
+<!--
+crontab
+-->
+ as root.  Let us assume that we always want
+to exchange news and mail at 07:00 in the morning, and after that
+every 4th hour assuming there are outgoing email and news:
+<BLOCKQUOTE><CODE>
+<PRE>
+00 7            * * *   /root/news+mail
+00 11,15,19,23  * * *   /root/news+mail.cond
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Ensure that every component is tested well before you connect
+them together. One may later add several other tasks, such as
+adjustment of the time of day (using 
+<!--
+ntpdate
+-->
+
+ntpdate), and automatic update (mirroring) of
+locally maintained WWW and FTP files up to the ISP (using make
+and ftp).
+<P><B>ALT:</B> Depending on ones preferences, it is also possible
+to turn the process upside down. Every time a PPP link is
+initiated, the script 
+<!--
+/etc/ppp/ip-up
+-->
+
+/etc/ppp/ip-up will be started.  One may here add
+whatever magic is required to start exchange of email and news.
+See <CODE>man pppd</CODE> for further detail.
+<P><B>ALT:</B> It is also possible to automatically connect PPP
+whenever network traffic is detected.  This is in many ways the
+more elegant solution, but it is quite dependent on a good
+configuration to avoid frequent (and costly) connections being
+made.  More information can be found at:
+<P><CODE>
+<A HREF="http://www.dna.lth.se/~erics/diald.html">http://www.dna.lth.se/~erics/diald.html</A></CODE>
+<P>The <CODE>diald</CODE> utility is available from:
+<P><CODE>
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/system/network/serial/diald-0.16.tar.gz">ftp://sunsite.unc.edu/pub/Linux/system/network/serial/diald-0.16.tar.gz</A></CODE>
+<P>At the same location one will also find other variations on the
+theme PPP connections.
+<P>
+<HR>
+<A HREF="ISP-Hookup-HOWTO-7.html">Next</A>
+<A HREF="ISP-Hookup-HOWTO-5.html">Previous</A>
+<A HREF="ISP-Hookup-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

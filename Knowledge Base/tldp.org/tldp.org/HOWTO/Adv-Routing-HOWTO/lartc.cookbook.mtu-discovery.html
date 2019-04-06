@@ -1,0 +1,276 @@
+<HTML
+><HEAD
+><TITLE
+>Circumventing Path MTU Discovery issues with per route MTU settings</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Cookbook"
+HREF="lartc.cookbook.html"><LINK
+REL="PREVIOUS"
+TITLE="Transparent web-caching using netfilter,
+  iproute2, ipchains and 
+  squid"
+HREF="lartc.cookbook.squid.html"><LINK
+REL="NEXT"
+TITLE="Circumventing Path MTU Discovery issues with MSS Clamping
+  (for ADSL, cable, PPPoE &#38; PPtP users)"
+HREF="lartc.cookbook.mtu-mss.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.squid.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 15. Cookbook</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.mtu-mss.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.COOKBOOK.MTU-DISCOVERY"
+></A
+>15.6. Circumventing Path MTU Discovery issues with per route MTU settings</H1
+><P
+>For sending bulk data, the Internet generally works better when using larger
+packets. Each packet implies a routing decision, when sending a 1 megabyte
+file, this can either mean around 700 packets when using packets that are as
+large as possible, or 4000 if using the smallest default.</P
+><P
+>However, not all parts of the Internet support full 1460 bytes of payload
+per packet. It is therefore necessary to try and find the largest packet
+that will 'fit', in order to optimize a connection.</P
+><P
+>This process is called 'Path MTU Discovery', where MTU stands for 'Maximum
+Transfer Unit.' </P
+><P
+>When a router encounters a packet that's too big too send in one piece, AND
+it has been flagged with the "Don't Fragment" bit, it returns an ICMP
+message stating that it was forced to drop a packet because of this. The
+sending host acts on this hint by sending smaller packets, and by iterating
+it can find the optimum packet size for a connection over a certain path.</P
+><P
+>This used to work well until the Internet was discovered by hooligans who do
+their best to disrupt communications. This in turn lead administrators to
+either block or shape ICMP traffic in a misguided attempt to improve
+security or robustness of their Internet service.</P
+><P
+>What has happened now is that Path MTU Discovery is working less and less
+well and fails for certain routes, which leads to strange TCP/IP sessions
+which die after a while.</P
+><P
+>Although I have no proof for this, two sites who I used to have this problem
+with both run Alteon Acedirectors before the affected systems - perhaps
+somebody more knowledgeable can provide clues as to why this happens.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1921"
+></A
+>15.6.1. Solution</H2
+><P
+>When you encounter sites that suffer from this problem, you can disable Path
+MTU discovery by setting it manually. Koos van den Hout, slightly edited,
+writes:</P
+><A
+NAME="AEN1924"
+></A
+><BLOCKQUOTE
+CLASS="BLOCKQUOTE"
+><P
+>The following problem: I set the mtu/mru of my leased line running ppp to
+296 because it's only 33k6 and I cannot influence the queueing on the
+other side. At 296, the response to a key press is within a reasonable
+time frame.</P
+><P
+>And, on my side I have a masqrouter running (of course) Linux.</P
+><P
+>Recently I split 'server' and 'router' so most applications are run on a
+different machine than the routing happens on.</P
+><P
+>I then had trouble logging into irc. Big panic! Some digging did find
+out that I got connected to irc, even showed up as 'connected' on irc
+but I did not receive the motd from irc. I checked what could be wrong
+and noted that I already had some previous trouble reaching certain
+websites related to the MTU, since I had no trouble reaching them when
+the MTU was 1500, the problem just showed when the MTU was set to 296.
+Since irc servers block about every kind of traffic not needed for their
+immediate operation, they also block icmp. </P
+><P
+>I managed to convince the operators of a webserver that this was the cause
+of a problem, but the irc server operators were not going to fix this.</P
+><P
+>So, I had to make sure outgoing masqueraded traffic started with the lower
+mtu of the outside link. But I want local ethernet traffic to have the
+normal mtu (for things like nfs traffic).</P
+><P
+>Solution:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ip route add default via 10.0.0.1 mtu 296</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>(10.0.0.1 being the default gateway, the inside address of the
+masquerading router)</P
+></BLOCKQUOTE
+><P
+>In general, it is possible to override PMTU Discovery by setting specific
+routes. For example, if only a certain subnet is giving problems, this
+should help:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ip route add 195.96.96.0/24 via 10.0.0.1 mtu 1000</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.squid.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.mtu-mss.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Transparent web-caching using <SPAN
+CLASS="APPLICATION"
+>netfilter</SPAN
+>,
+  <SPAN
+CLASS="APPLICATION"
+>iproute2</SPAN
+>, <SPAN
+CLASS="APPLICATION"
+>ipchains</SPAN
+> and 
+  <SPAN
+CLASS="APPLICATION"
+>squid</SPAN
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Circumventing Path MTU Discovery issues with MSS Clamping
+  (for ADSL, cable, PPPoE &#38; PPtP users)</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

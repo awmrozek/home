@@ -1,0 +1,2412 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Ethernet-Howto: Vendor/Manufacturer/Model Specific Information</TITLE>
+ <LINK HREF="Ethernet-HOWTO-5.html" REL=next>
+ <LINK HREF="Ethernet-HOWTO-3.html" REL=previous>
+ <LINK HREF="Ethernet-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ethernet-HOWTO-5.html">Next</A>
+<A HREF="Ethernet-HOWTO-3.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="card-intro"></A> <A NAME="s4">4. Vendor/Manufacturer/Model Specific Information</A></H2>
+
+<P>
+<P>The following lists many cards in alphabetical order by vendor
+name and then product identifier. Beside each product ID, you
+will see either `Supported', `Semi-Supported', `Obsolete',
+`Dropped' or `Not Supported'.
+<P>Supported means that a driver for that card exists, and many
+people are happily using it and it seems quite reliable.
+<P>Semi-Supported means that a driver exists, but at least one
+of the following descriptions is true:
+(1) The driver and/or hardware are buggy, which may cause poor
+performance, failing connections or even crashes.
+(2) The driver is new or the card is fairly uncommon,
+and hence the driver has
+seen very little use/testing and the driver author has had
+very little feedback. Obviously (2) is preferable to (1), and
+the individual description of the card/driver should make it
+clear which one holds true. In either case, you will probably have
+to answer `Y' when asked ``Prompt for development and/or
+incomplete code/drivers?'' when running <CODE>make config</CODE>.
+<P>Obsolete means that a driver exists, and was probably at
+one time considered Semi-Supported. However, due to lack of
+interest, users, and support, it is known to not work anymore.
+The driver is still in the kernel, but disabled in the 
+configuration option menu.  The general plan is that if it
+does not get updated by the next kernel development cycle,
+it will be dropped entirely.  Usually a driver marked obsolete
+simply needs an update to match changes in the kernel to 
+driver interface, or other similar kernel API changes.
+<P>Dropped means that the driver was once obsolete (see above)
+and since there was not enough interest in fixing it, it
+has been removed from the current kernel tree.  There is
+nothing stopping anyone from copying the driver from an
+older kernel, making the required updates and using it.
+<P>Not Supported means there is not a driver currently available
+for that card. This could be due to a lack of interest in
+hardware that is rare/uncommon, or because the vendors won't
+release the hardware documentation required to write a driver.
+<P>Note that the difference between `Supported' and `Semi-Supported'
+is rather subjective, and is based on user feedback.
+So be warned that you may find
+a card listed as semi-supported works perfectly for you (which
+is great), or that a card listed as supported gives you no end
+of troubles and problems (which is not so great).
+<P>After the status, the name of the driver given in the linux kernel
+is listed. This will also be the name of the driver module that
+would be used in the <CODE>alias eth0 driver_name</CODE> line that is
+found in the <CODE>/etc/modules.conf</CODE> module configuration file.
+<P>
+<P>
+<H2><A NAME="3com"></A> <A NAME="ss4.1">4.1 3Com</A>
+</H2>
+
+<P>
+<P>If you are not sure what your card is, but you think it is a
+3Com card, you can probably figure it out from the assembly
+number. 3Com has a document `Identifying 3Com Adapters By
+Assembly Number' (ref 24500002) that would most likely clear
+things up.  Also check out their WWW/FTP site with various goodies:
+<CODE>www.3Com.com</CODE> that you may find useful (including PDFs
+with technical info for their cards).
+<P>
+<P>
+<H3><A NAME="3c501"></A> 3c501</H3>
+
+<P>Status: Semi-Supported, Driver Name: 3c501
+<P>This obsolete stone-age 8 bit card is really
+too brain-damaged to use. Avoid it like the plague. Do not
+purchase this card, even as a joke. It's performance
+is horrible, and it breaks in many ways.
+<P>For those not yet convinced, the 3c501 can only do one
+thing at a time -- while you are removing one packet
+from the single-packet buffer it cannot receive
+another packet, nor can it receive a packet while
+loading a transmit packet. This was fine for a
+network between two 8088-based computers where
+processing each packet and replying took 10's of
+msecs, but modern networks send back-to-back
+packets for almost every transaction.
+<P>AutoIRQ works, DMA isn't used, the autoprobe only
+looks at <CODE>0x280</CODE> and <CODE>0x300</CODE>, and the debug level is set
+with the third boot-time argument.
+<P>Once again, the use of a 3c501 is <EM>strongly discouraged</EM>!
+Even more so with a IP multicast kernel, as you will
+grind to a halt while listening to <EM>all</EM> multicast
+packets. See the comments at the top of the source code
+for more details.
+<P>
+<H3><A NAME="3c503"></A> EtherLink II, 3c503, 3c503/16</H3>
+
+<P>Status: Supported, Driver Name: 3c503 (+8390)
+<P>The 3c503 does not have ``EEPROM setup'',
+so a diagnostic/setup program
+isn't needed before running the card with Linux. The
+shared memory address of the 3c503 is set using jumpers
+that are shared with the boot PROM address. This is
+confusing to people familiar with other ISA cards,
+where you always leave the jumper set to ``disable''
+unless you have a boot PROM.
+<P>These cards should be about the same speed as the same bus
+width WD80x3, but turn out to be actually a bit slower.
+These shared-memory ethercards also have a
+programmed I/O mode that doesn't use the 8390
+facilities (their engineers found too many bugs!)
+The Linux 3c503 driver can also work with the 3c503
+in programmed-I/O mode, but this is slower and less
+reliable than shared memory mode. Also, programmed-I/O
+mode is not as well tested when updating the drivers.
+You shouldn't use the programmed-I/O mode
+unless you need it for compatibility with another
+operating system that is used on the same computer.
+<P>The 3c503's IRQ line is set in software, with no hints
+from an EEPROM. Unlike the MS-DOS drivers, the
+Linux driver has capability to autoIRQ: it uses the
+first available IRQ line in {5,2/9,3,4}, selected each
+time the card is ifconfig'ed.  Note that `ifconfig' will 
+return EAGAIN if no IRQ line is available at that time.
+<P>Some common problems that people have with the 503
+are discussed in 
+<A HREF="Ethernet-HOWTO-2.html#3com-probs">Problems with...</A>.
+<P>If you intend on using this driver as a loadable module
+you should probably see
+<A HREF="Ethernet-HOWTO-8.html#modules">Using the Ethernet Drivers as Modules</A>
+for module specific information.
+<P>
+<H3><A NAME="3c505"></A> Etherlink Plus 3c505</H3>
+
+<P>Status: Semi-Supported, Driver Name: 3c505
+<P>These cards use the i82586 chip but are not that many of them about.
+It is included in the standard kernel, but it is classed as
+an alpha driver. See 
+<A HREF="Ethernet-HOWTO-2.html#alfa">Alpha Drivers</A>
+for important information on using alpha-test ethernet drivers
+with Linux.
+<P>There is also the file
+<CODE>/usr/src/linux/drivers/net/README.3c505</CODE>
+that you should read if you are going to use one of these cards.
+It contains various options that you can enable/disable.
+<P>
+<H3><A NAME="3c507"></A> Etherlink-16 3c507</H3>
+
+<P>Status: Semi-Supported, Driver Name: 3c507
+<P>This card uses one of the Intel chips, and the
+development of the driver is closely related to
+the development of the Intel Ether Express driver.
+The driver is included in the standard kernel
+release, but as an alpha driver.
+See 
+<A HREF="Ethernet-HOWTO-2.html#alfa">Alpha Drivers</A> for important
+information on using alpha-test ethernet drivers
+with Linux. 
+<P>
+<H3><A NAME="3c509"></A> Etherlink III, 3c509 / 3c509B</H3>
+
+<P>Status: Supported, Driver Name: 3c509
+<P>This card was fairly inexpensive and had
+good performance for an ISA non-bus-master design.
+The drawbacks were that the original 3c509
+required very low interrupt latency. The 3c509B
+shouldn't suffer from the same problem, due to
+having a larger buffer. (See below.) These cards
+use PIO transfers, similar to a ne2000 card, and so
+a shared memory card such as a wd8013 will be more
+efficient in comparison.
+<P>The original 3c509 had a small packet buffer
+(4kB total, 2kB Rx, 2kB Tx), causing the driver to
+occasionally drop a packet if interrupts were masked for
+too long. To minimize this problem, you can try unmasking
+interrupts during IDE disk transfers (see <CODE>man hdparm</CODE>) and/or
+increasing your ISA bus speed so IDE transfers finish sooner.
+<P>The newer model 3c509B has 8kB on board, and the buffer
+can be split 4/4, 5/3 or 6/2 for Rx/Tx. This setting
+is changed with the DOS configuration utility, and is stored
+on the EEPROM. This should alleviate the
+above problem with the original 3c509.
+<P>3c509B users should use either the supplied DOS
+utility to disable the <EM>plug and play</EM> support, <EM>and</EM>
+to set the output media to what they require. The linux
+driver currently does <EM>not</EM> support the Autodetect
+media setting, so you <EM>have</EM> to select 10Base-T or
+10Base-2 or AUI.
+Note that if you turn off PnP entirely, you should exit the
+utility and  and then follow that with a hard
+reset to ensure that the new settings take effect.
+<P>Some people ask about the ``Server or Workstation'' and ``Highest
+Modem Speed'' settings presented in the DOS configuration utility.
+These settings don't actually change any hardware settings, rather
+they are only tuning hints to the DOS driver.  The linux driver
+does not need or use these hints.   Also, DON'T enable EISA mode
+on this ISA card unless you really have an EISA machine, or 
+you may end up needing to find an EISA machine just to get
+your ISA card back into ISA mode!
+<P>The card with the lowest hardware ethernet address
+will <EM>always</EM> end up being <CODE>eth0</CODE> in a multiple ISA 
+3c509 configuration.  This shouldn't matter
+to anyone, except for those people who want to assign
+a 6 byte hardware address to a particular interface.
+If this really bothers you, have a look at Donald's latest driver,
+as you may be able to use a <CODE>0x3c509</CODE> value in the unused mem
+address fields to order the detection to suit your needs.
+<P>
+<P>
+<H3><A NAME="cork"></A> 3c515</H3>
+
+<P>Status: Supported, Driver Name: 3c515
+<P>This is 3Com's ISA 100Mbps offering, codenamed ``CorkScrew''. 
+Note that you will never achieve full 100Mbps on an ISA bus.
+<P>
+<P>
+<H3><A NAME="3c523"></A> 3c523</H3>
+
+<P>Status: Semi-Supported, Driver Name: 3c523
+<P>This MCA bus card uses the i82586, and  Chris Beauregard
+has modified the ni52 driver to work with these cards.
+<P>
+<P>
+<H3><A NAME="3c527"></A> 3c527 Etherlink MC/32</H3>
+
+<P>Status: Semi-Supported, Driver Name: 3c527
+<P>Yes, another i82586 MCA card. No, not too much interest in it.
+Better chances with the 3c529 if you are stuck with MCA,
+since it uses the tried and true 3c509 core.
+<P>
+<H3><A NAME="3c529"></A> 3c529</H3>
+
+<P>Status: Supported, Driver Name: 3c509
+<P>This card actually uses the same chipset as the 3c509.
+People have actually been using this card in MCA machines.
+<P>
+<H3>3c339 Token Ring PCI Velocity XL </H3>
+
+<P>Status: Semi-Supported, Driver Name: tmspci
+<P>Token ring driver updates can be found at:
+<P><CODE>http://www.linuxtr.net/download.html</CODE>
+<P>
+<H3>3c556</H3>
+
+<P>Status: Supported, Driver Name: 3c59x
+<P>A mini PCI NIC found on various IBM and HP notebooks.
+Also knownas a `laptop tornado'.
+<P>
+<H3>3c562</H3>
+
+<P>Status: Supported, Driver Name: 3c589_cs
+<P>This PCMCIA card is the combination of a 3c589B ethernet card
+with a modem. The modem appears as a standard modem to the
+end user. The only difficulty is getting the two separate
+linux drivers to share one interrupt. There are a couple of new
+registers and some hardware interrupt sharing support.
+Thanks again to Cameron for getting a sample unit and
+documentation sent off to David Hinds.
+<P>
+<H3>3c575</H3>
+
+<P>Status: Supported, Driver Name: 3c59x
+<P>Note that to support this Cardbus device in old 2.2 kernels,
+you had to use 3c575_cb.c from the pcmcia_cs package.
+<P>
+<P>
+<H3><A NAME="3c579"></A> 3c579</H3>
+
+<P>Status: Supported, Driver Name: 3c509
+<P>The EISA version of the 509. The current EISA version
+uses the same 16 bit wide chip rather than a 32 bit
+interface, so the performance increase isn't stunning.
+Make sure the card is configured for EISA addressing mode.
+Read the above 3c509 section for info on the driver.
+<P>
+<P>
+<H3><A NAME="3c589"></A> 3c589 / 3c589B</H3>
+
+<P>Status: Semi-Supported, Driver Name: 3c589_cs
+<P>Many people have been using this PCMCIA card for quite some time     
+now.  The "B" in the name means the same here as it does for
+the 3c509 case.
+<P>
+<P>
+<H3><A NAME="vortex"></A> 3c590 / 3c595</H3>
+
+<P>Status: Supported, Driver Name: 3c59x
+<P>These ``Vortex'' cards are for PCI bus machines, with the '590
+being 10Mbps and the '595 being 3Com's 100Mbs offering.
+Also note that you can run the '595 as a '590 (i.e. in a 10Mbps mode).
+The 3c59x line was replaced by the 3c9xx line quite some time ago,
+and so these cards are considered rather old.
+<P>Note that there are two different 3c590 cards out there, early
+models that had 32kB of on-board memory, and later models that
+only have 8kB of memory.  The 3c595 cards have 64kB,
+as you can't get away with only 8kB RAM at 100Mbps!
+<P>
+<H3>3c592 / 3c597</H3>
+
+<P>Status: Supported, Driver Name: 3c59x
+<P>These are  the EISA versions of the 3c59x
+series of cards. The 3c592/3c597 (aka Demon) should work with
+the vortex driver discussed above.
+<P>
+<H3>3c900 / 3c905 / 3c905B / 3c905C / 3c905CX</H3>
+
+<P>Status: Supported, Driver Name: 3c59x
+<P>These cards (aka `Boomerang', aka EtherLink III XL) have been
+released to take over the place of the 3c590/3c595 cards,
+with some additional support added to the vortex/3c59x driver.
+The driver found in older kernels may not support the latest
+revision(s) of these cards, so you may need a driver update.
+<P>Note that the 3c905C has support for TCP/UDP/IP checksumming
+in hardware support - meaning less work for the computer
+CPU to do!
+<P>
+<H3>3c985 (Gigabit acenic, aka Tigon2)</H3>
+
+<P>Status: Supported, Driver Name: acenic
+<P>This driver supports several other Gigabit cards in 
+addition to the 3Com model.
+<P>
+<H3>3c996 (Gigabit broadcom, aka Tigon3)</H3>
+
+<P>Status: Supported, Driver Name: tg3, bcm5700(old)
+<P>This driver supports several other Gigabit cards in 
+addition to the 3Com model.  The <CODE>tg3</CODE> driver is a 
+complete rewrite by several linux developers in an effort
+to improve on the vendor supplied <CODE>bcm5700</CODE> driver.
+<P>
+<H2><A NAME="accton"></A> <A NAME="ss4.2">4.2 Accton</A>
+</H2>
+
+<P>
+<P>
+<H3>Accton MPX</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>Don't let the name fool you. This is still supposed to be a
+NE2000 compatible card, and should work with the ne2000 driver.
+<P>
+<H3>Accton EN1203, EN1207, EtherDuo-PCI</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip, OR 8139too
+<P>Apparently there have been several revisions of the
+EN1207 (A through D) with A, B, and C being tulip based
+and the D revision being RealTek 8139 based (different driver).
+So as with all purchases, you should try and make sure
+you can return it if it doesn't work for you.
+<P>
+<H3>Accton EN2209 Parallel Port Adaptor (EtherPocket)</H3>
+
+<P>Status: Semi-Supported, Driver Name: ?
+<P>A driver for these parallel port adapters was available
+around the time of the 2.0 or 2.1 kernel. It's last known
+location was:
+<P><CODE>http://www.unix-ag.uni-siegen.de/~nils/accton_linux.html</CODE>
+<P>
+<P>
+<H3>Accton EN2212 PCMCIA Card</H3>
+
+<P>Status: Supported, Driver Name: pcnet_cs
+<P>
+<P>
+<H2><A NAME="ss4.3">4.3 Adaptec</A>
+</H2>
+
+<P>Note that some of the older Adaptec 32 bit boards used a tulip
+clone.
+<P>
+<H3>Adaptec DuraLAN/Starfire, 64bit ANA-6922</H3>
+
+<P>Status: Supported, Driver Name: starfire
+<P>
+<H2><A NAME="allied-telesis"></A> <A NAME="ss4.4">4.4 Allied Telesyn/Telesis</A>
+</H2>
+
+<P>
+<P>
+<H3><A NAME="at-1500"></A> AT1500</H3>
+
+<P>Status: Supported, Driver Name: lance
+<P>These are a series of low-cost ethercards using the 79C960 version
+of the AMD LANCE. These are bus-master cards, and hence one of
+the faster ISA bus ethercards available.
+<P>DMA selection and chip numbering information can be found in
+<A HREF="#lance">AMD LANCE</A>.
+<P>
+<H3><A NAME="at1700"></A> AT1700</H3>
+
+<P>Status: Supported, Driver Name: at1700
+<P>Note that to access this driver during <CODE>make config</CODE>
+you still have to answer `Y' when asked ``Prompt for
+development and/or incomplete code/drivers?'' at
+the first. This is simply due to lack of feedback on the
+driver stability due to it being a relatively rare card.
+If you have problems with the driver that ships with
+the kernel then you may be interested in the alternative 
+driver available at:
+<CODE>http://www.cc.hit-u.ac.jp/nagoya/at1700/</CODE>
+<P>The Allied Telesis AT1700 series ethercards are based
+on the Fujitsu MB86965. This chip uses a programmed
+I/O interface, and a pair of fixed-size transmit
+buffers. This allows small groups of packets to
+be sent back-to-back, with a short pause while
+switching buffers.
+<P>The Fujitsu chip used on the AT1700 has a design flaw:
+it can only be fully reset by doing a power cycle of the machine.
+Pressing the reset button doesn't reset the bus interface. This
+wouldn't be so bad, except that it can only be reliably detected
+when it has been freshly reset. The solution/work-around is to
+power-cycle the machine if the kernel has a problem detecting
+the AT1700.
+<P>
+<H3><A NAME="at2400"></A> AT2400</H3>
+
+<P>Status: Supported, Driver Name: ne, ne2k-pci (+8390)
+<P>Yet another PCI NE2000 clone card. This one is based on
+the RealTek 8029 chip.
+<P>
+<H3><A NAME="at2450"></A> AT2450</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>This is the PCI version of the AT1500, and it doesn't suffer
+from the problems that the Boca 79c970 PCI card does.
+DMA selection and chip numbering information can be found in
+<A HREF="#lance">AMD LANCE</A>.
+<P>
+<H3>AT2500</H3>
+
+<P>Status: Supported, Driver Name: 8139too, rtl8139(old)
+<P>This card uses the RealTek 8139 chip - see the
+section 
+<A HREF="#rtl8139">RealTek 8139</A>.
+<P>
+<H3><A NAME="at2540"></A> AT2540FX</H3>
+
+<P>Status: Semi-Supported, Driver Name: eepro100
+<P>This card uses the i82557 chip, and hence may/should work
+with the eepro100 driver. If you try this please send in
+a report so this information can be updated.
+<P>
+<H2><A NAME="amd"></A> <A NAME="ss4.5">4.5 AMD / Advanced Micro Devices</A>
+</H2>
+
+<P>
+<P>Carl Ching of AMD was kind enough to provide a very
+detailed description of all the relevant AMD ethernet
+products which helped clear up this section.
+<P>
+<H3><A NAME="lance"></A> AMD LANCE (7990, 79C960/961/961A, PCnet-ISA)</H3>
+
+<P>Status: Supported, Driver Name: lance
+<P>There really is no AMD ethernet card. You are probably reading this
+because the only markings you could find on your card said AMD
+and the above number. The 7990 is the original `LANCE' chip,
+but most stuff (including this document) refer to all these
+similar chips as `LANCE' chips. (...incorrectly, I might add.)
+<P>These above numbers refer to chips from AMD
+that are the heart of many ethernet cards.
+For example, the Allied Telesis AT1500 (see
+<A HREF="#at-1500">AT1500</A>) and the NE1500/2100 (see
+<A HREF="#ne1500">NE1500</A>)  use these chips.
+<P>The 7990/79c90 have long been replaced by newer versions.
+The 79C960 (a.k.a. PCnet-ISA) essentially contains the 79c90
+core, along with all the other hardware support required, which
+allows a single-chip ethernet solution. The 79c961 (PCnet-ISA+)
+is a jumperless Plug and Play version of the '960. The final
+chip in the ISA series is the 79c961A (PCnet-ISA II), which
+adds full duplex capabilities.
+All cards with one of these chips should work with
+the lance.c driver, with the exception of very old cards that
+used the original 7990 in a shared memory configuration. These
+old cards can be spotted by the lack of jumpers for a DMA channel.
+<P>One common problem people have is the `busmaster arbitration
+failure' message. This is printed out when the LANCE driver
+can't get access to the bus after a reasonable amount of time
+has elapsed (50us). This usually indicates that the motherboard
+implementation of bus-mastering DMA is broken, or some other device
+is hogging the bus, or there is a DMA channel conflict. If your BIOS
+setup has the `GAT option' (for Guaranteed Access Time) then try
+toggling/altering that setting to see if it helps.
+<P>Also note that the driver only looks at the addresses:
+<CODE>0x300, 0x320, 0x340, 0x360</CODE> for a valid card, and any
+address supplied by an <CODE>ether=</CODE> boot argument is silently
+ignored (this will be fixed) so make sure your card is configured
+for one of the above I/O addresses for now.
+<P>The driver will still work fine, even
+if more than 16MB of memory is installed, since low-memory
+`bounce-buffers' are used when needed (i.e. any data from
+above 16MB is copied into a buffer below 16MB before being
+given to the card to transmit.)
+<P>The DMA channel can be set with the low bits
+of the otherwise-unused dev->mem_start value (a.k.a. PARAM_1).
+(see 
+<A HREF="Ethernet-HOWTO-8.html#ether">PARAM_1</A>)
+If unset it is probed for by enabling each free DMA channel
+in turn and checking if initialization succeeds.
+<P>The HP-J2405A board is an exception: with this board it's easy
+to read the EEPROM-set values for the IRQ, and DMA.
+<P>
+<H3>AMD 79C901 (Home PNA PHY)</H3>
+
+<P>Status: Supported, Driver Name: sis900
+<P>The <CODE>sis900.txt</CODE> file in 2.4 kernels states that 
+"AM79C901 HomePNA PHY is not thoroughly tested, there may 
+be some bugs in the "on the fly" change of transceiver."
+so you may want to check that if using a newer kernel.
+<P>
+<H3><A NAME="pcnet-32"></A> AMD 79C965 (PCnet-32)</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>This is the PCnet-32 -- a 32 bit bus-master version of the
+original LANCE chip for VL-bus and local bus systems.
+chip.  While these chips can be operated with the standard
+<CODE>lance.c</CODE> driver, a 32 bit version (<CODE>pcnet32.c</CODE>) is
+also available that does not have to concern itself with
+any 16MB limitations associated with the ISA bus.
+<P>
+<H3><A NAME="pcnet-pci"></A> AMD 79C970/970A (PCnet-PCI)</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>This is the PCnet-PCI -- similar to the PCnet-32, but designed
+for PCI bus based systems. Please see the
+above PCnet-32 information.
+This means that you need to build a kernel with
+PCI BIOS support enabled. The '970A adds full duplex support
+along with some other features to the original '970 design.
+<P>Note that the Boca implementation of the 79C970 fails on
+fast Pentium machines. This is a hardware problem, as it
+affects DOS users as well. See the Boca section for more
+details.
+<P>
+<H3>AMD 79C971 (PCnet-FAST)</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>This is AMD's 100Mbit chip for PCI systems, which also supports
+full duplex operation. It was introduced in June 1996.
+<P>
+<H3>AMD 79C972 (PCnet-FAST+)</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>This has been confirmed to work just like the '971.
+<P>
+<H3>AMD 79C974 (PCnet-SCSI)</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>This is the PCnet-SCSI --  which is basically treated like
+a '970 from an Ethernet point of view.
+Also see the above information. Don't ask how well the
+SCSI half of the chip is supported -- this is the
+<EM>Ethernet-HowTo</EM>, not the SCSI-HowTo.
+<P>
+<H2><A NAME="ansel"></A> <A NAME="ss4.6">4.6 Ansel Communications</A>
+</H2>
+
+<P>
+<P>
+<H3>AC3200 EISA</H3>
+
+<P>Status: Semi-Supported, Driver Name: ac3200
+<P>This EISA bus card is based on the common 8390
+chip used in the ne2000 and wd80x3 cards.
+Note that to access this driver during <CODE>make config</CODE>
+you still have to answer `Y' when asked ``Prompt for
+development and/or incomplete code/drivers?'' at
+the first. This is simply due to lack of feedback on the
+driver stability due to it being a relatively rare card.
+Feedback has been low even though the driver has
+been in the kernel since v1.1.25.
+<P>
+<H2><A NAME="ss4.7">4.7 Apricot</A>
+</H2>
+
+<P>
+<P>
+<H3>Apricot Xen-II On Board Ethernet</H3>
+
+<P>Status: Semi-Supported, Driver Name: apricot
+<P>This on board ethernet uses an i82596 bus-master chip.
+It can only be at I/O address <CODE>0x300</CODE>.
+By looking at the driver source,
+it appears that the IRQ is also hardwired to 10.
+<P>Earlier versions of the driver had a tendency to think
+that anything living at <CODE>0x300</CODE> was an apricot NIC.
+Since then the hardware address is checked to avoid these
+false detections.
+<P>
+<H2><A NAME="arcnet"></A> <A NAME="ss4.8">4.8 Arcnet</A>
+</H2>
+
+<P>Status: Supported, Driver Name: arcnet (arc-rimi, com90xx, com20020)
+<P>With the very low cost and better performance of ethernet,
+chances are that most places will be giving away their Arcnet
+hardware for free, resulting in a lot of home systems with Arcnet.
+<P>An advantage of Arcnet is that all of the cards have identical
+interfaces, so one driver will work for everyone. It also has
+built in error handling so that it supposedly never loses a packet.
+(Great for UDP traffic!) Note that the arcnet driver
+uses `arc0' as its name instead of the usual `eth0' for
+ethernet devices.
+<P>There are information files contained in the standard kernel for
+setting jumpers, general hints and where to mail bug reports.
+<P>Supposedly the driver also works with the 100Mbs ARCnet cards
+as well!
+<P>
+<P>
+<H2><A NAME="boca"></A> <A NAME="ss4.9">4.9 Boca Research</A>
+</H2>
+
+<P>
+<P>Yes, they make more than just multi-port serial cards.
+<P>
+<H3>Boca BEN400</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>Apparently this is a NE2000 clone, using a VIA VT86C916 chip.
+<P>
+<H3><A NAME="boca-ben"></A> Boca BEN (ISA, VLB, PCI)</H3>
+
+<P>Status: Supported, Driver Name: lance, pcnet32
+<P>These cards are based on AMD's PCnet chips.
+Many people reported endless problems with these VLB/PCI cards. 
+The problem was supposedly due to Boca not installing 
+some capacitors that AMD recommended.
+(The older ISA cards don't appear to suffer the same problems.)
+Boca was offering a `warranty repair' for
+affected owners, which involved adding one of the missing
+capacitors, but it appears that this fix didn't work 100
+percent for most people, although it helped some.  The
+cards are so old now that it wouldn't be worth pursuing.
+<P>More general information on the AMD chips can be found in
+<A HREF="#lance">AMD LANCE</A>.
+<P>
+<H2><A NAME="ss4.10">4.10 Broadcom</A>
+</H2>
+
+<P>
+<P>
+<H3>Broadcom Tigon2</H3>
+
+<P>Status: Supported, Driver Name: acenic
+<P>
+<H3>Broadcom Tigon3</H3>
+
+<P>Status: Supported, Driver Name: tg3
+<P>
+<P>
+<H2><A NAME="ctron"></A> <A NAME="ss4.11">4.11 Cabletron</A>
+</H2>
+
+<P>
+<P>Lack of programming information from Cabletron at the time
+drivers were being developed for these cards meant that
+the drivers were not supported as well as they could have been.
+<P>Apparently Cabletron has since changed their policy with respect 
+to programming information (like Xircom).
+However, at this point in time, there is little demand for
+modified/updated drivers for the old E20xx and E21xx cards.
+<P>
+<P>
+<H3><A NAME="e10xx"></A> E10**, E10**-x, E20**, E20**-x</H3>
+
+<P>Status: Semi-Supported, Driver Name: ne (+8390)
+<P>These are NEx000 almost-clones that are reported to
+work with the standard NEx000 drivers, thanks to a
+ctron-specific check during the probe. 
+<P>
+<H3><A NAME="e2100"></A> E2100</H3>
+
+<P>Status: Semi-Supported, Driver Name: e2100 (+8390)
+<P>The E2100 is a poor design. Whenever it maps its
+shared memory in during a packet transfer, it
+maps it into the <EM>whole 128K region!</EM> That means you
+<B>can't</B> safely use another interrupt-driven shared
+memory device in that region, including another E2100.
+It will work most of the time, but every once in
+a while it will bite you. (Yes, this problem can
+be avoided by turning off interrupts while
+transferring packets, but that will almost certainly
+lose clock ticks.) Also, if you mis-program the board,
+or halt the machine at just the wrong moment, even
+the reset button won't bring it back. You will <EM>have</EM>
+to turn it off and <EM>leave</EM> it off for about 30 seconds.
+<P>Media selection is automatic, but you can override this
+with the low bits of the dev-&gt;mem_end parameter.
+See 
+<A HREF="Ethernet-HOWTO-8.html#ether">PARAM_2</A>. Module users
+can specify an <CODE>xcvr=N</CODE> value as an <CODE>option</CODE> in
+the <CODE>/etc/modules.conf</CODE> file.
+<P>Also, don't confuse the E2100 for a NE2100 clone.
+The E2100 is a shared memory NatSemi DP8390 design,
+roughly similar to a brain-damaged WD8013, whereas
+the NE2100 (and NE1500) use a bus-mastering AMD
+LANCE design.
+<P>If you intend on using this driver as a loadable module
+you should probably see
+<A HREF="Ethernet-HOWTO-8.html#modules">Using the Ethernet Drivers as Modules</A>
+for module specific information.
+<P>
+<H3><A NAME="e2200"></A> E22**</H3>
+
+<P>Status: Semi-Supported, Driver Name: lance
+<P>According to information in a Cabletron Tech Bulletin, these
+cards use the standard AMD PC-Net chipset (see 
+<A HREF="#lance">AMD PC-Net</A>) and should work with the generic lance
+driver.
+<P>
+<P>
+<H2><A NAME="ss4.12">4.12 Cogent</A>
+</H2>
+
+<P>
+<P>
+<H3>EM100-ISA/EISA</H3>
+
+<P>Status: Semi-Supported, Driver Name: smc9194
+<P>These cards use the SMC 91c100 chip and may work with the
+SMC 91c92 driver, but this has yet to be verified.
+<P>
+<H3>Cogent eMASTER+, EM100-PCI, EM400, EM960, EM964</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>These are yet another DEC 21040 implementation that should
+hopefully work fine with the standard 21040 driver.
+<P>The EM400 and the EM964 are four port cards using a
+DEC 21050 bridge and 4 21040 chips.
+<P>See 
+<A HREF="#dec-21040">DEC 21040</A>
+for more information on these cards, and the present driver
+situation.
+<P>
+<H2><A NAME="ss4.13">4.13 Compaq</A>
+</H2>
+
+<P>
+<P>Compaq aren't really in the business of making ethernet
+cards, but a lot of their systems have embedded ethernet
+controllers on the  motherboard.
+<P>
+<H3>Compaq Deskpro / Compaq XL (Embedded AMD Chip)</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>Machines such as the XL series have an AMD 79c97x PCI chip
+on the mainboard that can be used with the standard LANCE
+driver. But before you can use it, you have to do some
+trickery to get the PCI BIOS to a place where Linux can
+see it. Frank Maas was kind enough to provide the
+details:
+<P>`` The problem with this Compaq machine however is that the PCI
+directory is loaded in high memory, at a spot where the Linux
+kernel can't (won't) reach. Result: the card is never detected nor
+is it usable (sideline: the mouse won't work either)
+The workaround (as described thoroughly in
+http://www-c724.uibk.ac.at/XL/)
+is to load MS-DOS, launch a little driver Compaq wrote and then
+load the Linux kernel using LOADLIN. Ok, I'll give you time to
+say `yuck, yuck', but for now this is the only working solution
+I know of. The little driver simply moves the PCI directory to
+a place where it is normally stored (and where Linux can find it).''
+<P>The DOS utility <CODE>movepci.exe</CODE> is apparently in Compaq's
+support package <CODE>SP1599.EXE</CODE> if you still need it.
+<P>
+<P>More general information on the AMD chips can be found in
+<A HREF="#lance">AMD LANCE</A>.
+<P>
+<H3>Compaq Nettelligent/NetFlex (Embedded ThunderLAN Chip)</H3>
+
+<P>Status: Supported, Driver Name: tlan
+<P>These systems use a Texas Instruments ThunderLAN chip
+Information on the ThunderLAN driver can be found in
+<A HREF="#tlan">ThunderLAN</A>.
+<P>
+<H3>Compaq PCI card</H3>
+
+<P>Status: Supported, Driver Name: eepro100
+<P>Check your card - if it has part number 323551-821
+and/or an intel 82558 chip on it then it is another
+Intel EEPro100 based card.
+<P>
+<P>
+<H2><A NAME="ss4.14">4.14 Danpex</A>
+</H2>
+
+<P>
+<P>
+<H3>Danpex EN9400</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>Yet another card based on the DEC 21040 chip, reported to
+work fine, and at a relatively cheap price.
+<P>See 
+<A HREF="#dec-21040">DEC 21040</A>
+for more information on these cards, and the present driver
+situation.
+<P>
+<H2><A NAME="ss4.15">4.15 Davicom</A>
+</H2>
+
+<P>
+<P>
+<H3>Davicom DM9102</H3>
+
+<P>Status: Supported, Driver Name: tulip, dmfe
+<P>This is an almost clone of the tulip chip and so you 
+can use the tulip driver or the vendor supplied dmfe driver.
+Usual advice is to try tulip first, and then try dmfe.
+Apparently dmfe is only better for very very old cards.
+<P>
+<H2><A NAME="d-link"></A> <A NAME="ss4.16">4.16 D-Link</A>
+</H2>
+
+<P>
+<P>
+<H3><A NAME="de-100"></A> DE-100, DE-200, DE-220-T, DE-250</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>Some of the early D-Link cards didn't have the <CODE>0x57</CODE>
+PROM signature, but the ne2000 driver knows about them.
+For the software configurable cards, you can get the
+config program from <CODE>www.dlink.com</CODE>.
+Note that there are also cards from
+Digital (DEC) that are also named DE100 and DE200,
+but the similarity stops there.
+<P>
+<H3><A NAME="de-520"></A> DE-520</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>This is a PCI card using the PCI version of AMD's LANCE chip.
+DMA selection and chip numbering information can be found in
+<A HREF="#lance">AMD LANCE</A>.
+<P>
+<H3>DE-528</H3>
+
+<P>Status: Supported, Driver Name: ne, ne2k-pci (+8390)
+<P>Apparently D-Link have also started making PCI NE2000 clones.
+<P>
+<P>
+<H3><A NAME="de-530"></A> DE-530</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>This is a generic DEC 21040 PCI chip implementation,
+and is reported to work with the generic 21040 tulip driver.
+Note that this is NOT the DFE-530.
+<P>See 
+<A HREF="#dec-21040">DEC 21040</A>
+for more information on these cards, and the present driver
+situation.
+<P>
+<H3><A NAME="de-600"></A> DE-600</H3>
+
+<P>Status: Supported, Driver Name: de600
+<P>The DE600 is an old parallel port ethernet
+adaptor made for laptop users etc.
+Expect about 180kb/s transfer speed from this device.
+You should read the README.DLINK
+file in the kernel source tree.
+Note that the device name that you pass to <CODE>ifconfig</CODE>
+is <EM>now</EM> <CODE>eth0</CODE> and not the previously
+used <CODE>dl0</CODE>.
+<P>
+<H3><A NAME="de-620"></A> DE-620</H3>
+
+<P>Status: Supported, Driver Name: de620
+<P>Similar to the the DE-600, only with two output formats.
+See the above information on the DE-600.
+<P>
+<H3><A NAME="de-650"></A> DE-650</H3>
+
+<P>Status: Supported, Driver Name: pcnet_cs
+<P>Some people have been using this PCMCIA card for
+some time now with their notebooks. It is a basic
+8390 design, much like a NE2000. The LinkSys PCMCIA
+card and the IC-Card Ethernet are supposedly DE-650 clones
+as well. 
+<P>
+<H3>DFE-530TX</H3>
+
+<P>Status Supported, Driver Name: via-rhine
+<P>Another card using the VIA Rhine chipset.
+Newer cards use the Rhine-II.
+(see 
+<A HREF="#rhine">VIA Rhine</A>)
+Don't confuse this with the DE-530 which is a tulip
+based card, or the DFE-530+ which is an 8139.
+<P>
+<H3>DFE-530TX+, DFE-538TX</H3>
+
+<P>Status Supported, Driver Name: 8139too, rtl8139(old)
+<P>This card uses the RealTek 8139 chip - see the
+section 
+<A HREF="#rtl8139">RealTek 8139</A>.
+<P>
+<H3>DFE-550TX</H3>
+
+<P>Status Supported, Driver Name: sundance
+<P>
+<H3>DFE-570TX</H3>
+
+<P>Status Supported, Driver Name: tulip
+<P>This is a four port tulip (DS21143) card.
+<P>
+<H3>DFE-580TX</H3>
+
+<P>Status Supported, Driver Name: sundance
+<P>
+<H3>DGE-500T</H3>
+
+<P>Status: Supported, Driver Name: ns83820
+<P>
+<H3>DGE-550T</H3>
+
+<P>Status Supported, Driver Name: dl2k
+<P>
+<H2><A NAME="dfi"></A> <A NAME="ss4.17">4.17 DFI</A>
+</H2>
+
+<P>
+<P>
+<H3><A NAME="dfi-300"></A> DFINET-300 and DFINET-400</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>Yet another poor NE clone card - these 
+use `DFI' in the first 3 bytes of the prom, instead
+of using <CODE>0x57</CODE> in bytes 14 and 15, which is what all the
+NE1000 and NE2000 cards should use. (The 300 is an 8 bit
+pseudo NE1000 clone, and the 400 is a pseudo NE2000 clone.)
+<P>
+<P>
+<H2><A NAME="dec"></A> <A NAME="ss4.18">4.18 Digital / DEC</A>
+</H2>
+
+<P>
+<P>
+<H3><A NAME="dec-200"></A> DEPCA, DE100/1, DE200/1/2, DE210, DE422</H3>
+
+<P>Status: Supported, Driver Name: depca
+<P>There is documentation included in the source file
+`depca.c', which includes info on how to use more than
+one of these cards in a machine. Note that the DE422 is
+an EISA card. These cards are all based on the AMD LANCE chip.
+See 
+<A HREF="#lance">AMD LANCE</A> for more info.
+A maximum of two of the ISA cards can be used, because they
+can only be set for <CODE>0x300</CODE> and <CODE>0x200</CODE> base I/O address.
+If you are intending to do this, please read the notes in
+the driver source file <CODE>depca.c</CODE> in the standard kernel
+source tree.
+<P>This driver will also work on Alpha CPU based machines, and
+there are various ioctl()s that the user can play with.
+<P>
+<H3><A NAME="dec-ewrk3"></A> Digital EtherWorks 3 (DE203, DE204, DE205)</H3>
+
+<P>Status: Supported, Driver Name: ewrk3
+<P>These cards use a proprietary
+chip from DEC, as opposed to the LANCE chip used in the
+earlier cards like the DE200. These cards support both shared
+memory or programmed I/O, although you take about a 50%performance hit if you use PIO mode. The shared memory size can
+be set to 2kB, 32kB or 64kB, but only 2 and 32 have been tested
+with this driver. David says that the performance is virtually
+identical between the 2kB and 32kB mode. There is more information
+(including using the driver as a loadable module) at the top
+of the driver file <CODE>ewrk3.c</CODE> and also in <CODE>README.ewrk3</CODE>.
+Both of these files come with the standard kernel distribution.
+This driver has Alpha CPU support like depca.c does.
+<P>The standard driver has a number
+of interesting ioctl() calls that can be used to get or clear
+packet statistics, read/write the EEPROM, change the
+hardware address, and the like. Hackers can see the source
+code for more info on that one.
+<P>David has also written a configuration utility for this
+card (along the lines of the DOS program <CODE>NICSETUP.EXE</CODE>)
+along with other tools. These can be found on
+most Linux FTP sites in the directory
+<CODE>/pub/Linux/system/Network/management</CODE> -- look for the
+file <CODE>ewrk3tools-X.XX.tar.gz</CODE>.
+<P>
+<P>
+<H3><A NAME="dec-eisa"></A> DE425 EISA, DE434, DE435, DE500  </H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>These cards are based on the 21040 chip mentioned below.
+The DE500 uses the 21140 chip to provide 10/100Mbs
+ethernet connections.
+Have a read of the 21040 section below for extra info.
+There are also some compile-time options available for
+non-DEC cards using this driver. Have a look at
+<CODE>README.de4x5</CODE> for details.
+<P>All the Digital cards will autoprobe for their media (except,
+temporarily, the DE500 due to a patent issue).
+<P>This driver is also Alpha CPU ready and supports being loaded
+as a module.  Users can access the driver internals through
+ioctl() calls - see the 'ewrk3' tools and the de4x5.c sources
+for information about how to do this.
+<P>
+<H3><A NAME="dec-21040"></A> DEC 21040, 21041, 2114x, Tulip </H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>The DEC 21040 is a bus-mastering single chip ethernet solution
+from Digital, similar to AMD's PCnet chip. The 21040 is
+specifically designed for the PCI bus architecture.
+Apparently these chips are no longer being produced, as Intel
+has bought the semiconductor portion of DEC and is favouring
+their own ethernet chip(s).
+<P>You have a choice of <EM>two</EM> drivers for cards based on this
+chip. There is the DE425 driver discussed above, and the
+generic 21040  `tulip' driver.
+<P><B>Warning:</B> Even though your card may be based upon this chip,
+<EM>the drivers may not work for you</EM>. David C. Davies writes:
+<P>``There are no guarantees that either `tulip.c' OR `de4x5.c'
+will run any DC2114x based card other than those they've been
+written to support.  WHY?? You ask.  Because there is a register,
+the General Purpose Register (CSR12) that (1) in the DC21140A is
+programmable by each vendor and they all do it differently
+(2) in the DC21142/3 this is now an SIA control register
+(a la DC21041). The only small ray of hope is that we can decode the
+SROM to help set up the driver. However, this is not a guaranteed
+solution since some vendors (e.g. SMC 9332 card) don't follow the
+Digital Semiconductor recommended SROM programming format."
+<P>In non-technical terms, this means that if you aren't sure that an
+unknown card with a DC2114x chip will work with the linux driver(s),
+then make sure you can return the card to the place of
+purchase <EM>before</EM> you pay for it.
+<P>The 21041 chip is also found in place of the 21040
+on most of the later SMC EtherPower cards.
+The 21140 is for supporting 100Base-T and
+works with the Linux drivers for the 21040 chip.
+To use David's <CODE>de4x5</CODE> driver with non-DEC cards, have a
+look at <CODE>README.de4x5</CODE> for details.
+<P>If you are having trouble with the tulip driver,
+you can try the newest version from Donald's ftp/WWW
+site.
+<P>
+<A HREF="http://www.scyld.com/network">Tulip Driver</A><P>There is also a (non-exhaustive) list of
+various cards/vendors that use the 21040 chip.
+<P>
+<H2><A NAME="ss4.19">4.19 Farallon</A>
+</H2>
+
+<P>Farallon sells EtherWave adaptors and transceivers. This device
+allows multiple 10baseT devices to be daisy-chained.
+<P>
+<H3>Farallon Etherwave</H3>
+
+<P>Status: Supported, Driver Name: 3c509
+<P>This is reported to be a 3c509 clone that includes the
+EtherWave transceiver. People have used these successfully
+with Linux and the present 3c509 driver. They are too expensive
+for general use, but are a great option for special cases.  Hublet
+prices start at $125, and Etherwave
+adds $75-$100 to the price of the board -- worth
+it if you have pulled one wire too few, but not if you are two
+network drops short.
+<P>
+<H3>Farallon PCI 593</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>It has been reported that this card was detected with
+the <CODE>de4x5</CODE> driver.
+<P>
+<H2><A NAME="ss4.20">4.20 Fujitsu</A>
+</H2>
+
+<P>
+<P>Unlike many network chip manufacturers, Fujitsu have also
+made and sold some network cards based upon their chip.
+<P>
+<H3>Fujitsu FMV-181/182/183/184</H3>
+
+<P>Status: Supported, Driver Name: at1700, fmv18x(old)
+<P>According to the driver, these cards are a straight forward
+Fujitsu MB86965 implementation, which would make them
+very similar to the Allied Telesis AT1700 cards.
+<P>Older kernels used the driver <CODE>fmv18x</CODE> but support for
+these cards was added to the <CODE>at1700</CODE> driver and so
+the former has been phased out.
+<P>
+<H2><A NAME="hp"></A> <A NAME="ss4.21">4.21 Hewlett Packard</A>
+</H2>
+
+<P>
+<P>
+<H3>HP Night Director+ 10/100</H3>
+
+<P>
+<P>Status: Supported, Driver Name: pcnet32
+<P>Apparently these cards use the AMD 79C972 chip.
+<P>
+<P>
+<H3><A NAME="hp-27245a"></A> 27245A</H3>
+
+<P>Status: Supported, Driver Name: hp (+8390)
+<P>8 bit 8390 based 10BaseT, not recommended for all the
+8 bit reasons.
+<P>
+<H3>HP EtherTwist, PC Lan+ (27247, 27248, 27252A, 27269B)</H3>
+
+<P>Status: Supported, Driver Name: hp+ (+8390)
+<P>The HP PC Lan+ is different to the standard HP PC Lan
+card.   It can be operated in either a PIO mode like a ne2000, 
+or a shared memory mode like a wd8013.
+<P>
+<H3>HP-J2405A</H3>
+
+<P>Status: Supported, Driver Name: lance
+<P>These are lower priced, and slightly faster than the
+27247/27252A, but are missing some features, such
+as AUI, ThinLAN connectivity, and boot PROM socket.
+This is a fairly generic LANCE design, but a minor
+design decision makes it incompatible with a generic
+`NE2100' driver. Special support for it (including
+reading the DMA channel from the board) is included
+thanks to information provided by HP's Glenn
+Talbott.
+<P>
+<H3>HP-Vectra On Board Ethernet</H3>
+
+<P>Status: Supported, Driver Name: lance
+<P>The HP-Vectra has an AMD PCnet chip on the motherboard.
+DMA selection and chip numbering information can be found in
+<A HREF="#lance">AMD LANCE</A>.
+<P>
+<H3>HP 10/100 VG Any Lan Cards (27248B, J2573, J2577, J2585, J970, J973)</H3>
+
+<P>Status: Supported, Driver Name: hp100
+<P>This driver also supports some of the Compex VG products.
+Since the driver supports ISA, EISA and PCI cards, it
+is found under ISA cards when running <CODE>make config</CODE>
+on a kernel source.
+<P>
+<H3>HP NetServer 10/100TX PCI (D5013A)</H3>
+
+<P>Status: Supported, Driver Name: eepro100
+<P>Apparently these are just a rebadged Intel EtherExpress Pro
+10/100B card. See the Intel section for more information.
+<P>
+<P>
+<H2><A NAME="ibm"></A> <A NAME="ss4.22">4.22 IBM / International Business Machines</A>
+</H2>
+
+<P>
+<P>
+<H3><A NAME="thinkpad-300"></A> IBM Thinkpad 300</H3>
+
+<P>Status: Obsolete, Driver Name: znet
+<P>This is intel i82593 based.  It has been declared obsolete
+in the 2.4 series kernels.
+<P>
+<P>
+<H3>IBM Credit Card Adaptor for Ethernet</H3>
+
+<P>Status: Semi-Supported, Driver Name: pcnet_cs
+<P>
+<P>
+<H3>IBM 10/100 EtherJet PCI</H3>
+
+<P>Status: Supported, Driver Name: eepro100
+<P>This card is reported to be compatible with the Intel
+EtherExpress Pro 100 driver.
+<P>
+<H3>IBM Token Ring</H3>
+
+<P>Status: Semi-Supported, Driver Name: ibmtr
+<P>To support token ring
+requires more than only writing a device driver, it also requires
+writing the source routing routines for token ring. It is the
+source routing that would be the most time comsuming to write.
+<P>Initial driver development was done with IBM ISA and
+MCA token ring cards, and tested on an MCA 16/4 Megabit Token
+Ring board, but it should work with other Tropic based boards.
+<P>
+<H2><A NAME="ss4.23">4.23 ICL Ethernet Cards</A>
+</H2>
+
+<P>
+<P>
+<H3>ICL EtherTeam 16i/32</H3>
+
+<P>Status: Supported, Driver Name: eth16i
+<P>This driver supports both the ISA (16i) and EISA (32) versions
+of the card.  It uses the Fujitsu MB86965 chip that is also 
+used on the at1700 cards.
+<P>
+<H2><A NAME="intel"></A> <A NAME="ss4.24">4.24 Intel Ethernet Cards</A>
+</H2>
+
+<P>
+<P>Note that the naming of the various Intel cards is ambiguous
+and confusing at best.  If in doubt, then check the <CODE>i8xxxx</CODE>
+number on the main chip on the card or for PCI cards, use the
+PCI information in the <CODE>/proc</CODE> directory and then
+compare that to the numbers listed here.  Finally, there was
+a page at http://support.intel.com in the network area that
+may also be some help if you don't know what card you have.
+<P>
+<P>
+<H3>Ether Express</H3>
+
+<P>Status: Supported, Driver Name: eexpress
+<P>This card uses the intel i82586.
+Earlier versions of this driver (in v1.2 kernels) were
+classed as alpha-test, as it didn't work well for most people.
+The driver in the v2.0 kernel seems to work much better
+for those who have tried it, although the driver source still
+lists it as experimental and more problematic on faster
+machines.
+<P>The comments at the top of the
+driver source list some of the problems (and fixes!) associated
+with these cards. The slowdown hack of replacing all the <CODE>outb</CODE>
+with <CODE>outb_p</CODE> in the driver has been reported to avoid lockups
+for at least one user.  Also check that the size of the RAM
+buffer reported by the driver matches what the Intel configuration
+utility reports.
+<P>
+<H3>Ether Express PRO/10 (PRO/10+)</H3>
+
+<P>Status: Supported, Driver Name: eepro
+<P>Bao Chau Ha has written a driver for these cards that has been
+included into early 1.3.x kernels. It may also work with some of
+the Compaq built-in ethernet systems that are based on the
+i82595 chip.  You may have to use the configuration utility
+that came with the card to disable PnP support where applicable.
+<P>
+<H3>Ether Express PRO/10 PCI (EISA)</H3>
+
+<P>Status: Semi-Supported, Driver Name: ? (distributed separately)
+<P>There is a driver for the PCI version that is distributed 
+separately from the default kernel. 
+These cards use the PLX9036 PCI interface chip
+with the Intel i82596 LAN controller chip. If your card has
+the i82557 chip, then you <EM>don't</EM> have this card, but
+rather the version discussed next, and hence want the
+EEPro100 driver instead.
+<P>You can get the alpha driver for the PRO/10 PCI card,
+along with instructions on how to use it at:
+<P>
+<A HREF="http://www.ultranet.com/~stalba/eep10pci.html">EEPro10 Driver</A><P>If you have the EISA card, you will probably have to hack the
+driver a bit to account for the different (PCI vs. EISA)
+detection mechanisms that are used in each case.
+<P>
+<P>
+<H3><A NAME="eepro100"></A> Ether Express PRO 10/100B</H3>
+
+<P>Status: Supported, Driver Name: e100, or eepro100
+<P>The e100 driver was supplied by intel, and the eepro100
+driver is the original driver by Donald.
+Note that the eepro100 driver will <EM>not</EM> work with 
+the older 100A cards.
+The chip numbers listed in the driver are i82557,
+i82558, i82559, i82801, and about 25 other PCI IDs.
+For driver updates and/or driver support, have a look at:
+<P>
+<A HREF="http://www.scyld.com/network">EEPro-100B Page</A><P>
+<H3>E1000 Gigabit</H3>
+
+<P>Status: Supported, Driver Name: e1000
+<P>
+<H2><A NAME="ss4.25">4.25 Kingston</A>
+</H2>
+
+<P>Kingston make various cards, including NE2000+, AMD PCnet based
+cards, and DEC tulip based cards. Most of these cards should work
+fine with their respective driver. See
+<A HREF="http://www.kingston.com">Kingston Web Page</A><P>
+<P>
+<H2><A NAME="ss4.26">4.26 LinkSys</A>
+</H2>
+
+<P>LinkSys make a handful of different NE2000 clones, some straight
+ISA cards, some ISA plug and play and some even ne2000-PCI clones
+based on one of the supported ne2000-PCI chipsets. There are
+just too many models to list here.
+Their site is at <CODE>http://www.linksys.com/</CODE>
+<P>
+<H3>LinkSys Etherfast 10/100 Cards.</H3>
+
+<P>Status: Supported, Driver Name: tulip
+<P>Note that with these cards there have been several `revisions' (i.e.
+different chipset used) all with the same card name. The 1st used
+the DEC chipset. The 2nd revision used the Lite-On PNIC 82c168 PCI
+Network Interface Controller, the 3rd
+revision of the card uses a LinkSys 82c169 NIC chip, and the 4th
+revision uses the ADMtek Comet.
+Support for the latter three has been merged into the standard tulip 
+driver -- you may need a driver upgrade to get support for them
+depending on how old your current driver version is.
+<P>More PNIC information is available at:
+<P><CODE>http://www.scyld.com/network</CODE>
+<P>More information on the various versions of these cards can be found
+at the LinkSys WWW site mentioned above.
+<P>
+<P>
+<H3>LinkSys Pocket Ethernet Adapter Plus (PEAEPP)</H3>
+
+<P>Status: Supported, Driver Name: de620
+<P>This is supposedly a DE-620 clone, and is reported to
+work well with that driver. See
+<A HREF="#de-620">DE-620</A> for more information.
+<P>
+<H3>LinkSys PCMCIA Adaptor</H3>
+
+<P>Status: Supported, Driver Name: pcnet_cs
+<P>This is supposed to be a re-badged DE-650.
+<P>
+<H2><A NAME="ss4.27">4.27 Microdyne (Eagle)</A>
+</H2>
+
+<P>Eagle Technology (aka Novell cards) was sold to Microdyne.
+If you can't find your card listed here, check the Novell
+section of this document.
+While Microdyne are not actively selling network cards anymore, 
+there is still some stuff relating to their products on their site
+at <CODE>ftp.microdyne.com</CODE>  
+<P>
+<H3>Microdyne Exos 205T</H3>
+
+<P>Status: Semi-Supported, Driver Name: ?
+<P>Another i82586 based card. Dirk Niggemann
+<CODE>dirk-n@dircon.co.uk</CODE>
+has written a driver that he classes as ``pre-alpha''
+that he would like people to test. Mail him for more details.
+<P>
+<H2><A NAME="ss4.28">4.28 Mylex</A>
+</H2>
+
+<P>
+<P>Mylex can be reached at the following numbers, in case anyone
+wants to ask them anything.
+<P>
+<PRE>
+        MYLEX CORPORATION, Fremont
+        Sales:  800-77-MYLEX, (510) 796-6100
+        FAX:    (510) 745-8016.
+</PRE>
+<P>They also have a web site:
+<A HREF="http://www.mylex.com">Mylex WWW Site</A><P>
+<H3>Mylex LNE390A, LNE390B</H3>
+
+<P>Status: Supported, Driver Name: lne390 (+8390)
+<P>These are fairly old EISA cards that make use of a shared
+memory implementation similar to the wd80x3. A driver for
+these cards is available in the current 2.1.x series of
+kernels.  Ensure you set the shared memory address below
+1MB or above the highest address of the physical RAM installed in
+the machine.
+<P>
+<H3>Mylex LNP101</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>This is a PCI card that is based on DEC's 21040 chip.
+It is selectable between 10BaseT, 10Base2 and 10Base5 output.
+The LNP101 card has been verified to work with the generic
+21040 driver.
+<P>See the section on the 21040 chip
+(
+<A HREF="#dec-21040">DEC 21040</A>)
+for more information.
+<P>
+<H3>Mylex LNP104</H3>
+
+<P>Status: Semi-Supported, Driver Name: de4x5, tulip
+<P>The LNP104 uses the DEC 21050 chip to deliver <EM>four</EM>
+independent 10BaseT ports. It should work with recent 21040
+drivers that know how to share IRQs, but nobody has
+reported trying it yet (that I am aware of).
+<P>
+<H2><A NAME="ss4.29">4.29 Myson</A>
+</H2>
+
+<P>
+<P>
+<H3>Myson MTD-8xx 10/100 PCI</H3>
+
+<P>Status: Supported, Driver Name: fealnx
+<P>Apparently cards sold under the name Surecom EP-320X-S also 
+use this Myson chip.
+<P>
+<H2><A NAME="ss4.30">4.30 National Semiconductor</A>
+</H2>
+
+<P>National Semiconductor really make chips, not cards.  
+Other people take their chips, solder them down to
+a bit of fibreglass with some other cruft, put their
+name on it and sell it to you.
+<P>
+<H3>NS8390, DP8390, DP83905 etc.</H3>
+
+<P>Status: Supported, Driver Name: 8390
+<P>The infamous 8390 chip.  Found on a zillion ISA cards,
+and cloned by various other chip manufacturers.
+Note that the file <CODE>8390.o</CODE> is not a complete driver in itself.
+It has to be used in conjunction with another driver that
+knows how the 8390 is interfaced to the computer bus.
+Examples of the 2nd half of the driver are <CODE>wd.o</CODE>,
+<CODE>3c503.o</CODE>, <CODE>smc-ultra.o</CODE>, <CODE>ne2k-pci.o</CODE> and so on.
+<P>
+<H3>DP83800 with DP83840</H3>
+
+<P>Status: Not Supported.
+<P>See the section for NE 10/100 below.
+<P>
+<H3>DP83815/83816</H3>
+
+<P>
+<P>Status: Supported, Driver Name: natsemi
+<P><CODE>http://www.scyld.com/network/natsemi.html</CODE>
+<P>This driver can be found in 2.4 and newer kernels.
+<P>
+<H3>NS83820, DP83820</H3>
+
+<P>
+<P>Status: Supported, Driver Name: ns83820
+<P>The 83820 is a 10/100/1000 Mbps 64 bit PCI ethernet NIC, and
+the 83821 is a 32 bit PCI part (but it appears that the
+parts are identical and the EEPROM is supposed to set
+the data path width).
+Just like the 8390, you won't usually see this number
+unless you look at the chip on the card.
+<P>
+<P>
+<H2><A NAME="novell"></A> <A NAME="ss4.31">4.31 Novell Ethernet, NExxxx and associated clones.</A>
+</H2>
+
+<P>
+<P>The prefix `NE' came from Novell Ethernet. Novell followed the
+cheapest NatSemi databook design and sold the manufacturing rights
+(spun off?) Eagle, just to get reasonably-priced ethercards into
+the market. (The now ubiquitous NE2000 card.)
+<P>
+<H3><A NAME="ne2k"></A> NE1000, NE2000</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>The ne2000 is now a generic name for a bare-bones design around
+the NatSemi 8390 chip. They use programmed I/O rather than
+shared memory, leading to easier installation but
+slightly lower performance and a few problems. 
+Some of the more common problems that arise
+with NE2000 cards are listed in 
+<A HREF="Ethernet-HOWTO-2.html#ne2k-probs">Problems with...</A><P>Some NE2000 clones use the National
+Semiconductor `AT/LANTic' 83905 chip, which offers
+a shared memory mode similar to the wd8013 and EEPROM
+software configuration. The shared memory mode will offer
+less CPU usage (i.e. more efficient) than the programmed
+I/O mode.
+<P>In general it is not a good idea to put a NE2000
+clone at I/O address <CODE>0x300</CODE> because nearly
+<EM>every</EM> device driver probes there at boot. Some
+poor NE2000 clones don't take kindly to being prodded
+in the wrong areas, and will respond by locking your
+machine. Also <CODE>0x320</CODE> is bad because SCSI drivers
+probe into <CODE>0x330</CODE>.
+<P>Donald has written a NE2000 diagnostic program (ne2k.c)
+for all ne2000 cards.
+See 
+<A HREF="Ethernet-HOWTO-6.html#diag">Diagnostic Programs</A> for more
+information.
+<P>If you intend on using this driver as a loadable module
+you should probably see
+<A HREF="Ethernet-HOWTO-8.html#modules">Using the Ethernet Drivers as Modules</A>
+for module specific information.
+<P>
+<H3><A NAME="ne2k-pci"></A> NE2000-PCI (RealTek/Winbond/Compex)</H3>
+
+<P>Status: Supported, Driver Name: ne, ne2k-pci (+8390)
+<P>Yes, believe it or not, people are making PCI cards based on
+the more than ten year old interface 
+design of the ne2000. At the moment
+nearly all of these cards are based on the RealTek 8029 chip,
+or the Winbond 89c940 chip. The Compex, KTI, VIA and Netvin cards
+apparently also use these chips, but have a different PCI ID.
+<P>The latest v2.0 kernel has support to automatically detect all
+these cards and use them. (If you are using a kernel v2.0.34 or
+older, you should upgrade to ensure your card will be detected.)
+There are now two drivers to choose from; the original ISA/PCI
+<CODE>ne.c</CODE> driver, and a relatively new PCI-only <CODE>ne2k-pci.c</CODE>
+driver.
+<P>To use the original ISA/PCI driver you have to say `Y'  to
+the `Other ISA cards' option when running <CODE>make config</CODE> as
+you are actually using the same NE2000 driver as the ISA cards
+use. (That should also give you a hint that these cards aren't
+anywhere as intelligent as say a PCNet-PCI or DEC 21040 card...)
+<P>The newer PCI-only driver differs from the ISA/PCI driver in
+that all the support for old NE1000 8 bit cards has been removed
+and that data is moved to/from the card in bigger blocks, without
+any intervening pauses that the older ISA-NE2000's required for
+reliable operation.  The result is a driver that is slightly
+smaller and slightly more efficient, but don't get too excited
+as the difference will not be obvious under normal use.  (If you
+really wanted maximum efficiency/low CPU use, then a PCI-NE2000
+is simply a very poor choice.) Driver updates and more
+information can be found at:
+<P><CODE>http://www.scyld.com/network</CODE>
+<P>If you have a NE2000 PCI card that is <EM>not</EM>  detected by
+the most current version of the driver, please contact the
+maintainer of the NE2000 driver as listed
+in <CODE>/usr/src/linux/MAINTAINERS</CODE> along with the output
+from a <CODE>cat /proc/pci</CODE> and <CODE>dmesg</CODE> so that
+support for your card can also be added to the driver.
+<P>Also note that various card makers have been known to put
+`NE2000 Compatible' stickers on their product boxes even when
+it is completely different (e.g. PCNet-PCI or RealTek 8139).
+If in doubt check the main chip number against this document.
+<P>
+<H3>NE-10/100</H3>
+
+<P>Status: Not Supported.
+<P>These are ISA 100Mbps cards based on the National Semiconductor
+DP83800 and DP83840 chips. There is currently no driver support,
+nor has anyone reported that they are working on a driver.
+Apparently documentation on the chip is unavailable with the
+exception of a single PDF file that doesn't give enough details
+for a driver.
+<P>
+<H3><A NAME="ne1500"></A> NE1500, NE2100</H3>
+
+<P>Status: Supported, Driver Name: lance
+<P>These cards use the original 7990 LANCE chip from AMD and
+are supported using the Linux lance driver. Newer NE2100
+clones use the updated PCnet/ISA chip from AMD.
+<P>Some earlier versions of the lance driver had problems
+with getting the IRQ line via autoIRQ from the original
+Novell/Eagle 7990 cards. Hopefully this is now fixed.
+If not, then specify the IRQ via LILO, and let us know
+that it still has problems.
+<P>DMA selection and chip numbering information can be found in
+<A HREF="#lance">AMD LANCE</A>.
+<P>
+<H3>NE/2 MCA</H3>
+
+<P>Status: Semi-Supported, Driver Name: ne2
+<P>There were a few NE2000 microchannel cards made by various
+companies.  This driver, available in v2.2 kernels, will detect
+the following MCA cards: Novell Ethernet Adapter NE/2,
+Compex ENET-16 MC/P, and the Arco Ethernet Adapter AE/2.
+<P>
+<H3><A NAME="ne3200"></A> NE3200</H3>
+
+<P>Status: Not Supported.
+<P>While there is no driver support in the current 2.4 kernel,
+Rask Ingemann Lambertsen has been playing around with an
+old EISA machine and had an experimental driver at:
+<CODE>http://vip.cybercity.dk/~ccc94453/linux/ne3200/</CODE>
+<P>
+<H3><A NAME="ne3210"></A> NE3210</H3>
+
+<P>Status: Supported, Driver Name: ne3210 (+8390)
+<P>This EISA card is completely different from the NE3200, as it
+uses a Nat Semi 8390 chip.  The driver can be found in the v2.2
+kernel source tree.  Ensure you set the shared memory address below
+1MB or above the highest address of the physical RAM installed in
+the machine.
+<P>
+<H3>NE4100</H3>
+
+<P>Status: Supported, Driver Name: pcnet_cs
+<P>
+<H3>NE5500</H3>
+
+<P>Status: Supported, Driver Name: pcnet32
+<P>These are just AMD PCnet-PCI cards ('970A) chips. More
+information on LANCE/PCnet based cards can be found in
+<A HREF="#lance">AMD LANCE</A>.
+<P>
+<P>
+<H2><A NAME="ss4.32">4.32 Netgear</A>
+</H2>
+
+<P>
+<P>
+<H3>Netgear FA-311</H3>
+
+<P>Status: Supported, Driver Name: natsemi
+<P>
+<H3>Netgear GA-620</H3>
+
+<P>Status: Supported, Driver Name: acenic
+<P>
+<H3>Netgear GA-621</H3>
+
+<P>Status: Supported, Driver Name: ns83820
+<P>
+<H2><A NAME="ss4.33">4.33 Proteon</A>
+</H2>
+
+<P>
+<P>
+<H3>Proteon P1370-EA</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>Apparently this is a NE2000 clone, and works fine with Linux.
+<P>
+<H3>Proteon P1670-EA</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>This is yet another PCI card that is based on DEC's Tulip chip.
+It has been reported to work fine with Linux.
+<P>See the section on the 21040 chip
+(
+<A HREF="#dec-21040">DEC 21040</A>)
+for more driver information.
+<P>
+<P>
+<H2><A NAME="ss4.34">4.34 Pure Data</A>
+</H2>
+
+<P>
+<P>
+<H3>PDUC8028, PDI8023</H3>
+
+<P>Status: Supported, Driver Name: wd (+8390)
+<P>The PureData PDUC8028 and PDI8023 series of cards are
+`almost clones' of the wd80x3 cards - there is
+special code in the <CODE>wd.c</CODE> driver to probe for
+these cards. 
+<P>
+<H2><A NAME="ss4.35">4.35 Racal-Interlan</A>
+</H2>
+
+<P>
+<P>Racal Interlan can be reached via WWW at
+<CODE>www.interlan.com</CODE>. I believe they were also known as
+MiCom-Interlan at one point in the past.
+<P>
+<H3>ES3210</H3>
+
+<P>Status: Semi-Supported, Driver Name: es3210
+<P>This is an EISA 8390 based shared memory card. An experimetal
+driver is shipped with v2.2 kernels and it is reported to
+work fine, but the EISA IRQ and shared memory address detection
+appears not to work with (at least) the early revision cards.
+(This problem is not unique to the Linux world either...)
+In that case, you have to supply them to the driver.
+For example, card at IRQ 5 and shared memory <CODE>0xd0000</CODE>,
+with a modular driver, add
+<CODE>options es3210 irq=5 mem=0xd0000</CODE> to <CODE>/etc/modules.conf</CODE>.
+Or with the driver compiled into the kernel, supply at
+boot <CODE>ether=5,0,0xd0000,eth0</CODE>
+The I/O base is automatically detected
+and hence a value of zero should be used.
+<P>
+<H3>NI5010</H3>
+
+<P>Status: Semi-Supported, Driver Name: ni5010 
+<P>You used to have to go get the driver for these old 8 bit 
+MiCom-Interlan cards separately, but now it is shipped with
+the v2.2 kernels as an experimental driver.
+<P>
+<H3>NI5210</H3>
+
+<P>Status: Semi-Supported, Driver Name: ni52
+<P>This card also uses one of the Intel chips. 
+Michael Hipp has written a driver for this card. It is included
+in the standard kernel as an `alpha' driver. Michael would like
+to hear feedback from users that have this card. See
+<A HREF="Ethernet-HOWTO-2.html#alfa">Alpha Drivers</A> for important
+information on using alpha-test ethernet drivers
+with Linux.
+<P>
+<H3><A NAME="ni65xx"></A> NI6510 (not EB)</H3>
+
+<P>Status: Semi-Supported, Driver Name: ni65
+<P>There is also a driver for the LANCE based NI6510, and it
+is also written by Michael Hipp. Again, it is also an
+`alpha' driver. For some reason, this card is not compatible
+with the generic LANCE driver. See
+<A HREF="Ethernet-HOWTO-2.html#alfa">Alpha Drivers</A> for important
+information on using alpha-test ethernet drivers
+with Linux.
+<P>
+<H3>EtherBlaster (aka NI6510EB)</H3>
+
+<P>Status: Supported, Driver Name: lance
+<P>As of kernel 1.3.23, the generic LANCE driver had a check
+added to it for the <CODE>0x52, 0x44</CODE> NI6510EB specific signature.
+Others have reported that this signature is not the same
+for all NI6510EB cards however, which will cause the lance
+driver to not detect your card. If this happens to you, you
+can change the probe (at about line 322 in lance.c) to printk()
+out what the values are for your card and then use them instead
+of the <CODE>0x52, 0x44</CODE> defaults.
+<P>The cards should probably be run in `high-performance' mode
+and not in the NI6510 compatible mode when using the lance driver.
+<P>
+<P>
+<H2><A NAME="ss4.36">4.36 RealTek</A>
+</H2>
+
+<P>
+<P>
+<H3><A NAME="aep-100"></A> RealTek RTL8002/8012 (AT-Lan-Tec) Pocket adaptor</H3>
+
+<P>Status: Supported, Driver Name: atp
+<P>This is a generic, low-cost OEM pocket adaptor being sold by
+AT-Lan-Tec, and (likely) a number of other suppliers. A
+driver for it is included in the standard kernel.
+Note that there is substantial information contained in the
+driver source file `atp.c'.
+<P>Note that the device name that you pass to <CODE>ifconfig</CODE>
+was <EM>not</EM> <CODE>eth0</CODE> but <CODE>atp0</CODE> for earlier versions
+of this driver.
+<P>
+<H3>RealTek 8008</H3>
+
+<P>Status: Supported, Driver Name: ne, wd (+8390)
+<P>This chip has been reported to behave similar to the AT/LANTIC
+in that it can be set for ne/PIO or wd/MMIO modes of operation
+via the vendor supplied software (SET8008R).
+<P>
+<H3>RealTek 8009</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>This is an ISA NE2000 clone, and is reported to work fine with
+the linux NE2000 driver.
+The <CODE>rset8009.exe</CODE> program can be obtained from RealTek's
+WWW site at <CODE>http://www.realtek.com.tw</CODE> - or via ftp
+from the same site.
+<P>
+<H3>RealTek 8019</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>This is a Plug and Pray version of the above.  Use the DOS
+software to disable PnP and enable jumperless configuration;
+set the card to a sensible I/O address and IRQ and you should
+be ready to go.  (If using the driver as a module, don't forget
+to add an <CODE>io=0xNNN</CODE> option to <CODE>/etc/modules.conf</CODE>).
+The <CODE>rset8019.exe</CODE> program can be obtained from RealTek's
+WWW site at <CODE>http://www.realtek.com.tw</CODE> - or via ftp
+from the same site.
+<P>
+<H3>RealTek 8029</H3>
+
+<P>Status: Supported, Driver Name: ne, ne2k-pci (+8390)
+<P>This is a PCI single chip implementation of a NE2000 clone.
+Various vendors are now selling cards with this chip. See
+<A HREF="#ne2k-pci">NE2000-PCI</A> for information on
+using any of these cards.  Note that
+this is still a 10+ year old design just glued onto a
+PCI bus. Performance won't be staggeringly better than
+the equivalent ISA model.
+<P>
+<P>
+<H3><A NAME="rtl8139"></A> RealTek 8129/8139</H3>
+
+<P>Status: Supported, Driver Name: 8139too, rtl8139(old)
+<P>Another PCI single chip ethernet solution from RealTek.
+A driver for cards based upon this chip was included
+in the v2.0.34 release of linux.  The driver is called
+<CODE>8139too</CODE> in recent kernels.
+<P>In older kernels, the driver was called <CODE>rtl8139</CODE> 
+and you generally had to to answer `Y' when asked if you want 
+experimental drivers to get access to this driver. 
+<P>
+<H2><A NAME="ss4.37">4.37 Sager</A>
+</H2>
+
+<P>
+<P>
+<H3>Sager NP943</H3>
+
+<P>Status: Semi-Supported, Driver Name: 3c501
+<P>This is just a 3c501 clone, with a different S.A. PROM
+prefix. I assume it is equally as brain dead as the
+original 3c501 as well. The driver checks
+for the NP943 I.D. and then just treats it as a 3c501
+after that. See 
+<A HREF="#3c501">3Com 3c501</A>
+for all the reasons as to why you really don't want
+to use one of these cards.
+<P>
+<H2><A NAME="ss4.38">4.38 Schneider &amp; Koch</A>
+</H2>
+
+<P>
+<P>
+<H3>SK G16</H3>
+
+<P>Status: Obsolete, Driver Name: sk_g16
+<P>This driver was included into the v1.1 kernels, and it was
+written by PJD Weichmann and SWS Bern. It appears that the
+SK G16 is similar to the NI6510, in that it is based on
+the first edition LANCE chip (the 7990). Once again, it
+appears as though this card won't work with the generic
+LANCE driver.
+<P>It was marked obsolete as of the 2.4 series kernels.
+<P>
+<H2><A NAME="ss4.39">4.39 SEEQ</A>
+</H2>
+
+<P>
+<P>
+<H3>SEEQ 8005</H3>
+
+<P>Status: Obsolete, Driver Name: seeq8005
+<P>There is little information
+about the card included in the driver, and hence little
+information to be put here. If you have a question, you
+are probably best trying to e-mail the driver author
+as listed in the source.
+<P>It was marked obsolete as of the 2.4 series kernels.
+<P>
+<H2><A NAME="ss4.40">4.40 SiS (Silicon Integrated Systems) </A>
+</H2>
+
+<P>
+<P>SiS have long been in the business of making motherboard
+chipsets even back in the 386 days.  Now they also have
+some ethernet chips that are quite common as well.
+<P>
+<H3>SiS 900 (7016, 630E, 962)</H3>
+
+<P>Status: Supported, Driver Name: sis900
+<P>This device can be found as a standalone PCI card, or as
+built-in on the motherboard.  The driver has been present
+since late 2.2 kernels.
+<P>
+<H2><A NAME="smc"></A> <A NAME="ss4.41">4.41 SMC (Standard Microsystems Corp.) </A>
+</H2>
+
+<P>
+<P>
+<P>The ethernet part of Western Digital was bought out by SMC
+many years ago when the wd8003 and wd8013 were the main
+product. Since then SMC has continued making 8390 based
+ISA cards (Elite16, Ultra, EtherEZ) and also added several
+PCI products to their range.
+<P>Contact information for SMC:
+<P>SMC / Standard Microsystems Corp., 80 Arkay Drive, Hauppage, New York,
+11788, USA.  Technical Support via phone: 800-992-4762 (USA) or
+800-433-5345 (Canada) or 516-435-6250 (Other Countries).
+Literature requests: 800-SMC-4-YOU (USA) or 800-833-4-SMC (Canada)
+or 516-435-6255  (Other Countries).  Technical Support via E-mail:
+<CODE>techsupt@ccmail.west.smc.com</CODE>. FTP Site: <CODE>ftp.smc.com</CODE>.
+WWW Site: 
+<A HREF="http://www.smc.com">SMC</A>.
+<P>
+<H3>WD8003, SMC Elite</H3>
+
+<P>Status: Supported, Driver Name: wd (+8390)
+<P>These are the 8-bit versions of the card. The
+8 bit 8003 is slightly less expensive, but only
+worth the savings for light use. Note that some
+of the non-EEPROM cards (clones with jumpers, or
+old <EM>old</EM> old wd8003 cards) have no way of reporting
+the IRQ line used. In this case, auto-irq is used, and if
+that fails, the driver silently assings IRQ 5.
+You can get the SMC setup/driver disks from SMC's ftp site.
+Note that some of the
+newer SMC `SuperDisk' programs will fail to detect
+the real old EEPROM-less cards. The file <CODE>SMCDSK46.EXE</CODE>
+seems to be a good all-round choice. Also the jumper
+settings for all their cards are in an ASCII text file in the
+aforementioned archive. The latest (greatest?) version
+can be obtained from <CODE>ftp.smc.com</CODE>.
+<P>As these are basically the
+same as their 16 bit counterparts (WD8013 / SMC Elite16),
+you should see the next section for more information.
+<P>
+<P>
+<H3><A NAME="8013"></A> WD8013, SMC Elite16</H3>
+
+<P>Status: Supported, Driver Name: wd (+8390)
+<P>Over the
+years the design has added more registers and an
+EEPROM. (The first wd8003 cards appeared about ten years ago!)
+Clones usually go by the `8013' name, and
+usually use a non-EEPROM (jumpered) design.
+Late model SMC cards will have the SMC 83c690 chip instead
+of the original Nat Semi DP8390 found on earlier cards.
+The shared memory design makes the cards a bit faster
+than PIO cards, especially with larger packets.
+More importantly, from the
+driver's point of view, it avoids a few bugs in the
+programmed-I/O mode of the 8390, allows safe
+multi-threaded access to the packet buffer, and
+it doesn't have a programmed-I/O data register that
+hangs your machine during warm-boot probes.
+<P>Non-EEPROM cards that can't just read the selected
+IRQ will attempt auto-irq, and if that fails, they will
+silently assign IRQ 10. (8 bit versions will assign IRQ 5)
+<P>Cards with a non standard amount of memory on board can
+have the memory size specified at boot (or as an option
+in <CODE>/etc/modules.conf</CODE> if using modules).
+The standard memory size is
+8kB for an 8bit card and 16kB for a 16bit card.
+For example, the older WD8003EBT cards could be jumpered
+for 32kB memory. To make full use of that RAM, you would
+use something like (for I/O=0x280 and IRQ 9):
+<HR>
+<PRE>
+        LILO: linux ether=9,0x280,0xd0000,0xd8000,eth0
+</PRE>
+<HR>
+<P>Also see 
+<A HREF="Ethernet-HOWTO-2.html#8013-probs">8013 problems</A>
+for some of the more common problems and frequently
+asked questions that pop up often.
+<P>If you intend on using this driver as a loadable module
+you should probably see
+<A HREF="Ethernet-HOWTO-8.html#modules">Using the Ethernet Drivers as Modules</A>
+for module specific information.
+<P>
+<H3><A NAME="ultra"></A> SMC Elite Ultra</H3>
+
+<P>Status: Supported, Driver Name: smc-ultra (+8390)
+<P>This ethercard is based on the
+83c790 chip from SMC, which has
+a few new features over the 83c690. While it has a mode that is
+similar to the older SMC ethercards, it's not entirely
+compatible with the old WD80*3 drivers. However, in
+this mode it shares most of its code with the other
+8390 drivers, while operating slightly faster than a
+WD8013 clone.
+<P>Since part of the Ultra <EM>looks like</EM>
+an 8013, the Ultra probe is supposed to find an
+Ultra before the wd8013 probe has a chance to
+mistakenly identify it.
+<P>Donald mentioned that it is possible to write a separate
+driver for the Ultra's `Altego' mode which allows
+chaining transmits at the cost of inefficient use of receive
+buffers, but that will probably not happen.
+<P>Bus-Master SCSI host adaptor users take note: In the
+manual that ships with Interactive UNIX, it mentions
+that a bug in the SMC Ultra will cause data corruption
+with SCSI disks being run from an aha-154X host adaptor.
+This will probably bite aha-154X compatible cards, such
+as the BusLogic boards, and the AMI-FastDisk SCSI host
+adaptors as well.
+<P>SMC has acknowledged the problem occurs with
+Interactive, and older Windows NT drivers. It is
+a hardware conflict with early revisions of the card
+that can be worked around in the driver design. The current
+Ultra driver protects against this by only enabling the
+shared memory during data transfers with the card. Make sure
+your kernel version is at least 1.1.84, or that the driver
+version reported at boot is at least <CODE>smc-ultra.c:v1.12</CODE>
+otherwise you are vulnerable.
+<P>If you intend on using this driver as a loadable module
+you should probably see
+<A HREF="Ethernet-HOWTO-8.html#modules">Using the Ethernet Drivers as Modules</A>
+for module specific information.
+<P>
+<H3><A NAME="ultra32"></A> SMC Elite Ultra32 EISA</H3>
+
+<P>Status: Supported, Driver Name: smc-ultra32 (+8390)
+<P>This EISA card shares a lot in common with its ISA counterpart.
+A working (and stable) driver is included in both v2.0 
+and v2.2 kernels.  Thanks go to Leonard
+Zubkoff for purchasing some of these cards so that linux support
+could be added for them.
+<P>
+<H3>SMC EtherEZ (8416)</H3>
+
+<P>Status: Supported, Driver Name: smc-ultra (+8390)
+<P>This card uses SMC's 83c795 chip and supports the Plug 'n Play
+specification. It also has an <EM>SMC Ultra</EM> compatible mode,
+which allows it to be used with the Linux Ultra driver.
+For best results, use the SMC supplied program (avail. from
+their www/ftp site) to disable PnP and configure it for
+shared memory mode.  See the above information for notes on
+the Ultra driver.
+<P>For v1.2 kernels, the card had to be configured for
+shared memory operation. However v2.0 kernels can use the
+card in shared memory or programmed I/O mode. Shared
+memory mode will be slightly faster, and use
+less CPU resources as well.
+<P>
+<H3><A NAME="smc-pci"></A> SMC EtherPower PCI (8432)</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>NB: The EtherPower II is an entirely different card. See
+below!
+These cards are
+a basic DEC 21040 implementation, i.e. one big chip
+and a couple of transceivers. Donald has used one
+of these cards for his development of the generic
+21040 driver (aka <CODE>tulip.c</CODE>). Thanks to Duke Kamstra,
+once again, for supplying a card to do development on.
+<P>Some of the later revisons of this card use the newer
+DEC 21041 chip, which may cause problems with
+older versions of the tulip driver. If you have problems,
+make sure you are using the latest driver release, which
+may not yet be included in the current kernel source tree.
+<P>See 
+<A HREF="#dec-21040">DEC 21040</A> for more
+details on using one of these cards, and the current
+status of the driver.
+<P>Apparently, the latest revision of the card, the EtherPower-II
+uses the 9432 chip. It is unclear at the moment if this one will
+work with the present driver. As always, if unsure, check
+that you can return the card if it doesn't work with the linux
+driver <EM>before</EM> paying for the card.
+<P>
+<H3><A NAME="smc-pci-II"></A> SMC EtherPower II PCI (9432)</H3>
+
+<P>Status: Semi-Supported, Driver Name: epic100
+<P>These cards, based upon the SMC 83c170 chip, are entirely
+different than the Tulip based cards. A new driver
+has been included in kernels v2.0 and v2.2 to support
+these cards. For more details, see:
+<P><CODE>http://www.scyld.com/network</CODE>
+<P>
+<P>
+<H3>SMC 1211TX 10/100</H3>
+
+<P>Status: Semi-Supported, Driver Name: 8139too, rtl8139(old)
+<P>Apparently SMC is no longer the same company that brought you 
+cards like the Ultra and the EPIC. The chip design part is now
+called SMSC and you will see the SMC name stuck on low end 
+OEM boards like this one - a RealTek 8139 with a modified
+EEPROM.
+<P>
+<H3>SMC 3008</H3>
+
+<P>Status: Not Supported.
+<P>These 8 bit cards are based on the Fujitsu MB86950, which is an
+ancient version of the MB86965 used in the Linux at1700
+driver. Russ says that you could probably hack up a driver
+by looking at the at1700.c code and his DOS packet driver
+for the Tiara card (tiara.asm). They are not very common.
+<P>
+<H3>SMC 3016</H3>
+
+<P>Status: Not Supported.
+<P>These are 16bit I/O mapped 8390 cards, much similar to a generic
+NE2000 card. If you can get the specifications from SMC, then
+porting the NE2000 driver would probably be quite easy.
+They are not very common.
+<P>
+<H3>SMC-9000 / SMC 91c92/4</H3>
+
+<P>Status: Supported, Driver Name: smc9194
+<P>The SMC9000 is a VLB card based on the 91c92 chip.
+The 91c92 appears on a few other brand cards as well,
+but is fairly uncommon.
+<P>
+<H3>SMC 91c100</H3>
+
+<P>Status: Semi-Supported, Driver Name: smc9194
+<P>The SMC 91c92 driver is supposed to work for cards based on this
+100Base-T chip, but at the moment this is unverified.
+<P>
+<H3>SMC 9452TX/9462TX</H3>
+
+<P>Status: Supported, Driver Name: ns83820
+<P>
+<H2><A NAME="ss4.42">4.42 Sundance</A>
+</H2>
+
+<P>
+<P>
+<H3>Sundance ST201, Alta</H3>
+
+<P>Status: Supported, Driver Name: sundance
+<P>The Sundance Alta chip is used on OEM boards.  It uses bus-master
+transfers, can transmit from and receive into arbitrarily aligned
+buffers, and has a 64 element multicast hash.  All chip versions 
+have flow control and ACPI power states.
+<P>
+<H2><A NAME="ss4.43">4.43 SysKonnect</A>
+</H2>
+
+<P>
+<P>
+<H3>SysKonnect sk-98xx Gigabit Ethernet</H3>
+
+<P>Status: Supported, Driver Name: sk98
+<P>Early reports indicated that this chipset had a problem
+with Tx checksums, which hurts performance a little.
+<P>
+<H2><A NAME="ss4.44">4.44 Texas Instruments</A>
+</H2>
+
+<P>
+<P>
+<H3><A NAME="tlan"></A> ThunderLAN</H3>
+
+<P>Status: Supported, Driver Name: tlan
+<P>This driver covers many Compaq built-in ethernet devices,
+including the NetFlex and Netelligent groups. It also supports
+the Olicom 2183, 2185, 2325 and 2326 products.
+<P>
+<H2><A NAME="ss4.45">4.45 Thomas Conrad</A>
+</H2>
+
+<P>
+<P>
+<H3>Thomas Conrad TC-5048</H3>
+
+<P>
+<P>This is yet another PCI card that is based on DEC's 21040 chip.
+<P>See the section on the 21040 chip
+(
+<A HREF="#dec-21040">DEC 21040</A>)
+for more information.
+<P>
+<H2><A NAME="ss4.46">4.46 VIA</A>
+</H2>
+
+<P>
+<P>You probably won't see a VIA networking card, as VIA make several
+networking chips that are then used by others in the construction
+of an ethernet card.  They have a WWW site at:
+<P><CODE>http://www.via.com.tw/</CODE>
+<P>
+<H3>VIA 86C926 Amazon</H3>
+
+<P>Status: Supported, Driver Name: ne, ne2k-pci (+8390)
+<P>This controller chip is VIA's PCI-NE2000 offering. You
+can choose between the ISA/PCI <CODE>ne.c</CODE> driver or
+the PCI-only <CODE>ne2k-pci.c</CODE> driver. See the PCI-NE2000
+section for more details.
+<P>
+<H3><A NAME="rhine"></A> VIA 86C100A Rhine II (and 3043 Rhine I)</H3>
+
+<P>Status Supported, Driver Name: via-rhine
+<P>This relatively new driver can be found in current 2.0
+and 2.1 kernels.  It is an improvement over the 86C926
+NE2000 chip in that it supports bus master transfers, but
+strict 32 bit buffer alignment requirements limit the
+benefit gained from this. For more details and driver
+updates, see:
+<P><CODE>http://www.scyld.com/network</CODE>
+<P>
+<P>
+<H2><A NAME="ss4.47">4.47 Western Digital</A>
+</H2>
+
+<P>
+<P>Please see 
+<A HREF="#smc">SMC</A> for
+information on SMC cards. (SMC bought out Western Digital's
+network card section many years ago.)
+<P>
+<H2><A NAME="ss4.48">4.48 Winbond</A>
+</H2>
+
+<P>Winbond don't really make and sell complete cards to the
+general public -- instead they make single chip ethernet
+solutions that other companies buy, stick onto a PCI board
+with their own name and then sell through retail stores.
+Some setup programs and tech support is available at:
+<P><CODE>http://www.winbond.com.tw</CODE>
+<P>
+<H3>Winbond 89c840</H3>
+
+<P>Status: Supported, Driver Name: winbond-840
+<P>This chip has been described as `the mutant spawn of a NE2000 and
+a Tulip clone' -- see the driver notes for more details. 
+This driver also supports the TX9882 chip found on the
+Compex RL100-ATX.
+<P>
+<H3>Winbond 89c904, 89c905, 89c906</H3>
+
+<P>Status: Supported, Driver Name: ne (+8390)
+<P>These are Winbond's ISA 10Mbps ne2000 compatible ethernet
+chips. Setup programs are available at the Winbond site.
+<P>
+<H3>Winbond 89c940</H3>
+
+<P>Status: Supported, Driver Name: ne, ne2k-pci (+8390)
+<P>This chip is one of the two commonly found on the low price
+PCI ne2000 cards sold by lots of manufacturers. Note that
+this is still a 10+ year old design just glued onto a
+PCI bus. Performance won't be staggeringly better than
+the equivalent ISA model.
+<P>
+<H2><A NAME="xircom"></A> <A NAME="ss4.49">4.49 Xircom</A>
+</H2>
+
+<P>
+<P>For the longest time, Xircom wouldn't release the programming
+information required to write a driver, unless you signed
+your life away. Apparently enough linux users have pestered them
+for driver support (they claim to support all popular networking
+operating systems...) so that they have changed their policy
+to allow documentation to be released without having to
+sign a non-disclosure agreement. Some people have said they
+they will release the source code to the SCO driver, while others
+have been told that they are no longer providing information
+on `obsolete' products like the earlier PE models.
+If you are interested and want to check into this yourself, you can
+reach Xircom at 1-800-874-7875, 1-800-438-4526 or +1-818-878-7600.
+<P>
+<H3>Xircom PE1, PE2, PE3-10B*</H3>
+
+<P>Status: Not Supported.
+<P>Not to get your hopes up, but if you have one of these parallel
+port adaptors, you may be able to use it in the DOS emulator
+with the Xircom-supplied DOS drivers. You will have to allow
+DOSEMU access to your parallel port, and will probably have
+to play with SIG (DOSEMU's Silly Interrupt Generator).
+<P>
+<H3>Xircom CE, CEM, CE2, CE3</H3>
+
+<P>
+<P>Status: Supported, Driver Name: xirc2ps_cs
+<P>According to the driver, this supports the CE2, CE IIps, RE-10, 
+CEM28, CEM33, CE33, CEM56, CE3-100, CE3B, RE-100, REM10BT, and 
+the REM56G-100.
+<P>
+<H3>Xircom CBE-100</H3>
+
+<P>Status: Supported, Driver Name: xircom_tulip_cb
+<P>A tulip-like implementation on CardBus.
+<P>
+<P>
+<H2><A NAME="zenith"></A> <A NAME="ss4.50">4.50 Zenith</A>
+</H2>
+
+<P>
+<P>
+<H3><A NAME="z-note"></A> Z-Note</H3>
+
+<P>Status: Obsolete, Driver Name: znet
+<P>The built-in Z-Note network adaptor is based on the Intel
+i82593 using <EM>two</EM> DMA channels. 
+Also note that the IBM ThinkPad 300 is compatible with the Z-Note.
+<P>
+<H2><A NAME="zynx"></A> <A NAME="ss4.51">4.51 Znyx</A>
+</H2>
+
+<P>
+<P>
+<H3>Znyx ZX342 (DEC 21040 based)</H3>
+
+<P>Status: Supported, Driver Name: de4x5, tulip
+<P>You have a choice of <EM>two</EM> drivers for cards based on this
+chip. There is the DE425 driver written by David, and the
+generic 21040 driver that Donald has written.
+<P>Note that as of 1.1.91, David has added a compile time option that
+may allow non-DEC cards (such as the Znyx cards) to work with
+this driver. Have a look at <CODE>README.de4x5</CODE> for details.
+<P>See 
+<A HREF="#dec-21040">DEC 21040</A>
+for more information on these cards, and the present driver
+situation.
+<P>
+<H2><A NAME="mystery"></A> <A NAME="ss4.52">4.52 Identifying an Unknown Card</A>
+</H2>
+
+<P>
+<P>Okay, so your uncle's cousin's neighbour's friend had a brother
+who found an old ISA ethernet card in the AT case he was using as
+a cage for his son's pet hampster. Somehow you ended up with
+the card and want to try and use it with linux, but nobody
+has a clue what the card is and there isn't any documentation.
+<P>First of all, look for any obvious model numbers that might
+give a clue. Any model number that contains 2000 will most
+likely be a NE2000 clone. Any cards with 8003 or 8013
+on them somewhere will be Western/Digital WD80x3 cards
+or SMC Elite cards or clones of them.
+<P>
+<H3>Identifying the Network Interface Controller</H3>
+
+<P>Look for the biggest chip on the card. This will be the
+network controller (NIC) itself, and most can be identified by
+the part number. If you know which NIC is on the card, the
+following might be able to help you figure out what card it is.
+<P>Probably the most common ISA NIC is the National Semiconductor
+DP8390 aka NS32490 aka DP83901 aka DP83902 aka DP83905 aka DP83907.
+And those are just the ones made by National! Other companies
+such as Winbond and UMC make DP8390 and DP83905 clone parts,
+such as the Winbond 89c904 (DP83905 clone) and the UMC 9090.
+If the card has some form of 8390 on it, then chances are it
+is a ne1000 or ne2000 clone card. The second most common 8390
+based card are wd80x3 cards and clones. Cards with a DP83905
+can be configured to be an ne2000 <EM>or</EM> a wd8013. Never versions
+of the genuine wd80x3 and SMC Elite cards have an 83c690 in place
+of the original DP8390. The SMC Ultra cards have an 83c790,
+and use a slightly different driver than the wd80x3 cards.
+The SMC EtherEZ cards have an 83c795, and use the same driver
+as the SMC Ultra. All BNC cards based on some sort of 8390 or
+8390 clone will usually have an 8392 (or 83c692, or ???392)
+16 pin DIP chip very close to the BNC connector.
+<P>Another common NIC found on older cards is the Intel i82586.
+Cards having this NIC include the 3c505, 3c507, 3c523, Intel
+EtherExpress-ISA, Microdyne Exos-205T, and the Racal-Interlan NI5210.
+<P>The original AMD LANCE NIC was numbered AM7990, and newer
+revisions include the 79c960, 79c961, 79c965, 79c970, and 79c974.
+Most cards with one of the above will work with the Linux LANCE
+driver, with the exception of the old Racal-Interlan NI6510
+cards that have their own driver.
+<P>Newer PCI cards having a DEC 21040, 21041, 21140, or similar
+number on the NIC should be able to use the linux tulip or
+de4x5 driver.
+<P>Other PCI cards having a big chip marked RTL8029 or
+89C940 or 86C926 are ne2000 clone cards, and the ne2k-pci driver 
+should automatically detect these cards.
+<P>
+<H3>Identifying the Ethernet Address</H3>
+
+<P>
+<P>Each ethernet card has its own six byte address that is
+unique to that card. The first three bytes of that address
+are the same for each card made by that particular manufacturer.
+For example all SMC cards start with <CODE>00:00:c0</CODE>.
+The last three are assigned by the manufacturer uniquely to each
+individual card as they are produced.
+<P>If your card has a sticker on it giving all six bits of its
+address, you can look up the vendor from the first three.
+However it is more common to see only the last three bytes
+printed onto a sticker attached to a socketed PROM,
+which tells you nothing.
+<P>You can determine which vendors have which assigned addresses
+from RFC-1340. Apparently there is a more up to date listing
+available in various places as well. Try a WWW or FTP search
+for <CODE>EtherNet-codes</CODE> or <CODE>Ethernet-codes</CODE> and you will
+find something.
+<P>
+<H3>Identifying the Card by the FCC ID Number</H3>
+
+<P>
+<P>As part of the certification process a card typically
+has to pass before being sold to the user, it gets tested
+by the FCC, and from this gets a FCC ID which is supposed
+to be printed on the card somewhere. For example, a
+card has on it <CODE>FCC ID: J158013EWC</CODE> - and this
+card happens to be a SMC/WD8013-EWC. Some web sites
+like <CODE>www.driverguide.com</CODE> and <CODE>drdriver.com</CODE>
+make use of listings of FCC IDs that may help with less
+obvious ID numbers.  The FCC itself has a search tool
+that may also help, and it is at:
+<P>
+<A HREF=" http://www.fcc.gov/oet/fccid">FCC IDs</A><P>
+<H3>Tips on Trying to Use an Unknown Card</H3>
+
+<P>
+<P>If you are still not sure what the card is, but have at least
+narrowed it down some, then you can build a kernel with a
+whole bunch of drivers included, and see if any of them
+autodetect the card at boot.
+<P>If the kernel doesn't detect the card, it may be that the
+card is not configured to one of the addresses that the
+driver probes when looking for a card. In this case, you
+might want to try getting <CODE>scanport.tar.gz</CODE> from your
+local linux ftp site, and see if that can locate where your
+card is jumpered for. It scans ISA I/O space from <CODE>0x100</CODE>
+to <CODE>0x3ff</CODE> looking for devices that aren't registered in
+<CODE>/proc/ioports</CODE>. If it finds an unknown device starting
+at some particular address, you can then explicity point the
+ethernet probes at that address with an <CODE>ether=</CODE> boot
+argument.
+<P>If you manage to get the card detected, you can then
+usually figure out the unknown jumpers by changing them
+one at a time and seeing at what I/O base and IRQ that the
+card is detected at. The IRQ settings can also usually be
+determined by
+following the traces on the back of the card to where the
+jumpers are soldered through. Counting the `gold fingers'
+on the backside, from the end of the card with the metal bracket,
+you have IRQ 9, 7, 6, 5, 4, 3, 10, 11, 12, 15, 14 at fingers
+4, 21, 22, 23, 24, 25, 34, 35, 36, 37, 38 respectively.
+Eight bit cards only have up to finger 31.
+<P>Jumpers that appear to do nothing usually are for selecting
+the memory address of an optional boot ROM. Other jumpers that
+are located near the BNC or RJ-45 or AUI connectors are usually
+to select the output media. These are also typically near
+the `black box' voltage converters marked YCL, Valor, or Fil-Mag.
+<P>A nice collection of jumper settings for various cards can
+be found at the following URL:
+<P>
+<A HREF="http://www.slug.org.au/NIC/">Ethercard Settings</A><P>
+<P>
+<H2><A NAME="ss4.53">4.53 Drivers for Non-Ethernet Devices</A>
+</H2>
+
+<P>
+<P>There are a few other drivers that are in the linux source
+that present an <EM>ethernet-like</EM> device to network
+programs, while not really being ethernet. These are briefly
+listed here for completeness.
+<P><CODE>dummy.c</CODE> - The purpose of this driver is to provide a device
+to point a route through, but not to actually transmit packets.
+<P><CODE>eql.c</CODE> - Load Equalizer, enslaves multiple devices (usually
+modems) and balances the Tx load across them while presenting
+a single device to the network programs.
+<P><CODE>ibmtr.c</CODE> - IBM Token Ring, which is not really ethernet.
+Broken-Ring requires source routing and other uglies.
+<P><CODE>loopback.c</CODE> - Loopback device, for which all packets
+from your machine and destined for your own machine go.
+It essentially just moves the packet off the Tx queue and
+onto the Rx queue.
+<P><CODE>pi2.c</CODE> - Ottawa Amateur Radio Club PI and PI2 interface.
+<P><CODE>plip.c</CODE> - Parallel Line Internet Protocol, allows two
+computers to send packets to each other over two joined
+parallel ports in a point-to-point fashion.
+<P><CODE>ppp.c</CODE> - Point-to-Point Protocol (RFC1331, 1548. 1661), for
+the Transmission of Multi-protocol Datagrams over a
+Point-to-Point Link (again usually modems).
+<P><CODE>slip.c</CODE> - Serial Line Internet Protocol, allows two
+computers to send packets to each other over two joined
+serial ports (usually via modems) in a point-to-point fashion.
+<P><CODE>tunnel.c</CODE> - Provides an IP tunnel through which you can
+tunnel network traffic transparently across subnets
+<P><CODE>wavelan.c</CODE> - An Ethernet-like radio transceiver
+controlled by the Intel 82586 coprocessor which is used on
+other ethercards such as the Intel EtherExpress.
+<P>
+<HR>
+<A HREF="Ethernet-HOWTO-5.html">Next</A>
+<A HREF="Ethernet-HOWTO-3.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,228 @@
+<HTML
+><HEAD
+><TITLE
+>Theory of operation</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Interface"
+HREF="interface.html"><LINK
+REL="NEXT"
+TITLE="The sg_io_hdr_t structure in detail"
+HREF="sg_io_hdr_t.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="interface.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="sg_io_hdr_t.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="THEORY">Chapter 5. Theory of operation</H1
+><P
+>The path of a request through the sg driver can be broken into 3
+distinct stages:
+<P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>The request is received from the user, resources are 
+    reserved as required (e.g. kernel buffer for indirect IO). If 
+    necessary, data in the user space is transferred into kernel buffers. 
+    Then the request is submitted to the SCSI mid level (and then onto 
+    the adapter) for
+    execution. The SCSI mid level maintains a queue so the request may have
+    to wait. If a SCSI device supports command queuing then it may be able to
+    accommodate multiple outstanding requests.</P
+></LI
+><LI
+><P
+>    Assuming the SCSI adapter supports interrupts, then an interrupt
+    is received when the request is completed. When this interrupt arrives
+    the data transfer is complete. This means that if the SCSI command was
+    a READ then the data is in kernel buffers (indirect IO) or in user
+    buffers (direct or mmap-ed IO). The sg driver is informed of this 
+    interrupt via a kernel mechanism called a "bottom half" handler. Some
+    kernel resources are freed up.</P
+></LI
+><LI
+><P
+>    The user makes a call to fetch the result of the request. If necessary,
+    data in kernel buffers is transferred to the user space. If necessary,
+    the sense buffer is written out to the user space. The remaining
+    kernel resources associated with this request are freed up.</P
+></LI
+></OL
+></P
+><P
+>The write() call performs stage 1 while the read() call performs stage 3. 
+If the read() call is made before stage 2 is complete then it will either
+wait or yield EAGAIN (depending on whether the file descriptor is blocking
+or not). If asynchronous notification is being used then stage 2 will send
+a SIGPOLL signal to the user process. The poll() system call will show this
+file descriptor is now readable (unless it was sent by the SG_IO ioctl()).</P
+><P
+>The SG_IO ioctl() performs stage 1, waits for stage 2 and then
+performs stage 3. If the file descriptor in question is set O_NONBLOCK
+then SG_IO will ignore this and still block! Also a SG_IO call will not
+effect the poll() state nor cause a SIGPOLL signal to be sent. If you
+really want non-blocking operation (e.g. for command queuing) then don't
+use SG_IO; use the write() read() sequence instead.</P
+><P
+>For more information about normal (or indirect), direct and mmap-ed IO
+see <A
+HREF="dmmio.html"
+>Chapter 9</A
+> .</P
+><P
+>Currently the sg driver uses one Linux major device number (char 21)
+which in the lk 2.4 series limits it to handling 256 SCSI devices.
+Any attempt to attach more than this number will rejected with a
+message being sent to the console and the log file.
+<A
+NAME="AEN157"
+HREF="#FTN.AEN157"
+>[1]</A
+></P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN157"
+HREF="theory.html#AEN157"
+>[1]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>Patches exist for sg to extend the number of SCSI devices past the
+256 limit when the device file system (devfs) is being used.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="interface.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="sg_io_hdr_t.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Interface</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>The sg_io_hdr_t structure in detail</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

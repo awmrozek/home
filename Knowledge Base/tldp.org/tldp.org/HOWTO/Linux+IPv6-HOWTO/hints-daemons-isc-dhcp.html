@@ -1,0 +1,260 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>ISC Dynamic Host Configuration Server (dhcpd)</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IPv6 HOWTO (en)"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Hints for IPv6-enabled daemons"
+HREF="chapter-hints-daemons.html"><LINK
+REL="PREVIOUS"
+TITLE="Dynamic Host Configuration v6 Server (dhcp6s)"
+HREF="hints-daemons-dhcpv6..html"><LINK
+REL="NEXT"
+TITLE="DHCP Server Dibbler"
+HREF="hints-daemons-dibbler.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IPv6 HOWTO (en)</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="hints-daemons-dhcpv6..html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 22. Hints for IPv6-enabled daemons</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="hints-daemons-dibbler.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="HINTS-DAEMONS-ISC-DHCP"
+></A
+>22.6. ISC Dynamic Host Configuration Server (dhcpd)</H1
+><P
+>ISC DHCP supports IPv6 since version 4.x.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2714"
+></A
+>22.6.1. Configuration of the ISC DHCP server for IPv6 (dhcpd)</H2
+><P
+>Note that currently, the ISC DHCP server can only serve IPv4 or IPv6, means you have to start the daemon twice (for IPv6 with option &#8220;-6&#8221;) to support both protocols.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2717"
+></A
+>22.6.1.1. Simple configuration</H3
+><P
+>Create a dedicated configuration file /etc/dhcp/dhcpd6.conf for the IPv6 part of the dhcpd. Note, that the router requires to have a interface configured with an IPv6 address out of the defined subnet.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>default-lease-time 600;
+max-lease-time 7200; 
+log-facility local7; 
+subnet6 2001:db8:0:1::/64 {
+        # Range for clients
+        range6 2001:db8:0:1::129 2001:db8:0:1::254;
+        # Additional options
+        option dhcp6.name-servers fec0:0:0:1::1;
+        option dhcp6.domain-search "domain.example";
+        # Prefix range for delegation to sub-routers
+        prefix6 2001:db8:0:100:: 2001:db8:0:f00:: /56;
+        # Example for a fixed host address
+        host specialclient {
+    		host-identifier option dhcp6.client-id 00:01:00:01:4a:1f:ba:e3:60:b9:1f:01:23:45;
+        	fixed-address6 2001:db8:0:1::127;
+    	} 
+} </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Note that the &#8220;dhcp.client-id&#8221; no longer belongs to a MAC address, an unique ID is used instead! &#8220;dhcp6c&#8221; (see above) uses the file /var/lib/dhcpv6/dhcp6c_duid (would be created during first start, if not existing) as unique identity. It's a 14 byte long identifier, starting with a 2 byte length information (usually &#8220;0x000e&#8221;):</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># hexdump -e '"%07.7_ax " 1/2 "%04x" " " 14/1 "%02x:" "\n"' /var/lib/dhcpv6/dhcp6c_duid 0000000 000e 00:01:00:01:4a:1f:ba:e3:60:b9:1f:01:23:45:</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2723"
+></A
+>22.6.2. Usage</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2725"
+></A
+>22.6.2.1. dhcpd</H3
+><P
+>Start server in foreground:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># /usr/sbin/dhcpd -6 -f -cf /etc/dhcp/dhcpd.conf eth1 
+Internet Systems Consortium DHCP Server 4.1.0 
+Copyright 2004-2008 Internet Systems Consortium. 
+All rights reserved. 
+For info, please visit http://www.isc.org/sw/dhcp/ 
+Not searching LDAP since ldap-server, ldap-port and ldap-base-dn were not specified in the config file 
+Wrote 0 leases to leases file. 
+Bound to *:547 
+Listening on Socket/5/eth1/2001:db8:0:1::/64 
+Sending on   Socket/5/eth1/2001:db8:0:1::/64</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="hints-daemons-dhcpv6..html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="hints-daemons-dibbler.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Dynamic Host Configuration v6 Server (dhcp6s)</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="chapter-hints-daemons.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>DHCP Server Dibbler</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

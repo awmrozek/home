@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Remote X Apps mini-HOWTO: X Applications from Another User-id</TITLE>
+ <LINK HREF="Remote-X-Apps-8.html" REL=next>
+ <LINK HREF="Remote-X-Apps-6.html" REL=previous>
+ <LINK HREF="Remote-X-Apps.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Remote-X-Apps-8.html">Next</A>
+<A HREF="Remote-X-Apps-6.html">Previous</A>
+<A HREF="Remote-X-Apps.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="s7">7. X Applications from Another User-id</A></H2>
+
+<P>Suppose you want to run a graphical configuration tool that requires
+root privileges.  However, your X session is running under your usual
+account.  It may seem strange at first, but the X server will <EM>not</EM>
+allow the tool to access your display.  How is this possible when root
+can normally do anything?  And how do you work around this problem?
+<P>
+<P>Let's generalise to the situation where you want to an X appliation
+under a user-id <CODE>clientuser</CODE>, but the X session was started
+by <CODE>serveruser</CODE>.  If you have read the section on cookies,
+it is clear why <CODE>clientuser</CODE> cannot access your display:
+<CODE>~clientuser/.Xauthority</CODE> does not contain the right magic
+cookie for accessing the display.  The right cookie is found in
+<CODE>~serveruser/.Xauthority</CODE>.
+<P>
+<H2><A NAME="ss7.1">7.1 Different Users on the Same Host</A>
+</H2>
+
+<P>Of course, anything that works for remote X also works for X from
+a different user-id as well (particularly <CODE>slogin localhost -l
+clientuser</CODE>).  It's just that the client host and the server host happen
+to be the same.  However, when both hosts are the same, there are some
+shortcuts for transferring the magic cookie.
+<P>
+<P>We'll assume that you use <CODE>su</CODE> to switch user-ids.  Basically, what
+you have to do is write a script that will call <CODE>su</CODE>, but wraps the
+command that <CODE>su</CODE> executes with some code that does the necessary
+things for remote X.  These necessary things are setting the <CODE>DISPLAY</CODE>
+variable and transferring the magic cookie.
+<P>
+<P>Setting <CODE>DISPLAY</CODE> is relatively easy; it just means defining
+<CODE>DISPLAY="$DISPLAY"</CODE> before running the su command argument.  So you
+could just do:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+su - clientuser -c "env DISPLAY=$DISPLAY clientprogram &amp;"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>This doesn't work yet, because we still have to transfer the cookie.
+We can retrieve the cookie using <CODE>xauth list "$DISPLAY"</CODE>.  This command
+happens to list the cookie in a format that's suitable for feeding back
+to the <CODE>xauth add</CODE> command; just what we need!
+<P>We shall want to pass the cookie through a pipe.  Unfortunately, it
+isn't easy to pass something through a pipe to the <CODE>su</CODE> command,
+because <CODE>su</CODE> wants to read the password from its standard input.
+Fortunately again, in a shell script we can joggle some file descriptors
+around, and get it done.
+<P>So we write a script around this, parameterizing by <CODE>clientuser</CODE>
+and <CODE>clientprogram</CODE>.  Let's improve the script a little while we're
+at it, making it less readable but more robust.  It looks like this:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+
+if [ $# -lt 2 ]
+then echo "usage: `basename $0` clientuser command" >&amp;2
+     exit 2
+fi
+
+CLIENTUSER="$1"
+shift
+
+# FD 4 becomes stdin too
+exec 4>&amp;0
+
+xauth list "$DISPLAY" | sed -e 's/^/add /' | {
+
+    # FD 3 becomes xauth output
+    # FD 0 becomes stdin again
+    # FD 4 is closed
+    exec 3>&amp;0 0>&amp;4 4>&amp;-
+
+    exec su - "$CLIENTUSER" -c \
+         "xauth -q &lt;&amp;3
+          exec env DISPLAY='$DISPLAY' "'"$SHELL"'" -c '$*' 3>&amp;-"
+
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>I think this is portable and works well enough in most circumstances.
+The only shortcoming I can think of right now is that, due to using
+<CODE>'$*'</CODE>, single quotes in <CODE>command</CODE> will mess up quoting in the
+<CODE>su</CODE> command argument (<CODE>'$*'</CODE>).  If there's anything else seriously
+wrong with it, please drop me an email.
+<P>
+<P>Call the script <CODE>/usr/local/bin/xsu</CODE>, and you can do:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+xsu clientuser 'command &amp;'
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Can't be much easier, unless you get rid of the password.  Yes, there
+are ways for that too (<CODE>sudo</CODE>), but this is not the place for that.
+<P>
+<P>The tiny <CODE>xsu</CODE> script just mentioned has served as the basis for a
+more extended script called <CODE>sux</CODE> which apparently has found its way
+as a package into the 
+<A HREF="http://www.debian.org/">Debian</A>
+distribution.
+<P>
+<H2><A NAME="ss7.2">7.2 Client User Is Root</A>
+</H2>
+
+<P>Obviously, anything that works for non-root client users is going to
+work for root as well.  However, with root you can make it even easier,
+because root can read anyone's <CODE>~/.Xauthority</CODE> file.  There's no
+need to transfer the cookie.  All you have to do is set <CODE>DISPLAY</CODE>, and
+point <CODE>XAUTHORITY</CODE> to <CODE>~serveruser/.Xauthority</CODE>.  So you can do:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+su - -c "exec env DISPLAY='$DISPLAY' \
+                  XAUTHORITY='${XAUTHORITY-$HOME/.Xauthority}' \
+                  command"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Putting it into a script would give something like:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+if [ $# -lt 1 ]
+then echo "usage: `basename $0` command" >&amp;2
+     exit 2
+fi
+su - -c "exec env DISPLAY='$DISPLAY' \
+                  XAUTHORITY='${XAUTHORITY-$HOME/.Xauthority}' \
+                  "'"$SHELL"'" -c '$*'"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Call the script <CODE>/usr/local/bin/xroot</CODE>, and you can do:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+xroot 'control-panel &amp;'
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Although, if you've set up <CODE>xsu</CODE> already, there's no real reason to
+do this.
+<P>
+<HR>
+<A HREF="Remote-X-Apps-8.html">Next</A>
+<A HREF="Remote-X-Apps-6.html">Previous</A>
+<A HREF="Remote-X-Apps.html#toc7">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>RTLinux HOWTO: Writing RTLinux Programs</TITLE>
+ <LINK HREF="RTLinux-HOWTO-5.html" REL=next>
+ <LINK HREF="RTLinux-HOWTO-3.html" REL=previous>
+ <LINK HREF="RTLinux-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="RTLinux-HOWTO-5.html">Next</A>
+<A HREF="RTLinux-HOWTO-3.html">Previous</A>
+<A HREF="RTLinux-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Writing RTLinux Programs</A></H2>
+
+<H2><A NAME="ss4.1">4.1 Introduction to writing modules</A>
+</H2>
+
+<P>So what are modules? A Linux module is nothing but an object file, usually 
+created with the -c flag argument to gcc. The module itself is created by
+compiling an ordinary C language file without the main() function. Instead 
+there will be a pair of init_module/cleanup_module functions:
+<P>
+<UL>
+<LI>The init_module() which is called when the module is inserted into the kernel.
+It should return 0 on success and a negative value on failure. </LI>
+<LI>The cleanup_module() which is called just before the module is removed.</LI>
+</UL>
+<P>Typically, init_module() either registers a handler for something with the 
+kernel, or it replaces one of the kernel function with its own code 
+(usually code to do something and then call the original function). 
+The cleanup_module() function is supposed to undo whatever init_module() did, 
+so the module can be unloaded safely.
+<P>For example, if you have written a C file called module.c 
+(with init_module() and cleanup_module() replacing the main() function), 
+the code can be converted into a module by typing :
+<P>
+<PRE>
+        $ gcc -c {SOME-FLAGS} my_module.c
+</PRE>
+<P>This command creates a module file named module.o, which can now be inserted
+into the kernel by using the 'insmod' command :
+<P>
+<PRE>
+        $ insmod module.o
+</PRE>
+<P>Similarly, for removing the module, you can use the 'rmmod' command :
+<P>
+<PRE>
+        $ rmmod module
+</PRE>
+<P>
+<H2><A NAME="ss4.2">4.2 Creating RTLinux Threads</A>
+</H2>
+
+<P>A realtime application is usually composed of several ``threads'' of execution.
+Threads are light-weight processes which share a common address space.
+In RTLinux, all threads share the Linux kernel address space. 
+The advantage of using threads is that switching between threads 
+is quite inexpensive when compared with context switch. We can have 
+complete control over the execution of a thread by using different functions
+as will be shown in the examples following.
+<P>
+<H2><A NAME="ss4.3">4.3 An example program</A>
+</H2>
+
+<P>The best way to understand the working of a thread is to trace a realtime 
+program. For example, the program shown below will execute once every second,
+and during each iteration it will print 'Hello World'.
+<P>
+<P>The Program code (file - hello.c) :
+<P>
+<PRE>
+#include &lt;rtl.h&gt;
+#include &lt;time.h&gt;
+#include &lt;pthread.h&gt;
+
+pthread_t thread;
+
+void * thread_code(void)
+{
+        pthread_make_periodic_np(pthread_self(), gethrtime(), 1000000000);
+
+        while (1)
+        {
+                pthread_wait_np ();
+                rtl_printf("Hello World\n");
+        }
+
+        return 0;
+}
+
+int init_module(void) 
+{
+   return pthread_create(&amp;thread, NULL, thread_code, NULL);
+}
+
+void cleanup_module(void) 
+{
+   pthread_delete_np(thread);
+}
+</PRE>
+<P>So, let us start with the init_module(). The init_module() invokes 
+pthread_create(). This is for creating a new thread that executes 
+concurrently with the calling thread. <EM>This function must only be 
+called from the Linux kernel thread (i.e., using init_module()).</EM>
+<P>
+<PRE>
+        int  pthread_create(pthread_t  * thread,
+                            pthread_attr_t * attr,
+                            void * (*thread_code)(void *),
+                            void * arg);
+</PRE>
+<P>The new thread created is of type pthread_t, defined in
+the header pthread.h. This thread executes the function thread_code(),
+passing it <EM>arg</EM> as its argument. The <EM>attr</EM>
+argument specifies thread attributes to be applied to the new thread. 
+If <EM>attr</EM> is NULL, default attributes are used.
+<P>So here, thread_code() is invoked with no argument. thread_code
+has three components - initialization, run-time and termination.
+<P>In the initialization phase, is the call to pthread_make_periodic_np().
+<P>
+<PRE>
+        int pthread_make_periodic_np(pthread_t thread, 
+                                     hrtime_t start_time, 
+                                     hrtime_t period);
+</PRE>
+<P>pthread_make_periodic_np marks the <EM>thread</EM> as ready for execution. 
+The thread will start its execution at <EM>start_time</EM> and will run at 
+intervals specified by <EM>period</EM> given in nanoseconds.
+<P>gethrtime returns the time in nanoseconds since the system bootup. 
+<P>
+<PRE>
+       hrtime_t gethrtime(void);
+</PRE>
+<P>This time is never reset or adjusted. gethrtime always gives monotonically 
+increasing values. hrtime_t is a 64-bit signed integer.
+<P>By calling the function pthread_make_periodic_np(), the thread tells the 
+scheduler to periodically execute this thread at a frequency of 1 Hz. This marks 
+the end of the initialization section for the thread.
+<P>The while() loop begins with a call to the function pthread_wait_np(), which 
+suspends execution of the currently running realtime thread until the start of 
+the next period. The thread was previously marked for execution using 
+pthread_make_periodic_np. Once the thread is called again, it executes the rest 
+of the contents inside the while loop, until it encounters another call to
+pthread_wait_np().
+<P>Because we haven't included any way to exit the loop, this thread will continue 
+to execute forever at a rate of 1Hz. The only way to stop the program is by removing 
+it from the kernel with the rmmod command. This invokes the cleanup_module(),
+which calls pthread_delete_np() to cancel the thread and deallocate its resources.
+<P>
+<HR>
+<A HREF="RTLinux-HOWTO-5.html">Next</A>
+<A HREF="RTLinux-HOWTO-3.html">Previous</A>
+<A HREF="RTLinux-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

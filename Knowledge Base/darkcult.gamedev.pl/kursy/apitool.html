@@ -1,0 +1,371 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Toolbary</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apimenu.html"><< Tworzenie menu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apitool2.html">Toolbary, cz.2 &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H2>
+Tworzenie toolbaru
+</H2>
+
+<P>
+Aplikacje windowsowe, nawet te wyposażone w menu, są wredne i nieprzyjazne użytkownikowi, jeśli nie mają paska narzędzi, zwanego też z angielska toolbarem. Za chwilę dowiemy się o tym fajnym urządzeniu wszystkiego, albo raczej prawie wszystkiego ;-).
+</P>
+<P>
+Na początek zaznaczam, że toolbar jest kontrolką należącą do grona tzw. <SPAN CLASS=Inglisz>Common Controls</SPAN>. Jest to grupa kontrolek, z której korzysta każdy bardziej rozbudowany program windowsowy, a często nawet całkiem malutkie programiki. Mimo tej powszechności korzystanie z nich wymaga nieco zachodu - przede wszystkim musimy dolinkować do programu odpowiednią bibliotekę. W Devie jest to plik <SPAN CLASS=C>libcomctl32.a</SPAN>, w innych środowiskach (np. VC++, LCC) nazywa się on <SPAN CLASS=C>comctl32.lib</SPAN>. Następnie - dołączamy nagłówek <SPAN CLASS=C>commctrl.h</SPAN>. Wreszcie - umieszczamy PRZED jakimikolwiek instrukcjami odwołującymi się do kontrolek typu <SPAN CLASS=Inglisz>Common Controls</SPAN> wywołanie funkcji <SPAN CLASS=T>InitCommonControls</SPAN> - najlepiej uczynić to gdzieś w okolicach miejsca, gdzie tworzymy główne okno:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+InitCommonControls();<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Po tych zabiegach możemy wreszcie utworzyć toolbar. Metody są dwie: albo robimy to znaną już doskonale funkcją <SPAN CLASS=T>CreateWindowEx</SPAN> (wtedy korzystamy ze stałej <SPAN CLASS=T>TOOLBARCLASSNAME</SPAN>, określającą nazwę klasy toolbaru), albo też (to wersja wygodniejsza) - specjalną funkcją <SPAN CLASS=T>CreateToolbarEx</SPAN>.
+</P>
+<P>
+Metoda numer dwa jest o tyle lepsza, że daje nam możliwość zrobienia od razu kompletnego toolbaru (z przyciskami), więc nie będziemy musieli ich później dodawać po kolei. Argumentów ma ta <SPAN CLASS=T>CreateToolbarEx</SPAN> sporo, a najważniejszy z nich to tablica struktur typu <SPAN CLASS=T>TBBUTTON</SPAN> - jak się pewnie domyślasz, każda z takich struktur opisuje kolejny przycisk. I jak się pewnie domyślasz, za moment sobie tę strukturę dokładnie omówimy ;-).
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<SPAN CLASS=K>struct </SPAN><SPAN CLASS=T>TBBUTTON</SPAN>
+</TD></TR><TR></TR><TR></TR><TR></TR>
+<TR><TH CLASS=ARGLIST>Pole</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=K>int</SPAN> <SPAN CLASS=T>iBitmap</SPAN></TD><TD CLASS=ARGLIST>Indeks bitmapy</TD></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=K>int</SPAN> <SPAN CLASS=T>idCommand</SPAN></TD><TD CLASS=ARGLIST>Indeks komendy</TD></TR> 
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>BYTE fsState</SPAN></TD><TD CLASS=ARGLIST>Stan (lub kombinacja stanów) przycisku</TD></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>BYTE fsStyle</SPAN></TD><TD CLASS=ARGLIST>Styl (lub kombinacja stylów) przycisku</TD></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>DWORD dwData</SPAN></TD><TD CLASS=ARGLIST>Do wszelakich zastosowań ;-)</TD></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T><SPAN CLASS=K>int</SPAN> iString</SPAN></TD><TD CLASS=ARGLIST>Indeks etykiety przycisku lub wskaźnik do stringa</TD></TR>
+</TABLE>
+
+<P>
+Jak widzisz, przyciskom nie przypisujemy pojedynczych uchwytów do bitmap, tylko indeksy - to dlatego, że toolbar posiada własną, wewnetrzną listę bitmap. Indeks, który przypisujemy przyciskowi z toolbaru, to właśnie numer bitmapy na wewnętrznej liście. Podobnie sprawa wygląda z etykietami przycisków - najpierw tworzymy listę stringów, potem przypisujemy ich indeksy przyciskom (chociaż niekoniecznie - o tym później).
+</P>
+<P>
+Przyciski toolbaru nie mają sztywno przypisanych identyfikatorów - możemy je ustalić sami, wypełniając pole <SPAN CLASS=T>idCommand</SPAN>. Wciśnięcie przycisku na toolbarze powoduje wysłanie "zwykłego" komunikatu <SPAN CLASS=T>WM_COMMAND</SPAN>. Jak wiemy, parametr <SPAN CLASS=T>lParam</SPAN> tego komunikatu zawiera zawsze uchwyt kontrolki, która wysyła ten komunikat (tym razem będzie to uchwyt toolbaru), natomiast parametr <SPAN CLASS=T>wParam</SPAN> zawiera kod notyfikacji (górne słowo) oraz identyfikator kontrolki lub elementu, którego dotyczy komunikat (dolne słowo). To ostatnie to będzie w tym przypadku właśnie wartość, którą podamy jako <SPAN CLASS=T>idCommand</SPAN>.
+</P>
+<P>
+Style przycisku mogą zaś być następujące:
+</P>
+<UL>
+<SPAN CLASS=T>
+<LI>TBSTYLE_BUTTON
+<LI>TBSTYLE_CHECK
+<LI>TBSTYLE_GROUP
+<LI>TBSTYLE_CHECKGROUP
+<LI>TBSTYLE_SEP
+</SPAN>
+</UL>
+
+<P>
+Zazwyczaj używamy tego pierwszego. Działanie stylu <SPAN CLASS=T>TBSTYLE_CHECK</SPAN> chyba nietrudno odgadnąć. <SPAN CLASS=T>TBSTYLE_GROUP</SPAN>, jak również sama nazwa wskazuje, służy do grupowania przycisków (będzie wciśnięty, dopóki użytkownik nie wciśnie innego przycisku z grupy). Podobnie działa <SPAN CLASS=T>TBSTYLE_CHECKGROUP</SPAN>, tylko że dla przycisków typu <SPAN CLASS=T>TBSTYLE_CHECK</SPAN>. Ostatni styl tworzy nam nie tyle normalny przycisk, co separator - czyli po prostu odstęp między poszczególnymi grupami przycisków.
+</P>
+<P>
+Stylów jest trochę więcej, niektóre z nich są dostępne tylko dla określonych wersji biblioteki, inne w nowszych wersjach są dostępne, ale pod inną nazwą, jeszcze inne stosuje się nie do pojedynczych przycisków, lecz do całego toolbaru - krótko mówiąc, burdel na kółkach z tym jest. Tak więc omówimy je sobie przy konkretnych przypadkach.
+</P>
+<P>
+Stany przycisku mogą być takie:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<SPAN CLASS=K>stany przycisków
+</TD></TR><TR></TR><TR></TR><TR></TR>
+<TR><TH CLASS=ARGLIST>Stała</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>TBSTATE_CHECKED</SPAN></TD><TD CLASS=ARGLIST>Przycisk ma styl <SPAN CLASS=T>TBSTYLE_CHECKED</SPAN> i jest wciśnięty</TD></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>TBSTATE_PRESSED</SPAN></TD><TD CLASS=ARGLIST>Przycisk jest wciśnięty</TD></TR> 
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>TBSTATE_ENABLED</SPAN></TD><TD CLASS=ARGLIST>Przycisk jest włączony (może reagować na działania użytkownika)</TD></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>TBSTATE_HIDDEN</SPAN></TD><TD CLASS=ARGLIST>Przycisk jest niewidoczny i wyłączony</TD></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>TBSTATE_INDETERMINATE</SPAN></TD><TD CLASS=ARGLIST>Przycisk jest wyłączony (nie reaguje na klikanie)</TD></TR>
+<TR><TD CLASS=ARGLIST><SPAN CLASS=T>TBSTATE_WRAP</SPAN></TD><TD CLASS=ARGLIST>Po przycisku następuje złamanie linii (czyli następny przycisk znajduje się w nowej linii). Ten stan musi być połączony z <SPAN CLASS=T>TBSTATE_ENABLED</SPAN>.</TD></TR>
+</TABLE>
+ 
+<P>
+Tyle teorii, bierzemy się do roboty. Nasze zadanie to zrobienie toolbaru do programiku, który tworzyliśmy sobie w odcinku poświęconym menu. Będzie on miał na razie trzy przyciski: Nowy, Otwórz i Zapisz. W tym momencie nie wymigam się już od przedstawienia pełnej składni funkcji <SPAN CLASS=T>CreateToolbarEx</SPAN>, oto i ona:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+HWND CreateToolbarEx(HWND hwnd,
+DWORD ws,
+UINT wID,
+int nBitmaps,
+HINSTANCE hBMInst, 
+UINT wBMID, 
+LPCTBBUTTON lpButtons, 
+int iNumButtons, 
+int dxButton, 
+int dyButton, 
+int dxBitmap, 
+int dyBitmap, 
+UINT uStructSize
+); 
+
+
+</TD></TR><TR></TR><TR></TR><TR></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>hwnd</I></TD><TD CLASS=ARGLIST>Uchwyt do okna rodzicielskiego tworzonego toolbaru</TD></TR>
+<TR><TD CLASS=ARGLIST><I>ws</I></TD><TD CLASS=ARGLIST>Style okna toolbaru. Musi zawierać styl <SPAN CLASS=T>WS_CHILD</SPAN>.</TD></TR> 
+<TR><TD CLASS=ARGLIST><I>wID</I></TD><TD CLASS=ARGLIST>Identyfikator tworzonego toolbaru</TD></TR>
+<TR><TD CLASS=ARGLIST><I>nBitmaps</I></TD><TD CLASS=ARGLIST>Liczba fragmentów, na jakie ma być podzielona bitmapa, określona przez następne dwa parametry.</TD></TR>
+<TR><TD CLASS=ARGLIST><I>hBMInst</I></TD><TD CLASS=ARGLIST>Uchwyt programu, w którego zasobach znajduje się bitmapa.</TD></TR>
+<TR><TD CLASS=ARGLIST><I>wBMID</I></TD><TD CLASS=ARGLIST>Identyfikator zasobu z bitmapą dla toolbaru. Jeśli <SPAN CLASS=T>hBMInst</SPAN> równy jest <SPAN CLASS=T>NULL</SPAN>, to parametr ten powinien zawierać nie identyfikator, lecz uchwyt (<SPAN CLASS=T>HBITMAP</SPAN>) do bitmapy.</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpButtons</I></TD><TD CLASS=ARGLIST>Wskaźnik do tablicy struktur <SPAN CLASS=T>TBBUTTON</SPAN>, zawierających informację o poszczególnych przyciskach.</TD></TR>
+<TR><TD CLASS=ARGLIST><I>iNumButtons</I></TD><TD CLASS=ARGLIST>Liczba przycisków na toolbarze.</TD></TR>
+<TR><TD CLASS=ARGLIST><I>dxButton, dyButton</I></TD><TD CLASS=ARGLIST>Wymiary przycisku w pikselach.</TD></TR>
+<TR><TD CLASS=ARGLIST><I>dxBitmap, dyBitmap</I></TD><TD CLASS=ARGLIST>Wymiary bitmap przycisków (tyż w pikselach).</TD></TR>
+<TR><TD CLASS=ARGLIST><I>uStructSize</I></TD><TD CLASS=ARGLIST>Rozmiar (w bajtach) struktury <SPAN CLASS=T>TBBUTTON</SPAN>.</TD></TR>
+</TABLE>
+
+<P>
+Funkcja zwraca uchwyt do nowego toolbaru (uchwyt typu <SPAN CLASS=T>HWND</SPAN>, oczywiście), jeśli tworzenie się powiedzie. Jeśli funkcja potknie się po drodze, to zwróci <SPAN CLASS=T>NULL</SPAN>.
+</P>
+<P>
+Zaczynamy od stworzenia bitmapy z odpowiednimi ikonami. Domyślne wymiary pojedynczej ikony to <SPAN CLASS=L>16x15</SPAN> pikseli, ale nic nie stoi na przeszkodzie, by je sobie zmienić. Nasze będą miały <SPAN CLASS=L>16x16</SPAN> pikseli. Cała bitmapa będzie wyglała tak:
+</P>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/toolbmp.gif" ALT="Przykładowa bitmapa do toolbaru">
+</P>
+
+<P>
+Musimy ją wczytać z dysku:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HBITMAP hbmTool = (HBITMAP)LoadImage(hThisInstance, <SPAN CLASS=L>"tool.bmp"</SPAN>, IMAGE_BITMAP, <SPAN CLASS=L>0, 0,</SPAN> LR_LOADFROMFILE|LR_LOADMAP3DCOLORS);
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz tworzymy sobie tablicę trzech elementów typu <SPAN CLASS=T>TBBUTTON</SPAN> i wypełnieniamy ją:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+TBBUTTON tbb[<SPAN CLASS=L>3</SPAN>];<BR>
+<BR>
+ZeroMemory(tbb, <SPAN CLASS=K>sizeof</SPAN>(tbb));<BR>
+<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>3</SPAN>; ++i)<BR>
+{<BR>
+&nbsp;tbb[i].idCommand = i;<BR>
+&nbsp;tbb[i].iBitmap = tbb[i].iString = i;<BR>
+&nbsp;tbb[i].fsState = TBSTATE_ENABLED;<BR>
+&nbsp;tbb[i].fsStyle = TBSTYLE_BUTTON;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, stworzyliśmy trzy przyciski. Ich identyfikatory to kolejne liczby: <SPAN CLASS=L>0, 1, 2</SPAN>. Takie same są indeksy bitmap. Program wczyta bitmapę i "podzieli" ją na trzy fragmenty (według wymiarów, które za chwilę podamy w funkcji <SPAN CLASS=T>CreateToolbarEx</SPAN>), które będą identyfikowane właśnie kolejnymi liczbami całkowitymi. Najwyższa pora stworzyć nasz toolbar:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HWND hToolbar = CreateToolbarEx(hwnd, WS_CHILD|WS_VISIBLE, <SPAN CLASS=L>500, 3</SPAN>, NULL, (UINT)hbmTool, tbb, <SPAN CLASS=L>3, 16,16,16,16</SPAN>, <SPAN CLASS=K>sizeof</SPAN>(TBBUTTON));
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy już toolbar, nadaliśmy mu identyfikator <SPAN CLASS=L>500</SPAN> oraz trzy przyciski na podstawie tablicy <SPAN CLASS=T>tbb</SPAN>. Przyciski mają wymiary <SPAN CLASS=L>16x16</SPAN>, tak jak sobie zapowiadaliśmy. Oto nasze cudo:
+</P>
+
+<P ALIGN=CENTER>
+<img SRC="../gfx/toolbar1.gif" Alt="Pierwsze koty za płoty ;-)">
+</P>
+
+<P>
+Biblioteka <SPAN CLASS=C>comctl32</SPAN> udostępnia nam szereg standardowych ikonek do toolbaru. Są wśród nich między innymi nasze trzy: Nowy, Otwórz i Zapisz. Po co więc mamy się męczyć tworzeniem własnych bitmap, skoro można skorzystać z gotowych? Robi się to bardzo prosto. Po pierwsze - zamiast <SPAN CLASS=T>NULL</SPAN>, podajemy funkcji <SPAN CLASS=T>CreateToolbarEx</SPAN> uchwyt do biblioteki <SPAN CLASS=C>comctl32</SPAN>. Jest on zawarty w stałej <SPAN CLASS=T>HINST_COMMCTRL</SPAN>. Następnie jako identyfikator bitmapy podajemy stałą <SPAN CLASS=T>IDB_STD_SMALL_COLOR</SPAN> (nietrudno zgadnąć, że <SPAN CLASS=T>IDB_STD_LARGE_COLOR</SPAN> oznacza duże wersje ikon). Wreszcie usuwamy z pętli linijki, w których przypisujemy numer bitmapy i wszystkie trzy ustawiamy "ręcznie":</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+tbb[<SPAN CLASS=L>0</SPAN>].iBitmap = STD_FILENEW;<BR>
+tbb[<SPAN CLASS=L>1</SPAN>].iBitmap = STD_FILEOPEN;<BR>
+tbb[<SPAN CLASS=L>2</SPAN>].iBitmap = STD_FILESAVE;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pełną listę dostępnych stałych znajdziesz w pliku <SPAN CLASS=C>commctrl.h</SPAN>. A tymczasem wprowadzamy wszystkie omówione zmiany do wywołania <SPAN CLASS=T>CreateToolbarEx</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HWND hToolbar = CreateToolbarEx(hwnd, WS_CHILD|WS_VISIBLE, <SPAN CLASS=L>500, 3</SPAN>, HINST_COMMCTRL, IDB_STD_SMALL_COLOR, tbb, <SPAN CLASS=L>3,16,16,16,16</SPAN>, <SPAN CLASS=K>sizeof</SPAN>(TBBUTTON));
+</TD></TR>
+</TABLE>
+
+<P>
+Udało się, zamiast ikonek w stylu Dev-a mamy zwykłe, nudne ikonki windowsowe ;-).
+</P>
+
+<P align=center>
+<img src="../gfx/toolbar2.gif" alt="Było źle, jest jeszcze gorzej - stare, nudne, doskonale znane ikonki ;-)">
+</P>
+
+<P>
+Bardzo często się zdarza, że większość przycisków na toolbarze to przyciski ze standardowymi ikonkami, ale potrzebujemy też jednego lub kilka przycisków z własnymi obrazkami. Nie pozostaje nam nic innego, jak tylko dodawać własne przyciski i bitmapy do nich już po utworzeniu "głównej" części toolbaru. Załóżmy przykładowo, że chcemy sobie dorzucić na końcu przycisk Koniec ;-). Dorzucimy też separator - choćby po to, żebyś później nie pytał, jak to zrobić ;-).
+</P>
+<P>
+Zacznijmy od wczytania bitmapy do przycisku Koniec - tego już nie będę pokazywał któryś tam raz z rzędu, popatrz sobie wyżej. Załóżmy, że mamy już bitmapę i uchwyt do niej - <SPAN CLASS=T>hbmKoniec</SPAN>. Musimy teraz stworzyć oraz wypełnić strukturę <SPAN CLASS=T>TBADDBITMAP</SPAN>, co też czynimy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+TBADDBITMAP tbab;<BR>
+tbab.hInst = NULL;<BR>
+tbab.nID = (UINT)hbmKoniec;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Z powyższego możemy wywnioskować, że istnieje również możliwość dodawania bitmap z pliku zasobów programu, jeśli jako <SPAN CLASS=T>hInst</SPAN> podamy uchwyt od tego programu, a jako <SPAN CLASS=T>nID</SPAN> - identyfikator bitmapy w pliku zasobów. Możemy też, analogicznie do powyższego przykładu, dodawać przy wykorzystaniu struktury <SPAN CLASS=T>TBADDBITMAP</SPAN> pojedyncze ikony z <SPAN CLASS=C>comctl32</SPAN>.
+</P>
+<P>
+Teraz musimy jedynie wysłać komunikat <SPAN CLASS=T>TB_ADDBITMAP</SPAN>, przekazując w nim liczbę bitmap, które dodajemy (u nas tylko jedna), oraz adres struktury <SPAN CLASS=T>TBADDBITMAP</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> nIndeks = SendMessage(hToolbar, TB_ADDBITMAP, <SPAN CLASS=L>1</SPAN>, (LPARAM)&tbab);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Następnie tworzymy drugą tablicę z przyciskami. Tym razem dodajemy dwa przyciski - jeden separator i jeden zwykły przycisk:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+TBBUTTON tbb2[<SPAN CLASS=L>2</SPAN>];<BR>
+<BR>
+ZeroMemory(tbb2, <SPAN CLASS=K>sizeof</SPAN>(tbb2));<BR>
+tbb2[<SPAN CLASS=L>0</SPAN>].idCommand = <SPAN CLASS=L>3</SPAN>;<BR>
+tbb2[<SPAN CLASS=L>0</SPAN>].iString = <SPAN CLASS=L>3</SPAN>;<BR>
+tbb2[<SPAN CLASS=L>0</SPAN>].iBitmap = <SPAN CLASS=L>0</SPAN>;<BR>
+tbb2[<SPAN CLASS=L>0</SPAN>].fsState = TBSTATE_ENABLED;<BR>
+tbb2[<SPAN CLASS=L>0</SPAN>].fsStyle = TBSTYLE_SEP;<BR>
+tbb2[<SPAN CLASS=L>1</SPAN>].idCommand = <SPAN CLASS=L>4</SPAN>;<BR>
+tbb2[<SPAN CLASS=L>1</SPAN>].iString = <SPAN CLASS=L>4</SPAN>;<BR>
+tbb2[<SPAN CLASS=L>1</SPAN>].iBitmap = nIndeks;<BR>
+tbb2[<SPAN CLASS=L>1</SPAN>].fsState = TBSTATE_ENABLED;<BR>
+tbb2[<SPAN CLASS=L>1</SPAN>].fsStyle = TBSTYLE_BUTTON;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Dodajemy przyciski, wykorzystując odpowiedni komunikat:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+SendMessage(hToolbar, TB_ADDBUTTONS, <SPAN CLASS=L>2</SPAN>, (LPARAM)&tbb2);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Otrzymujemy w rezultacie coś w tym stylu:
+</P>
+
+<P align=center>
+<img src="../gfx/toolbar3.gif" alt="Przybyło to i owo... ;-)">
+</P>
+
+<H2>
+Obsługa zdarzeń
+</H2>
+
+<P>
+Taki toolbar może i fajnie wygląda, ale zda się psu na budę, jeśli nie będzie do tego działał jak należy, tzn. wywoływał odpowiednich komend po wciśnięciu odpowiednich przycisków. Zaimplementowanie tego jest na szczęście całkiem proste. Jak już wspomniałem, wciśnięcie przycisku wysyła komunikat <SPAN CLASS=T>WM_COMMAND</SPAN>. Musimy najpierw sprawdzić, czy komunikat ten faktycznie pochodzi od toolbaru i w tym celu możemy posłużyć się parametrem <SPAN CLASS=T>lParam</SPAN> komunikatu. Z kolei parametr <SPAN CLASS=T>wParam</SPAN>, a konkretniej jego dolna połówka, zawiera identyfikator wciśniętego przycisku (o ile mu go nadaliśmy).
+</P>
+<P>
+W naszym przykładzie mamy teraz 5 przycisków (w tym jeden separator) o identyfikatorach od <SPAN CLASS=L>0</SPAN> do <SPAN CLASS=L>4</SPAN>. Warto by zdefiniować jakieś stałe dla tych identyfikatorów, coby w kodzie było od razu widać, że chodzi o przyciski:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#define</SPAN> TOOL_NOWY&nbsp;&nbsp;&nbsp;<SPAN CLASS=L>0</SPAN><BR>
+<SPAN CLASS=C>#define</SPAN> TOOL_OTWORZ <SPAN CLASS=L>1</SPAN><BR>
+<SPAN CLASS=C>#define</SPAN> TOOL_ZAPISZ <SPAN CLASS=L>2</SPAN><BR>
+<SPAN CLASS=C>#define</SPAN> TOOL_KONIEC <SPAN CLASS=L>4</SPAN><BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Identyfikatora dla separatora oczywiście nie potrzebujemy, gdyż nie generuje on żadnych komunikatów :-). Teraz pora napisać sobie obsługę komunikatu <SPAN CLASS=T>WM_COMMAND</SPAN>. Zrobimy to tylko dla przycisku Koniec, bo to będzie najprostsze ;-).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_COMMAND:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//sprawdzamy, czy komunikat pochodzi od toolbaru</SPAN><BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>((HWND)lParam == hToolbar)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//selekcja identyfikatorów</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>switch</SPAN>(LOWORD(wParam))<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> TOOL_NOWY:<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//brak zdarzenia ;-)</SPAN><BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> TOOL_OTWORZ:<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//brak zdarzenia ;-)</SPAN><BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>break;<BR>
+&nbsp;&nbsp;&nbsp;case</SPAN> TOOL_ZAPISZ:<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//brak zdarzenia ;-)</SPAN><BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>break;<BR>
+&nbsp;&nbsp;&nbsp;case</SPAN> TOOL_KONIEC:<BR>
+&nbsp;&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//Zakończ program</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;DestroyWindow(hwnd);<BR>
+&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;}<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Dzięki tym zabiegom kliknięcie ikonki drzwi będzie nas faktycznie wywalało za drzwi ;-). Jeśli do wypróbowania przykładów z tego odcinka wykorzystujesz ten sam kod, w którym ćwiczyłeś tworzenie menu (co jest zalecane), to prawdopodobnie już masz w nim obsługę innych komunikatów <SPAN CLASS=T>WM_COMMAND</SPAN> (np. pochodzących od menu), więc musisz to uwzględnić przy wklejaniu fragmentu dotyczącego toolbaru, inaczej narobisz sobie niezłej kaszanki ;-).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apimenu.html"><< Tworzenie menu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apitool2.html">Toolbary, cz.2 &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+

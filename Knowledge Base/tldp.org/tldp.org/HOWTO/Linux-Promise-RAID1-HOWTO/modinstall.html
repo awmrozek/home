@@ -1,0 +1,371 @@
+<HTML
+><HEAD
+><TITLE
+>Module Installation</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Migration to Promise RAID Card HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Introduction"
+HREF="intro.html"><LINK
+REL="NEXT"
+TITLE="Linux Configuration"
+HREF="linuxconf.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Migration to Promise RAID Card HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="intro.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="linuxconf.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="modinstall"
+></A
+>2. Module Installation</H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN62"
+></A
+>2.1. What?</H2
+><P
+>&#13;You will need an existing Red Hat Linux Install, and you will need to
+obtain the correct driver from the 
+<A
+HREF="http://www.promise.com/support/download/download_eng.asp"
+TARGET="_top"
+>Promise website</A
+>.
+    </P
+><P
+>&#13;Choose your card type, and then choose <EM
+>FastTrak Family Red
+Hat Linux Driver Uniprocessor</EM
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN68"
+></A
+>2.2. How?</H2
+><P
+>&#13;Put the RAID Card into the computer, but leave the hard drive(s) on the motherboard. Boot up into Linux. Login as root. 
+You should have the tar file from the Promise site, if not, see "What?" section above. 
+   </P
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="AEN71"
+></A
+>2.2.1. Extracting the module</H3
+><P
+></P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;    Put the tar file into <TT
+CLASS="filename"
+>/tmp</TT
+>.
+  </P
+></LI
+><LI
+><P
+>Issue this command: 
+    <B
+CLASS="command"
+>tar vxf ftrhup_120b9.tar</B
+>
+  </P
+></LI
+><LI
+><P
+>Now we have access to the <TT
+CLASS="filename"
+>modules.cgz</TT
+>
+    file. Issue the following: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;      # gzip -dc modules.cgz &#62; modules.cpio
+      # cpio -idumv &#60; modules.cpio
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;      A few directories will be created, so move to the correct
+      directory, depending on your kernel version. You can get your
+      kernel version, by issuing: <B
+CLASS="command"
+>uname -r</B
+>
+    </P
+></LI
+><LI
+><P
+>&#13;    You will see the <TT
+CLASS="filename"
+>ft.o</TT
+> file. Copy this file to the 
+    <TT
+CLASS="filename"
+>/lib/modules/kernel-version/kernel/drivers/scsi</TT
+>
+    directory. 
+  </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="AEN91"
+></A
+>2.2.2. Creating the Initial RAM Disk</H3
+><P
+>&#13;The Fasttrak module, ft, needs scsi_mod. To use the card as a RAID
+Card, you will also need sd_mod.
+</P
+><P
+>&#13;To boot off the card, we will need to create a ramdisk, with the
+required modules, so that linux can see the hard drive(s).
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+># /sbin/mkinitrd --preload scsi_mod --preload sd_mod --with ft initrd-kernel-version.img kernel-version</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;If your kernel version is <STRONG
+>2.4.2-2</STRONG
+>, 
+you would issue the command:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+># /sbin/mkinitrd --preload scsi_mod --preload sd_mod --with ft initrd-2.4.2-2.img 2.4.2-2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;Now move the newly created ramdisk image to <TT
+CLASS="filename"
+>/boot</TT
+>. 
+Its time to edit <TT
+CLASS="filename"
+>lilo.conf</TT
+>.
+</P
+><P
+>&#13;Before we edit <TT
+CLASS="filename"
+>lilo.conf</TT
+>, its best to make a
+floppy boot disk with the ft module included.
+</P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="AEN104"
+></A
+>2.2.3. Creating the Boot Disk</H3
+><P
+>&#13;This is very important, as something may go terribly wrong. If LILO
+stops working, then we just put the disk in and fix the problem. You
+will need the mkbootdisk program.
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+># /sbin/mkbootdisk --device /dev/df0 --mkinitrdargs '--preload scsi_mid --preload sd_mod --with ft' kernel-version</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;If your kernel version is <STRONG
+>2.4.2-2</STRONG
+>, 
+then issue the following
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+># /sbin/mkbootdisk --device /dev/df0 --mkinitrdargs '--preload scsi_mid --preload sd_mod --with ft' 2.4.2-2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="intro.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="linuxconf.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Introduction</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Linux Configuration</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

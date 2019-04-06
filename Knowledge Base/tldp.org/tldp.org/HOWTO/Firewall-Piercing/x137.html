@@ -1,0 +1,356 @@
+<HTML
+><HEAD
+><TITLE
+>Understanding the problem</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="Firewall Piercing mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Introduction"
+HREF="x58.html"><LINK
+REL="NEXT"
+TITLE="Secure solution: piercing using ssh"
+HREF="x189.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Firewall Piercing mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x58.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x189.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN137"
+>3. Understanding the problem</A
+></H1
+><P
+>Understanding a problem is the first half of the path to solving it.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN140"
+>3.1. Giving names to things</A
+></H2
+><P
+>If you want this hack to work for you,
+you'll have to get an idea of how it works,
+so that in case anything breaks,
+you know where to look for.</P
+><P
+>The first step toward understanding the problem
+is to give a name to relevant concepts.</P
+><P
+>As usual, we'll herein call "client" the machine
+that decides to initiate the connection,
+as well as programs and files on that machine.
+Conversely, we'll call "server" that waits for connections and accepts them,
+as well as programs and files on that machine.
+Firewall piercing is useful when the two machines are separated by a firewall,
+such that it is possible for the server to accept some kind of connections,
+whereas the client might or might not be able to accept any.
+A tunnel will be created between the two machines
+that allows full IP traffic despite the firewall.</P
+><P
+>Usually, when piercing firewalls, the client is the machine behind a firewall:
+it has limited access to the internet,
+but can somehow open some kind of connection to the server.
+The server is a machine with full internet access,
+that will serve as a proxy for the client to access all of the internet.
+In a VPN, the firewall the roles might be reversed,
+with the client being on the internet, and
+the server serving as a proxy for the client to access some private network.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN146"
+>3.2. The main problem</A
+></H2
+><P
+>The main problem with firewall piercing is to create a tunnel:
+a continuous connection from the client machine
+to a server machine on the other side of the firewall,
+that allows for bidirectional exchange of information.
+Optionally, this connection should be a secure one.
+The secondary problem is to transform this connection
+into a full IP access for normal programs to use transparently.</P
+><P
+>For the main problem, we'll assume that
+either (1) you can establish normal TCP/IP connections
+from the client side of the firewall to some port on a server machine
+where a sshd runs or can be set to run, or
+(2) you can somehow establish a telnet connection through a telnet proxy.
+In case you cannot, we will give you pointers
+to other software that allows you
+to pierce a tunnel accross a firewall.
+Although we only give a secure solution in the first case,
+you can hack your own secure solution in the other cases,
+if you understand the principle
+(if you don't, someone, e.g. I, can do it for you in exchange for money).</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN150"
+>3.3. The secondary problem</A
+></H2
+><P
+>For the secondary problem,
+IP emulators (<B
+CLASS="COMMAND"
+>pppd</B
+> or <SPAN
+CLASS="PRODUCTNAME"
+>SLiRP</SPAN
+>)
+are run on each side of the tunnel.</P
+><P
+>On the side that wants full IP access to the other side,
+you'll want to run <B
+CLASS="COMMAND"
+>pppd</B
+>.
+On the other side, you want to run <B
+CLASS="COMMAND"
+>pppd</B
+>
+if you also want full IP access to the first side,
+or <SPAN
+CLASS="PRODUCTNAME"
+>SLiRP</SPAN
+> if you want to prevent any access.
+Go to your usual <B
+CLASS="COMMAND"
+>pppd</B
+> or <SPAN
+CLASS="PRODUCTNAME"
+>SLiRP</SPAN
+>
+documentation for more information,
+if you have specific needs not covered by the examples given below.</P
+><P
+>Although this is conceptually trivial,
+it nonetheless requires a few silly tricks, so as to work, since
+(a) in case you're using some kind of programmed interactive shell session
+to start the server's IP emulator on either side, you need to correctly
+synchronize the start of the IP emulator on the other side,
+so as not to send garbage into the shell session,
+and
+(b) IP emulators are designed to be run on a "tty" interface
+so you have to convert your tunnel's interface into a tty one.</P
+><P
+>Issue (a) is just your usual synchronization problem,
+and doesn't even exist if you use <B
+CLASS="COMMAND"
+>ssh</B
+>,
+that transparently handles server's command launching.</P
+><P
+>Issue (b) requires the use of a simple external utility.
+We wrote one, <B
+CLASS="COMMAND"
+>cotty</B
+> just for that purpose.</P
+><P
+>&#60;FLAME ON&#62;</P
+><P
+>Among the silly problems caused by <B
+CLASS="COMMAND"
+>pppd</B
+>
+maintainers' shortmindedness (no more true in recent Linux versions),
+you can only run it through
+either a device in <TT
+CLASS="FILENAME"
+>/dev</TT
+> or the current tty.
+You cannot run it through a pair of pipe
+(which would be the obvious design).
+This is fine for the server's <B
+CLASS="COMMAND"
+>pppd</B
+> if any,
+as it can use the <B
+CLASS="COMMAND"
+>telnet</B
+> or <B
+CLASS="COMMAND"
+>ssh</B
+>
+session's <TT
+CLASS="FILENAME"
+>tty</TT
+>;
+but for the client's <B
+CLASS="COMMAND"
+>pppd</B
+>, this conflicts with
+the possible use of <B
+CLASS="COMMAND"
+>telnet</B
+>
+as a way to establish a connection.</P
+><P
+>Indeed, <B
+CLASS="COMMAND"
+>telnet</B
+>, too wants to be on a tty;
+it behaves <EM
+>almost</EM
+> correctly with a pair of pipe,
+except that it will still insist on doing ioctl's to the current tty,
+with which it will interfere;
+using <B
+CLASS="COMMAND"
+>telnet</B
+> without a tty also causes race conditions,
+so that the whole connection will fail on "slow" computers
+(<B
+CLASS="COMMAND"
+>fwprc</B
+> 0.1 worked perfectly on a P/MMX 233,
+one time out of 6 on a 6x86-P200+, and never on a 486dx2/66).
+All in all, when using <B
+CLASS="COMMAND"
+>telnet</B
+>,
+you need <B
+CLASS="COMMAND"
+>cotty</B
+> to run as a daemon
+to copy output from one tty on which runs <B
+CLASS="COMMAND"
+>pppd</B
+>
+into another tty on which runs <B
+CLASS="COMMAND"
+>telnet</B
+>, and conversely.</P
+><P
+>If I find the sucker (probably a <SPAN
+CLASS="PRODUCTNAME"
+>MULTICS</SPAN
+> guy,
+though there must have been <SPAN
+CLASS="PRODUCTNAME"
+>UNIX</SPAN
+> people
+stupid enough to copy the idea)
+who invented the principle of "tty" devices
+by which you read and write from a "same" pseudo-file,
+instead of having clean pairs of pipes,
+I strangle him!</P
+><P
+>&#60;/FLAME&#62;</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x58.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x189.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Introduction</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Secure solution: piercing using ssh</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

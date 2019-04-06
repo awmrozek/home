@@ -1,0 +1,499 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Stringi</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN><A HREF="../cpp.html">&lt;&lt; Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A>
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>Stringi</H1>
+
+<P>
+Już od samego początku amator-programista potrzebuje pilnie zmiennych, w których dałoby się przechowywać napisy. Języki wyższego poziomu (wyższego w stosunku do C++), takie jak Pascal czy Basic mają to rozwiązane bardzo ładnie, operacje tak powszechne jak łączenie stringów, porównywanie, wyszukiwanie ciągów znaków czy formatowanie liczb realizuje się w tych językach bardzo łatwo i przyjemnie. W porównaniu, praca ze stringami w języku C była męczarnią. Łańcuch był tam zwykłą tablicą elementów typu <SPAN CLASS=K>char</SPAN>, przy czym ostatni element tej tablicy musiał zawsze mieć wartość <SPAN CLASS=L>0</SPAN> (co oznacza koniec napisu). Wiązały się z tym wszelkie przyjemności typu alokacja pamięci czy konieczność ciągłego wyliczania, gdzie znajdzie się terminalny znak <SPAN CLASS=L>0</SPAN>.
+</P>
+<P>
+Oczywiście programistom nie w smak było tak niewygodne rozwiązanie, dlatego powstało wiele rozmaitych bibliotek, ułatwiających korzystanie ze stringów. Podczas tworzenia języka C++ postanowiono naprawić tę niedogodność i dlatego Standardową Bibliotekę C++ wyposażono w końcu w klasę <SPAN CLASS=T>string</SPAN> (znaną szerzej jako <SPAN CLASS=T>std::string</SPAN>), która pozwala używać stringów niemal tak samo łatwo, jak na przykład w Pascalu.
+</P>
+<P>
+Niestety, ze względu na konstrukcję samego języka C++ nie jest możliwe całkowite zapomnienie o tych wrednych tablicach znaków, wywodzących się z C. Główną przeszkodą jest sposób traktowania przez kompilator tekstu w cudzysłowie, który interpretowany jest zawsze jako <SPAN CLASS=K>const char*</SPAN>. Możemy co prawda zainicjalizować zmienną typu <SPAN CLASS=T>string</SPAN> takim łańcuchem:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string s = <SPAN CLASS=L>"Napis"</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...ale nie możemy dwóch takich łańcuchów skleić ze sobą operatorem <SPAN CLASS=T>+</SPAN>, np.:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>char</SPAN> *n1, = <SPAN CLASS=L>"Pierwszy"</SPAN>,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*n2 = <SPAN CLASS=L>"Drugi"</SPAN>,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*n3;<BR>
+<BR>
+n3 = n1 + n2; <SPAN CLASS=C>//błąd!</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Powyższa operacja traktowana jest niestety jako dodawanie numerycznej wartości wskaźników - czyli kompletny bezsens, prowadzący najprawdopodobniej do naruszenia zasad dostępu do pamięci, czyli wykrzaczenia się programu.
+</P>
+<P>
+Drugim istotnym powodem, dla którego warto wiedzieć wszystko o stringach "w stylu C", jest smutny  (?) fakt, że panującym niepodzielnie na rynku systemem operacyjnym jest wciąż Windows, a WinAPI przeznaczone jest dla przestarzałego C, nie dla C++, więc jego funkcje "nie znają" klasy <SPAN CLASS=T>std::string</SPAN>.
+</P>
+<P>
+Nie będę dalej przedłużał tego i tak zbyt obszernego wstępu; powiem jedynie, że nie powinieneś się zrażać do tablic znaków, nawet jeśli zachwycisz się wygodą, jaką daje opisana w tym artykule klasa <SPAN CLASS=T>string</SPAN>.
+</P>
+
+<h2>
+Klasa std::string
+</h2>
+
+<P>
+Jak już sobie powiedzieliśmy na początku, nowe standardy C++ zawierają w pełni funkcjonalną klasę <SPAN CLASS=T>string</SPAN>, która niezmiernie ułatwia życie programistom. Klasa ta znana jest właściwie jako <SPAN CLASS=T>std::string</SPAN> (dla odróżnienia od wielu innych klas o tej samej lub podobnej nazwie, występujących na przykład w VCL), jednak ja nie lubię tej konwencji (toż to aż pięć znaków więcej! ;-)) i dlatego dalej w tym kursie będziemy ją nazywać po prostu <SPAN CLASS=T>string</SPAN>.
+</P>
+<P>
+Co zrobić, aby móc używać tej klasy? To bardzo proste, wystarczy wrzucić na początek naszego programu następującą linijkę:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;string&gt</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Nie należy mylić nagłówka <SPAN CLASS=C>&lt;string&gt;</SPAN> z <SPAN CLASS=C>&lt;string.h&gt;</SPAN> - ten drugi zawiera deklaracje funkcji do obsługi stringów w stylu C oraz funkcji do niskopoziomowych operacji na pamięci i nie ma nic wspólnego z klasą <SPAN CLASS=T>string</SPAN>.
+</P>
+
+<P>
+Teraz krótko - jak pozbyć się tego denerwującego przedrostka <SPAN CLASS=T>std::</SPAN> w naszym programie? To również nie jest zbyt skomplikowane - musimy dołączyć do programu taką dyrektywę:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>using namespace</SPAN> std;
+</TD></TR>
+</TABLE>
+
+<P>
+Od tej pory przestrzeń nazw <SPAN CLASS=T>std</SPAN> jest "domyślną" przestrzenią i możemy używać przynależących do niej nazw z niejawnym odwołaniem do tej przestrzeni (za co bogom niech będą dzięki).
+</P>
+
+<h2>
+Konstruktory
+</h2>
+
+<P>
+Skoro mamy już dostęp do klasy <SPAN CLASS=T>string</SPAN>, zabierzmy się za jej praktyczne wykorzystanie. Na początek - kompletny kod źródłowy deklarujący stringa i wypisujący go na ekranie, żeby potem nikt nie mówił, że nie wie, gdzie powstawiać te wszystkie dyrektywy i inne include'y:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;cstdlib&gt;<BR>
+#include &lt;string&gt;<BR>
+#include &lt;iostream&gt;</SPAN><BR>
+<BR>
+<SPAN CLASS=K>using namespace</SPAN> std;<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;string s1 = <SPAN CLASS=L>"Napis"</SPAN>;<BR>
+<BR>
+&nbsp;cout &lt;&lt; s1 &lt;&lt; endl;<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN><SPAN CLASS=L> 0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy tu zwykłą inicjalizację zmiennej typu <SPAN CLASS=T>string</SPAN> - ani ona specjalnie zaskakująca, ani skomplikowana, więc jedziemy dalej. Druga wersja konstruktora przyjmuje dwa argumenty i pozwala tworzyć stringa wypełnionego dowolną liczbą podanych znaków:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string s(<SPAN CLASS=L>3, '*'</SPAN>); <SPAN CLASS=C>//czyli "***"</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Z kolei następująca postać pozwala zainicjalizować stringa innym, uciętym napisem:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string s(<SPAN CLASS=L>"kotlet z kota", 3</SPAN>); <SPAN CLASS=C>//czyli "kot"</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Łączenie
+</h2>
+
+<P>
+ Stringi możemy ze sobą łączyć operatorem <SPAN CLASS=T>+</SPAN>, przypisywać im wartość w dowolnym momencie, a także zerować (przypisywać im łańcuch zerowej długości), a wszystko to można łatwo wypisać na ekranie przy pomocy strumieni:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string a,c,d;<BR>
+<SPAN CLASS=K>char*</SPAN> b = <SPAN CLASS=L>" ma kota."</SPAN>;<BR>
+a = <SPAN CLASS=L>"Ala"</SPAN>;<BR>
+c = <SPAN CLASS=L>"Kot ma to"</SPAN>;<BR>
+d = <SPAN CLASS=L>" gdzieś."</SPAN><BR>
+<BR>
+cout &lt;&lt; a + b &lt;&lt; <SPAN CLASS=L>' '</SPAN> &lt;&lt; c + d &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Konwersja do const char* i długość
+</h2>
+
+<P>
+Bardzo często chcemy zamienić zmienną typu string na stringa "w stylu C", czyli na <SPAN CLASS=K>const char*</SPAN>. Jest to przydatne zwłaszcza przy pracy z WinAPI. Niestety, nie zdefiniowano operatora takiej konwersji, więc można ją wykonywać tylko jawnie, przy pomocy metody <SPAN CLASS=T>c_str</SPAN>. Zwraca ona stały wskaźnik na wewnętrzny bufor obiektu typu <SPAN CLASS=T>string</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string s = <SPAN CLASS=L>"To jest zdanie."</SPAN>;<BR>
+cout &lt;&lt; <SPAN CLASS=L>"Długość s wynosi "</SPAN> &lt;&lt; strlen(s.c_str()) &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W tym przykładzie użyliśmy metody <SPAN CLASS=T>c_str</SPAN>, aby móc wykorzystać funkcję<SPAN CLASS=T> strlen</SPAN> do pobrania długości stringa. Funkcja <SPAN CLASS=T>strlen</SPAN> pochodzi jednak jeszcze z języka C i operuje tylko na stringach typu <SPAN CLASS=K>const char*</SPAN>, dlatego użyliśmy metody <SPAN CLASS=T>c_str</SPAN> do uzyskania tego wymaganego wskaźnika.
+</P>
+<P>
+Tę samą czynność moglibyśmy wykonać przy pomocy jednej z metod klasy <SPAN CLASS=T>string</SPAN>, a konkretnie - <SPAN CLASS=T>length</SPAN> (albo <SPAN CLASS=T>size</SPAN> - tutaj to synonimy):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string s = <SPAN CLASS=L>"To jest zdanie."</SPAN>;<BR>
+cout &lt;&lt; <SPAN CLASS=L>"Długość s wynosi "</SPAN> &lt;&lt; s.length() &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Porównywanie
+</h2>
+<P>
+Stringi można też łatwo porównywać:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string haslo=<SPAN CLASS=L>"12345"</SPAN>, podane;<BR>
+cout &lt;&lt; <SPAN CLASS=L>"Podaj hasło: "</SPAN>;<BR>
+cin &gt;&gt; podane;<BR>
+cout &lt;&lt; endl;<BR>
+<SPAN CLASS=K>if</SPAN>(haslo == podane)<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Hasło OK."</SPAN> &lt;&lt; endl;<BR>
+<SPAN CLASS=K>if</SPAN>(haslo != podane)<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Prawdopodobnie jesteś hakerem, idź sobie."</SPAN> &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W powyższym przykładzie oczywiście ładniej by wyglądało, gdybyśmy sprawdzali poprawność hasła przy pomocy konstrukcji <SPAN CLASS=K>if-else</SPAN>, zamiast dwóch <SPAN CLASS=K>if</SPAN>-ów, ale chciałem pokazać, że oprócz <SPAN CLASS=T>==</SPAN> klasa <SPAN CLASS=T>string</SPAN> ma również zdefiniowany operator <SPAN CLASS=T>!=</SPAN> ;-).
+</P>
+<P>
+Pamiętacie słynne zdanie z "Folwarku zwierzęcego" - "Wszystkie zwierzęta są równe, ale niektóre są równiejsze"? W C++ nie ma niestety możliwości zdefiniowania dla stringów operatora "równiejszości" (który występuje np. w PHP), a ściślej mówiąc - to właśnie <SPAN CLASS=T>==</SPAN> jest takim operatorem, gdyż uwzględnia wielkość liter (np. wyrażenie <SPAN CLASS=T>a == </SPAN><SPAN CLASS=L>"Ala"</SPAN> z przykładu z Alą i kotem będzie prawdziwe, natomiast <SPAN CLASS=T>a == </SPAN><SPAN CLASS=L>"ala"</SPAN> już nie). Tak więc jeśli chcemy porównać dwa stringi, ignorując wielkość liter, to musimy skorzystać z funkcji <SPAN CLASS=T>_stricmp</SPAN> (lub <SPAN CLASS=T>_strcmpi</SPAN>), albo jej odpowiednika w WinAPI, czyli <SPAN CLASS=T>lstrcmpi</SPAN> - pamiętając przy tym, że wszystkie te funkcje operują na <SPAN CLASS=K>const char*</SPAN>. Oto stosowny przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string s1 = <SPAN CLASS=L>"słowo"</SPAN>, s2 = <SPAN CLASS=L>"SłOwO"</SPAN>;<BR>
+<SPAN CLASS=K>if</SPAN>(!_stricmp(s1.c_str(), s2.c_str()))<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"takie same"</SPAN> &lt;&lt; endl;<BR>
+<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"różne"</SPAN> &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+takie same<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<h2>
+Dołączanie
+</h2>
+
+<P>
+Bardzo przydatną właściwością klasy <SPAN CLASS=T>string</SPAN> jest metoda <SPAN CLASS=T>append</SPAN>, która dokleja na końcu stringa ciąg znaków (posiada ona też ekwiwalent w postaci operatora <SPAN CLASS=T>+=</SPAN>, jeśli ktoś woli):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string s = <SPAN CLASS=L>"To jest napis."</SPAN>;<BR>
+s.append(<SPAN CLASS=L>" I to też."</SPAN>);<BR>
+s += <SPAN CLASS=L>" Oraz to."</SPAN>;<BR>
+cout &lt;&lt; s &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Indeksowanie
+</h2>
+
+<P>
+Operator indeksowania <SPAN CLASS=T>[]</SPAN> zwraca nam referencję do dowolnego znaku w ciągu. Oznacza to, że możemy go sobie np. wyświetlić na ekranie, ale również zamienić na inny:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Wrrrrrrrr!!!"</SPAN>;<BR>
+cout &lt;&lt; "Dziesiąty znak to: " &lt;&lt; text[<SPAN CLASS=L>9</SPAN>] &lt;&lt; endl;<BR>
+text[<SPAN CLASS=L>11</SPAN>] = <SPAN CLASS=L>'?'</SPAN>;<BR>
+cout &lt;&lt; text &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+Dziesiąty znak to: !<BR>
+Wrrrrrrrr!!?<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<h2>
+Podział na fragmenty
+</h2>
+
+<P>
+Oprócz uzyskiwania pojedynczych znaków stringa, możemy też z niego pobrać cały ciąg znaków, zajmuje się tym metoda <SPAN CLASS=T>substr</SPAN>. Przyjmuje ona dwa argumenty, obydwa są opcjonalne. Jeśli je pominiemy, to <SPAN CLASS=T>substr</SPAN> zwróci kopię całego stringa. Jeśli podamy tylko pierwszy (początkowy znak) i będzie to <SPAN CLASS=T>n</SPAN>, wówczas dostaniemy fragment oryginalnego stringa począwszy od <SPAN CLASS=T>n</SPAN>-tego znaku do końca:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Ala ma kota."</SPAN>;<BR>
+cout &lt;&lt; text.substr(7) &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+kota.<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Najczęściej jednak podajemy obydwa parametry (początek "cięcia" i długość kopiowanego fragmentu), co pozwala nam pobrać dowolny fragment ze środka oryginalnego stringa:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Ala ma kota."</SPAN>;<BR>
+cout &lt;&lt; text.substr(<SPAN CLASS=L>7,3</SPAN>) &lt;&lt; endl; <BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Warto też wiedzieć, że metoda <SPAN CLASS=T>substr</SPAN> jest bezpieczna i np. poniższy kod nie zrobi wbrew pozorom nic złego (po prostu zadziała tak samo, jakby drugiego parametru w ogóle nie podano):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Ala ma kota."</SPAN>;<BR>
+cout &lt;&lt; text.substr(<SPAN CLASS=L>7,300</SPAN>) &lt;&lt; endl; <BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Wstawianie
+</h2>
+
+<P>
+Metoda <SPAN CLASS=T>insert</SPAN>, jak sama nazwa wskazuje, pozwala wepchnąć jeden ciąg znaków do środka drugiego. Na przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Jacek ma 1000 złotych."</SPAN>;<BR>
+cout &lt;&lt; text &lt;&lt; endl;<BR>
+text.insert(<SPAN CLASS=L>9, "dług w wysokości "</SPAN>);<BR>
+cout &lt;&lt; text &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jeśli policzyć uważnie znaki, to widać, że numeryczny argument metody <SPAN CLASS=T>insert</SPAN> oznacza indeks znaku PRZED którym ma być wstawiony podany string. U nas znak o indeksie <SPAN CLASS=L>9</SPAN> to <SPAN CLASS=L>'1'</SPAN>, dlatego właśnie cały napis podany jako argument do metody <SPAN CLASS=T>insert</SPAN> trafia przed <SPAN CLASS=L>"1000"</SPAN> w łańcuchu text, co zresztą staje się przyczyną nielichego kłopotu dla Jacka ;-).
+</P>
+
+<h2>
+Wyszukiwanie
+</h2>
+
+<P>
+Ostatnią rzeczą, którą sobie omówimy, jest wyszukiwanie ciągów znaków w stringu. Klasa <SPAN CLASS=T>string</SPAN> jest pod tym względem całkiem nieźle wyposażona. Przede wszystkim mamy tu przeciążoną metodę <SPAN CLASS=T>find</SPAN>, która po prostu szuka podanego tekstu, zaczynając od danej pozycji:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Kot ma żarcie."</SPAN>;<BR>
+cout &lt;&lt; <SPAN CLASS=L>"Znaleziono na pozycji "</SPAN> &lt;&lt; text.find(<SPAN CLASS=L>"żarcie"</SPAN>) &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+Znaleziono na pozycji 7
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Powyżej nie podaliśmy pozycji startowej, więc wyszukiwanie zostało domyślnie rozpoczęte od znaku numer <SPAN CLASS=L>0</SPAN> (czyli od samego początku stringa). Jeśli podamy znak nr <SPAN CLASS=L>8</SPAN>, to tekst nie zostanie już znaleziony i wtedy <SPAN CLASS=T>find</SPAN> zwróci <SPAN CLASS=L>0xFFFFFFFF</SPAN>, np:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Kot ma żarcie."</SPAN>;<BR>
+cout &lt;&lt; <SPAN CLASS=L>"Pozycja: "</SPAN> &lt;&lt; text.find(<SPAN CLASS=L>"żarcie", 8</SPAN>) &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+Pozycja: 4294967295<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Inna wersja metody <SPAN CLASS=T>find</SPAN> przyjmuje dwa parametry i uwzględnia przy wyszukiwaniu tylko <SPAN CLASS=T>n</SPAN> znaków z podanego ciągu, jeśli drugim parametrem jest <SPAN CLASS=T>n</SPAN>, na przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Kot to żarłok."</SPAN>;<BR>
+cout &lt;&lt; <SPAN CLASS=L>"Pozycja: "</SPAN> &lt;&lt; text.find(<SPAN CLASS=L>"żarcie", 0, 3</SPAN>) &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Tutaj tekst zostanie znaleziony, mimo że szukamy nieco innego stringa - po prostu przy porównaniu uwzględniamy tu tylko <SPAN CLASS=L>3</SPAN> pierwsze znaki.
+</P>
+
+<P>
+Metoda <SPAN CLASS=T>rfind</SPAN> działa podobnie, ale szuka wstecz (domyślną pozycją startową jest koniec stringa). 
+</P>
+<P>
+Bardzo przydatną rzeczą, szczególnie przy pisaniu wszelkiego rodzaju parserów, jest metoda find_first_of. Traktuje ona podany ciąg znaków nie jako zwartą całość, tylko jako zbiór pojedynczych znaków. Innymi słowy, pozwala ona wyciągać z tekstu pojedyncze wyrażenia, porozdzielane dowolną liczbą określonych znaków w dowolnej kombinacji. Na przykład jeśli mamy tekst zawierający spacje, tabulatory i znaki końca linii:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+string text = <SPAN CLASS=L>"Słowo\t\t \n\r To będzie wycięte"</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...i chcemy te znaki wyciąć (oraz wszystko, co po nich następuje), to piszemy tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>unsigned int</SPAN> u;<BR>
+u = text.find_first_of(<SPAN CLASS=L>" \t\n\r"</SPAN>);<BR>
+cout &lt;&lt; text.substr(<SPAN CLASS=L>0</SPAN>, u) &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Tak więc metoda <SPAN CLASS=T>find_first_of</SPAN>, jak sama nazwa wskazuje, szuka pierwszego wystąpienia jednego ze znaków z podanego zestawu (w naszym przypadku będzie to tabulacja, czyli <SPAN CLASS=L>\t</SPAN>). Możemy też podać indeks znaku, od którego ma być rozpoczęte wyszukiwanie (analogicznie jak w <SPAN CLASS=T>find</SPAN>).
+</P>
+<P>
+Podobną metodą, nawet przydatniejszą, jest <SPAN CLASS=T>find_first_not_of</SPAN>. Nietrudno się domyślić, że ona znajduje wszystko, czego nie znalazła <SPAN CLASS=T>find_first_of</SPAN> :-). Innymi słowy, traktuje ona podany ciąg jako znaki rozdzielające, a wszystkie pozostałe są dla niej "celem". Na przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>unsigned int</SPAN> u = <SPAN CLASS=L>0</SPAN>;<BR>
+string text = <SPAN CLASS=L>"   To    jest  \n    zdanie"</SPAN>;<BR>
+<SPAN CLASS=K>while</SPAN>(<SPAN CLASS=K>true</SPAN>)<BR>
+{<BR>
+&nbsp;u = text.find_first_not_of(<SPAN CLASS=L>" \t\n\r"</SPAN>, u);<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(u == <SPAN CLASS=L>0xFFFFFFFF</SPAN>) <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;cout &lt;&lt; text[u] &lt;&lt; endl;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(u&lt;text.length()-1) ++u; <SPAN CLASS=K>else break</SPAN>;<BR>
+}
+</TD></TR>
+</TABLE>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+T<BR>
+o<BR>
+j<BR>
+e<BR>
+s<BR>
+t<BR>
+z<BR>
+d<BR>
+a<BR>
+n<BR>
+i<BR>
+e<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+
+<P>
+Stosując łącznie metody <SPAN CLASS=T>find_first_of</SPAN> i <SPAN CLASS=T>find_first_not_of</SPAN> otrzymujemy możliwość dość łatwego podziału zdań na pojedyńcze słowa lub wyrażenia, co na pewno w przyszłości nam się bardzo przyda. Arsenał ten uzupełniają metody <SPAN CLASS=T>find_last_of</SPAN> i <SPAN CLASS=T>find_last_not_of</SPAN>, których działanie jest chyba łatwe do odgadnięcia, nieprawdaż?
+</P>
+<P>
+Omówione cechy klasy string to tylko część jej bogatych możliwości, ale powinno to wystarczyć do większości zastosowań. Opisy pozostałych metod oraz dokładniejsze informacje o tych już omówionych można oczywiście znaleźć w dokumentacji do Biblioteki Standardowej.
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN><A HREF="../cpp.html">&lt;&lt; Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A>
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+
+</FONT>
+
+</HTML>
+
+
+
+

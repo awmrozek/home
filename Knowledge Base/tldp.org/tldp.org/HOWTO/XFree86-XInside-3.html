@@ -1,0 +1,128 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux XFree-to-Xinside mini-HOWTO: Let's go</TITLE>
+ <LINK HREF="XFree86-XInside-4.html" REL=next>
+ <LINK HREF="XFree86-XInside-2.html" REL=previous>
+ <LINK HREF="XFree86-XInside.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="XFree86-XInside-4.html">Next</A>
+<A HREF="XFree86-XInside-2.html">Previous</A>
+<A HREF="XFree86-XInside.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Let's go</A></H2>
+
+<P>Let's suppose that you have your oh-so-tweaked XFree86
+mode and you want to evaluate Xinside in the same conditions:
+follow the steps described below and you should be able to
+do it; we will use my default video mode as a real-life example and I will
+explain what you will have to do to convert it.
+<P>An Xfree86 entry looks like this:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Modeline "blahblah" DOTCLK  A B C D  a b c d
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Every one of the A-D and a-d numbers has a meaning: if you
+want you can search for it in the 'The Hitchhiker's Guide to X386/XFree86
+Video Timing' ( /usr/lib/X11/doc/VideoModes.doc ) but
+you don't need to know the theory behind all this to
+perform a succesful conversion...
+<P>My modeline in /usr/lib/X11/XF86Config is:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Modeline "1168x876" 105  1168 1256 1544 1640  876 877 891 900
+                     |     |    |    |    |    |   |   |   |
+                  DOT_CLK  A    B    C    D    a   b   c   d
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>In Xinside, you have to add an entry in the Xtimings file, which
+should be located in etc/ ( from now on we suppose you are in
+the top Xaccel directory that should be something like
+/usr/X11/lib/X11/AcceleratedX )
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+!    Somewhere in the file, put here the name you want
+
+[PREADJUSTED_TIMING]
+    PreadjustedTimingName = "1168x876 @ 72Hz";
+
+!
+!    These four are obvious
+!
+    HorPixel          = 1168;         // pixels
+    VerPixel          = 876;          // lines
+    PixelWidthRatio   = 4;
+    PixelHeightRatio  = 3;
+
+!
+!   hsync: DOT_CLK / D * 1000 [KHz]
+!
+!   hsync = 105 / 1640 * 1000 = 64.024 KHz
+!
+!   vsync: ( 1 / (( D / DOT_CLK ) * d) ) * 1,000,000 [Hz]
+!
+!   vsync: ( 1 / (( 1640 / 105 ) * 900) ) * 1,000,000
+!           ( 1 / 14057.1428571 ) * 1,000,000 = 71.138 Hz
+!
+
+    HorFrequency      = 64.180;        // kHz
+    VerFrequency      = 71.138;        // Hz
+
+!   Obvious
+
+    ScanType          = NONINTERLACED;
+
+!
+!   Put here the +/-hsync +/-vsync XFree86 options
+!
+    HorSyncPolarity   = POSITIVE;
+    VerSyncPolarity   = POSITIVE;
+
+!   Shouldn't change
+
+    CharacterWidth    = 8;             // pixels
+
+!   DOT_CLK here
+
+    PixelClock        = 105.000;       // MHz
+!
+!
+!   horizontal timings section: [usec]
+!
+    HorTotalTime  = D / DOT_CLK                  = 15.619;
+    HorAddrTime   = A / DOT_CLK                  = 11.124;
+    HorBlankStart = A / DOT_CLK                  = 11.124;
+    HorBlankTime  = HorTotalTime - HorBlankStart =  4.495;
+    HorSyncStart  = B / DOT_CLK                  = 11.962;
+    HorSyncTime   = C / DOT_CLK - HorSyncStart   =  2.743;
+
+ !
+ !  vertical timings section:    [msec]
+ !
+
+    VerTotalTime  = ( HorTotalTime * d ) / 1000  = 14.057;
+    VerAddrTime   = ( HorTotalTime * a ) / 1000  = 13.682;
+    VerBlankStart = ( HorTotalTime * a ) / 1000  = 13.682;
+    VerBlankTime  = VerTotalTime - VerBlankStart =  0.375;
+    VerSyncStart  = ( HorTotalTime * b ) / 1000  = 13.698;
+    VerSyncTime   = ( HorTotalTime * ( c - b ) ) / 1000
+                                                 = 0.219
+
+ ! Finished !
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Now you have to put this newly created mode in the
+files shown below in the appropriate place.
+<P>
+<HR>
+<A HREF="XFree86-XInside-4.html">Next</A>
+<A HREF="XFree86-XInside-2.html">Previous</A>
+<A HREF="XFree86-XInside.html#toc3">Contents</A>
+</BODY>
+</HTML>

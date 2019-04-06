@@ -1,0 +1,322 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Building and Installing Software Packages for Linux: Troubleshooting</TITLE>
+ <LINK HREF="Software-Building-HOWTO-8.html" REL=next>
+ <LINK HREF="Software-Building-HOWTO-6.html" REL=previous>
+ <LINK HREF="Software-Building-HOWTO.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-Building-HOWTO-8.html">Next</A>
+<A HREF="Software-Building-HOWTO-6.html">Previous</A>
+<A HREF="Software-Building-HOWTO.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="s7">7. Troubleshooting</A></H2>
+
+<P>
+<P>If <EM>xmkmf</EM> and/or <EM>make</EM> succeeded without errors,
+you may proceed to the 
+<A HREF="Software-Building-HOWTO-8.html#finalsteps">next section</A>.
+However, in "real life", few things work right the first time.
+This is when your resourcefulness is put to the test.
+<P>
+<H2><A NAME="ss7.1">7.1 Link Errors</A>
+</H2>
+
+<P>
+<UL>
+<LI>Suppose <EM>make</EM> fails with a <CODE>Link error: -lX11: No such
+file or directory</CODE>, even after xmkmf has been invoked. This may mean
+that the <EM>Imake</EM> file was not set up properly. Check the first
+part of the <EM>Makefile</EM> for lines such as:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+LIB=            -L/usr/X11/lib
+INCLUDE=        -I/usr/X11/include/X11
+LIBS=           -lX11 -lc -lm
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+The <CODE>-L</CODE> and <CODE>-I</CODE> switches tell the compiler and linker
+where to look for the <EM>library</EM> and <EM>include</EM> files,
+respectively. In this example, the <EM>X11 libraries</EM> should be in
+the <CODE>/usr/X11/lib</CODE> directory, and the <EM>X11 include files</EM>
+should be in the <CODE>/usr/X11/include/X11</CODE> directory. If this is
+incorrect for your machine, make the necessary changes to the
+<EM>Makefile</EM> and try the <EM>make</EM> again.
+</LI>
+</UL>
+<P>
+<UL>
+<LI>Undefined references to math library functions, such as the following:
+<BLOCKQUOTE><CODE>
+<PRE>
+         /tmp/cca011551.o(.text+0x11): undefined reference to `cos'
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The fix for this is to explicitly link in the <CODE>math library</CODE>,
+by adding an <B>-lm</B> to the <EM>LIB</EM> or <EM>LIBS</EM> flags in
+the <CODE>Makefile</CODE> (see previous example).
+</LI>
+</UL>
+<P>
+<P>
+<P>
+<UL>
+<LI>Yet another thing to try if <EM>xmkmf</EM> fails is the following script:
+<BLOCKQUOTE><CODE>
+<PRE>
+         make -DUseInstalled -I/usr/X386/lib/X11/config
+</PRE>
+</CODE></BLOCKQUOTE>
+
+This is a sort of bare bones equivalent of <EM>xmkmf</EM>.
+</LI>
+</UL>
+<P>
+<UL>
+<LI>In a very few cases, running <EM>ldconfig</EM> as <EM>root</EM>
+may be the solution:
+<BLOCKQUOTE><CODE>
+<PRE>
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+<B># ldconfig</B> updates the shared library symbolic links. <EM>This
+may not be necessary .</EM>
+</LI>
+</UL>
+<P>
+<UL>
+<LI>Some <CODE>Makefiles</CODE> use unrecognized aliases for libraries
+present in your system. For example, the build may require
+<CODE>libX11.so.6</CODE>, but there exists no such file or link in
+<CODE>/usr/X11R6/lib</CODE>. Yet, there is a <CODE>libX11.so.6.1</CODE>. The
+solution is to do a <B>ln -s /usr/X11R6/lib/libX11.so.6.1
+/usr/X11R6/lib/libX11.so.6</B>, as root. This may need to be followed
+by a <B>ldconfig</B>.
+</LI>
+</UL>
+<P>
+<P>
+<UL>
+<LI>Sometimes the source needs the older release X11R5 libraries to
+build.  If you have the R5 libs in /usr/X11R6/lib (you were given the
+option of having them when first installing Linux), then you need only
+ensure that you have the links that the software needs to build.  The
+<CODE>R5 libs</CODE> are named <CODE>libX11.so.3.1.0</CODE>,
+<CODE>libXaw.so.3.1.0</CODE>, and <CODE>libXt.so.3.1.0</CODE>. You generally
+need links, such as <EM>libX11.so.3 -> libX11.so.3.1.0</EM>. Possibly
+the software will also need a link of the form <EM>libX11.so ->
+libX11.so.3.1.0</EM>.  Of course, to create a "missing" link, use the
+command <B>ln -s libX11.so.3.1.0 libX11.so</B>, <EM>as root</EM>.
+</LI>
+</UL>
+<P>
+<P>
+<P>
+<P>
+<UL>
+<LI>Some packages will require you to install updated versions of one or
+more libraries. For example, the 4.x versions of the <EM>StarOffice</EM>
+suite from StarDivision GmbH were notorious for needing a <CODE>libc</CODE>
+version 5.4.4 or greater. Even the more recent <EM>StarOffice</EM> 5.0
+will not run after installation with the new <CODE>glibc 2.1</CODE> libs.
+Fortunately, the newer <EM>StarOffice</EM> 5.1 solves these problems.
+If running an older version of <EM>StarOffice</EM> you would, as
+<EM>root</EM>, need to copy one or more libraries to the appropriate
+directories, remove the old libraries, then reset the symbolic links
+(check the latest version of the <CODE>StarOffice miniHOWTO</CODE> for more
+information on this).
+
+<B>Caution: Exercise extreme care in this, as you can render your
+system nonfunctional if you screw up.</B>
+
+You can usually find the latest updated libraries at 
+<A HREF="ftp://metalab.unc.edu/pub/Linux/libs">Sunsite</A>.
+</LI>
+</UL>
+<P>
+<H2><A NAME="ss7.2">7.2 Other Problems</A>
+</H2>
+
+<P>
+<P>
+<UL>
+<LI>An installed <EM>Perl</EM> or shell script gives you a <CODE>No such
+file or directory</CODE> error message. In this case, check the file
+permissions to make sure the file is executable and check the file
+header to ascertain whether the shell or program invoked by the script
+is in the place specified.
+For example, the scrip may begin with:
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/usr/local/bin/perl
+</PRE>
+</CODE></BLOCKQUOTE>
+
+If <EM>Perl</EM> is in fact installed in your <CODE>/usr/bin</CODE>
+directory instead of the <CODE>/usr/local/bin</CODE> one, then the script
+will not run.  There are two methods of correcting this. The
+script file header may be changed to <CODE>#!/usr/bin/perl</CODE>, or
+a symbolic link to the correct directory may be added, <B>ln -s
+/usr/bin/perl /usr/local/bin/perl</B>.
+</LI>
+</UL>
+<P>
+<UL>
+<LI>Some X11 software requires the Motif libraries to build.
+The standard Linux distributions do not have the Motif libraries
+installed, and at present Motif costs an extra $100-$200 (though the
+freeware 
+<A HREF="http://www.lesstif.org/">Lesstif</A> also works
+in many cases). If you need Motif to build a certain package, but lack
+the Motif libraries, it may be possible to obtain <EM>statically linked
+binaries</EM>. Static linking incorporates the library routines in the
+binaries themselves.  This results in much larger binary files, but the
+code will run on systems lacking the libraries.
+
+<BLOCKQUOTE><CODE>
+<PRE>
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+When a package requires libraries not present on your system for the
+build, it will result in link errors (<CODE>undefined reference</CODE>
+errors).  The libraries may be expensive proprietary ones or difficult
+to find for sone other reason.  In that case, obtaining a <EM>statically
+linked</EM> binary either from the author of the package or from a Linux
+user group may be the easiest to implement fix.
+</LI>
+</UL>
+<P>
+<P>
+<UL>
+<LI>Running a <EM>configure</EM> script creates a strange Makefile, one
+seemingly unrelated to the package you are attempting to build. This
+means the wrong <EM>configure</EM> ran, one found somewhere else in your
+path. Always invoke <EM>configure</EM> as <B>./configure</B> to
+prevent this.</LI>
+</UL>
+<P>
+<P>
+<UL>
+<LI>Most Linux distributions have changed over to the <CODE>libc 6 / glibc
+2</CODE> libraries from the older <CODE>libc 5</CODE>. Precompiled binaries
+that worked with the older library may bomb if you have upgraded your
+library. The solution is to either recompile the applications from the
+source or to obtain newer precompiled binaries.  If you are in the process
+of upgrading your system to <CODE>libc 6</CODE> and are experiencing problems,
+refer to Eric Green's <EM>Glibc 2 HOWTO</EM>.
+
+<BLOCKQUOTE><CODE>
+<PRE>
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+Note that there are some minor incompatibilities between <CODE>glibc</CODE>
+versions, so a binary built with <CODE>glibc 2.1</CODE> may not work with
+<CODE>glibc 2.0</CODE>, and vice versa.
+
+</LI>
+</UL>
+<P>
+<UL>
+<LI>Sometimes it is necessary to remove the <EM>-ansi</EM> option from the
+compile flags in the <CODE>Makefile</CODE>. This enables gcc's extra, non-ANSI features,
+and allows building packages that require these extensions. (Thanks to Sebastien
+Blondeel for pointing this out.)</LI>
+</UL>
+<P>
+<UL>
+<LI>Some programs require having <EM>setuid root</EM>, in order to run
+with <EM>root privileges</EM>. The command to implement this is
+<B>chmod u+s filename</B>, <EM>as root</EM> (note that the program
+must already be owned by root). This has the effect of setting
+the <EM>setuid</EM> bit in the file permissions.  This issue comes up
+when the program accesses the system hardware, such as a modem or CD ROM
+drive, or when the SVGA libs are invoked from console mode, as in one
+particularly notorious emulation package. If a program works when run by
+root, but gives <EM>access denied</EM> error messages to an ordinary
+user, suspect this as the cause.
+
+<P>
+<P><B>Warning:</B>   
+A program with <EM>setuid</EM> as root may pose a security risk to your
+system. The program runs with root privileges and thus has the potential
+for doing significant damage. Make certain that you know what the
+program does, by looking at the source if possible, before setting the
+<EM>setuid</EM> bit.
+<P>
+</LI>
+</UL>
+<P>
+<P>
+<H2><A NAME="ss7.3">7.3 Tweaking and fine tuning</A>
+</H2>
+
+<P>
+<P>You may wish to examine the <CODE>Makefile</CODE> to make certain that
+the best compilation options for your system are invoked. For example,
+setting the <EM>-O2</EM> flag chooses the highest level of optimization
+and the <EM>-fomit-frame-pointer</EM> flag results in a smaller binary
+(though debugging will then be disabled). <B>Do not play around with
+this unless you know what you are doing, and in any case, not until
+after a trial <EM>build</EM> works.</B>
+<P>
+<P>
+<P>
+<H2><A NAME="ss7.4">7.4 Where to go for more help</A>
+</H2>
+
+<P>
+<P>In my experience, perhaps 25% of applications build "right out
+of the box". Another 50% or so can be "persuaded" to build with
+an effort ranging from trivial to herculean. That still means a
+significant number of packages will not build no matter what. Even
+then, the Intel <CODE>ELF</CODE> and/or <CODE>a.out</CODE> binaries for
+these might possibly be found at 
+<A HREF="ftp://metalab.unc.edu">Sunsite</A> or the 
+<A HREF="ftp://tsx-11.mit.edu">TSX-11 archive</A>.  
+<A HREF="http://redhat.com">Red Hat</A> and 
+<A HREF="http://www.debian.org">Debian</A> have extensive archives of
+prepackaged binaries of most of the popular Linux software.  Perhaps
+the author of the software can supply the binaries compiled for your
+particular flavor of machine.
+<P>
+<P><CODE>Note that if you obtain precompiled binaries, you will need to check
+for compatibility with your system:</CODE>
+<UL>
+<LI><CODE>The binaries must run on your hardware (i.e., Intel
+x86).</CODE></LI>
+<LI><CODE>The binaries must be compatible with your kernel (i.e., a.out or
+ELF).</CODE></LI>
+<LI><CODE>Your libraries must be up to date.</CODE></LI>
+<LI><CODE>Your system must have the appropriate installation utility (rpm or
+deb)</CODE>.</LI>
+</UL>
+<P>If all else fails, you may find help in the appropriate
+newsgroups, such as 
+<A HREF="news://comp.os.linux.x">comp.os.linux.x</A> or 
+<A HREF="news://comp.os.linux.development">comp.os.linux.development</A>.
+<P>If nothing at all works, at least you gave it your best effort, and you
+learned a lot.
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+<HR>
+<A HREF="Software-Building-HOWTO-8.html">Next</A>
+<A HREF="Software-Building-HOWTO-6.html">Previous</A>
+<A HREF="Software-Building-HOWTO.html#toc7">Contents</A>
+</BODY>
+</HTML>

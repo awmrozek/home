@@ -1,0 +1,403 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>How does IP Masquerade Work?</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Background Knowledge"
+HREF="ipmasq-background2.0.html"><LINK
+REL="PREVIOUS"
+TITLE="Who Doesn't Need IP Masquerade?"
+HREF="ipmasq-background2.4.html"><LINK
+REL="NEXT"
+TITLE="Requirements for IP Masquerade on Linux 2.4.x"
+HREF="kernel-2.4.x-requirements.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="ipmasq-background2.4.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 2. Background Knowledge</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="kernel-2.4.x-requirements.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="IPMASQ-BACKGROUND2.5"
+></A
+>2.5. How does IP Masquerade Work?</H1
+><P
+>Based from the original IP Masquerade FAQ by Ken Eves:
+  Here is a drawing of the most simplistic setup:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>PPP/ETH/etc.        +------------+                         +-------------+
+to ISP provider     |  Linux #1  |       PPP/ETH/etc.      | Anybox      |
+                    |            |                         |             |
+  &#60;---------- modem1|            |modem2 ----------- modem3|             |
+                    |            |                         |             |
+    111.222.121.212 |            |           192.168.0.100 |             |
+                    +------------+                         +-------------+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>   
+In the above drawing, a Linux box with IP_MASQUERADING is installed as Linux 
+#1 and is connected to the Internet via PPP, Ethernet, etc.  It has an 
+assigned public IP address of 111.222.121.212.  It also has another network
+interface (e.g. modem2) connected to allow incoming network traffic be it
+from a PPP connection, Ethernet connection, etc.</P
+><P
+>The second system (which does not need to be Linux) connects into the 
+Linux #1 box and starts its network traffic to the Internet.  This second 
+machine does NOT have a publicly assigned IP address from the Internet, so it 
+uses an 
+<A
+HREF="http://www.ietf.org/rfc/rfc1918.txt?number=1918"
+TARGET="_top"
+>RFC1918 private address</A
+>, say 192.168.0.100. (see below for more info)</P
+><P
+> With IP Masquerade and the routing configured properly, this second machine 
+"Anybox" can interact with the Internet as if it was directly connected to 
+the Internet with a few small exceptions [noted later].</P
+><P
+>Quoting Pauline Middelink (the founder of Linux's IPMASQ):</P
+><P
+>"Do not forget to mention that the "ANYBOX" machine should have the Linux #1 
+box configured as its default gateway (whether it be the default route or 
+just a subnet is no matter). If the "ANYBOX" machine is connected via a PPP
+or SLIP connection, the Linux #1 machine should be configured to support 
+proxy arp for all routed addresses. But, the setup and configuration of 
+proxy arp is beyond the scope of this document.  Please see the <A
+HREF="http://www.tldp.org/HOWTO/PPP-HOWTO/index.html"
+TARGET="_top"
+>PPP-HOWTO</A
+> 
+for more details."</P
+><P
+>The following is an excerpt on how IPMASQ briefly works though this will be
+explained in more detail later.  This short text is based from a previous post 
+on comp.os.linux.networking which has been edited to match the names used in 
+the above example:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>   o I tell machine ANYBOX that my PPP or Ethernet connected Linux box is its 
+     gateway.
+
+   o When a packet comes into the Linux box from ANYBOX, it will assign the 
+     packet to a new TCP/IP source port number and insert its own IP address 
+     inside the packet header, saving the originals.  The MASQ server will 
+     then send the modified packet over the PPP/ETH interface onto the 
+     Internet.
+
+   o When a packet returns from the Internet into the Linux box, Linux 
+     examines if the port number is one of those ports that was assigned 
+     above.  If so, the MASQ server will then take the original port and 
+     IP address, put them back in the returned packet header, and send 
+     the packet to ANYBOX.
+
+   o The host that sent the packet will never know the difference. </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+><EM
+>Another IP Masquerading Example:</EM
+></P
+><P
+>A typical example is given in the diagram below:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>                  Ethernet
+                 192.168.0.x
+    +----------+
+    |          |  
+    | A-box    |::::::
+    |          |.2   : 
+    +----------+     :
+                     :      +----------+   PPP/ETH   
+    +----------+     :   .1 |  Linux   |     link
+    |          |     :::::::| Masq-Gate|:::::::::::::::::::&#62;&#62; Internet
+    | B-box    |::::::      |          |  111.222.121.212
+    |          |.3   :      +----------+
+    +----------+     :
+                     :
+    +----------+     :
+    |          |     :
+    | C-box    |::::::
+    |          |.4    
+    +----------+  
+
+                
+    |                       |          |                           &#62;
+    | &#60;-Internal Network--&#62; |          | &#60;- External Network ----&#62; &#62;
+    |   connected via an    |          |    Connected from the     &#62;
+    |   Ethernet hub or     |          |    Linux server to your   &#62; 
+    |       switch          |          |    Internet connection    &#62;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>In this example, there are (4) computer systems that we are concerned about.   
+There is also presumably something on the far right that your PPP/ETH 
+connection to the Internet comes through (modem server, DSL DSLAM, Cablemodem
+router, etc.).   Out on the Internet, there exists some remote host (very far 
+off to the right of the page) that you are interested in communicating with).  
+The Linux system named <EM
+><TT
+CLASS="LITERAL"
+>Masq-Gate</TT
+></EM
+> is 
+the IP Masquerading gateway for ALL internal networked machines.  In this 
+example, the machines <EM
+><TT
+CLASS="LITERAL"
+>A-box</TT
+></EM
+>, <EM
+><TT
+CLASS="LITERAL"
+>B-box</TT
+></EM
+>, and <EM
+><TT
+CLASS="LITERAL"
+>C-box</TT
+></EM
+> would have to go through the Masq-Gate to reach the Internet.  The 
+internal network uses one of several 
+<A
+HREF="http://www.cis.ohio-state.edu/cgi-bin/rfc/rfc1918.html"
+TARGET="_top"
+>RFC-1918 assigned private network addresses</A
+>, where in this case, would 
+be the Class-C network 192.168.0.0.  If you aren't familiar with RFC1918, it
+is encouraged to read the first few chapters of the RFC but the jist of it is
+that the TCP/IP addresses 10.0.0.0/8, 172.16-31.0.0/12, and 192.168.0.0/16 
+are reserved.  When we say "reserved", we mean that anyone can use these
+addresses as long as they aren't routed over the Internet.  ISPs are even
+allowed to use this private addressing space as long as they keep these
+addresses within their own networks and NOT advertise them to other ISPs.
+Unfortunately, this isn't always the case but thats beyond the scope of
+this HOWTO.</P
+><P
+>Anyway, the Linux box in the diagram above has the TCP/IP address 192.168.0.1 
+while the other systems has the addresses:</P
+><P
+>&#13;<P
+></P
+><UL
+><LI
+><P
+>A-Box: 192.168.0.2</P
+></LI
+><LI
+><P
+>B-Box: 192.168.0.3</P
+></LI
+><LI
+><P
+>C-Box: 192.168.0.4</P
+></LI
+></UL
+>&#13;</P
+><P
+>The three machines, <TT
+CLASS="LITERAL"
+>A-box</TT
+>, <TT
+CLASS="LITERAL"
+>B-box</TT
+> and 
+<TT
+CLASS="LITERAL"
+>C-box</TT
+>, can have any one of several operating systems, just 
+as long as they can speak TCP/IP.  Some such as <EM
+>Windows 
+95</EM
+>, <EM
+>Macintosh MacTCP or OpenTransport </EM
+>, or 
+even another <EM
+>Linux box</EM
+> have the ability to connect to 
+other machines on the Internet.  When running the IP Masquerade, the 
+masquerading system or <TT
+CLASS="LITERAL"
+>MASQ-gate</TT
+> converts all of these 
+internal connections so that they appear to originate from the 
+<TT
+CLASS="LITERAL"
+>masq-gate</TT
+> itself.  MASQ then arranges so that the data 
+coming back to a masqueraded connection is relayed to the proper originating 
+system.   Therefore, the systems on the internal network are only able to see 
+a direct route to the internet and are unaware that their data is being 
+masqueraded.  This is called a "Transparent" connection.</P
+><P
+>NOTE:  Please see <A
+HREF="faq.html"
+>Chapter 7</A
+> for more details on topics such as:</P
+><P
+>&#13;<P
+></P
+><UL
+><LI
+><P
+>The differences between NAT, MASQ, and Proxy servers.</P
+></LI
+><LI
+><P
+>How packet firewalls work</P
+></LI
+></UL
+>&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="ipmasq-background2.4.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="kernel-2.4.x-requirements.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Who Doesn't Need IP Masquerade?</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="ipmasq-background2.0.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Requirements for IP Masquerade on Linux 2.4.x</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

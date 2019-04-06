@@ -1,0 +1,540 @@
+<HTML
+><HEAD
+><TITLE
+>The u32 classifier</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Advanced filters for (re-)classifying packets"
+HREF="lartc.adv-filter.html"><LINK
+REL="PREVIOUS"
+TITLE="Advanced filters for (re-)classifying packets"
+HREF="lartc.adv-filter.html"><LINK
+REL="NEXT"
+TITLE="The route classifier"
+HREF="lartc.adv-filter.route.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 12. Advanced filters for (re-)classifying packets</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.route.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.ADV-FILTER.U32"
+></A
+>12.1. The <TT
+CLASS="OPTION"
+>u32</TT
+> classifier</H1
+><P
+>The U32 filter is the most advanced filter available in the current
+implementation. It entirely based on hashing tables, which make it
+robust when there are many filter rules.</P
+><P
+>In its simplest form the U32 filter is a list of records, each
+consisting of two fields: a selector and an action. The selectors,
+described below, are compared with the currently processed IP packet
+until the first match occurs, and then the associated action is performed.
+The simplest type of action would be directing the packet into defined
+CBQ class.</P
+><P
+>The command line of <TT
+CLASS="LITERAL"
+>tc filter</TT
+> program, used to configure the filter,
+consists of three parts: filter specification, a selector and an action.
+The filter specification can be defined as:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>tc filter add dev IF [ protocol PROTO ]
+                     [ (preference|priority) PRIO ]
+                     [ parent CBQ ]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The <TT
+CLASS="LITERAL"
+>protocol</TT
+> field describes protocol that the filter will be
+applied to. We will only discuss case of <TT
+CLASS="LITERAL"
+>ip</TT
+> protocol. The
+<TT
+CLASS="LITERAL"
+>preference</TT
+> field (<TT
+CLASS="LITERAL"
+>priority</TT
+> can be used alternatively)
+sets the priority of currently defined filter. This is important, since
+you can have several filters (lists of rules) with different priorities.
+Each list will be passed in the order the rules were added, then list with
+lower priority (higher preference number) will be processed. The <TT
+CLASS="LITERAL"
+>parent</TT
+>
+field defines the CBQ tree top (e.g. 1:0), the filter should be attached
+to.</P
+><P
+>The options described above apply to all filters, not only U32.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1080"
+></A
+>12.1.1. U32 selector</H2
+><P
+>The U32 selector contains definition of the pattern, that will be matched
+to the currently processed packet. Precisely, it defines which bits are
+to be matched in the packet header and nothing more, but this simple
+method is very powerful. Let's take a look at the following examples,
+taken directly from a pretty complex, real-world filter:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth0 protocol ip parent 1:0 pref 10 u32 \
+  match u32 00100000 00ff0000 at 0 flowid 1:10</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>For now, leave the first line alone - all these parameters describe
+the filter's hash tables. Focus on the selector line, containing
+<TT
+CLASS="LITERAL"
+>match</TT
+> keyword. This selector will match to IP headers, whose
+second byte will be 0x10 (0010). As you can guess, the 00ff number is
+the match mask, telling the filter exactly which bits to match. Here
+it's 0xff, so the byte will match if it's exactly 0x10. The <TT
+CLASS="LITERAL"
+>at</TT
+>
+keyword means that the match is to be started at specified offset (in
+bytes) -- in this case it's beginning of the packet.  Translating all
+that to human language, the packet will match if its Type of Service
+field will have `low delay' bits set. Let's analyze another rule:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth0 protocol ip parent 1:0 pref 10 u32 \
+  match u32 00000016 0000ffff at nexthdr+0 flowid 1:10</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The <TT
+CLASS="LITERAL"
+>nexthdr</TT
+> option means next header encapsulated in the IP packet,
+i.e. header of upper-layer protocol. The match will also start here
+at the beginning of the next header. The match should occur in the
+second, 32-bit word of the header. In TCP and UDP protocols this field
+contains packet's destination port. The number is given in big-endian
+format, i.e. older bits first, so we simply read 0x0016 as 22 decimal,
+which stands for SSH service if this was TCP. As you guess, this match
+is ambiguous without a context, and we will discuss this later.</P
+><P
+>Having understood all the above, we will find the following selector
+quite easy to read: <TT
+CLASS="LITERAL"
+>match c0a80100 ffffff00 at 16</TT
+>. What we
+got here is a three byte match at 17-th byte, counting from the IP
+header start. This will match for packets with destination address
+anywhere in 192.168.1/24 network. After analyzing the examples, we
+can summarize what we have learned.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1094"
+></A
+>12.1.2. General selectors</H2
+><P
+>General selectors define the pattern, mask and offset the pattern
+will be matched to the packet contents. Using the general selectors
+you can match virtually any single bit in the IP (or upper layer)
+header. They are more difficult to write and read, though, than
+specific selectors that described below. The general selector syntax
+is:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>match [ u32 | u16 | u8 ] PATTERN MASK [ at OFFSET | nexthdr+OFFSET]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>One of the keywords <TT
+CLASS="LITERAL"
+>u32</TT
+>, <TT
+CLASS="LITERAL"
+>u16</TT
+> or <TT
+CLASS="LITERAL"
+>u8</TT
+> specifies
+length of the pattern in bits. PATTERN and MASK should follow, of length
+defined by the previous keyword. The OFFSET parameter is the offset,
+in bytes, to start matching. If <TT
+CLASS="LITERAL"
+>nexthdr+</TT
+> keyword is given,
+the offset is relative to start of the upper layer header.</P
+><P
+>Some examples:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev ppp14 parent 1:0 prio 10 u32 \
+     match u8 64 0xff at 8 \
+     flowid 1:4</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Packet will match to this rule, if its time to live (TTL) is 64.
+TTL is the field starting just after 8-th byte of the IP header.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev ppp14 parent 1:0 prio 10 u32 \
+     match u8 0x10 0xff at nexthdr+13 \
+     protocol tcp \
+     flowid 1:3 </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>FIXME: it has been pointed out that this syntax does not work currently.</P
+><P
+>Use this to match ACKs on packets smaller than 64 bytes:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>## match acks the hard way,
+## IP protocol 6,
+## IP header length 0x5(32 bit words),
+## IP Total length 0x34 (ACK + 12 bytes of TCP options)
+## TCP ack set (bit 5, offset 33)
+# tc filter add dev ppp14 parent 1:0 protocol ip prio 10 u32 \
+            match ip protocol 6 0xff \
+            match u8 0x05 0x0f at 0 \
+            match u16 0x0000 0xffc0 at 2 \
+            match u8 0x10 0xff at 33 \
+            flowid 1:3</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This rule will only match TCP packets with ACK bit set, and no further
+payload. Here we can see an example of using two selectors, the final result
+will be logical AND of their results. If we take a look at TCP header
+diagram, we can see that the ACK bit is second older bit (0x10) in the 14-th
+byte of the TCP header (<TT
+CLASS="LITERAL"
+>at nexthdr+13</TT
+>).  As for the second
+selector, if we'd like to make our life harder, we could write <TT
+CLASS="LITERAL"
+>match u8
+0x06 0xff at 9</TT
+> instead of using the specific selector <TT
+CLASS="LITERAL"
+>protocol
+tcp</TT
+>, because 6 is the number of TCP protocol, present in 10-th byte of
+the IP header. On the other hand, in this example we couldn't use any
+specific selector for the first match - simply because there's no specific
+selector to match TCP ACK bits.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1118"
+></A
+>12.1.3. Specific selectors</H2
+><P
+>The following table contains a list of all specific selectors 
+the author of this section has found in the <TT
+CLASS="LITERAL"
+>tc</TT
+> program
+source code. They simply make your life easier and increase readability
+of your filter's configuration.</P
+><P
+>FIXME: table placeholder - the table is in separate file ,,selector.html''</P
+><P
+>FIXME: it's also still in Polish :-(</P
+><P
+>FIXME: must be sgml'ized</P
+><P
+>Some examples:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev ppp0 parent 1:0 prio 10 u32 \
+     match ip tos 0x10 0xff \
+     flowid 1:4</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>FIXME: tcp dst match does not work as described below:</P
+><P
+>The above rule will match packets which have the TOS field set to 0x10.
+The TOS field starts at second byte of the packet and is one byte big,
+so we could write an equivalent general selector: <TT
+CLASS="LITERAL"
+>match u8 0x10 0xff
+at 1</TT
+>. This gives us hint to the internals of U32 filter -- the
+specific rules are always translated to general ones, and in this
+form they are stored in the kernel memory. This leads to another conclusion
+-- the <TT
+CLASS="LITERAL"
+>tcp</TT
+> and <TT
+CLASS="LITERAL"
+>udp</TT
+> selectors are exactly the same
+and this is why you can't use single <TT
+CLASS="LITERAL"
+>match tcp dst 53 0xffff</TT
+>
+selector to match TCP packets sent to given port -- they will also
+match UDP packets sent to this port. You must remember to also specify
+the protocol and end up with the following rule:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev ppp0 parent 1:0 prio 10 u32 \
+        match tcp dst 53 0xffff \
+        match ip protocol 0x6 0xff \
+        flowid 1:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.route.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Advanced filters for (re-)classifying packets</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>The <TT
+CLASS="OPTION"
+>route</TT
+> classifier</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

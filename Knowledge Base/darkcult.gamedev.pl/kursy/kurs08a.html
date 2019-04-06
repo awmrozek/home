@@ -1,0 +1,398 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Szablony, cz. 2</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs08.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs09.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h2>
+Specjalizacja szablonów funkcji
+</h2>
+
+<P>
+Szablony są bardzo elastycznym elementem języka programowania. Tak elastycznym, że aż strach - biorąc pod uwagę, jak delikatna jest w C++ kwestia dopasowywania typów danych. O czym mówimy? Weźmy jako przykład nasz szablon funkcji <SPAN CLASS=T>Kwadrat</SPAN>. Możemy dzięki niemu podnosić do kwadratu dowolne liczby całkowite - 8-bitowe, 16-bitowe, 32-bitowe, 64-bitowe, ze znakiem lub bez. Możemy też podnosić do kwadratu liczby zmiennoprzecinkowe - <SPAN CLASS=K>float, double, long double</SPAN>. Jednak gdybyśmy stworzyli sobie klasę <SPAN CLASS=T>Wektor</SPAN>, nawet jeśli byłaby to zwykła struktura zawierająca tylko dwie składowe <SPAN CLASS=T>x</SPAN> i <SPAN CLASS=T>y</SPAN>, to kompilator by po prostu zgłupiał.
+</P>
+<P>
+Po to właśnie są specjalizacje szablonów. Pierwszym rodzajem specjalizacji, któremu się przyjrzymy, jest "dodawanie" do szablonu nowych "sposobów" konkretyzacji (konkretyzacją nazywa. Teoretycznie nasz szablon funkcji <SPAN CLASS=T>Kwadrat</SPAN> potrafi wygenerować nieskończenie wiele konkretnych "wersji" funkcji <SPAN CLASS=T>Kwadrat</SPAN>, ale w praktyce tych "wersji" jest dużo mniej - zaledwie kilkanaście, w większości wymienione w poprzednim akapicie. Dokonując specjalizacji szablonu względem typu danych <SPAN CLASS=T>Wektor</SPAN> dodajemy do tych kilkunastu możliwości jeszcze jedną. Oto jak wygląda taka specjalizacja dla <SPAN CLASS=T>Wektor</SPAN>-a:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Wektor<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>private:</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>int</SPAN> x,y;<BR>
+&nbsp;<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;&nbsp;Wektor(<SPAN CLASS=K>int</SPAN> a=<SPAN CLASS=L>0</SPAN>, <SPAN CLASS=K>int</SPAN> b=<SPAN CLASS=L>0</SPAN>) { x=a; y=b; }<BR>
+}<BR>
+<BR>
+<SPAN CLASS=C>//Ogólna wersja szablonu funkcji Kwadrat</SPAN><BR>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TYP&gt;<BR>
+TYP Kwadrat(TYP L)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> L*L;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=C>//Specjalizacja funkcji Kwadrat dla klasy Wektor</SPAN><BR>
+<SPAN CLASS=K>template</SPAN>&lt;&gt; Wektor Kwadrat(Wektor w)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> Wektor(w.x*w.x, w.y*w.y);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widzimy, tworzenie specjalizacji jest proste aż do bólu; po prostu robimy nową funkcję o odpowiednim typie zwracanym i odpowiednich argumentach, tyle że dodatkowo opatrujemy ją słowem <SPAN CLASS=K>template</SPAN> oraz pustymi nawiasami trójkątnymi. To wystarczy, żeby kompilator połapał się, o co nam chodzi. Od tej pory kompilator napotkawszy kod w rodzaju:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Wektor v,v2;<BR>
+v2 = Kwadrat(v);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...nie będzie "na chama" generował konkretyzacji funkcji <SPAN CLASS=T>Kwadrat</SPAN> dla klasy <SPAN CLASS=T>Wektor</SPAN> (której to konkretyzacji sam zrobić nie potrafi), lecz odnajdzie naszą "specjalistyczną" definicję i grzecznie ją zastosuje, a generowanie z ogólnego szablonu będzie traktował jako ostateczność i skorzysta z niego dopiero wtedy, gdy argument funkcji <SPAN CLASS=T>Kwadrat</SPAN> nie będzie wektorem.
+</P>
+
+<P class=UWAGA>
+Warto zapamiętać sobie prostą regułkę: szablon dla większości (argumentów), specjalizacja dla szczególnych przypadków.
+</P>
+<P>
+Oczywiście, takich dodatkowych specjalizacji możemy zrobić więcej niż jedną. Na przykład jeśli uznamy, że funkcja <SPAN CLASS=T>Kwadrat</SPAN> jest nam potrzebna również do wektorów trójwymiarowych, będziemy musieli stworzyć specjalizację naszego szablonu względem klasy trójwymiarowego wektora. Czyli w sumie nasz szablon wraz z dwiema dodanymi specjalizacjami będzie wyglądał tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+//Ogólna wersja szablonu funkcji Kwadrat</SPAN><BR>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TYP&gt;<BR>
+TYP Kwadrat(TYP L)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> L*L;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=C>//Specjalizacja funkcji Kwadrat dla klasy Wektor</SPAN><BR>
+<SPAN CLASS=K>template</SPAN>&lt;&gt; Wektor Kwadrat(Wektor w)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> Wektor(w.x*w.x, w.y*w.y);<BR>
+}<BR>
+<BR>
+<SPAN CLASS=C>//Specjalizacja funkcji Kwadrat dla klasy Wektor3D</SPAN><BR>
+<SPAN CLASS=K>template</SPAN>&lt;&gt; Wektor3D Kwadrat(Wektor3D w)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> Wektor3D(w.x*w.x, w.y*w.y, w.z*w.z);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Specjalizacja częściowa szablonów funkcji
+</h2>
+
+<P>
+Jeśli chcemy dodać jedną czy dwie specjalizacje, to oczywiście nie ma problemu. Gorzej, jeśli jest ich więcej. Wówczas właściwie tracimy całe poczucie komfortu, jakie dają nam szablony, bowiem pod względem czasochłonności i nudy dodawanie kolejnych specjalizacji w zasadzie niczym się nie różni od "zwykłego" przeciążania funkcji bez stosowania szablonów w ogóle. Dlatego też programiści powinni dostać (i rzeczywiście ostatnio dostali) do ręki jeszcze jedną broń, a mianowicie <SPAN CLASS=Wazne>częściową specjalizację szablonu</SPAN>. Oznacza ona coś w rodzaju pewnej ściśle określonej grupy specjalizacji, tworzonych jednakże za jednym zamachem. 
+</P>
+<P>
+Niestety, broń ta jest na razie taką nowością, że obsługują ją tylko niektóre kompilatory, i tak na przykład domyślny kompilator z Dev-C++ częściową specjalizację owszem, rozpozna, ale wówczas odmówi kontynuowania kompilacji. Wspominam jednak o takim rodzaju specjalizacji, żeby było wiadomo, że coś takiego w ogóle istnieje, gdyż w niedalekiej przyszłości może się ona okazać bardzo istotnym elementem języka.
+</P>
+
+<h2>
+Specjalizacja szablonu klasy
+</h2>
+
+<P>
+Oczywiście, szablony klas też możemy specjalizować. Odbywa się to w bardzo podobny sposób, jak specjalizowanie szablonów funkcji. Po prostu tworzymy sobie oddzielną klasę o tej samej nazwie (no, może nie do końca tej samej, ale o tym zaraz), ale nieco innym działaniu. Zresztą, to może być nawet zupełnie inna klasa, która oprócz podobnej nazwy nie będzie miała nic wspólnego ze swoją "ogólną wersją". Wszystko zależy od intencji programisty.
+</P>
+<P>
+Ponieważ nie przychodzi mi akurat do głowy żaden sensowny powód, dla którego można by specjalizować całą klasę <SPAN CLASS=T>Tablica</SPAN> (co nie znaczy oczywiście, że taki powód nie istnieje w ogóle ;-)), a nowej klasy też nie chce mi się wymyślać, więc tym razem przykład będzie dość głupi. Otóż postanowiliśmy zrobić koledze-programiście złośliwy kawał. Do pracowicie przezeń opracowanej szablonowej klasy <SPAN CLASS=T>Tablica</SPAN> dopiszemy frajerowi specjalizację, która będzie "działała" zupełnie inaczej, niż to sobie ów kolega wymarzył ;-). Zamiast "prawdziwych" konstruktorów, operatorów i zwykłych metod, wstawimy do naszej wrednej specjalizacji atrapy, które będą w dodatku wyświetlać różne dziwne komunikaty. Tak więc dla jednego z typów danych, które można by przechowywać w tej tablicy, zamiast spodziewanych operacji, potencjalny użytkownik uświadczy różnych niemiłych niespodzianek ;-). Do dzieła:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+//ogólna, "normalna" wersja szablonu</SPAN><BR>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TDane, <SPAN CLASS=K>typename</SPAN> TIterator&gt;<BR>
+<SPAN CLASS=K>class</SPAN> Tablica<BR>
+{<BR>
+<SPAN CLASS=K>private:</SPAN><BR>
+&nbsp;TDane* dane;<BR>
+&nbsp;TIterator liczba;<BR>
+&nbsp;<SPAN CLASS=C>// ...</SPAN><BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Tablica();<BR>
+&nbsp;~Tablica();<BR>
+&nbsp;<SPAN CLASS=K>bool</SPAN> Dodaj(TDane* elem);<BR>
+&nbsp;<SPAN CLASS=K>bool</SPAN> Alokuj(TIterator ile);<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Czysc();<BR>
+&nbsp;<SPAN CLASS=C>// ...</SPAN><BR>
+};<BR>
+<BR>
+<SPAN CLASS=C>//"złośliwa" specjalizacja</SPAN><BR>
+<SPAN CLASS=K>template</SPAN>&lt;&gt; <SPAN CLASS=K>class</SPAN> Tablica&lt;string, <SPAN CLASS=K>long</SPAN>&gt;<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//prywatne składowe nie będą nam w ogóle potrzebne...<BR>
+&nbsp;//w końcu ta klasa nie musi działać jak należy ;-)</SPAN><BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Tablica()  { cout &lt;&lt; <SPAN CLASS=L>"Blad konstruktora..."</SPAN> &lt;&lt; endl; }<BR>
+&nbsp;~Tablica() { cout &lt;&lt; <SPAN CLASS=L>"Blad dealokacji..."</SPAN> &lt;&lt; endl; }<BR>
+&nbsp;<SPAN CLASS=K>bool</SPAN> Dodaj(string elem) { cout &lt;&lt; <SPAN CLASS=L>"Nieprawidlowy element..."</SPAN> &lt;&lt; endl; <SPAN CLASS=K>return false</SPAN>; }<BR>
+&nbsp;<SPAN CLASS=K>bool</SPAN> Alokuj(<SPAN CLASS=T>long</SPAN> ile)   { cout &lt;&lt; <SPAN CLASS=L>"Blad alokacji..."</SPAN> &lt;&lt; endl; <SPAN CLASS=K>return false</SPAN>; }<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Czysc() { cout &lt;&lt; <SPAN CLASS=L>"Nie mozna wyczyscic tablicy..."</SPAN> &lt;&lt; endl; }<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, podobnie do specjalizacji szablonu funkcji, także i tutaj poprzedzamy specjalizowaną wersję frazą <SPAN CLASS=K>template&lt;&gt;</SPAN>. Różnica polega na tym, że w nagłówku klasy specjalizowanej musimy podać (w nawiasach trójkątnych, rzecz jasna), dla jakich parametrów szablonu jest ta specjalizacja.
+</P>
+<P>
+Samo ciało specjalizowanej klasy nie musi być w niczym podobne do "oryginału", jak już wspomniałem wcześniej. Możemy sobie w nim napisać, co nam się żywnie podoba i o to właśnie chodzi w idei specjalizowanych klas. W tym przykładzie zachowaliśmy jednak z grubsza strukturę "prawidłowej" klasy <SPAN CLASS=T>Tablica</SPAN> (w sensie, że występują w niej metody o takich samych nazwach), aby nasza "ofiara" nie zorientowała się zbyt szybko, że to tylko kawał ;-).
+</P>
+
+<P class=UWAGA>
+Zauważ, że w specjalizowanej wersji nie występują nazwy parameterów szablonu (<SPAN CLASS=T>TDane, TIterator</SPAN>), tylko konkretne typy (<SPAN CLASS=T>string</SPAN>,<SPAN CLASS=K> long</SPAN>). Wersja specjalizowana dotyczy bowiem konkretnych typów, parametry zaś - tylko wersji "ogólnej" szablonu. Jest to dość oczywiste, choć dla osoby dopiero zaczynające zabawę z szablonami mogą być tym faktem zaskoczone.
+</P>
+<P>
+Jeśli teraz założymy, że mamy już wcześniej zaimplementowany "prawidłowy" szablon klasy <SPAN CLASS=T>Tablica</SPAN>, to będzie on "działać" dla wszystkich parametrów z wyjątkiem kombinacji <SPAN CLASS=T>&lt;string, <SPAN CLASS=K>long</SPAN>&gt;</SPAN>. Tak więc jeśli potencjalny użytkownik klasy <SPAN CLASS=T>Tablica</SPAN> spróbuje stworzyć tablicę elementów <SPAN CLASS=K>int</SPAN> z iteratorem <SPAN CLASS=K>int</SPAN>, to nie zauważy podstępu, gdyż zgodnie ze swoimi oczekiwaniami skorzysta z klasy, wygenerowanej z "prawidłowego" szablonu. Jeśli poda parametry <SPAN CLASS=T>&lt;string, <SPAN CLASS=K>int</SPAN>&gt;</SPAN>, to również wszystko będzie w porządku. Dopiero jeśli poda <SPAN CLASS=T>&lt;string, <SPAN CLASS=K>long</SPAN>&gt;</SPAN>, zaczną się dziać zaplanowane przez nas cuda ;-). Popatrzmy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;stdlib.h&gt;<BR>
+#include &lt;iostream.h&gt;</SPAN><BR>
+<BR>
+<SPAN CLASS=K>using namespace</SPAN> std;<BR>
+<BR><SPAN CLASS=C>
+\\&lt;-- deklaracja "normalnej" klasy Tablica<BR>
+<BR>
+\\&lt;-- "złośliwa" specjalizacja</SPAN><BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;Tablica&lt;string, <SPAN CLASS=K>long</SPAN>&gt; Test; <SPAN CLASS=C>//hehe ;-)</SPAN><BR>
+&nbsp;string s = <SPAN CLASS=L>"bla"</SPAN>;<BR>
+<BR>
+&nbsp;Test.Dodaj(s);<BR>
+&nbsp;Test.Czysc();<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Nasza ofiara kompiluje sobie powyższy program i...
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+Blad konstruktora...<BR>
+Nieprawidlowy element...<BR>
+Nie mozna wyczyscic tablicy...<BR>
+Naciśnij dowolny klawisz, aby kontynuować . . .<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Dodatkowo po naciśnięciu klawisza pokaże się jeszcze napis <SPAN CLASS=L>"Blad dealokacji..."</SPAN> jako wynik niejawnego wywołania "fałszywego" destruktora... Cóż, próba skorzystania z tej wersji klasy zakończyła się kompletnym fiaskiem. I o to nam właśnie chodziło ;-).
+</P>
+
+<h2>
+Specjalizacja pojedynczych metod klasy
+</h2>
+
+<P>
+Czasami, specjalizując jakiś szablon klasy, nie potrzebujemy wcale wprowadzać tak drastycznych zmian w stosunku do "ogólnej wersji". Często wystarczyłoby zmienić jedną, dwie metody, aby osiągnąć zamierzony cel. W takim wypadku pisanie pozostałych metod od nowa (a przecież pamiętamy, że głównym celem szablonów jest wyeliminowanie zbędnej pisaniny), czy nawet kopiowanie jej i następnie odpowiednia modyfikacja tej jednej, dwóch metod to byłaby masa niepotrzebnej roboty i równie niepotrzebny wzrost objętości kodu źródłowego.
+</P>
+
+<P>
+Szczęśliwie wcale nie musimy tego robić. Mamy bowiem możliwość napisania specjalizacji li jedynie jednej metody (lub dwóch, trzech...), jeśli tylko chcemy.
+</P>
+<P>
+Załóżmy, że przystosowaliśmy naszą klasę <SPAN CLASS=T>Tablica</SPAN> jedynie do przechowywania elementów numerycznych (mimo iż niby jest to szablon). Potem nagle doznaliśmy oświecenia i przypomniało nam się, że potrzebujemy jeszcze przechowywać tam łańcuchy typu <SPAN CLASS=T>string</SPAN>. Po krótkiej analizie kodu naszego szablonu, który wygląda...
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TDane&gt;<BR>
+<SPAN CLASS=K>class</SPAN> Tablica<BR>
+{<BR>
+<SPAN CLASS=K>private:</SPAN><BR>
+&nbsp;Dane* dane;<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> liczba;<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Tablica() { dane = <SPAN CLASS=K>new</SPAN> TDane[<SPAN CLASS=L>1</SPAN>]; dane[<SPAN CLASS=L>0</SPAN>] = <SPAN CLASS=L>0</SPAN>; }<BR>
+&nbsp;~Tablica() { <SPAN CLASS=K>delete[]</SPAN> dane; }<BR>
+&nbsp;<SPAN CLASS=C>// ... reszta nieistotna ;-)</SPAN><BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...dochodzimy do wniosku, że jedynym elementem tego szablonu wymagającym modyfikacji na rzecz typu <SPAN CLASS=T>string</SPAN>, jest domyślny konstruktor. Dla typów numerycznych alokuje on jeden element tablicy i inicjalizuje go zerem. Dla typu <SPAN CLASS=T>string</SPAN> taka operacja jest oczywiście nieprawidłowa. Dlatego też właśnie domyślny konstruktor powinniśmy specjalizować dla <SPAN CLASS=T>&lt;string&gt;</SPAN> (dla ułatwienia pozbyliśmy się  z szablonu parametryzowanego iteratora, który tutaj będzie zawsze typu <SPAN CLASS=K>int</SPAN>). Uczynimy to na zewnątrz klasy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>template</SPAN>&lt;&gt; Tablica&lt;string&gt;::Tablica()<BR>
+{<BR>
+&nbsp;dane = <SPAN CLASS=K>new</SPAN> string[<SPAN CLASS=L>1</SPAN>];<BR>
+&nbsp;dane[<SPAN CLASS=L>0</SPAN>] = <SPAN CLASS=L>"pusty lancuch"</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Nagłówek jest chyba całkowicie zrozumiały - tradycyjnie zaczynamy od <SPAN CLASS=K>template</SPAN><SPAN CLASS=T>&lt;&gt;</SPAN> w celu zaznaczenia, że następujący po tym wyrażeniu kod będzie specjalizacją szablonu. Następnie wyjaśniamy kompilatorowi, że będzie to konstruktor klasy <SPAN CLASS=T>Tablica</SPAN> - z tym, że tylko wówczas, gdy jako parametr szablonu występuje <SPAN CLASS=T>string</SPAN> (innymi słowy: jest to konstruktor klasy <SPAN CLASS=T>Tablica&lt;string&gt;</SPAN>, dla odróżnienia od klasy <SPAN CLASS=T>Tablica&lt;kazdy_inny_typ&gt;</SPAN>). Ciało nowego konstruktora wykonuje alokację pierwszego elementu (podobnie jak konstruktor dla typów numerycznych), ale nowo utworzony element inicjalizuje nie zerem, lecz napisem <SPAN CLASS=L>"pusty lancuch"</SPAN>.
+</P>
+<h2>
+Specjalizacja częściowa szablonu klas
+</h2>
+<P>
+Jak zapewne pamiętasz, w przypadku częściowej specjalizacji szablonów funkcji musieliśmy się obyć smakiem. Dlatego też pewnie się zdziwisz, że taka specjalizacja będzie całkowicie możliwa wobec klas...
+</P>
+<P>
+Przykładowy szablon będzie tym razem już całkowicie nieżyciowy, za to prawdopodobnie dużo prostszy do zrozumienia. Będzie to klasa nie robiąca zupełnie nic pożytecznego, a tylko zaznaczająca swą obecność w programie (coś jakby politycy w państwie) przez wypisanie odpowiedniego komunikatu w konstruktorze:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;stdlib.h&gt;<BR>
+#include &lt;iostream.h&gt;</SPAN><BR>
+<BR>
+<BR>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TYP&gt;<BR>
+<SPAN CLASS=K>class</SPAN> Klasa<BR>
+{<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Tablica() { cout &lt;&lt; <SPAN CLASS=L>"Tutaj wersja ogolna klasy!"</SPAN> &lt;&lt; endl; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TYP&gt;<BR>
+<SPAN CLASS=K>class</SPAN> Klasa&lt;TYP*&gt;<BR>
+{<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Tablica() { cout &lt;&lt; <SPAN CLASS=L>"Tutaj czesciowa specjalizacja!"</SPAN> &lt;&lt; endl; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K><SPAN CLASS=K>int</SPAN></SPAN> main()<BR>
+{<BR>
+&nbsp;Klasa&lt;<SPAN CLASS=K>int</SPAN>&gt; zm1;<BR>
+&nbsp;Klasa&lt;<SPAN CLASS=K>float</SPAN>&gt; zm2;<BR>
+&nbsp;Klasa&lt;<SPAN CLASS=K>float</SPAN>*&gt; zm3;<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+
+<P>
+Pierwsza deklaracja klasy w tym programie to wersja ogólna szablonu, natomiast druga klasa - to właśnie nasza częściowa specjalizacja. Dotyczy ona wskaźników. Wszystkich wskaźników, nie tylko jednego wybranego. Tak więc jeśli taką specjalizację w programie umieścimy, to kompilator będzie sprawdzał wszystkie obiekty zadeklarowane jako <SPAN CLASS=T>Klasa</SPAN> i jeśli będą one dowolnego typu wskaźnikowego, to kompilator wygeneruje dla nich konkretyzację, korzystając z tego drugiego szablonu, w przeciwnym wypadku - z pierwszego. Sprawdzane to jest w bloku <SPAN CLASS=T>main</SPAN>, gdzie mamy trzy deklaracje obiektów klasy <SPAN CLASS=T>Klasa</SPAN>. Dadzą one na ekranie taki wydruk:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+Tutaj wersja ogolna klasy!<BR>
+Tutaj wersja ogolna klasy!<BR>
+Tutaj czesciowa specjalizacja!<BR>
+Naciśnij dowolny klawisz, aby kontynuować . . .<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Myślę, że należy się jeszcze jedno małe wyjaśnienie. Otóż można by się zastanawiać, czemu w nagłówku specjalizacji mamy <SPAN CLASS=K>template</SPAN><SPAN CLASS=T>&lt;<SPAN CLASS=K>typename</SPAN> TYP&gt;</SPAN> (zupełnie jak w "ogólnej wersji"), a nie samo <SPAN CLASS=K>template</SPAN><SPAN CLASS=T>&lt;&gt;</SPAN>. Otóż przypominam, że mamy do czynienia ze specjalizacją częściową, która w przeciwieństwie do specjalizacji całkowitej (tej, którą omawialiśmy wcześniej) nie dotyczy jakiego jednego, konkretnego typu danych, lecz całej ich grupy. Ba, wskaźników jest nawet znacznie więcej, niż "niewskaźnikowych" typów (teoretycznie jest ich nieskończenie wiele). Dlatego parametr musi zostać, inaczej specjalizacja częściowa stałaby się specjalizacją całkowitą, co niekoniecznie jest sytuacją pożądaną ;-).
+</P>
+
+<h2>
+Domyślne parametry szablonu
+</h2>
+
+<P>
+Na zakończenie jeszcze trochę o parametrach. Nieco wyżej mieliśmy szablon klasy <SPAN CLASS=T>Tablica</SPAN> z dwoma parametrami (<SPAN CLASS=T>TDane</SPAN> i <SPAN CLASS=T>TIterator</SPAN>). Później zrezygnowaliśmy z tego drugiego. Gdyby się nad tym trochę zastanowić, to jasne się stanie, że ten drugi parametr jest znacznie "mniej potrzebny" niż ten pierwszy. W gruncie rzeczy niemal w każdym przypadku użycia tablicy w zupełności wystarczy nam iterator typu <SPAN CLASS=K>int</SPAN> (tablic posiadających więcej, niż 2 miliardy elementów raczej się nie spotyka, natomiast stosowanie "mniejszych" typów w roli iteratora to doprawdy niewielka oszczędność).
+</P>
+<P>
+Tak więc jeśli mamy podobną sytuację - "mało istotny" parametr, z którego jednak nie chcemy rezygnować (żeby szablon był bardziej elastyczny), wówczas możemy zastosować domyślne parametry szablonu. Działają one na bardzo podobnych zasadach, jak w przypadku argumentów funkcji:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TDane, <SPAN CLASS=K>typename</SPAN> TIterator = <SPAN CLASS=K>unsigned int</SPAN>&gt;<BR>
+<SPAN CLASS=K>class</SPAN> Tablica<BR>
+{<SPAN CLASS=C><BR>
+ //...</SPAN><BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Chyba żadnych komentarzy do tego przykładu nie trzeba - po prostu parametr <SPAN CLASS=T>TIterator</SPAN> stał się odtąd nieobowiązkowy i możemy zadeklarować obiekt typu <SPAN CLASS=T>Tablica</SPAN> podając tylko jeden typ-parametr - typ elementu.
+</P>
+
+<P class=UWAGA>
+Oczywiście parametry domyślne szablonu obowiązują też te same ograniczenia, co w przypadku argumentów domyślnych funkcji, tj. parametry z wartością domyślną (czyli opcjonalne) nie mogą poprzedzać żadnych parametrów obowiązkowych.
+</P>
+<P>
+Kolejna cecha parametrów domyślnych "zapożyczona" z funkcji dotyczy przypadku, gdy wszystkie parametry są opcjonalne i użytkownik szablonu nie poda żadnego. Wówczas, podobnie jak w przypadku wywoływania funkcji bez podawania argumentów, nie wolno zapomnieć o pustej parze nawiasów (w tym przypadku chodzi rzecz jasna o nawiasy trójkątne).
+</P>
+<P>
+Teraz mała ciekawostka. W przypadku listy argumentów funkcji nie mogliśmy inicjalizować jednego argumentu drugim, ponieważ kompilator by się na nas wydarł, że ów drugi argument nie został jeszcze zadeklarowany (mimo, iż niby występuje wcześniej na liście). W przypadku szablonów jest to jak najbardziej możliwe:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TYP1, <SPAN CLASS=K>typename</SPAN> TYP2 = TYP1&gt;<BR>
+<SPAN CLASS=K>class</SPAN> Klasa<BR>
+{<BR><SPAN CLASS=C>
+ //...</SPAN><BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W przypadku funkcji takie coś raczej nie było nam niezbędne, gdyż mogliśmy bez problemu dokonać zmian wartości argumentów już w ciele funkcji. W przypadku szablonów taka zmiana możliwa nie jest (kompilator w ogóle nie zrozumie o co nam chodzi i ogłosi "parse error"), dlatego też musiała się pojawić jakaś inna droga do ujednolicenia niektórych parametrów w pewnych szczególnych sytuacjach.
+</P>
+<P>
+Wreszcie na koniec warto wspomnieć, że parametry domyślne mogą miec tylko szablony klas - NIE istnieje możliwość tworzenia szablonów funkcji z parametrami opcjonalnymi. Nie jest to raczej jednak podyktowane istnieniem jakichś barier w języku, które by taką możliwość wykluczały. Tak więc jeśli będziemy się dużo modlić do bóstw o parametry opcjonalne i składać od czasu do czasu ofiary całopalne z lamerów, to być może nasze prośby zostaną wysłuchane i kiedyś ten brakujący element zaistnieje w Standardzie ;-).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs08.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs09.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

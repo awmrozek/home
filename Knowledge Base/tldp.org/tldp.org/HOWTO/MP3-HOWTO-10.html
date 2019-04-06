@@ -1,0 +1,389 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux MP3-HOWTO : Encoding from CD-ROM.</TITLE>
+ <LINK HREF="MP3-HOWTO-11.html" REL=next>
+ <LINK HREF="MP3-HOWTO-9.html" REL=previous>
+ <LINK HREF="MP3-HOWTO.html#toc10" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="MP3-HOWTO-11.html">Next</A>
+<A HREF="MP3-HOWTO-9.html">Previous</A>
+<A HREF="MP3-HOWTO.html#toc10">Contents</A>
+<HR>
+<H2><A NAME="s10">10. Encoding from CD-ROM.</A></H2>
+
+<P>In a similar way to encoding from audio, encoding from CD is a 2 stage process.  Firstly the audio data is extracted from the cd and converted into a wav file.  Then the wav file is converted into MP3.
+<P>There are basically 2 types of encoders, console based and X based.  Both do the same job, but the X based are easier to use (and look nicer).
+<P>Again, before you start to encode, check you will have enough drive space on your system.           
+<P>
+<H2><A NAME="ss10.1">10.1 Command Line encoding</A>
+</H2>
+
+<P>
+<P>I've written a very simple Perl script that will rip and encode tracks
+from a CD.
+<P>
+<HR>
+<PRE>
+#!/usr/bin/perl
+
+if ($ARGV[0] ne "") {
+
+$count = 1;
+
+do {
+ 
+$cdcap = system("cdparanoia", $count, "/mp3/cdda.wav");
+$track = "$ARGV[1]/track".$count.".mp3";
+$enc = system("bladeenc  /mp3/cdda.wav $track -br 256000");
+$count++;
+
+}
+until $count > $ARGV[0];
+exit;
+}
+
+else {
+print "Usage cdriper [no of tracks] [destination directory]\n\n";
+}
+</PRE>
+<HR>
+
+Please note: The above script is very basic and has nothing fancy, like
+error checking or CDDB.  Improve at your leisure :)
+<P>The main lines of interest are: 
+<P>
+<HR>
+<PRE>
+$cdcap = system("cdparanoia", $count, "/mp3/cdda.wav");
+</PRE>
+<HR>
+<P>This line calls the CD ripper, cdparanoia.  Cdparanoia converts raw CD audio
+data to WAV format.
+<P>I'm using Cdparanoia, but if you wish to use CDDA2WAV, the command line
+would be:
+<P>
+<HR>
+<PRE>
+$cdcap = system("cdda2wav", $count, "/mp3/cdda.wav");
+</PRE>
+<HR>
+<P>The salient options are $count, which is the number of tracks to rip, and
+then the path for the outputted WAV file.  In my example this will go to a
+tmp directory on my MP3 SCSI drive.
+<P>The WAV file is then converted into a MP3 file using Bladeenc.
+<P>I've written this Perl script in order to rip a CD without having to rip and
+encode each track, and without having to use the batch mode of Cdparanoia. 
+This cuts down on free disk space needed as Cdparanoia's batch mode will
+rip the whole disk, and take up anything upto 600 Meg.
+<P>If you wanted to use Lame or Gogo, replace the encoder line with:  
+<HR>
+<PRE>
+$enc = system("lame  /mp3/cdda.wav $track -b 256");
+</PRE>
+<HR>
+
+or
+<HR>
+<PRE>
+$enc = system("gogo  /mp3/cdda.wav $track -b 256");
+</PRE>
+<HR>
+<P>Here is a dump of the available option for each of the encoders.
+<P>Bladeenc
+<HR>
+<PRE>
+BladeEnc 0.91    (c) Tord Jansson          Homepage: http://bladeenc.mp3.no
+===============================================================================
+BladeEnc is free software, distributed under the Lesser General Public License.
+See the file COPYING, BladeEnc's homepage or www.fsf.org for more details.
+
+Usage: bladeenc [global switches] input1 [output1 [switches]] input2 ...
+
+General switches:
+  -[kbit], -br [kbit]  Set MP3 bitrate. Default is 128 (64 for mono output).
+  -crc                 Include checksum data in MP3 file.
+  -delete, -del        Delete sample after successful encoding.
+  -private, -p         Set the private-flag in the output file.
+  -copyright, -c       Set the copyright-flag in the output file.
+  -copy                Clears the original-flag in the output file.
+  -mono, -dm           Produce mono MP3 files by combining stereo channels.
+  -leftmono, -lm       Produce mono MP3 files from left stereo channel only.
+  -rightmono, -rm      Produce mono MP3 files from right stereo channel only.
+  -swap                Swap left and right stereo channels.
+  -rawfreq=[freq]      Specify frequency for RAW samples. Default is 44100.
+  -rawbits=[bits]      Specify bits per channel for RAW samples. Default is 16.
+  -rawmono             Specifies that RAW samples are in mono, not stereo.
+  -rawstereo           Specifies that RAW samples are in stereo (default).
+  -rawsigned           Specifies that RAW samples are signed (default).
+  -rawunsigned         Specifies that RAW samples are unsigned.
+  -rawbyteorder=[order]Specifies byteorder for RAW samples, LITTLE or BIG.
+  -rawchannels=[1/2]   Specifies number of channels for RAW samples. Does
+                       the same as -rawmono and -rawstereo respectively.
+
+Global only switches:
+  -quit, -q            Quit without waiting for keypress when finished.
+  -outdir=[dir]        Save MP3 files in specified directory.
+  -quiet               Disable screen output.
+  -nocfg               Don't take settings from the config-file.
+  -prio=[prio]         Sets the task priority for BladeEnc. Valid settings are
+                       HIGHEST, HIGHER, NORMAL, LOWER, LOWEST(default) and IDLE
+  -refresh=[rate]      Refresh rate for progress indicator. 1=fastest, 2=def.
+  -progress=[0-8]      Which progress indicator to use. 0=Off, 1=Default.
+
+Input/output files can be replaced with STDIN and STDOUT respectively.
+</PRE>
+<HR>
+<P>Lame
+<HR>
+<PRE>
+LAME version 3.50 (www.sulaco.org/mp3) 
+GPSYCHO: GPL psycho-acoustic model version 0.74. 
+
+USAGE   :  lame [options] &lt;infile> [outfile]
+
+&lt;infile> and/or &lt;outfile> can be "-", which means stdin/stdout.
+
+OPTIONS :
+    -m mode         (s)tereo, (j)oint, (f)orce or (m)ono  (default j)
+                    force = force ms_stereo on all frames. Faster and
+                    uses special Mid &amp; Side masking thresholds
+    -b &lt;bitrate>    set the bitrate, default 128kbps
+                    (for VBR, this sets the allowed minimum bitrate)
+    -s sfreq        sampling frequency of input file(kHz) - default 44.1
+  --resample sfreq  sampling frequency of output file(kHz)- default=input sfreq
+  --mp3input        input file is a MP3 file
+  --voice           experimental voice mode
+
+    -v              use variable bitrate (VBR)
+    -V n            quality setting for VBR.  default n=4
+                    0=high quality,bigger files. 9=smaller files
+    -t              disable Xing VBR informational tag
+    --nohist        disable VBR histogram display
+
+    -h              use (maybe) quality improvements
+    -f              fast mode (low quality)
+    -k              disable sfb=21 cutoff
+    -d              allow channels to have different blocktypes
+  --athonly         only use the ATH for masking
+
+    -r              input is raw pcm
+    -x              force byte-swapping of input
+    -a              downmix from stereo to mono file for mono encoding
+    -e emp          de-emphasis n/5/c  (obsolete)
+    -p              error protection.  adds 16bit checksum to every frame
+                    (the checksum is computed correctly)
+    -c              mark as copyright
+    -o              mark as non-original
+    -S              don't print progress report, VBR histograms
+
+  Specifying any of the following options will add an ID3 tag
+     --tt &lt;title>     title of song (max 30 chars)
+     --ta &lt;artist>    artist who did the song (max 30 chars)
+     --tl &lt;album>     album where it came from (max 30 chars)
+     --ty &lt;year>      year in which the song/album was made (max 4 chars)
+     --tc &lt;comment>   additional info (max 30 chars)
+
+
+MPEG1 samplerates(kHz): 32 44.1 48 
+bitrates(kbs): 32 48 56 64 80 96 112 128 160 192 224 256 320 
+
+MPEG2 samplerates(kHz): 16 22.05 24 
+bitrates(kbs): 8 16 24 32 40 48 56 64 80 96 112 128 144 160
+</PRE>
+<HR>
+<P>Gogo
+<HR>
+<PRE>
+GOGO-no-coda ver. 2.24 (Feb 12 2000)
+Copyright (C) 1999 PEN@MarineCat and shigeo
+          Special thanks to Keiichi SAKAI, URURI, Noisyu and Kei
+This is based on LAME3.29beta and distributed under the LGPL
+usage
+gogo inputPCM [outputPCM] [options]
+
+ inputPCM is input  wav file
+if input.wav is `stdin' then stdin-mode
+outputPCM is output mp3 file (omissible)
+
+options
+-b  kbps     bitrate [kpbs]
+-br bps      bitrate [ bps]
+-silent      dont' print progress report
+-off         {3dn,mmx,kni(sse),e3dn}
+-v {0,..,9}  VBR [0:high quality 9:high compression]
+             You should combine this with -b option
+for only RAW-PCM input
+-offset bytes skip header size
+  -8bit       8bit-PCM [dflt 16bit-PCM]
+  -mono       mono-PCM [dflt stereo-PCM]
+  -bswap      low, high byte swapping for 16bitPCM
+  -s kHz      freq of PCM [dflt 44.1kHz]
+-nopsy       disable psycho-acoustics
+-m  {s,m,j}  output format s:stereo, m:mono, j:j-stereo
+-d  kHz      change sampling-rate of output MP3
+-emh {n,c,5} de-emphasis
+-lpf {on,off} 16kHz filter [dflt use if &lt;= 128kbps; not use if >= 160kbps]
+-test        benchmark mode
+-delete      delete input file, after encoding
+</PRE>
+<HR>
+<P>
+<H3>RipEnc</H3>
+
+<P>RipEnc performs the same task as the code above, but is written in shell and is easier to use :)
+<P>Here's what it looks like.
+<P>
+<HR>
+<PRE>
+RipEnc version 0.7, Copyright (C) 1999  Michael J. Parmeley
+&lt;mjparme@asde.com>, RipEnc comes with ABSOLUTELY NO WARRANTY
+
+
+There is currently NO encoding process running in the background
+Your encode.log file is 982607 bytes long.
+
+&lt;Enter 'd' for details, 'v' to view the encode log, or 'del' to delete the encode log>
+
+
+1) Change working directory....................[/megajukebox/tmp]
+2) Choose encoder..............................[lame]
+3) Choose ripper...............................[cdparanoia]
+4) Choose id3 tool.............................[none]
+5) Toggle between Manual and CDDB naming.......[manual]
+6) Setup XMCD_LIBDIR variable for CDA..........[/var/X11R6/lib/xmcd]
+7) Set preferred naming convention.............[artist-name_of_song.mp3]
+8) Rip whole CD?...............................[no]
+9) Set small hard drive option?................[no]
+10) Please select your Cd-Rom device...........[/dev/cdrom]
+11) Set the Bitrate for the encoded MP3's......[256]
+12) List the files in your working directory
+13) Start
+14) About
+15) Exit
+?
+</PRE>
+<HR>
+<P>
+<P>
+<H3>CD2MP3</H3>
+
+<P>
+<P>Cd2mp3 is a single pass cdda to MP3 encoder.  It will convert a audio track to MP3 without producing an intermediate wav file.
+<P>Here's how it looks in operation:
+<P>
+<HR>
+<PRE>
+[dj@megajukebox]$ cd2mp3 options ALL
+Using language: 1 - English.
+Translator: Gustavo Sverzut Barbieri(k-s) &lt;gsbarbieri@hotmail.com>
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Cd2Mp3 1.0 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Author: Gustavo Sverzut Barbieri (k-s) &lt;gsbarbieri@hotmail.com.br>
+*** device: -D/dev/cdrom        type: -Icooked_ioctl
+*** audio device: /dev/dsp
+*** preset: tape
+*** copyright: Yes
+*** author: 
+*** album: 
+
+recording: '1' as 'track-1.mp3' (wait)
+        Ok! (recorded)
+recording: '2' as 'track-2.mp3' (wait)
+</PRE>
+<HR>
+<P>
+<P>Naturally you can feed it options from the command-line, here is a list:
+<P>
+<HR>
+<PRE>
+dj@megajukebox]$ cd2mp3 --help
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Cd2Mp3 1.0 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Author: Gustavo Sverzut Barbieri (k-s) &lt;gsbarbieri@hotmail.com.br>
+Usage:
+  cd2mp3 options &lt;track_number>="&lt;track name>" ... &lt;track_number>="&lt;track name>"or:  cd2mp3 options ALL  (to record all tracks)
+or: cd2mp3 options LIST=&lt;reclist_path>  (to read pairs: &lt;track_number>="&lt;track name>" from a file)
+ou: cd2mp3 options PLAY=&lt;track_number> VOL=[0..100] (only plays the track)
+
+Options:
+  DEV=&lt;cdrom_device> (default: /dev/cdrom)
+  DEV_TYPE=[generic_scsi|cooked_ioctl] (default: cooked_ioctl)
+  AUDIO_DEV=&lt;audio_device>  (default:/dev/dsp)
+  LANGUAGE=&lt;language_number> (LANGUAGE=help to see supported languages)
+  COPYRIGHT=[YES|NO]
+  PRESET=[phone|voice|fm|tape|hifi|cd|studio] (PRESET=help will give more info)
+  ALBUM="&lt;album's title>"
+  AUTHOR="&lt;author's name>"
+</PRE>
+<HR>
+<P>
+<H2><A NAME="ss10.2">10.2 GUI Based Encoders</A>
+</H2>
+
+<P>
+<P>GUI based encoders offer all the functionality of console based encoding, but wrap it all up in a nice easy to use interface. Grip and RipperX are similar in operation, both offer you the ability to select one, several or all tracks on a CD and convert them.  They also offer CDDB support which allows you  to retrieve the album and track information from a server and saves you having to enter the information by hand.
+<P>
+<H2><A NAME="ss10.3">10.3 Encoder Performance</A>
+</H2>
+
+<P>In the encoding sections I've mentioned 3 different encoders, bladeenc, lame and gogo.  The main difference is their performance in encoding (although there are differences in the available options which were listed earlier).
+<P>A little example.  I ripped a track from a CD and then encoded it with the different encoders. All encoders were run with the same system conditions and all produced stereo out mp3's. 
+<HR>
+<PRE>
+[dj@megajukebox]$ ls -l cdda.wav 
+-rw-rw-r--   1 dj       dj       59823164 Feb 10 00:56 cdda.wav
+
+[dj@megajukebox]$ bladeenc cdda.wav -br 256
+
+BladeEnc 0.91    (c) Tord Jansson          Homepage: http://bladeenc.mp3.no
+===============================================================================
+BladeEnc is free software, distributed under the Lesser General Public License.
+See the file COPYING, BladeEnc's homepage or www.fsf.org for more details.
+
+Files to encode: 1
+
+Encoding:  ../test.wav
+Input:     44.1 kHz, 16 bit, stereo.
+Output:    128 kBit, stereo.
+
+Completed. Encoding time: 00:05:58 (0.78X)                                   
+
+All operations completed. Total encoding time: 00:05:58
+
+--------------------------------------------------------------------------------
+
+[dj@megajukebox]$ lame cdda.wav -b 256
+LAME version 3.50 (www.sulaco.org/mp3) 
+GPSYCHO: GPL psycho-acoustic model version 0.74. 
+Encoding ../test.wav to ../test.wav.mp3
+Encoding as 44.1 kHz 128 kbps j-stereo MPEG1 LayerIII file
+    Frame          |  CPU/estimated  |  time/estimated | play/CPU |   ETA
+ 10756/ 10756(100%)| 0:02:28/ 0:02:28| 0:02:29/ 0:02:29|    1.9074| 0:00:00 
+
+--------------------------------------------------------------------------------
+
+[dj@megajukebox]$ gogo cdda.wav -m s -b 256
+GOGO-no-coda ver. 2.24 (Feb 12 2000)
+Copyright (C) 1999 PEN@MarineCat and shigeo
+          Special thanks to Keiichi SAKAI, URURI, Noisyu and Kei
+MPEG 1, layer 3 stereo
+inp sampling-freq=44.1kHz out sampling-freq=44.1kHz bitrate=256kbps
+inp sampling-freq=44.1kHz out sampling-freq=44.1kHz bitrate=128kbps
+input  file `../test.wav'
+output file `../test.mp3'
+{  10751/  10755} 100.0% (  2.94x)  re:[00:00:00.03] to:[00:01:35.42]
+End of encoding
+time=  95.430sec
+</PRE>
+<HR>
+<P>It would appear that Gogo has a much optimised algorithm for encoding than Bladeenc and Lame.
+<P>
+<HR>
+<A HREF="MP3-HOWTO-11.html">Next</A>
+<A HREF="MP3-HOWTO-9.html">Previous</A>
+<A HREF="MP3-HOWTO.html#toc10">Contents</A>
+</BODY>
+</HTML>

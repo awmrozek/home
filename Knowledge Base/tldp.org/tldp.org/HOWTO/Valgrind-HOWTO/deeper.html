@@ -1,0 +1,550 @@
+<HTML
+><HEAD
+><TITLE
+>Let's Go Deeper</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Valgrind HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="A Closer View"
+HREF="closerview.html"><LINK
+REL="NEXT"
+TITLE="Concluding Remarks"
+HREF="conclusion.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Valgrind HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="closerview.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="conclusion.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="deeper">5. Let's Go Deeper</H1
+><P
+>&#13;Valgrind simulates an Intel x86 processor and runs our test program in
+this synthetic processor. The two processors are not exactly same. Valgrind is
+compiled into a shared object, valgrind.so. A shell script <TT
+CLASS="literal"
+>valgrind</TT
+> sets
+the <TT
+CLASS="varname"
+>LD_PRELOAD</TT
+> environment variable to point to valgrind.so. This causes the .so to be loaded as an extra library to any subsequently executed
+dynamically-linked ELF binary, permitting the program to be debugged.
+</P
+><P
+>&#13;The dynamic linker calls the initialization function of Valgrind. Then the
+synthetic CPU takes control from the real CPU. In the memory there may be
+some other .so files. The dynamic linker calls the initialization function of
+all such .so files. Now the dynamic linker calls the <TT
+CLASS="function"
+>main</TT
+> of the loaded
+program. When main returns, the synthetic CPU calls the finalization function of
+valgrind.so. During the execution of the finalization function, summary of
+all errors detected are printed and memory leaks are checked. Finalization
+function exits giving back the control from the synthetic CPU to the real
+one.
+</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="val-validity">5.1. How Valgrind Tracks Validity of Each Byte</H2
+><P
+>&#13;For every byte processed, the synthetic processor maintains 9 bits,
+8 'V' bits and 1 'A' bit. The 'V' bits indicate the validity of the 8 bits
+in the byte and the 'A' bit indicates validity of the byte address. These
+valid-value(V) bits are checked only in two situations:
+</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>when data is used for address generation,</P
+></LI
+><LI
+><P
+>when control flow decision is to be made.</P
+></LI
+></OL
+><P
+>&#13;In any of these two situations, if the data is found to be undefined an
+error report will be generated. But no error reports are generated while
+copying or adding undefined data.
+</P
+><P
+>&#13;However the case with floating-point data is different. During a
+floating-point read instruction the 'V' bits corresponding to the data are
+checked. Thus copying of uninitialized value will produce error in case of
+floating-point numbers.
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;
+#include &#60;stdlib.h&#62;
+int main()
+{
+        int *p, *a;
+        p = malloc(10*sizeof(int));
+        a = malloc(10*sizeof(int));
+        a[3] = p[3];
+        free(a);
+        free(p);
+        return 0;
+}
+
+/*  produce no errors */
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;
+#include &#60;stdlib.h&#62;
+int main()
+{
+        float *p, *a;
+        p = malloc(10*sizeof(float));
+        a = malloc(10*sizeof(float));
+        a[3] = p[3];
+        free(a);
+        free(p);
+        return 0;
+}
+
+/* produces error */
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;All bytes that are in memory but not in CPU have an associated valid-address(A)
+bit, which indicates whether the corresponding memory location is accessible by
+the program. When a program starts, the 'A' bits corresponding to each global
+variables are set. When a call <TT
+CLASS="function"
+>malloc</TT
+>, <TT
+CLASS="function"
+>new</TT
+> or any other memory allocating function is made, the 'A' bits corresponding to the allocated bytes are
+set. Upon freeing the allocated block using <TT
+CLASS="function"
+>free/new/new&#8216;&#8217;</TT
+> the
+corresponding 'A' bits are cleared. While doing a system call the 'A' bits
+are changed appropriately.
+</P
+><P
+>&#13;When values are loaded from memory the 'A' bits corresponding to each
+bytes are checked by Valgrind, and if the 'A' bit corresponding to a byte is set
+then its 'V' bits is checked. If the 'V' bits are not set, an error will be
+generated and the 'V' bits are set to indicate validity. This avoids long chain of
+errors. If the 'A' bit corresponding to a loaded byte is 0 then its 'V' bits are
+forced to set, despite the value being invalid.
+</P
+><P
+>&#13;Have a look on the following program. Run it.
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;#include &#60;stdlib.h&#62;
+int main()
+{
+        int *p, j;
+        p = malloc(5*sizeof(int));
+        j = p[5];
+        if (p[5] == 1)
+                i = p[5]+1;
+        free(p);
+        return 0;
+}
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;Here two errors occur. Both of them are due to the accessing address
+location <TT
+CLASS="literal"
+> p + sizeof(int)*5 </TT
+> which is not allocated to the program.
+During the execution of <TT
+CLASS="literal"
+>j = p[5]</TT
+>, since the address <TT
+CLASS="literal"
+> p +
+sizeof(int)*5 </TT
+> is invalid, the 'V' bits of 4 bytes starting at location <TT
+CLASS="literal"
+>p+sizeof(int)*5</TT
+>
+are forced to set. Therefore uninitialized value occurs neither during
+the execution of <TT
+CLASS="literal"
+>j = p[5]</TT
+> nor during the execution of <TT
+CLASS="literal"
+>if(p[5]==1)</TT
+>.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="cacheprofiling">5.2. Cache Profiling</H2
+><P
+>&#13;Modern x86 machines use two levels of caching. These levels are L1 and
+L2, in which L1 is a split cache that consists of Instruction cache(I1) and
+Data cache(D1). L2 is a unified cache.
+</P
+><P
+>&#13;The configuration of a cache means its size, associativity and number
+of lines. If the data requested by the processor appears in the upper level
+it is called a hit. If the data is not found in the upper level, the
+request is called a miss. The lower level in the hierarchy is then accessed to
+retrieve the block containing requested data. In modern machines L1 is
+first searched for data/instruction requested by the processor. If it is a
+hit then that data/instruction is copied to some register in the processor.
+Otherwise L2 is searched. If it is a hit then data/instruction is copied to
+L1 and from there it is copied to a register. If the request to L2 also is
+a miss then main memory has to be accessed.
+</P
+><P
+>&#13;Valgrind can simulate the cache, meaning it can display the things that
+occur in the cache when a program is running. For this, first compile your program
+with <TT
+CLASS="option"
+>-g</TT
+> option as usual. Then use the shell script <TT
+CLASS="literal"
+>cachegrind</TT
+> instead of <TT
+CLASS="literal"
+>valgrind</TT
+>.
+</P
+><P
+>&#13;Sample output:
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;==7436== I1  refs:      12,841
+==7436== I1  misses:       238
+==7436== L2i misses:       237
+==7436== I1  miss rate:   1.85%
+==7436== L2i miss rate:   1.84%
+==7436==
+==7436== D   refs:       5,914  (4,626 rd + 1,288 wr)
+==7436== D1  misses:       357  (  324 rd +    33 wr)
+==7436== L2d misses:       352  (  319 rd +    33 wr)
+==7436== D1  miss rate:    6.0% (  7.0%   +   2.5%  )
+==7436== L2d miss rate:    5.9% (  6.8%   +   2.5%  )
+==7436==
+==7436== L2 refs:          595  (  562 rd +    33 wr)
+==7436== L2 misses:        589  (  556 rd +    33 wr)
+==7436== L2 miss rate:     3.1% (  3.1%   +   2.5%  )
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;   L2i misses means the number of instruction misses that occur in L2
+cache.
+   L2d misses means the number of data misses that occur in L2 cache.
+   Total number of data references = Number of reads + Number of writes.
+   Miss rate means fraction of misses that are not found in the upper
+level.
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13; The shell script <TT
+CLASS="literal"
+>cachegrind</TT
+> also produces a file, <TT
+CLASS="filename"
+>cachegrind.out</TT
+>, that
+contains line-by-line cache profiling information which is not humanly
+understandable. A program <TT
+CLASS="literal"
+>vg_annotate</TT
+> can easily interpret this
+information. If the shell script <TT
+CLASS="literal"
+>vg_annotate</TT
+> is used without any arguments it will read the file <TT
+CLASS="filename"
+>cachegrind.out</TT
+> and produce an output which is humanly understandable.
+</P
+><P
+>&#13;When C, C++ or assembly source programs are passed as input to
+<TT
+CLASS="literal"
+>vg_annotate</TT
+> it displays the number of cache reads, writes, misses etc.
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;I1 cache:         16384 B, 32 B, 4-way associative
+D1 cache:         16384 B, 32 B, 4-way associative
+L2 cache:         262144 B, 32 B, 8-way associative
+Command:          ./a.out
+Events recorded:  Ir I1mr I2mr Dr D1mr D2mr Dw D1mw D2mw
+Events shown:     Ir I1mr I2mr Dr D1mr D2mr Dw D1mw D2mw
+Event sort order: Ir I1mr I2mr Dr D1mr D2mr Dw D1mw D2mw
+Thresholds:       99 0 0 0 0 0 0 0 0
+Include dirs:
+User annotated:   valg_flo.c
+Auto-annotation:  off
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;User-annotated source: <TT
+CLASS="literal"
+>valg_flo.c</TT
+>:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Ir I1mr I2mr Dr D1mr D2mr Dw D1mw D2mw
+
+ .   .   .   .   .    .   .   .    .   #include&#60;stdlib.h&#62;
+ .   .   .   .   .    .   .   .    .   int main()
+ 3   1   1   .   .    .   1   0    0   {
+ .   .   .   .   .    .   .   .    .           float *p, *a;
+ 6   1   1   .   .    .   3   0    0           p = malloc(10*sizeof(float));
+ 6   0   0   .   .    .   3   0    0           a = malloc(10*sizeof(float));
+ 6   1   1   3   1    1   1   1    1           a[3] = p[3];
+ 4   0   0   1   0    0   1   0    0           free(a);
+ 4   0   0   1   0    0   1   0    0           free(p);
+ 2   0   0   2   0    0   .   .    .   }
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;             <P
+></P
+><UL
+><LI
+><P
+>Ir = Total instruction cache reads.</P
+></LI
+><LI
+><P
+>I1mr = I1 cache read misses.</P
+></LI
+><LI
+><P
+>I2mr = L2 cache instruction read misses.</P
+></LI
+></UL
+>
+</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="closerview.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="conclusion.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>A Closer View</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Concluding Remarks</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

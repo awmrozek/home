@@ -1,0 +1,225 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>( PORTFW - Locally ) - I can't reach my PORTFWed server from the INTERNAL lan</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Frequently Asked Questions"
+HREF="faq.html"><LINK
+REL="PREVIOUS"
+TITLE="( PORTFW ) - IP Masquerading with PORTFWing seems to break when my line 
+is idle for long periods"
+HREF="portfw-issues.html"><LINK
+REL="NEXT"
+TITLE="( Logs ) - Now that I have IP Masquerading up, I'm getting all sorts of weird 
+notices and errors in the SYSLOG log files.  How do I read the IPTABLES/IPCHAINS/IPFWADM 
+firewall errors?"
+HREF="masq-logs.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="portfw-issues.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. Frequently Asked Questions</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="masq-logs.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="PORTFW-LOCAL"
+></A
+>7.19. ( PORTFW - Locally ) - I can't reach my PORTFWed server from the INTERNAL lan</H1
+><P
+>Basically, say your domain, acme.com, has an external IP address of 1.2.3.4 
+and you are PORTFWing all WWW traffic to an internal machine, say, 
+192.168.0.20/24.  Then an /internal/ user on the 192.169.0.x network tries to 
+contact to http://www.acme.com and expects things to work.  Well, that isn't 
+going to happen with a basic config.  Let me explain.  Basically, 
+http://www.acme.com is being resolved to the IP of http://1.2.3.4 by your
+chosen DNS server.  What really should be happening is the web request should
+resolve that request to http://192.168.0.20.</P
+><P
+>See the difference?</P
+><P
+>The proper solution to this is to setup a SPLIT DNS server.  Internal users
+would be configured to use an /internal/ DNS server which would resolve 
+requests like this with the 192.168.0.20 address when asked for www.acme.com.  
+All external users should be serviced by an /external/ DNS server which will 
+will resolve the requrest to the 1.2.3.4 IP address.  From there, 
+IPTABLES/IPCHAINS/IPFWADM would then PORTFW the traffic to the 192.168.0.20 
+server as normal.</P
+><P
+>But you're probably thinking that you don't want to setup a split DNS server
+and there has to be another way.  There are a few alternatives!  The first
+alternative is if you only have a few internal machines.  Here, you can  
+setup a "hosts" file entry on *all* internal machines.  That static hosts entry 
+would basically look like:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>www.acme.com    192.168.0.20</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Got it?  With that in place, the machine would consult the hosts table before
+going to the DNS server to resolve the host.  This works well but if you change
+the IP address on that internal web server, you're going to need to manually 
+update the hosts file on all of those internal machines.  If you are 
+interested in doing the more scalable split DNS approach, TrinityOS completely 
+covers split and chrooted DNS servers.
+
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#TrinityOS"
+TARGET="_top"
+>TrinityOS - Section 24</A
+> 
+http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#trinityos</P
+><P
+>Now, if neither the split DNS nor the hosts file approach interests you, you 
+still have a simple but effective alternative to get things working.  What you
+can do is add some specific rules to your rc.firewall-* ruleset.  Please see 
+the "PORTFW Redirection of Internal requests" section under the 
+<A
+HREF="forwarders.html"
+>Section 6.7</A
+> chapter.</P
+><P
+>Why didn't I mention this alternative solution first?  The main reason is
+that it's not the ideal solution.  The primary problem with this approach is 
+that every packet will be going from the internal MASQed client to the MASQ 
+server.  There, the MASQ server will SNAT each packet to the internal MASQed 
+WWW server's IP and then forward it to the internal web server.  Once the 
+packet is received and responded to by the web server, that response has to
+go back through all that processing back to the original client machine. This 
+process is overly wasteful on both network bandwidth and MASQ server CPU 
+cycles!</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="portfw-issues.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="masq-logs.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>( PORTFW ) - IP Masquerading with PORTFWing seems to break when my line 
+is idle for long periods</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="faq.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>( Logs ) - Now that I have IP Masquerading up, I'm getting all sorts of weird 
+notices and errors in the SYSLOG log files.  How do I read the IPTABLES/IPCHAINS/IPFWADM 
+firewall errors?</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

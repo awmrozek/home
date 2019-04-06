@@ -1,0 +1,482 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux MIDI-HOWTO : HOWTO Use MIDI Sequencers With Softsynths.</TITLE>
+ <LINK HREF="MIDI-HOWTO-11.html" REL=next>
+ <LINK HREF="MIDI-HOWTO-9.html" REL=previous>
+ <LINK HREF="MIDI-HOWTO.html#toc10" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="MIDI-HOWTO-11.html">Next</A>
+<A HREF="MIDI-HOWTO-9.html">Previous</A>
+<A HREF="MIDI-HOWTO.html#toc10">Contents</A>
+<HR>
+<H2><A NAME="s10">10. HOWTO Use MIDI Sequencers With Softsynths.</A></H2>
+
+<P>
+<P>Frank Barknecht  &lt;<CODE>barknech@ph-cip.uni-koeln.de</CODE>&gt;
+<P>
+<A HREF="http://linux-sound.org/quick-toots/4-sequencers_and_softsynths/quick-toot-midisynth_howto.html">http://linux-sound.org/quick-toots/4-sequencers_and_softsynths/quick-toot-midisynth_howto.html</A><P>This HOWTO describes the needed setup to control a MIDI capable software synthesizer from a MIDI sequencer
+through a virtual MIDI connection under ALSA 0.9. This document can be freely translated and distributed. It's
+released under the GNU Free Documentation License. 
+<P>
+<P>
+<P>
+<H2><A NAME="ss10.1">10.1 Introduction</A>
+</H2>
+
+<P>
+<P>Software synthesizers like Csound, PD, jMax or Spiral Synth Modular offer nearly endless freedom to create known
+or unknown, common or unusual sound experiences. They can also replace pricy hardware synths or the inexpensive,
+often bad-sounding MIDI synths on some soundcards, if these are supported under Linux at all. On the other hand,
+composing inside those softsynths can be a tedious task: in Csound for example one has to write endless rows of
+numbers in a spreadsheet-like manner - not a comfortable way to make music. 
+<P>MIDI sequencer applications are more suitable for this task. They provide an interface to insert notes and control
+data in convenient ways: as notes in a real score, as marks in a piano roll or as a list of MIDI events, if you prefer this
+view. Another kind of MIDI sequencers offer a tracker-like way of entering notes, like many people are used to from
+the good old days when that was the state of art in the Scene. Last but not least, some MIDI sequencers allow you to
+record your own playing on a keyboard or on another physical device, which is for many users the most natural way of
+writing music. 
+<P>But MIDI sequencers like to output their notes to MIDI devices that normally route their events to the outside world,
+i.e., to hardware synths and samplers. With virtual MIDI devices one can keep the MIDI data inside the computer and
+let it control other software running on the same machine. This HOWTO describes all that is necessary to achieve
+this goal. 
+<P>
+<P>
+<P>
+<H2><A NAME="ss10.2">10.2 Device Setup</A>
+</H2>
+
+<P>
+<P>In our setup we use the ALSA library and driver modules, as this is (or should be) the standard way of doing serious
+audio and MIDI on Linux. The tutorial assumes that we are running the 0.9.0 branch of ALSA, but the virtual MIDI
+module was also present in ALSA 0.5.x so most of the following should apply for this as well. In the OSS/Free (the
+sound modules found in kernels previous to the 2.5.x track) and OSS/Linux sound architectures the v_midi module
+can be used, but this is beyond the scope of this document. 
+<P>To use ALSA's virtual MIDI card the snd-card-virmidi module must be present. In the most recent versions of
+ALSA (and in the 2.5.x development kernel) that module lost its '-card' middle-fix and was renamed to
+snd-virmidi. Make sure that you did build this module, it might be missing if you configured ALSA to build only the
+modules for your actual card(s). 
+<P>The virmidi module has to be loaded to make the virtual MIDI ports available. You can test-load it by hand with 
+<HR>
+<PRE>
+ $ modprobe snd-virmidi snd_index=1
+   
+</PRE>
+<HR>
+<P>
+<P>where snd_index is set appropriately to the first free card index (=1 if you have only one card that already has index
+0), but it is more convenient to adapt your modules configuration to have it sitting around already when you need it.
+For that we need to extend the ALSA section in /etc/modules.conf (or in another location, depending on your
+distribution) with the following: 
+<HR>
+<PRE>
+ # Configure support for OSS /dev/sequencer and 
+ # /dev/music (aka /dev/sequencer2)
+ # (Takashi Iwai advises that it is unnecessary 
+ # to alias these services beyond the first card, i.e., card 0)
+ alias sound-service-0-1 snd-seq-oss
+ alias sound-service-0-8 snd-seq-oss
+
+ # Configure card 1 (second card) as a virtual MIDI card
+ alias sound-slot-1 snd-card-1
+ alias snd-card-1 snd-virmidi
+   
+</PRE>
+<HR>
+
+Now you have configured a virtual MIDI card as the second card with index 1, assuming you have one real soundcard
+(which would be very useful). If you have a second real card like I do, change the configuration above to read: 
+<HR>
+<PRE>
+ # Configure card 2 (third card) as a virtual MIDI card
+ alias sound-slot-2 snd-card-2
+ alias snd-card-2 snd-virmidi
+   
+</PRE>
+<HR>
+
+If you have even more cards, well, you should know the deal by now... 
+<P>It might be necessary to restart the ALSA sound system, after which the virtual MIDI card should be seen in
+/proc/asound/cards: 
+<P>
+<P>
+<P>
+<P>
+<HR>
+<PRE>
+$ cat /proc/asound/cards 
+ 0 [card0          ]: ICE1712 - M Audio Audiophile 24/96
+                      M Audio Audiophile 24/96 at 0xb800, irq 5
+ 1 [card1          ]: EMU10K1 - Sound Blaster Live!
+                      Sound Blaster Live! at 0xc800, irq 11
+ 2 [card2          ]: VirMIDI - VirMIDI
+                      Virtual MIDI Card 1
+   
+</PRE>
+<HR>
+<P>
+<P>In this example of my own machine I have the VirMIDI card as third card, index 2. This setup results in the following
+raw MIDI devices, found in /proc/asound/devices [showing only the MIDI devices]: 
+<HR>
+<PRE>
+ $ cat /proc/asound/devices 
+   8: [0- 0]: raw MIDI
+  41: [1- 1]: raw MIDI
+  42: [1- 2]: raw MIDI
+  75: [2- 3]: raw MIDI
+  74: [2- 2]: raw MIDI
+  73: [2- 1]: raw MIDI
+  72: [2- 0]: raw MIDI
+   
+</PRE>
+<HR>
+<P>
+<P>The devices starting with '2-' are my virtual MIDI devices. Yours would start with '1-' if you only had one physical
+card in your system. 
+<P>You can get a nicer listing with ALSA's own aconnect utility, which we will need anyway. Called with option -o (or
+-lo) it will show the MIDI devices capable of MIDI output, while a call with -i shows those with MIDI input
+capabilities: 
+<HR>
+<PRE>
+ $ aconnect -o
+ [...]
+ client 80: 'Virtual Raw MIDI 2-0' [type=kernel]
+     0 'VirMIDI 2-0     '
+ client 81: 'Virtual Raw MIDI 2-1' [type=kernel]
+     0 'VirMIDI 2-1     '
+ client 82: 'Virtual Raw MIDI 2-2' [type=kernel]
+     0 'VirMIDI 2-2     '
+ client 83: 'Virtual Raw MIDI 2-3' [type=kernel]
+     0 'VirMIDI 2-3     '
+ $ aconnect -i
+ [...]
+ client 80: 'Virtual Raw MIDI 2-0' [type=kernel]
+     0 'VirMIDI 2-0     '
+ client 81: 'Virtual Raw MIDI 2-1' [type=kernel]
+     0 'VirMIDI 2-1     '
+ client 82: 'Virtual Raw MIDI 2-2' [type=kernel]
+     0 'VirMIDI 2-2     '
+ client 83: 'Virtual Raw MIDI 2-3' [type=kernel]
+     0 'VirMIDI 2-3     '
+   
+</PRE>
+<HR>
+<P>
+<P>The devices shown correspond to ALSA's own OSS-compatible raw MIDI devices in the /proc/asound/dev directory
+tree. For example /proc/asound/dev/midiC2D0 is the first MIDI device of our virtual MIDI card at index 2, called
+Virtual Raw MIDI 2-0 by aconnect. In Debian those devices are available in /dev/snd/ as well, and they also are
+internally linked with the old OSS device locations: /dev/midiXX. To make sure that I can get the ALSA raw MIDI
+ports from /dev/midiXX I symlinked them with 
+<HR>
+<PRE>
+ $ ln -s /dev/snd/midiC2D0 /dev/midi20
+ $ ln -s /dev/snd/midiC2D1 /dev/midi21
+ [...]
+   
+</PRE>
+<HR>
+<P>
+<P>but this should not be necessary, so don't do this at home, kids! 
+<P>Now that we have created and configured a VirtualMIDI card we can use it in our applications just like any other
+MIDI devices. Just insert the needed device, be it an OSS-compatible /dev/midi20 or an ALSA MIDI port like 80:0,
+at the correct configuration point of your favourite sequencer and synthesizer application. 
+<P>
+<P>
+<P>
+<P>
+<H2><A NAME="ss10.3">10.3 Routing MIDI Events</A>
+</H2>
+
+<H3>aconnect</H3>
+
+<P>
+<P>Without further arrangements we will not be able to send the MIDI events from our sequencer to a softsynth. For
+that, we first need to connect two ports with (you guessed it) the aconnect utility. This tool connects two or more
+ports. Its -i and -o output above has already shown us the available ports, and with a simple syntax these can now be
+connected in a one-way fashion: 
+<HR>
+<PRE>
+ $ aconnect [sender port] [receiver port]
+ $ aconnect 80:0 81:0
+    
+</PRE>
+<HR>
+<P>
+<P>This routes all MIDI data sent to port 80:0 over to port 80:1. In our setup this means that every event coming in at
+/dev/midi20 gets sent to /dev/midi21, where it can be read ('received') by another application. 
+<P>If you had configured the VirMIDI card as your second card (with card index 1) you should have these ports: 
+<HR>
+<PRE>
+ $ aconnect -lo
+ client 72: 'Virtual Raw MIDI 1-0' [type=kernel]
+     0 'VirMIDI 1-0     '
+ client 73: 'Virtual Raw MIDI 1-1' [type=kernel]
+     0 'VirMIDI 1-1     '
+ client 74: 'Virtual Raw MIDI 1-2' [type=kernel]
+     0 'VirMIDI 1-2     '
+ client 75: 'Virtual Raw MIDI 1-3' [type=kernel]
+     0 'VirMIDI 1-3   
+    
+</PRE>
+<HR>
+<P>
+<P>Here you can connect for example port 72:0 (/dev/midi10) to port 73:0 (/dev/midi11) with: 
+<HR>
+<PRE>
+ $ aconnect 72:0 73:0
+    
+</PRE>
+<HR>
+<P>
+<P>aconnect can show us what was created with its -lo and -li options: 
+<HR>
+<PRE>
+ $ aconnect -lo
+ client 72: 'Virtual Raw MIDI 1-0' [type=kernel]
+     0 'VirMIDI 1-0     '
+         Connecting To: 73:0
+ client 73: 'Virtual Raw MIDI 1-1' [type=kernel]
+     0 'VirMIDI 1-1     '
+         Connected From: 72:0
+ client 74: 'Virtual Raw MIDI 1-2' [type=kernel]
+     0 'VirMIDI 1-2     '                       
+ client 75: 'Virtual Raw MIDI 1-3' [type=kernel]
+     0 'VirMIDI 1-3
+    
+</PRE>
+<HR>
+<P>
+<P>You see that 'Virtual Raw MIDI 1-0' now is connected to 'Virtual Raw MIDI 1-1'. Now, depending on your
+applications, you can read MIDI data that was sent to 'Virtual Raw MIDI 1-0' from 'Virtual Raw MIDI 1-1', or in
+OSS-device speak: What was sent to /dev/midi10 gets routed to /dev/midi11 and can be read from there. 
+<P>You can also connect more than one port to a port. If you call aconnect twice like this: 
+<HR>
+<PRE>
+ $ aconnect 72:0 73:0
+ $ aconnect 72:0 74:0
+    
+</PRE>
+<HR>
+<P>
+<P>you can receive the same data send to /dev/midi10 at /dev/midi11 and at /dev/midi12 as well. And of course you can
+really hammer your machine if you create more VirMIDI cards and wildly connect these. There's no stopping us
+now... 
+<P>To disconnect all ports use 
+<HR>
+<PRE>
+ $ aconnect -x 
+    
+</PRE>
+<HR>
+<P>
+<P>or disconnect only one connection with: 
+<HR>
+<PRE>
+ $ aconnect -d 72:0 74:0
+    
+</PRE>
+<HR>
+<P>
+<P>
+<H2><A NAME="ss10.4">10.4 Graphical MIDI Patch Bays</A>
+</H2>
+
+<P>
+<P>Bob Ham's ALSA MIDI Patch Bay is a very useful graphic frontend to ALSA's MIDI connection setup. Usage is very
+simple and intuitive: On the left are the MIDI ports that are capable of sending MIDI events, while on the right you
+see the ports with receiving capability. If you click on a left-side port it gets selected for a new connection to the port
+on the right that you click next. Clicking on a right-side port will disconnect the port if it was connected. A clean and
+easy tool that has the potential to redundantize this HOWTO. ;) 
+<P>
+<P>
+<P>
+<H3>aseqview</H3>
+
+<P>
+<P>Another useful tool for routing MIDI events is aseqview by ALSA developer Takashi Iwai. You can download it at
+Iwai-sama's homepage http//members.tripod.de/iwai/alsa.html, but it is also included in many distributions. This
+graphic utility was designed to view and change MIDI events as they pass through your computer, but it also has the
+capability to route events to different MIDI ports like aconnect does. This comes in handy when you have to deal with
+applications that use the OSS sequencer device, which aconnect is sometimes unable to reach. If you start aseqview
+without any options you get a nice GUI and a new MIDI port. The default is port 128:0, and it looks like this: 
+<HR>
+<PRE>
+ client 128: 'MIDI Viewer' [type=user] 
+    0 'Viewer Port 0 ' 
+    
+</PRE>
+<HR>
+<P>
+<P>With this port all the aconnect tricks that we have seen by now are possible. But if you just need to connect the
+aseqview port to another port, aseqview can do this by itself with the -d option : 
+<P>
+<HR>
+<PRE>
+ $ aseqview -d 73:0 &amp;
+    
+</PRE>
+<HR>
+<P>
+<P>This connects port 128:0 (if that was available) to port 73:0 right from the start of aseqview. 
+<P>
+<P>There are some more graphical aconnect tools with very similar functionality.  Maarten de Boer used most af the original aconnect source code to write a graphical frontend called "aconnectgui" with the FLTK toolkit. It is available at 
+<A HREF="http://www.iua.upf.es/~mdeboer/">http://www.iua.upf.es/~mdeboer/</A>.  His software has the best looks, in my opinion.
+<P>Personally I use kaconnect, maybe because it has the shortest name, that is the fastest to type. kaconnect was developed by Suse's own Dr. Matthias Nagorni as a part of his series of tools and softsynths for ALSA, the kalsatools. Don't let the "k" in the name fool you, the software does not require KDE, it uses the pure QT GUI libraries. kaconnect and more is available at 
+<A HREF="http://www.suse.de/~mana/kalsatools.html">http://www.suse.de/~mana/kalsatools.html</A>.
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+<H2><A NAME="ss10.5">10.5 Applications</A>
+</H2>
+
+<P>
+<P>In this last section I will show some examples, how to use the virtual MIDI connections in various applications. I will
+assume a VirMIDI card as a third card in the system, using ALSA MIDI ports 80:0 to 83:0 that correspond to the raw
+OSS MIDI devices /dev/midi20 to /dev/midi23 and to the ALSA raw MIDI devices /dev/snd/midiC2D0 to
+/dev/snd/midiC2D3. Of these, the first two have been 'aconnected' with 
+<P>
+<HR>
+<PRE>
+ $ aconnect 80:0 81:0
+   
+</PRE>
+<HR>
+<P>
+<P>As shown, this means, that all MIDI data sent to /dev/midi20 (or port 80:0 or /dev/snd/midiC2D0) can now be read at
+/dev/midi21 (or port 80:1 or /dev/snd/midiC2D1) 
+<P>
+<P>
+<P>
+<H2><A NAME="ss10.6">10.6 Sequencers</A>
+</H2>
+
+<P>
+<P>
+<H3>MusE</H3>
+
+<P>
+<P>MusE is a full-featured MIDI sequencer written by Werner Schweer, available at http://muse.seh.de. We will need to
+configure the the virtual MIDI port as an output port in the section 'Config->MIDI Ports'. In MusE, the ports are
+named by their ALSA names 'VirMIDI X-X': 
+<P>Now make sure that the right port is selected as the output port for the channel on which you want the software
+synthesizer to listen to and play the MIDI events: 
+<P>
+<P>For some reason I could not use 'VirMIDI 2-0' as output device in MusE 0.4.9. That is the expected device when I
+wanted to receive on 'VirMIDI 2-1' but I had to use it the other way around. I don't know why, I'm probably stupid,
+and you might have to experiment a bit. One could also use the midi02 or midi2 devices. 
+<P>
+<P>
+<P>
+<H3>ttrk</H3>
+
+<P>
+<P>Billy Biggs's ttrk is a simple, quick and tight MIDI sequencer with a tracker interface. It can output its MIDI data to
+any MIDI port configured in the file $HOME/.ttrkrc. 
+<P>Put this line there to have ttrk write to /dev/snd/midiC2D0: 
+and you're good to go... 
+<P>
+<P>
+<H3>Shaketracker</H3>
+
+<P>
+<P>Juan Linietsky's Shaketracker revives the MIDI tracker interface like ttrk, but it has a more complete translation of
+the classic tracker effects to MIDI data. Unfortunatly it uses the OSS sequencer device (/dev/sequencer) for its MIDI
+output, not the raw MIDI devices, and I could not get it to work with aconnect. But there is a workaround that
+involves aseqview. If we start aseqview before Shaketracker, the tracker will recognize and use the aseqview port. One
+just has to select it in the 'User Devices' section of Shaketracker, where it shows up by its ALSA name 'Viewer Port
+0': 
+<P>
+<P>
+<P>It is convenient to give this User Device a good name instead of 'Null Output'. 
+<P>If we start aseqview without options we would need to aconnect the aseqview port with the softsynth port, but as
+shown previously we could also start aseqview directly with a destination port. Don't forget to use the new User
+Device in every track that should go to the softsynth. I always run Shaketracker with a little shell script that starts
+aseqview, waits for the creation of ports, and then starts Shaketracker: 
+<P>
+<HR>
+<PRE>
+ #!/bin/sh
+ aseqview -d 81:0 &amp;
+ # sleep 2 seconds to let aseqview do its work:
+ sleep 2
+ shaketracker
+     
+</PRE>
+<HR>
+<P>
+<H2><A NAME="ss10.7">10.7 Software Synthesizer</A>
+</H2>
+
+<P>
+<P>
+<H3>Pure Data</H3>
+
+<P>
+<P>Miller Puckette is the genius behind the open-source software synthesis and multimedia development environment
+Pure Data (PD), which evolved out of MAX and in turn was the basis for the MAX-extension MSP. PD can use raw
+MIDI devices to read MIDI events that are specified with the option '-midiindev &lt;devnumber&gt;' but it has an
+irritating way of specifying which device to use. The formula is as follows: To use /dev/midi0, start PD with 'midiindev
+1', to use /dev/midi1 start it with '-midiindev 2' and so on. Got it? You must specify the real device number plus 1
+here. Another example: For /dev/midi21 start PD with '-midiindev 22' 
+<P>PD has a help patch 'Test audio and MIDI', that is invaluable in locating the right MIDI device: 
+<P>
+<P>
+<H3>Csound</H3>
+
+<P>
+<P>Csound is the grandmother of most of todays software synthesizers, and it has learned MIDI as well. Running 'csound
+--help' shows where one has to configure the MIDI input device: 
+<P>-M dnam or --midieventdev=dnam ........ Read MIDI realtime events from device
+<P>
+<P>
+<P>
+<P>So in our example we need to start Csound as 
+<P>
+<HR>
+<PRE>
+ $ csound -M /dev/midi22 -o devaudio midi.csd
+</PRE>
+<HR>
+     
+<P>
+<P>
+<P>
+<P>
+<H3>Conclusion</H3>
+
+<P>
+<P>By now you should know how to use a software synthesizer to orchestrate music composed in and played by a MIDI
+sequencer. Of course, tools like aconnect and aseqview don't need to be used with a MIDI software sequencer. You
+could also redirect events that come into your machine from an external sequencer or from an external MIDI
+keyboard directly to the software synth without the MIDI sequencer step. Just 'aconnect' the external MIDI device to
+your softsynth or to the on-board synth of your soundcard. Or go the other way around: PD, Csound or environments
+like KeyKit allow you to create MIDI events in algorithmic ways that are nearly impossible with classic Cubase-like
+MIDI sequencers. With aconnect you can route these events to any MIDI capable sound module you have. 
+<P>
+<P>
+<P>
+<H2><A NAME="ss10.8">10.8 Acknowledgments</A>
+</H2>
+
+<P>
+<P>The author would like to thank Takashi Iwai for his technical assistance in preparing this article and for his
+invaluable advice regarding the Japanese language. Thanks, Takashi ! 
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+<P>
+<HR>
+<A HREF="MIDI-HOWTO-11.html">Next</A>
+<A HREF="MIDI-HOWTO-9.html">Previous</A>
+<A HREF="MIDI-HOWTO.html#toc10">Contents</A>
+</BODY>
+</HTML>

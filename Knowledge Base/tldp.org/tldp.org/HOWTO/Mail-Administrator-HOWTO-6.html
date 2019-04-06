@@ -1,0 +1,1439 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux Electronic Mail Administrator HOWTO: Installing Transport Software</TITLE>
+ <LINK HREF="Mail-Administrator-HOWTO-7.html" REL=next>
+ <LINK HREF="Mail-Administrator-HOWTO-5.html" REL=previous>
+ <LINK HREF="Mail-Administrator-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Mail-Administrator-HOWTO-7.html">Next</A>
+<A HREF="Mail-Administrator-HOWTO-5.html">Previous</A>
+<A HREF="Mail-Administrator-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Installing Transport Software</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss6.1">6.1 Qmail v1.03</A>
+</H2>
+
+<P>
+<P>Secured, fast and easy to use, this is my preferred MTA (mail transport agent).
+<P>Currently, no distribution comes with qmail preinstalled.  We will
+focus on compiling and installing qmail, since this is the only tricky
+part: configuration is really straightforward.
+<P>
+<H3>Getting qmail </H3>
+
+<P>
+<P>Go to www.qmail.org to download the latest version.
+<P>
+<H3>Uncompressing sources </H3>
+
+<P>
+<P>Then decompress it by running:
+<BLOCKQUOTE><CODE>
+<PRE>
+mv qmail.tar.gz /usr/local/src
+cd /usr/local/src ; tar -zxvf qmail.tar.gz
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you find a bz2 version (new and better compression format), just
+replace tar with:
+<BLOCKQUOTE><CODE>
+<PRE>
+bunzip2 qmail.tar.bz2
+tar -xvf qmail.tar
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Preparing for compilation </H3>
+
+<P>
+<P>Now enter the qmail directory to examine the configuration defaults:
+<BLOCKQUOTE><CODE>
+<PRE>
+cd qmail; more conf-*
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You shouldn't need to change any defaults, but you could (for example)
+specify an alternate installation directory or better compilation
+flags.
+<P>Now run:
+<BLOCKQUOTE><CODE>
+<PRE>
+mkdir /var/qmail
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to create target dir.
+<P>If you haven't installed a Debian distribution, you'll need to add several user
+IDs for qmail's use: qmail's high security depends on that.
+<P>The fact that qmail is divided into modules running each under their
+own UID makes it much harder for an intruder to break your whole mail
+system or gain root access by abusing it.
+<P>So run:
+<BLOCKQUOTE><CODE>
+<PRE>
+   # groupadd nofiles
+   # useradd -g nofiles -d /var/qmail/alias alias
+   # useradd -g nofiles -d /var/qmail qmaild
+   # useradd -g nofiles -d /var/qmail qmaill
+   # useradd -g nofiles -d /var/qmail qmailp
+   # groupadd qmail
+   # useradd -g qmail -d /var/qmail qmailq
+   # useradd -g qmail -d /var/qmail qmailr
+   # useradd -g qmail -d /var/qmail qmails
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>or hand-edit <CODE>/etc/passwd</CODE> and <CODE>/etc/group</CODE> to add these users
+by yourself.
+<P>Evan E. reported he had to use "-g groupid" parameter for a vanilla
+groupadd (Caldera 1.2), else groupadd reported this error :
+"A group with that name already exists."
+<P>For example you can respectively add:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        qmail:*:2107:
+        nofiles:*:2108:
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>&amp;
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        alias:*:7790:2108::/var/qmail/alias:/bin/true
+        qmaild:*:7791:2108::/var/qmail:/bin/true
+        qmaill:*:7792:2108::/var/qmail:/bin/true
+        qmailp:*:7793:2108::/var/qmail:/bin/true
+        qmailq:*:7794:2107::/var/qmail:/bin/true
+        qmailr:*:7795:2107::/var/qmail:/bin/true
+        qmails:*:7796:2107::/var/qmail:/bin/true
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Now you can run 
+<BLOCKQUOTE><CODE>
+<PRE>
+make setup check
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>to check your configuration, then :
+<BLOCKQUOTE><CODE>
+<PRE>
+./config
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to configure qmail.
+<P>Attention, your server has to be resolvable by DNS or ./config will get
+confused.
+<P>If you don't have DNS access, you can give your server name
+directly via :
+<BLOCKQUOTE><CODE>
+<PRE>
+./config-fast foo.bar.com
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Now you must install some aliases, since /etc/alias is not used by qmail unless
+you compile and install an optional package.
+<P>Here's my setup :
+<BLOCKQUOTE><CODE>
+<PRE>
+File : ".qmail-MAILER-DAEMON"
+&amp;postmaster
+File : ".qmail-bin"
+&amp;root
+File : ".qmail-daemon"
+&amp;root
+File : ".qmail-decode"
+&amp;root
+File : ".qmail-dumper"
+&amp;root
+File : ".qmail-games"
+&amp;root
+File : ".qmail-ingres"
+&amp;root
+File : ".qmail-mailer-daemon"
+&amp;postmaster
+File : ".qmail-manager"
+&amp;root
+File : ".qmail-news"
+&amp;root
+File : ".qmail-nobody"
+&amp;root
+File : ".qmail-operator"
+&amp;root
+File : ".qmail-postmaster"
+&amp;root
+File : ".qmail-root"
+&amp;guylhem
+File : ".qmail-system"
+&amp;root
+File : ".qmail-toor"
+&amp;root
+File : ".qmail-uucp"
+&amp;root
+File : ".qmail-uucp-default"
+|preline -dr /usr/bin/uux - -r -gC -a"${SENDER:-MAILER-DAEMON}" lm!rmail "($DEFAULT@$HOST)"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You need to create each of these file in <CODE>~alias</CODE>, replacing
+<CODE>&amp;guylhem</CODE> in <CODE>.qmail-root</CODE> by your own login to get root mail.
+<P>ATTENTION UUCP USERS !
+<P>DO NOT TRUST THE QMAIL FAQ FOR UUCP, USE MY .qmail-uucp-default INSTEAD!
+ELSE YOU WILL NOT BE ABLE TO SEND ANY MAIL BY YOUR UUCP CONNEXION!
+<P>Now you'll need to decide in which format your users will get their mail.
+<P>Here's my suggestion :
+<UL>
+<LI> For NFS mounted home dirs, use MAILDIR format with a patch for local
+mail readers (patchs are available on www.qmail.org)</LI>
+<LI> If no patch is available, prefer MAILFILE format : any mail reader can
+read a file containing mail, people will only need to create an alias (for
+bash) or a setenv (for csh) for their mail reader</LI>
+<LI> Avoid /var/spool/mail/$USER format, too insecure</LI>
+</UL>
+<P>To fix the default format, read each file in <CODE>/var/qmail/boot</CODE>
+then copy the one you best like to <CODE>/var/qmail/rc</CODE>.
+<P><CODE>home</CODE> or <CODE>proc</CODE> are safe choices, but prefer <CODE>home</CODE> for security
+reasons.
+<P>
+<H3>Configuring qmail </H3>
+
+<P>
+<P>In /var/qmail/control, edit:
+<P>
+<H3>defaultdomain, me, plusdomain </H3>
+
+<P>
+<P>
+<UL>
+<LI> me is you local FQDN (full qualified domain name), for example on
+my machine it is <CODE>barberouge.linux.lmm.com</CODE>
+</LI>
+<LI> defaultdomain will be added to any host name without dots, including
+defaulthost, for example you can set it to <CODE>localnetwork</CODE> so any mail sent
+to joe@hisbox will be completed to be sent to joe@hisbox.localnetwork instead
+</LI>
+<LI>plusdomain is the exception: it is added to any host name that ends
+with a plus sign, including defaulthost (set in <CODE>me</CODE>) if it ends with a
+plus sign.</LI>
+</UL>
+<P>These 3 examples show you the power and ease of configuration of qmail!
+<P>
+<H3>locals, rcpthosts </H3>
+
+<P>
+<P>If you want to support virtual domain names, just put additional names in these
+files. Any mail you receive for these names will be handled locally.
+<P>The difference between <CODE>locals</CODE> and <CODE>rcpthosts</CODE> is the latter isn't
+considered as a local alias, which is useful if you receive mail from some
+free email address like yahoo.com or lemel.fr while you also send mail to other
+users of these non local services, i.e. you don't want to handle locally mail
+send to someone@yahoo.com!
+<P>
+<H3>virtualdomains </H3>
+
+<P>
+<P>There can you specify default outgoing mode, for example :
+<BLOCKQUOTE><CODE>
+<PRE>
+#:alias-uucp
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>if you don't want to send outgoing mail by uucp but by smtp (default) or
+<BLOCKQUOTE><CODE>
+<PRE>
+:alias-ucp
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>if you send your outgoing mail by uucp.
+<P>
+<H3>Testing qmail </H3>
+
+<P>
+<P>Now it is configured, try:
+<BLOCKQUOTE><CODE>
+<PRE>
+sh -cf '/var/qmail/rc &amp;'
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to launch qmail (it won't interfere with your local MTA), then:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+echo to: mylogin | /var/qmail/bin/qmail-inject
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You should receive this mail in the format you've chosen in
+<CODE>/var/qmail/boot/</CODE>.
+<P>
+<H3>Removing your other MTA </H3>
+
+<P>
+<P>If this test was successful, just kill your previous MTA:
+<P>killall -STOP daemon_name ; if any children are running, you should
+killall -CONT their_name, wait, killall -STOP again, and repeat ad nauseam.
+<P>If there aren't any children, killall -TERM and then killall -CONT.
+<P>Remove it (how you can do this depends on the distribution you installed, for
+example rpm -e --nodeps on RedHat, Caldera and Suse, or dpkg -r --force-depends
+on Debian) then run:
+<BLOCKQUOTE><CODE>
+<PRE>
+# ln -s /var/qmail/bin/sendmail /usr/lib/sendmail
+# ln -s /var/qmail/bin/sendmail /usr/sbin/sendmail
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Now set up qmail-smtpd in /etc/inetd.conf (all on one line):
+<BLOCKQUOTE><CODE>
+<PRE>
+smtp stream tcp nowait qmaild /var/qmail/bin/tcp-env tcp-env /var/qmail/bin/qmail-smtpd
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you are using a old non-SYSV-init distribution like redhat, just add to your
+boot scripts:
+<BLOCKQUOTE><CODE>
+<PRE>
+sh -cf '/var/qmail/rc &amp;' 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Usually this should be /etc/rc.local but your mileage may vary.
+<P>For actual SYSV-init compliant distributions (RedHat, Caldera, Suse, Debian),
+add this script to /etc/init.d/ or /etc/rc.d/init.d/ :
+<P>DEBIAN version:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+
+test -x /var/qmail/rc || exit 0
+
+case "$1" in
+  start)
+     echo -n "Starting mta: "
+     sh -cf '/var/qmail/rc &amp;'
+     echo "qmail."
+     ;;
+  stop)
+     echo -n "Stopping mta: "
+     killall qmail-lspawn
+     echo "qmail."
+     ;;
+  restart)
+     echo -n "Restarting mta: "
+     killall -HUP qmail-lspawn
+     killall -ALRM qmail-lspawn
+     echo "qmail."
+     ;;
+  *)
+     echo "Usage: /etc/init.d/qmail {start|stop|restart}"
+     exit 1
+esac
+
+exit 0
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>REDHAT version:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+#
+# qmail      This shell script takes care of starting and stopping qmail.
+#
+# description: qmail is a Mail Transport Agent, which is the program \
+#              that moves mail from one machine to another.
+# processname: qmail
+# config: /var/qmail/control/
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+export PATH=$PATH:/var/qmail/bin
+
+# Check that networking is up.
+[ ${NETWORKING} = "no" ] &amp;&amp; exit 0
+
+[ -f /usr/sbin/sendmail ] || exit 0
+
+# See how we were called.
+case "$1" in
+  start)
+        # Start daemons.
+        echo -n "Starting qmail: "
+        qmail-start '|preline procmail' splogger qmail &amp;
+        touch /var/lock/subsys/qmail
+        echo
+        ;;
+  stop)
+        # Stop daemons.
+        echo -n "Shutting down qmail: "
+        killproc qmail-lspawn
+        echo
+        rm -f /var/lock/subsys/qmail
+        ;;
+  restart)
+        $0 stop
+        $0 start
+        ;;
+  status)
+        status qmail
+        ;;
+  *)
+        echo "Usage: qmail {start|stop|restart|status}"
+        exit 1
+esac
+
+exit 0
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>And make symlinks to each /etc/rc.d/rcN.d/, for example:
+<BLOCKQUOTE><CODE>
+<PRE>
+ln -sf /etc/init.d/qmail /etc/rc1.d/K19qmail
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If the first letter is K, you will kill qmail on this runlevel (1 for single
+mode or 6 for boot), but if the first letter is S, you will start qmail on this
+runlevel (each others runlevel).
+<P>
+<UL>
+<LI>How to decide whether you should put a K or a S?
+Do what the majority of d&aelig;mons in this runlevel do!
+</LI>
+<LI>What number should you put after K or S?
+The number next to your network daemon.
+
+That means the MTA will be started and stopped respectively
+after and before the network daemon.
+
+Without this, your network will be unreachable while the MTA would
+expect it to work.</LI>
+</UL>
+<P>RedHat, Caldera and Suse will use /etc/rc.d/ instead of plain /etc/ for Debian
+distribution, i.e. /etc/rc.d/rc1.d or /etc/rc.d/init.d for example.
+<P>
+<H3>That's all, folks! </H3>
+
+<P>
+<P>No need to reboot (remember, you're using linux, not some other cheap OS!) for
+the modifications to take effect, just run:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+killall inetd
+init 1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To go to single user mode, then:
+<BLOCKQUOTE><CODE>
+<PRE>
+init 2
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>to go back to your default runlevel (indicated in /etc/inittab with initdefault
+label).
+<P>You could also hand-start qmail script but "init" method will show you if
+qmail script is well positioned, i.e. launched after network scripts but
+before any program which depends on email to warn you (like inn).
+<P>
+<H2><A NAME="ss6.2">6.2 Smail v3.1</A>
+</H2>
+
+<P>
+<P>Smail3.1 seems to be a de-facto standard transport agent for uucp-only
+sites and for some smtp sites. It's easy to configure, it compiles
+without patching from the sources and it's fairly secure.
+<P>
+<H3>Configuring smail </H3>
+
+<P>
+<P>Install the smail binary from your distribution (I recommend you choose
+this) or get the smail sources and build smail. If you're building smail
+from sources, you need to have the following in your os/linux file so
+that 'sed' gives you shell scripts that work properly.
+<P>
+<PRE>
+CASE_NO_NEWLINES=true 
+</PRE>
+<P>Once it's installed, config. files will certainly go in /etc/smail (but your
+mileage may vary if you use old distributions); let's start editing them!
+<P>
+<H3>"config" file </H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# From
+smart_path=polux
+smart_transport=uux
+
+# To
+hostname=barberouge
+domains=linux.lmm.com
+
+visible_name=barberouge.linux.lmm.com
+uucp_name=barberouge.linux.lmm.com
+
+# max_message_size=512k
+# auth_domains=foo.bar
+# more_hostnames=barberouge.polux.freenix.fr
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Well, first, who is feeding you? I'm fed by "polux" via uucp (i.e.
+uux transport); naturally you need to change this file according to
+your own situation. For example, you could by fed by
+"bargw.bar.foobar.com" via "smtp", in that case you don't need a
+transport file and can define "-transport_file " to indicate you don't
+need one.
+<P>You can also use "postmaster_address = yourname", hide the network
+topology in outgoing addresses (if you're a gateway) using
+"visible_name", set which aliases address can also be used for the
+email you receive, using "more_hostnames".
+<P>See smail documentation for more details or the examples in
+/usr/doc/smail/examples to see if any match your situation.
+<P>
+<H3>"directors" file </H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# aliasinclude - expand ":include:filename" addresses produced by alias files
+# This entry and the next one are pretty much boiler-plate.  Reasons
+# for making significant changes are few.  The sole purpose of these
+# is to match and expand addresses of the form:
+#       :include:pathname
+# which may occur in alias files or mailing-list/forward files
+# (produced by any director with a driver of forwardfile).
+aliasinclude:
+        driver = aliasinclude,          # use this special-case driver
+        nobody;                         # associate nobody user with addresses
+                                        #  when mild permission violations
+                                        #  are encountered
+        copysecure,                     # get permissions from alias director
+        copyowners,                     # get owners from alias director
+
+
+
+# forwardinclude - expand ":include:filename" addrs produced by forward files
+forwardinclude:
+        driver = forwardinclude,        # use this special-case driver
+        nobody;
+        copysecure,                     # get perms from forwarding director
+        copyowners,                     # get owners from forwarding director
+
+
+# aliases - search for alias expansions stored in a database
+# This is the standard aliases file.  It is used for generic things,
+# like mapping root, postmaster, MAILER-DAEMON and uucp to site
+# admins, creating some small system alias expansions, and such.  In
+# this site configuration, the aliases file is used mostly for
+# machine-specific aliasing/forwarding information.  Global forwarding
+# information should be put in the "forward" database.
+aliases:
+        driver=aliasfile,               # general-purpose aliasing director
+        -nobody,                        # all addresses are associated
+                                        # with nobody by default, so setting
+                                        # this is not useful.
+        sender_okay,                    # don't remove sender from expansions
+        owner=owner-$user;              # problems go to an owner address
+        file=/etc/aliases,
+        modemask=002,                   # should not be globally writable
+        optional,                       # ignore if file does not exist
+        proto=lsearch,                  # unsorted ASCII file
+
+
+# forward - search for expansions stored in a forwarding database
+# This is the subdomain-wide user forwarding database.  Entries are
+# maintained here for current or past users, to forward their mail to
+# their preferred mail-reading machine.  The forward database is
+# shipped around the TCP/IP network as changes are made, to keep the
+# network consistent.
+#forward:
+#       driver = aliasfile,             # general-purpose aliasing director
+#       -nobody,                        # all addresses are associated
+#                                       # with nobody by default, so setting
+#                                       # this is not useful.
+#       owner = real-$user;             # problems go to an owner address
+#
+#       file = /etc/forward,
+#       modemask = 002,
+#       proto = dbm,                    # use dbm(3X) library for access
+
+
+# dotforward - expand .forward files in user home directories
+# For users that have an entry in the "forward" database, a ".forward"
+# file is only used if it is on the "home" machine, as identified in
+# the forward database.  If used, it is treated as a list of addresses
+# to which mail should be delivered, rather than (or in addition to)
+# the user identified in the local address.
+dotforward:
+        driver = forwardfile,           # general-purpose forwarding director
+        owner = postmaster, nobody, sender_okay;
+
+        file = ~/.forward,              # .forward file in home directories
+        checkowner,                     # the user can own this file
+        owners = root,                  # or root can own the file
+        modemask = 002,                 # it should not be globally writable
+        caution = daemon:root,          # don't run things as root or daemon
+        # be extra careful of remotely accessible home directories
+        unsecure = "~uucp:/tmp:/usr/tmp:/var/tmp"
+
+
+# forwardto - expand a "Forward to " in user mailbox files
+# This emulates the V6/V7/System-V forwarding mechanism which uses a
+# line of forward addresses stored at the beginning of user mailbox files
+# prefixed with the string "Forward to "
+forwardto:
+        driver = forwardfile,
+        owner = postmaster, nobody, sender_okay;
+
+        file = /var/spool/mail/${lc:user},      # point at user mailbox files
+        forwardto,                      # enable "Forward to " function
+        checkowner,                     # the user can own this file
+        owners = root,                  # or root can own the file
+        modemask = 0002,                # under System V, group mail can write
+        caution = daemon:root           # don't run things as root or daemon
+
+
+# user - match users on the local host with delivery to their mailboxes
+user:   driver = user;                  # driver to match usernames
+        transport = local               # local transport goes to mailboxes
+
+
+# real_user - match usernames when prefixed with the string "real-"
+# This is useful for allowing an address which explicitly delivers to a
+# user's mailbox file.  For example, errors in a .forward file expansion
+# could be delivered here, or forwarding loops between multiple machines
+# can be resolved by using a real-username address.  Also, users that
+# wish to use mail as a means of transferring data to a machine that
+# is not their "home" machine can mail to real-login-name@remote.host.
+real_user:
+        driver = user;
+        transport = local,
+        prefix = "real-"                # for example, match real-root
+
+
+# lists - expand mailing lists stored in a list directory
+# mailing lists can be created simply by creating a file in the
+# /etc/smail/lists directory.
+lists:  driver = forwardfile,
+        caution,                        # flag all addresses with caution
+        nobody,                         # and then associate the nobody user
+        owner = owner-$user;            # system V sites may wish to use
+                                        # o-$user, as owner-$user may be
+                                        # too long for a 14-char filename.
+        file = lists/${lc:user}         # lists is under $smail_lib_dir
+
+
+# owners - expand mailing lists stored in a list owner directory
+# mailing lists owner lists can be created simply by creating a file
+# in the /etc/smail/lists/owner directory.  Mailing list owners
+# are sent locally generated errors dealing with a mailing list of the
+# same name.  To create an owner list for a mailing list, create a
+# file with the name of the list in /etc/smail/lists/owner.  This
+# will create a list address of owner-listname, as is used by the
+# "lists" director above.
+owners: driver = forwardfile,
+        caution,                        # flag all addresses with caution
+        nobody,                         # and then associate the nobody user
+        owner = postmaster;             # system V sites may wish to use
+                                        # o-$user, as owner-$user may be
+                                        # too long for a 14-char filename.
+        prefix = "owner-",
+        file = lists/owner/${lc:user}   # lists is under $smail_lib_dir
+
+
+# request - expand mailing lists stored in a list request directory
+# mailing lists request lists can be created simply by creating a file
+# in the /etc/smail/lists/request directory.  Request addresses
+# are typically used as a standard address for queries about a mailing
+# list.  For example, requests for additions or deletions to a list
+# will generally be sent to "list-request", which should be set up to
+# forward to the appropriate person or persons.
+request: driver = forwardfile,
+        caution,                        # flag all addresses with caution
+        nobody,                         # and then associate the nobody user
+        owner = postmaster;             # system V sites may wish to use
+                                        # o-$user, as owner-$user may be
+                                        # too long for a 14-char filename.
+        suffix = "-request",
+        file = lists/request/${lc:user} # lists is under $smail_lib_dir
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You shouldn't need to change anything here, only mailing list options if you
+intend to run some using smail, or forwards options if, for example, you want
+to disable forwarding.
+<P>
+<H3>"fidopaths" file </H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+.f105.n324.z2.fidonet.org       f105.n324.z2.fidonet.org!%s
+.n324.z2.fidonet.org            f105.n324.z2.fidonet.org!%s
+.z2.fidonet.org                 f105.n324.z2.fidonet.org!%s
+.fidonet.org                    f105.n324.z2.fidonet.org!%s
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Create such a file only if you're using ifmail and FIDO.
+<P>
+<H3>"routers" file </H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# forces - force certain paths
+# This database exists as a means of hardcoding the paths to various
+# machines or domains.  It is for use in creating temporary tweaks to
+# the other routing databases.  To change the database, edit the file
+# maps/force.path and type "make" in the maps/ subdirectory.
+forces:
+        driver = pathalias,             # router to search paths file
+        method = /etc/smail/maps/table; # transports are in this file
+        file = forcepaths,              # file containing force path info
+        proto = lsearch,                # use the sorted path file
+        optional,
+        reopen                          # close when not being used
+
+
+uucp_neighbors:
+        driver=uuname,                  # use a program which returns neighbors
+        transport=uux;
+        cmd="/usr/bin/uuname -a",       # specifically, use the uuname program
+#        domain=uucp                    # strip ending ".uucp"
+
+
+# smart_host - a partially specified smarthost director
+# If the config file attribute smart_path is defined as a path from the
+# local host to a remote host, then hostnames not matched otherwise will
+# be sent off to the stated remote host.  The config file attribute
+# smart_transport can be used to specify a different transport.
+# If the smart_path attribute is not defined, this router is ignored.
+smart_host:
+        driver = smarthost,             # special-case driver
+        transport = uux                 # by default deliver over UUCP
+#       path=phreak
+
+
+# ifmail - to send mails to fidonet and vice versa
+ifmail:
+        driver=pathalias,
+        transport=ifmail;
+        file=fidopaths,
+        proto=lsearch
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You should only include ifmail chapter if you use ifmail for FIDO
+mails. Note you can also change transport mode from "uux" (ie UUCP)
+to, for example, "smtp" or even 'hardcode the paths to various
+machines or domains' in "/etc/smail/maps/table".
+<P>This is useful if you want outgoing mail for your local network to be
+delivered immediately, since there's no need for it to be routed to your uucp
+connexion of your internet access.
+<P>
+<H3>"transports" file </H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# local - deliver mail to local users
+# Tell smail to append directly to user mailbox files in the /var/spool/mail
+# directory.
+#local: driver = appendfile,            # append message to a file
+#       -return_path,                   # include a Return-Path: field
+#       local,                          # use local forms for delivery
+#       from,                           # supply a From_ envelope line
+#       unix_from_hack;                 # insert > before From in body
+#
+#       file = /var/spool/mail/${lc:user},      # use this location for Linux
+#                                               # Note, mail spool must be 1777
+#       file = ~/mailfile,              # use this location for better security
+#       group = mail,                   # group to own file for System V
+#       mode = 0660,                    # under System V, group mail can access
+#       suffix = "\n",                  # append an extra newline
+#       append_as_user,
+
+
+# This allows each user to have a ~/.procmailrc file to control filtering
+# of mail and saving mail from mail lists in separate mailboxes if they wish.
+local:  +inet,
+        -uucp,
+        driver = pipe,                  # append message to a file
+        return_path,                    # include a Return-Path: field
+        local,                          # use local forms for delivery
+        from,                           # supply a From_ envelope line
+        unix_from_hack;                 # insert > before From in body
+
+        cmd = "/usr/bin/procmail",      # use procmail for local delivery
+        parent_env,                     # environment info from parent addr
+        pipe_as_user,                   # use user-id associated with address
+        umask = 0022,                   # umask for child process
+#       -ignore_status,                 # exit status should be believed
+#       -ignore_write_errors,           # retry on broken pipes
+
+
+# pipe - deliver mail to shell commands
+# This is used implicitly when smail encounters addresses which begin with
+# a vertical bar character, such as "|/usr/lib/news/recnews talk.bizarre".
+# The vertical bar is removed from the address before being given to the
+# transport.
+#pipe:  driver = pipe,                  # pipe message to another program
+#       return_path, local, from, unix_from_hack;
+#
+#       cmd = "/bin/sh -c $user",       # send address to the Bourne Shell
+#       parent_env,                     # environment info from parent addr
+#       pipe_as_user,                   # use user-id associated with address
+#       umask = 0022,                   # umask for child process
+#       -log_output,                    # do not log stdout/stderr
+#       ignore_status,                  # exit status may be bogus, ignore it
+#       ignore_write_errors,            # ignore broken pipes
+
+
+# file - deliver mail to files
+# This is used implicitly when smail encounters addresses which begin with
+# a slash or squiggle character, such as "/usr/info/list_messages" or
+# perhaps "~/Mail/inbox".
+#file:  driver = appendfile,
+#       return_path, local, from, unix_from_hack;
+#
+#       file = $user,                   # file is taken from address
+#       append_as_user,                 # use user-id associated with address
+#       expand_user,                    # expand ~ and $ within address
+#       check_path,
+#       suffix = "\n",
+#       mode = 0644
+
+
+# uux - deliver to the rmail program on a remote UUCP site
+#
+# As many as five recipient addresses will be delivered to the remote
+# host in one UUCP transaction.
+uux:    driver = pipe,
+        -uucp,
+        inet,
+#       uucp,                           # use UUCP-style addressing forms
+        from,                           # supply a From_ envelope line
+        max_addrs = 5,                  # at most 5 addresses per invocation
+        max_chars = 200;                # at most 200 chars of addresses
+# the -r flag prevents immediate delivery, parentheses around the
+# $user variable prevent special interpretation by uux.
+        cmd = "/usr/bin/uux - -r -g$grade $host!rmail $((${strip:user})$)",
+#        cmd="/usr/bin/uux - $host!rmail $(($user)$)",
+        ignore_write_errors,            # ignore broken pipes
+        umask = 0022,
+#       pipe_as_sender,
+
+
+# uux_one_addr - deliver mail over UUCP to a remote host that can take
+#                one address at a time.
+# This is often necessary when delivering to a site running an unmodified
+# version of 4.1BSD.
+uux_one_addr:
+        driver = pipe,
+        uucp,                           # use UUCP-style addressing forms
+        from;                           # supply a From_ envelope line
+# the -r flag prevents immediate delivery
+        cmd = "/usr/bin/uux - -r -g$grade $host!rmail (${strip:user})",
+        umask = 0022,
+        pipe_as_sender
+
+
+queueonly:
+        driver = pipe;                  # send the message to a pipe
+        cmd = "/usr/lib/sendmail -Q -f $sender -bm $user",
+                                        # use getmail for local delivery
+        user=root,                      # execute getmail as "root"
+        group=mail,                     # execute getmail as "mail"
+        parent_env,                     # environment info from parent addr
+        -pipe_as_user,                  # use user-id associated with address
+        umask = 0007,                   # umask for child process
+ 
+# to deliver the message.  The smtp transport is included only if BSD
+# networking exists.
+# The uucp attribute can be specified for transfers within the UUCP
+# zone.  The inet attribute must be specified for transfers within the
+# Internet.
+# NOTE: This is hardly optimal, a backend should exist which can handle
+#       multiple messages per connection.
+# ALSO: It may be necessary to restrict max_addrs to 100, as this is the
+#       lower limit SMTP requires an implementation to handle for one
+#       message.
+smtp:   driver=tcpsmtp,
+        inet,                           # if UUCP_ZONE is not defined
+#       uucp,                           # if UUCP_ZONE is defined
+        -max_addrs, -max_chars;         # no limit on number of addresses
+
+        short_timeout=5m,               # timeout for short operations
+        long_timeout=2h,                # timeout for longer SMTP operations
+        service=smtp,                   # connect to this service port
+# For internet use: uncomment the below 4 lines
+       use_bind,                       # resolve MX and multiple A records
+       defnames,                       # use standard domain searching
+       defer_no_connect,               # try again if the nameserver is down
+       local_mx_okay,                  # fail an MX to the local host
+
+
+ifmail:
+        from,received,max_addrs=5,max_chars=200,
+        driver=pipe;
+        pipe_as_sender,
+        cmd="/usr/local/bin/ifmail -x9 -r$host $((${strip:user})$)"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You should include an ifmail chapter only if you use ifmail for FIDO
+mail. Apart from that, you shouldn't need to edit anything in this
+file which defines transport agents (like uux, smtp ...) you can use
+as parameters in other config. files.
+<P>Note I commented out some parts, like "pipes" or "file", to enhance security.
+<P>
+<H3>"maps/" directory </H3>
+
+<P>
+<P>It contains <CODE>map</CODE> and <CODE>table</CODE> files:
+<P>First, <CODE>map</CODE> file
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#N      foo.bar foo2.bar2
+#S      AT 486/RedHat Linux 1.2.13
+#O      organization
+#C      contact
+#E      administration (email)
+#T      phone
+#P      address
+#R
+#U      hosts connected via uucp
+#W      created/edited by
+#
+hname polux
+
+hname linux.eu.org
+
+hname = polux
+hname = polux.linux.eu.org
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Once again, edit this file to match you situation (I'm fed by
+polux.linux.eu.org).
+<P>Now <CODE>table</CODE> file
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ 
+*       uux
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You can define different transports to different paths, for example
+"smtp" for the machines in your local network, "uux" (i.e. uucp) for
+the rest of the world or vice-versa (I'm using uucp for any outgoing
+mail, therefore I use "*"!).
+<P>
+<H3>Other good examples </H3>
+
+<P>
+<P>The previous files are the one I currently use for my site, you
+shouldn't encounter any problem using them as samples/basis for your
+own files.
+<P>The following files are provided only as good examples to configure
+smail a different way.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#ident "@(#) transports,v 1.2 1990/10/24 05:20:46 tron Exp"
+
+# See smail(5) for a complete description of the contents of this file.
+
+# local - deliver mail to local users
+#
+# Tell smail to append directly to user mailbox files in the /usr/mail
+# directory.
+local:  driver = appendfile,            # append message to a file
+        return_path,                    # include a Return-Path: field
+        local,                          # use local forms for delivery
+        from,                           # supply a From_ envelope line
+        unix_from_hack;                 # insert > before From in body
+
+        file = /usr/mail/${lc:user},    # use this location for System V
+        group = mail,                   # group to own file for System V
+        mode = 0660,                    # under System V, group mail can access
+        suffix = "\n",                  # append an extra newline
+        append_as_user,
+
+# pipe - deliver mail to shell commands
+#
+# This is used implicitly when smail encounters addresses which begin with
+# a vertical bar character, such as "|/usr/lib/news/recnews talk.bizarre".
+# The vertical bar is removed from the address before being given to the
+# transport.
+pipe:   driver = pipe,                  # pipe message to another program
+        return_path, local, from, unix_from_hack;
+
+        cmd = "/bin/sh -c $user",       # send address to the Bourne Shell
+        parent_env,                     # environment info from parent addr
+        pipe_as_user,                   # use user-id associated with address
+        umask = 0022,                   # umask for child process
+        -log_output,                    # do not log stdout/stderr
+        ignore_status,                  # exit status may be bogus, ignore it
+        ignore_write_errors,            # ignore broken pipes
+
+# file - deliver mail to files
+#
+# This is used implicitly when smail encounters addresses which begin with a
+# slash or squiggle character, such as "/usr/info/list_messages" or perhaps
+# "~/Mail/inbox".
+file:   driver = appendfile,
+        return_path, local, from, unix_from_hack;
+
+        file = $user,                   # file is taken from address
+        append_as_user,                 # use user-id associated with address
+        expand_user,                    # expand ~ and $ within address
+        suffix = "\n",
+        mode = 0644
+
+# uux - deliver to the rmail program on a remote UUCP site
+#
+# As many as five recipient addresses will be delivered to the remote host in
+# one UUCP transaction.
+uux:    driver = pipe,
+        uucp,                           # use UUCP-style addressing forms
+        from,                           # supply a From_ envelope line
+        max_addrs = 5,                  # at most 5 addresses per invocation
+        max_chars = 200;                # at most 200 chars of addresses
+
+        # the -r flag prevents immediate delivery, parentheses around the
+        # $user variable prevent special interpretation by uux.
+        cmd = "/usr/bin/uux - -r -g$grade $host!rmail $((${strip:user})$)",
+        umask = 0022,
+        pipe_as_sender
+
+# uux_one_addr - deliver mail over UUCP to a remote host that can take one
+# address at a time.
+#
+# This is often necessary when delivering to a site running an unmodified
+# version of 4.1BSD.
+uux_one_addr:
+        driver = pipe,
+        uucp,                           # use UUCP-style addressing forms
+        from;                           # supply a From_ envelope line
+
+        # the -r flag prevents immediate delivery
+        cmd = "/usr/bin/uux - -r -g$grade $host!rmail (${strip:user})",
+        umask = 0022, pipe_as_sender
+
+# demand - deliver to a remote rmail program, polling on demand
+demand: driver = pipe,
+        uucp, from, max_addrs = 5, max_chars = 200;
+
+        # with no -r flag, try to contact remote site immediately
+        cmd = "/usr/bin/uux - -g$grade $host!rmail $(($user)$)",
+        umask = 0022, pipe_as_sender
+
+# uusmtp - deliver to the rsmtp program on a remote UUCP site
+#
+# Deliver using a simple Batched SMTP protocol to the remote machine.
+# This allows much more arbitrary addresses to be used.  It also
+# removes the limit on recipient addresses per invocation of uux.
+uusmtp: driver = pipe,
+        bsmtp,                          # send batched SMTP commands
+        -max_addrs,                     # there is no limit on the number or
+        -max_chars;                     #   total size of recipient addresses.
+
+        # supply -r to prevent immediate delivery, the recipient addresses
+        # are stored in the data sent to the standard input of rsmtp.
+        cmd = "/usr/bin/uux - -r -g$grade $host!rsmtp",
+        umask = 0022, pipe_as_sender
+
+# demand_uusmtp - deliver to a remote rsmtp program, polling on demand
+demand_uusmtp:
+        driver = pipe,
+        bsmtp, -max_addrs, -max_chars;
+
+        # with no -r flag, try to contact remote site immediately
+        cmd = "/usr/bin/uux - -g$grade $host!rsmtp",
+        umask = 0022, pipe_as_sender
+
+# smtp - deliver using SMTP over TCP/IP
+#
+# Connect to a remote host using TCP/IP and initiate an SMTP conversation to
+# deliver the message.  The smtp transport is included only if BSD networking
+# exists.
+
+# NOTE: It may be necessary to restrict max_addrs to 100, as this is the
+#       lower limit SMTP requires an implementation to handle for one
+#       message.
+smtp:   driver = smtp,
+        -max_addrs,
+        -max_chars
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#ident "@(#) table,v 1.2 1990/10/24 05:20:31 tron Exp"
+
+# This file names the transports that are to be used in delivering
+# to specific hosts from bargw.
+
+#host           transport
+#--------       ---------
+curdsgw         demand_uusmtp   # deliver using batched SMTP
+oldbsd          uux_one_addr    # 4.1BSD sites cannot take more than one addr
+sun             demand          # call sun when their is mail to send
+*               uux             # for all others, poll at intervals
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Restarting inetd </H3>
+
+<P>
+<P>To run smail as a smtp daemon, add one of the following to /etc/inetd.conf:
+<PRE>
+         smtp stream tcp nowait  root  /usr/bin/smtpd smtpd
+
+or:
+
+         smtp stream tcp nowait  root  /usr/sbin/tcpd  /usr/sbin/in.smtpd
+
+</PRE>
+<P>Outgoing mail gets sent automatically, when using elm.
+<P>
+<H3>Smail with smtp </H3>
+
+<P>
+<P>Generally, ISPs use smtp, therefore you shouldn't have any problems
+sending your mail. If your internet link is down when you send mail,
+then the mail sits in "<CODE>/var/spool/smail/input</CODE>". When the link
+next comes up, "<CODE>runq</CODE>" is run which causes the mail to be
+sent. However, receiving mail is <B>the</B> problem since your
+provider has many clients to look after, not only you!
+<P>Usually, you can retrieve your mail via the POP protocol, see POP
+section below.
+<P>
+<H2><A NAME="ss6.3">6.3 OUTDATED SECTION: Sendmail+IDA</A>
+</H2>
+
+<P>
+<P>For big sites, sendmail is worth choosing, due to the "incredible ease of use",
+(very relative feeling when you know qmail) but you must decide which you want
+between sendmail+IDA and sendmail 8.x:
+<P>
+<UL>
+<LI> If you use an old kernel (1.0): sendmail+IDA</LI>
+<LI> If you use a not so old kernel (1.2): sendmail+IDA and source code editing</LI>
+<LI> Recent kernel (2.0) will choose sendmail 8.x</LI>
+</UL>
+<P>Remember, linux newbies or people concerned by security / ease of
+configuration should rather try using smail or qmail, which are easier
+to use and safer.
+<P>
+<H3>Source installation </H3>
+
+<P>
+<P>If your distribution doesn't provide you with a ready-to-install sendmail
+package (.rpm for RedHat, Caldera and Suse, .deb for Debian) just download the
+sources and run:
+<P>
+<UL>
+<LI>cd / ; tar -zxvf sendmail5.67b+IDA1.5.tgz</LI>
+</UL>
+<P>
+<UL>
+<LI>cd to /usr/local/lib/mail/CF and copy the sample.m4 local.m4 file to
+"yourhostname.m4".</LI>
+</UL>
+<P>Edit out the distributed hostname, aliases, smarthost and put in the
+correct one for your site. The default file is for a uucp-only site (no
+longer in 8.x) who has domainized headers and who talks to a smart host.
+Then "make yourhostname.cf" and move the resulting file to
+/etc/sendmail.cf
+<P>
+<UL>
+<LI>if you are uucp-only, you do *NOT* need to create any of the tables
+mentioned in the README.linux file.</LI>
+</UL>
+<P>You'll just have to touch the files so that the Makefile works. Just
+edit the .m4 file, make sendmail.cf and start testing it.
+<P>
+<UL>
+<LI>if you're uucp-only and you talk to sites in addition to your
+"smart-host", you'll need to add uucpxtable entries for each (or mail to them
+will also go through the smart host) and run dbm against the revised
+uucpxtable.</LI>
+</UL>
+<P>
+<UL>
+<LI>If you run Rich Braun's original binary distribution of 5.67a, you'll
+need to freeze the configuration if you change your .cf file with
+"/usr/lib/sendmail -bz" to make the changes take effect.</LI>
+</UL>
+<P>You should also update your version to at least 5.67b since there is a
+nasty security hole in 5.67a and earlier. Another nice thing is that
+if you have mail.debug set and you run syslogd, your incoming and
+outgoing mail messages will get logged. See the "/etc/syslog.conf"
+file for details.
+<P>The sources for sendmail+IDA can be found at vixen.cso.uiuc.edu ; they require
+no patching to run under Linux if you're running something like a kernel of
+1.00.
+<P>If you're running a kernel > 1.1.50, you get the fun of reversing most of the
+Linux-specific patches that are now in the vanilla sources.
+(I *did* told you this sendmail was only for old kernels:-)
+<P>It's extremely obvious where this needs to be done: just type "make"
+and when it blows up, go to that line in the sources and comment out the
+Linux-specific code that's in there.
+<P>If you're going to run sendmail+IDA, I strongly recommend you go to the
+sendmail5.67b+IDA1.5 version since all required Linux-specific patches are now
+in the vanilla sources and several security holes have been plugged that WERE
+(!!!) in the older version you may have grabbed or built before about
+December 1st, 1993.
+<P>Now linux kernel is 2.0, you should use sendmail 8.x instead of sendmail+IDA,
+but I already told you'd better choose sendmail 8.x:-)
+<P>
+<H3>The sendmail.m4 file </H3>
+
+<P>
+<P>Sendmail+IDA requires you to set up a <CODE>sendmail.m4</CODE> file rather than
+editing the <CODE>sendmail.cf</CODE>file directly.  The nice thing about this is
+that it is simple to set up mail configurations that are extremely difficult
+(if not totally impossible for most people to set up correctly) in smail or
+traditional sendmail.
+<P>The sendmail.m4 file that corresponds to the above smail example looks like
+the following:
+<P>
+<PRE>
+  dnl #------------------ SAMPLE SENDMAIL.M4 FILE ------------------
+  dnl #
+  dnl # (the string 'dnl' is the m4 equivalent of commenting out a line)
+  dnl # (well, not exactly, but use it for this purpose if you must :-)
+  dnl # you generally don't want to override LIBDIR from the compiled in paths
+  dnl #define(LIBDIR,/usr/local/lib/mail)dnl    # where all support files go
+  define(LOCAL_MAILER_DEF, mailers.linux)dnl    # mailer for local delivery
+  define(POSTMASTERBOUNCE)dnl                   # postmaster gets bounces
+  define(PSEUDODOMAINS, BITNET UUCP)dnl         # don't try DNS on these
+  dnl #
+  dnl #-------------------------------------------------------------
+  dnl #
+  dnl # names we're known by
+  define(PSEUDONYMS, myhostname.subdomain.domain myhostname.UUCP)
+  dnl #
+  dnl # our primary name
+  define(HOSTNAME, myhostname.subdomain.domain)
+  dnl #
+  dnl # our uucp name
+  define(UUCPNAME, myhostname)dnl
+  dnl #
+  dnl #-------------------------------------------------------------
+  dnl #
+  define(UUCPNODES, |uuname|sort|uniq)dnl       # our uucp neighbors
+  define(BANGIMPLIESUUCP)dnl                    # make certain that uucp
+  define(BANGONLYUUCP)dnl                       #  mail is treated correctly
+  define(RELAY_HOST, my_uucp_neighbor)dnl       # our smart relay host
+  define(RELAY_MAILER, UUCP-A)dnl               # we reach moria via uucp
+  dnl #
+  dnl #--------------------------------------------------------------------
+  dnl #
+  dnl # the various dbm lookup tables
+  dnl #
+  define(ALIASES, LIBDIR/aliases)dnl            # system aliases
+  define(DOMAINTABLE, LIBDIR/domaintable)dnl    # domainize hosts
+  define(PATHTABLE, LIBDIR/pathtable)dnl        # paths database
+  define(GENERICFROM, LIBDIR/generics)dnl       # generic from addresses
+  define(MAILERTABLE, LIBDIR/mailertable)dnl    # mailers per host or domain
+  define(UUCPXTABLE, LIBDIR/uucpxtable)dnl      # paths to hosts we feed
+  define(UUCPRELAYS, LIBDIR/uucprelays)dnl      # short-circuit paths
+  dnl #
+  dnl #--------------------------------------------------------------------
+  dnl #
+  dnl # include the 'real' code that makes it all work
+  dnl # (provided with the source code)
+  dnl #
+  include(Sendmail.mc)dnl                         # REQUIRED ENTRY!!!
+  dnl #
+  dnl #------------ END OF SAMPLE SENDMAIL.M4 FILE -------
+ 
+</PRE>
+<P>
+<H3>Defining a local mailer</H3>
+
+<P>Unlike most Unix distributions, Linux did not come with a local
+mail delivery agent by default.
+<P>Slackware did!  Well at least it is offered by the
+easy-to-use-but-longwinded installation script.  It uses procmail. 
+<P>Now, deliver or procmail is generally installed, with a default sendmail
+setup to handle local mail, so no complexity will be added to this
+already very complex setup. I recommend using the commonly available
+<CODE>deliver</CODE> or <CODE>procmail</CODE> programs, which can be optional
+packages in a some Linux distributions.
+<P>In order to do so, you need to define a <CODE>LOCAL_MAILER_DEF</CODE> in the
+<CODE>sendmail.m4</CODE> file that points to a file that looks like:
+<P>
+<PRE>
+  # -- /usr/local/lib/mail/mailers.linux --
+  #     (local mailers for use on Linux )
+  Mlocal, P=/usr/bin/deliver, F=SlsmFDMP, S=10, R=25/10, A=deliver $u
+  Mprog,  P=/bin/sh,       F=lsDFMeuP,   S=10, R=10, A=sh -c $u
+</PRE>
+<P>There is a also built-in default for <CODE>deliver</CODE> in the
+<CODE>Sendmail.mc</CODE> file that gets included into the
+<CODE>sendmail.cf</CODE> file. To specify it, you would not use the
+<CODE>mailers.linux</CODE> file but would instead define the following in
+your sendmail.m4 file:
+<P>
+<PRE>
+   dnl --- (in sendmail.m4) ---
+   define(LOCAL_MAILER_DEF, DELIVER)dnl       # mailer for local delivery
+</PRE>
+<P>Unfortunately, Sendmail.mc assumes deliver is installed in /bin, which
+is not the case with Slackware1.1.1 (which installs it in /usr/bin).
+In that case you'd need to either fake it with a link or rebuild
+deliver from sources so that it resides in /bin. Please note procmail
+is generally better than deliver, for example for mail filtering.
+<P>
+<H3>The sendmail+IDA dbm tables </H3>
+
+<P>
+<P>Setting up special behavior for sites or domains is done through a number of
+optional <CODE>dbm</CODE> tables rather than editing the <CODE>sendmail.cf</CODE> file
+directly.
+<P>Refer to the July-1994 issue of <CODE>Linux Journal</CODE> (if you can still find
+it:-), to the docs in the sources, or to the sendmail chapter in the newest
+version of the Linux Documentation Project <CODE>Networking Administration Guide</CODE> which
+will be available real-soon-now for more details.
+<P>
+<UL>
+<LI>mailertable   - defines special behavior for remote hosts or domains.</LI>
+<LI>uucpxtable    - forces UUCP delivery of mail to hosts that are in DNS format.</LI>
+<LI>pathtable     - defines UUCP bang-paths to remote hosts or domains.</LI>
+<LI>uucprelays    - short-circuits the pathalias path to well-known remote hosts.</LI>
+<LI>genericfrom   - converts internal addresses into generic ones visible to the outside world.</LI>
+<LI>xaliases      - converts generic addresses to/from valid internal ones.</LI>
+<LI>decnetxtable  - converts RFC-822 addresses to DECnet-style addresses.</LI>
+</UL>
+<P>
+<H3>So which entries are really required?</H3>
+
+<P> When not using any of the optional dbm tables, sendmail delivers
+mail via the <CODE>RELAY_HOST</CODE> and <CODE>RELAY_MAILER)</CODE>
+defined in the sendmail.m4 file used to generate sendmail.cf. It
+is easily possible to override this behavior through entries in
+the domaintable or uucpxtable.
+<P>A generic site that is on Internet and speaks Domain Name Service, or one that
+is UUCP-only and forwards all mail via UUCP through a smart
+<CODE>RELAY_HOST</CODE>, probably does not need any specific table entries at all.
+<P>Virtually all systems should set the <CODE>DEFAULT_HOST</CODE> and
+<CODE>PSEUDONYMS</CODE> macros, which define the canonical site name and aliases
+it is known by.
+<P>If all you have is a relay host and relay mailer, you don't need to
+set these defaults since it works automagically. UUCP hosts will
+probably also need to set <CODE>UUCPNAME</CODE> to their official UUCP
+name.
+<P>They will also probably set <CODE>RELAY_MAILER</CODE> and <CODE>RELAY_HOST</CODE>
+which enable smart-host routing through a mail relay.
+<P>The mail transport to be used is defined in <CODE>RELAY_MAILER</CODE> and
+should usually be UUCP-A for UUCP sites. If your site is SMTP-only and
+talks `Domain Name Service', you would change the
+<CODE>RELAY_MAILER</CODE>.
+<P>If you're a SLIP site, you might want to take the easy way out and just
+forward all outgoing mail to your service provider to do the right thing with.
+To do so, you'd want to define ISOLATED_DOMAINS and VALIDATION_DOMAINS to be
+your domain, you'd also want to define RELAY_HOST to be your service provider
+and RELAY_MAILER to be TCP. Of course, you want to ask permission before you
+set any system up as your general purpose relay.
+<P>
+<H2><A NAME="ss6.4">6.4 Sendmail 8.x</A>
+</H2>
+
+<P>
+<P>Sendmail 8.7.x from Berkeley was the latest major revision after
+sendmail5. It had wonderful built-in support for building under Linux
+: just "make linux" and all was set.
+<P>You'll probably be best served by grabbing one of the various binary
+distributions off of the usual Linux archive sites rather than fighting things
+like Berkeley dbm yourself.
+<P>There's a nice distribution of sendmail 8.6.12 from Jason Haar - <CODE>j.haar at lazerjem.demon.co.uk </CODE> on sunsite.unc.edu in
+/pub/Linux/system/Mail/delivery/sendmail-8.6.12-bin.tgz that has the source
+documentation and a very nice quickie description of how to run sendmail v8 for
+common configurations.
+<P>The bottom line with sendmail v8 is that you want to configure the
+bare minimum necessary to get the job done ; the following is an
+example that should get you close at least.
+<P>
+<H3>A sample 8.7.x mc file </H3>
+
+<P>
+<P>Much like sendmail+IDA, sendmail v8 uses m4 to process a config file into
+a full sendmail.cf that sendmail uses.  The following is my current mc file
+for my site (ppp to Internet for outgoing mail, uucp for incoming mail).
+<P>
+<PRE>
+        dnl divert(-1)
+        #---------------------------------------------------------------------
+        #
+        # this is the .mc file for a linux host that's set up as follows:
+        #
+        #       - connected to Internet for outbound mail (ppp here)
+        #       - connected via UUCP for incoming mail
+        #       - domainized headers
+        #       - no local mailer (use 'deliver' instead)
+        #       - no DNS running so don't canonicalize outgoing via DNS
+        #       - all non-local outbound mail goes to the RELAY_HOST over smtp
+        #           (we run ppp and let our service provider do the work)
+        #
+        #                                       vds 3/31/95
+        #
+        #---------------------------------------------------------------------
+        include(`../m4/cf.m4')
+        VERSIONID(`linux nodns relays to slip service provider smarthost')dnl
+        Cwmyhostname.myprimary.domain myhostname.UUCP localhost
+        OSTYPE(linux)
+        FEATURE(nodns)dnl
+        FEATURE(always_add_domain)dnl
+        FEATURE(redirect)
+        FEATURE(nocanonify)
+        dnl MAILER(local)dnl
+        MAILER(smtp)dnl
+        MAILER(uucp)dnl
+        define(`RELAY_HOST', smtp:my.relay.host.domain)
+        define(`SMART_HOST', smtp:my.relay.host.domain)
+        define(`UUCP_RELAY', smtp:my.relay.host.domain)
+        define(`LOCAL_MAILER_PATH', `/bin/deliver')
+        define(`LOCAL_MAILER_ARGS', `deliver $u')
+</PRE>
+<P>
+<H3>Sendmail v8 tidbits </H3>
+
+<P>
+<P>There are a few differences I suppose to the 'IDA bigots' among us.
+So far, I've found the following:
+<P>
+<P> Instead of 'runq', you type 'sendmail -q' to run the queue! 
+<P>
+<P>
+<H2><A NAME="ss6.5">6.5 Local Delivery Agents </A>
+</H2>
+
+<P>
+<P>Unlike most operating systems, Linux did not have mail "built-in": you needed
+a program to deliver the local mail, like "lmail", "procmail" or "deliver".
+<P>However, every recent distribution includes a local mailer now!
+<P>Documentation for how to use either for local delivery is in the
+sendmail5.67b+IDA1.5 binary release (on sunsite) mentioned above.
+<P>
+<HR>
+<A HREF="Mail-Administrator-HOWTO-7.html">Next</A>
+<A HREF="Mail-Administrator-HOWTO-5.html">Previous</A>
+<A HREF="Mail-Administrator-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

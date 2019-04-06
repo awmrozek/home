@@ -1,0 +1,237 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux MIDI-HOWTO : MIDI Development.</TITLE>
+ <LINK HREF="MIDI-HOWTO-10.html" REL=next>
+ <LINK HREF="MIDI-HOWTO-8.html" REL=previous>
+ <LINK HREF="MIDI-HOWTO.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="MIDI-HOWTO-10.html">Next</A>
+<A HREF="MIDI-HOWTO-8.html">Previous</A>
+<A HREF="MIDI-HOWTO.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="s9">9. MIDI Development.</A></H2>
+
+<P>
+<P>For those looking to develop MIDI applications, good examples are often needed to get you started.
+<P>The following examples were posted to the LAD mailing list in a thread about examples and documentation/tutorials.
+<P>
+<H2><A NAME="ss9.1">9.1 Example 1</A>
+</H2>
+
+<P>Below is a little sequencer routine from Dr. Matthias Nagorni.  More examples can be obtained from Matthias's site which is listed in the Links section. 
+<P>You compile it like so:
+<HR>
+<PRE>
+[phil@beatbox] $ gcc seqdemo.c -o seqdemo -lasound
+
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;alsa/asoundlib.h&gt;
+
+snd_seq_t *open_seq();
+void midi_action(snd_seq_t *seq_handle);
+
+snd_seq_t *open_seq() {
+
+  snd_seq_t *seq_handle;
+  int portid;
+
+  if (snd_seq_open(&amp;seq_handle, "hw", SND_SEQ_OPEN_DUPLEX, 0) &lt; 0) {
+    fprintf(stderr, "Error opening ALSA sequencer.\n");
+    exit(1);
+  }
+  snd_seq_set_client_name(seq_handle, "ALSA Sequencer Demo");
+  if ((portid = snd_seq_create_simple_port(seq_handle, "ALSA Sequencer Demo",
+            SND_SEQ_PORT_CAP_WRITE|SND_SEQ_PORT_CAP_SUBS_WRITE,
+            SND_SEQ_PORT_TYPE_APPLICATION)) &lt; 0) {
+    fprintf(stderr, "Error creating sequencer port.\n");
+    exit(1);
+  }
+  return(seq_handle);
+}
+
+void midi_action(snd_seq_t *seq_handle) {
+
+  snd_seq_event_t *ev;
+
+  do {
+    snd_seq_event_input(seq_handle, &amp;ev);
+    switch (ev->type) {
+      case SND_SEQ_EVENT_CONTROLLER: 
+        fprintf(stderr, "Control event on Channel %2d: %5d       \r",
+                ev->data.control.channel, ev->data.control.value);
+        break;
+      case SND_SEQ_EVENT_PITCHBEND:
+        fprintf(stderr, "Pitchbender event on Channel %2d: %5d   \r", 
+                ev->data.control.channel, ev->data.control.value);
+        break;
+      case SND_SEQ_EVENT_NOTEON:
+        fprintf(stderr, "Note On event on Channel %2d: %5d       \r",
+                ev->data.control.channel, ev->data.note.note);
+        break;        
+      case SND_SEQ_EVENT_NOTEOFF: 
+        fprintf(stderr, "Note Off event on Channel %2d: %5d      \r",         
+                ev->data.control.channel, ev->data.note.note);           
+        break;        
+    }
+    snd_seq_free_event(ev);
+  } while (snd_seq_event_input_pending(seq_handle, 0) > 0);
+}
+
+int main(int argc, char *argv[]) {
+
+  snd_seq_t *seq_handle;
+  int npfd;
+  struct pollfd *pfd;
+    
+  seq_handle = open_seq();
+  npfd = snd_seq_poll_descriptors_count(seq_handle, POLLIN);
+  pfd = (struct pollfd *)alloca(npfd * sizeof(struct pollfd));
+  snd_seq_poll_descriptors(seq_handle, pfd, npfd, POLLIN);
+  while (1) {
+    if (poll(pfd, npfd, 100000) > 0) {
+      midi_action(seq_handle);
+    }  
+  }
+}
+</PRE>
+<HR>
+<P>
+<P>
+<H2><A NAME="ss9.2">9.2 Example 2</A>
+</H2>
+
+<P>Below is a ALSA 0.9 MIDI redirector by Nick Dowell.
+<P>
+<HR>
+<PRE>
+/* ALSA Sequencer MIDI redirector.
+   Redirects the input to outputs determined by the MIDI channel
+   (as requested by Nathaniel Virgo on Linux-Audio-Dev ;-)
+   based on Dr. Matthias Nagorni's ALSA seq example
+   
+   Nick Dowell &lt;nixx@nixx.org.uk>
+   */
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;alsa/asoundlib.h&gt;
+
+int
+main()
+{
+  snd_seq_t *seq_handle;
+  snd_seq_event_t *ev;
+  int i;
+  int portid;              /* input port */
+  int oportid[16];         /* output ports */
+  int npfd;
+  struct pollfd *pfd;
+  char txt[20];
+
+  if (snd_seq_open(&amp;seq_handle, "hw", SND_SEQ_OPEN_DUPLEX, 0) &lt; 0) {
+    fprintf(stderr, "Error opening ALSA sequencer.\n");
+    exit(1);
+  }
+
+  snd_seq_set_client_name(seq_handle, "MIDI Redirect");
+  
+  /* open one input port */
+  if ((portid = snd_seq_create_simple_port
+       (seq_handle, "Input",
+        SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
+        SND_SEQ_PORT_TYPE_APPLICATION)) &lt; 0) {
+    fprintf(stderr, "fatal error: could not open input port.\n");
+    exit(1);
+  }
+  /* open 16 output ports for the MIDI channels */
+  for (i=0; i&lt;16; i++){
+    sprintf( txt, "MIDI Channel %d", i );
+    if ((oportid[i] = snd_seq_create_simple_port
+         (seq_handle, txt,
+          SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ,
+          SND_SEQ_PORT_TYPE_APPLICATION)) &lt; 0) {
+      fprintf(stderr, "fatal error: could not open output port.\n");
+      exit(1);
+    }
+  }
+
+  npfd = snd_seq_poll_descriptors_count(seq_handle, POLLIN);
+  pfd = (struct pollfd *)alloca(npfd * sizeof(struct pollfd));
+  snd_seq_poll_descriptors(seq_handle, pfd, npfd, POLLIN);
+
+  while (1)  /* main loop */
+    if (poll(pfd, npfd, 1000000) > 0){
+      do {
+        snd_seq_event_input(seq_handle, &amp;ev);
+        snd_seq_ev_set_source( ev, oportid[ev->data.control.channel] );
+        snd_seq_ev_set_subs( ev );
+        snd_seq_ev_set_direct( ev );
+        snd_seq_event_output_direct( seq_handle, ev );
+        snd_seq_free_event(ev);
+      } while (snd_seq_event_input_pending(seq_handle, 0) > 0);
+    }
+  return 0;
+}
+</PRE>
+<HR>
+<P>
+<H2><A NAME="ss9.3">9.3 Example 3</A>
+</H2>
+
+<P>Below is an example of writing data to the OSS /dev/midi interface by Craig Stuart Sapp.
+<P>More examples can be found at Craig's site listed in the Links section.
+<P>
+<HR>
+<PRE>
+//
+// Programmer:    Craig Stuart Sapp [craig@ccrma.stanford.edu]
+// Creation Date: Mon Dec 21 18:00:42 PST 1998
+// Last Modified: Mon Dec 21 18:00:42 PST 1998
+// Filename:      ...linuxmidi/output/method1.c
+// Syntax:        C 
+// $Smake:        gcc -O -o devmidiout devmidiout.c &amp;&amp; strip devmidiout
+//
+
+#include &lt;linux/soundcard.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void) {
+   char* device =  "/dev/midi" ;
+   unsigned char data[3] = {0x90, 60, 127};
+
+   // step 1: open the OSS device for writing
+   int fd = open(device, O_WRONLY, 0);
+   if (fd &lt; 0) {
+      printf("Error: cannot open %s\n", device);
+      exit(1);
+   }
+
+   // step 2: write the MIDI information to the OSS device
+   write(fd, data, sizeof(data));
+
+   // step 3: (optional) close the OSS device
+   close(fd);
+
+   return 0;
+}
+</PRE>
+<HR>
+<P>
+<P>
+<P>
+<P>
+<HR>
+<A HREF="MIDI-HOWTO-10.html">Next</A>
+<A HREF="MIDI-HOWTO-8.html">Previous</A>
+<A HREF="MIDI-HOWTO.html#toc9">Contents</A>
+</BODY>
+</HTML>

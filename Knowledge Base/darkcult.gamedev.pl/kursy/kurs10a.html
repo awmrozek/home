@@ -1,0 +1,497 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Wyjątki, cz.2</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs10.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs11.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h2>
+Wyjątek jako obiekt
+</h2>
+
+<P>
+Na początku tej części kursu powiedzieliśmy sobie, że jedną z najważniejszych funkcji spełnianych przez system wyjątków jest dostarczanie informacji o okolicznościach wystąpienia wyjątku (np. rodzaj błędu, numer linii w kodzie). Zmienne skalarne, takie jak <SPAN CLASS=K>int, float</SPAN> czy nawet <SPAN CLASS=K>__int64</SPAN> nie są w stanie przekazać zbyt wielu takich informacji. Dlatego warto stworzyć sobie specjalną strukturę, której pola będą dostarczać kompletnej informacji, jakiej wymagamy do obsłużenia wyjątku (zazwyczaj będzie to informacja, którą użytkownik-tester przekazuje programiście, żeby ten ostatni wiedział, na czym polega błąd w jego oprogramowaniu i gdzie w kodzie źródłowym należy go szukać).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>struct</SPAN> tEXCEPTION<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> ErrCode, LineNumber;<BR>
+&nbsp;string FileName;<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Tutaj mamy bardzo prostą strukturę, ale dzięki niej możemy już przekazać całkiem sporo informacji o danym wyjątku; kod błędu, numer linii kodu i nazwa pliku źródłowego zazwyczaj w zupełności wystarczą do zorientowania się, gdzie tkwi błąd i na czym on polega.
+</P>
+<P>
+Jednak takie proste załatwienie sprawy ma kilka poważnych wad. Po pierwsze, brakuje nam tutaj konstruktora, który pozwoliłby na wygodną inicjalizację wszystkich pól struktury. Po drugie, nie ma enkapsulacji zmiennych z informacjami o wyjątku. Po trzecie, nie ma metod, które pozwalałyby coś zrobić ze zgłoszonym wyjątkiem (choćby wyświetlić komunikat o nim). Po czwarte wreszcie, brak możliwości dziedziczenia po takiej strukturze (o tym pomówimy w następnym rozdziale).
+</P>
+<P>
+Te wszystkie wady sugerują, żeby zrobić z wyjątku całą klasę. Mogłaby ona wyglądać np. tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> cEXCEPTION<BR>
+{<SPAN CLASS=K><BR>
+protected:</SPAN><BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> ErrCode, LineNumber;<BR>
+&nbsp;string FileName;<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;cEXCEPTION(<SPAN CLASS=K>int</SPAN> code, <SPAN CLASS=K>int</SPAN> line, string file);<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Msg();<BR>
+};<BR>
+<BR>
+cEXCEPTION::cEXCEPTION(<SPAN CLASS=K>int</SPAN> code, <SPAN CLASS=K>int</SPAN> line, string file)<BR>
+{<BR>
+&nbsp;ErrCode = code;<BR>
+&nbsp;LineNumber = line;<BR>
+&nbsp;FileName = file;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> cEXCEPTION::Msg()<BR>
+{<BR>
+&nbsp;clog &lt;&lt; <SPAN CLASS=L>"Wystapil wyjatek"</SPAN> &lt;&lt; endl;<BR>
+&nbsp;clog &lt;&lt; <SPAN CLASS=L>"Numer bledu: "</SPAN> &lt;&lt; ErrCode &lt;&lt; endl;<BR>
+&nbsp;clog &lt;&lt; <SPAN CLASS=L>"Plik: "</SPAN> &lt;&lt; FileName &lt;&lt; endl;<BR>
+&nbsp;clog &lt;&lt; <SPAN CLASS=L>"Linia: "</SPAN> &lt;&lt; LineNumber &lt;&lt; endl;<BR>
+}
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz wystarczy tylko zdefiniować sobie jakieś stałe, którymi będziemy oznaczać różne rodzaje błędów, np. <SPAN CLASS=L>1001</SPAN> - brak pamięci, <SPAN CLASS=L>1002</SPAN> - błąd wejścia/wyjścia itp.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>const int</SPAN> ERR_MEMORY = <SPAN CLASS=L>1001</SPAN>;<BR>
+<SPAN CLASS=K>const int</SPAN> ERR_IO &nbsp;&nbsp;&nbsp; = <SPAN CLASS=L>1002</SPAN>;<BR>
+...<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz możemy już rzucać wyjątki, przekazując pełną informację o nich za pośrednictwem klasy <SPAN CLASS=T>cEXCEPTION</SPAN>, natomiast w bloku <SPAN CLASS=K>catch</SPAN> możemy zrobić użytek z tych informacji, np. wyświetlając komunikat o błędzie za pomocą prostego wywołania metody <SPAN CLASS=T>Msg</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>try</SPAN><BR>
+{<BR>
+&nbsp;wsk = <SPAN CLASS=K>new</SPAN> Tablica[<SPAN CLASS=L>10000</SPAN>];<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(wsk == NULL) <SPAN CLASS=K>throw</SPAN> cEXCEPTION(ERR_MEMORY, __LINE__, __FILE__);<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>catch</SPAN>(cEXCEPTION Wyjatek)<BR>
+{<BR>
+&nbsp;Wyjatek.Msg();<BR>
+&nbsp;terminate();<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Użyliśmy tutaj bardzo przydatnych makr <SPAN CLASS=T>__LINE__ </SPAN>i <SPAN CLASS=T>__FILE__</SPAN>. W ich miejsce preprocesor wstawia odpowiednio: numer aktualnej linii kodu, w której znajduje się dane makro oraz nazwę pliku źródłowego. Aby było jeszcze wygodniej (oraz estetyczniej), możemy napisać sobie kolejne makro, które ukryje te dwa makra:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#define MY_EXCEPTION(c) cEXCEPTION(c, __LINE__, __FILE__)</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz rzucenie wyjątku będzie wyglądać po prostu tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(wsk == NULL) <SPAN CLASS=K>throw</SPAN> MY_EXCEPTION(ERR_MEMORY);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Zalety tych rozwiązań widać na pierwszy rzut oka; w momencie wykrycia sytuacji wyjątkowej po prostu zgłaszamy ten fakt z podaniem kodu błędu, w momencie złapania tego wyjątku żądamy wyświetlenia komunikatu. O resztę (czyli m.in. o przekazanie informacji o numerze linii i nazwie pliku) martwi się nasza klasa <SPAN CLASS=T>cEXCEPTION</SPAN>.
+</P>
+
+<h2>
+Hierarchia wyjątków
+</h2>
+
+<P>
+Jak już wspomniałem, klasa w rodzaju <SPAN CLASS=T>cEXCEPTION</SPAN> może stać się klasą bazową dla szeregu innych klas wyjątków. 
+</P>
+<P>
+Co zyskujemy, tworząc klasy dziedziczące po klasie wyjątku? Z grubsza to samo, co stosując dziedziczenie w każdym innym celu: otrzymamy obiekty, które mają kilka cech wspólnych oraz kilka indywidualnych. Bardziej konkretnie - otrzymamy możliwość reagowania na różne rodzaje wyjątków w różny sposób, ale przy zachowaniu pewnych cech wspólnych dla wszystkich rodzajów wyjątków.
+</P>
+<P>
+Przykład: tworzymy sobie klasę <SPAN CLASS=T>cSMALL_EXCEPT</SPAN>, która będzie oznaczała jakiś drobny wyjątek, który niekoniecznie musi uniemożliwiać dalszą pracę z programem. Innymi słowy, nawet jeśli wyjątek <SPAN CLASS=T>cSMALL_EXCEPT</SPAN> wystąpi, to program wciąż będzie działał, co najwyżej wyświetli komunikat, że ostatnio podjęta przez użytkownika akcja (np. próba otwarcia jakiegoś pliku) nie powiodła się. Do dzieła zatem:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> cSMALL_EXCEPT : <SPAN CLASS=K>public</SPAN> cEXCEPTION;<BR>
+{<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;cSMALL_EXCEPT(<SPAN CLASS=K>int</SPAN> code, <SPAN CLASS=K>int</SPAN> line, string file) : cEXCEPTION(code, line, file) {};<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Nie napracowaliśmy się zbytnio: nowa klasa <SPAN CLASS=T>cSMALL_EXCEPT</SPAN> jest w gruncie rzeczy kopią swojej klasy bazowej. Nawet konstruktora nie chciało nam się pisać od nowa, skorzystaliśmy sobie z listy inicjalizacyjnej. Mamy więc dwie podobnie działające klasy. Po co nam one? Otóż właśnie po to, by w blokach <SPAN CLASS=K>catch</SPAN> móc odróżnić, czy rzucony wyjątek należy do rodzaju tych "groźnych", na które zareagować można tylko zakończeniem programu, czy też do tych "lajtowych", które możemy spokojnie zignorować (ale w obu przypadkach wyświetlamy informację o wyjątku). Teraz możemy dodać drugi blok <SPAN CLASS=K>catch</SPAN>:
+</P>
+
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>catch</SPAN>(cSMALL_EXCEPT Wyjatek)<BR>
+{<BR>
+&nbsp;Wyjatek.Msg();<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>catch</SPAN>(cEXCEPTION Wyjatek) <SPAN CLASS=C>// "stary" catch zostawiamy bez zmian</SPAN><BR>
+{<BR>
+&nbsp;Wyjatek.Msg();<BR>
+&nbsp;terminate();<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+
+<P>
+Odtąd reakcją na wyjątki typu <SPAN CLASS=T>cEXCEPTION</SPAN> jest wyświetlenie komunikatu o błędzie i zakończenie programu, a na wyjątki <SPAN CLASS=T>cSMALL_EXCEPT</SPAN> - tylko wyświetlenie komunikatu (oczywiście, sterowanie zostaje przekazane do bloku <SPAN CLASS=K>catch</SPAN>, więc jeśli za tym blokiem nic już nie ma, to program i tak się zakończy - o tym później).
+</P>
+
+<P>
+Dobrze jest pamiętać, że w przypadku hierarchii klas wyjątków najpierw umieszczamy zawsze blok <SPAN CLASS=K>catch</SPAN> łapiący wyjątki klas pochodnych, a dopiero na końcu blok <SPAN CLASS=K>catch</SPAN> łapiący wyjątki klas bazowych (czyli właśnie tak, jak powyżej). Jeśli zrobimy jeden za drugim najpierw <SPAN CLASS=K>catch</SPAN> dla klasy bazowej, a potem dla pochodnej, a gdzieś w bloku <SPAN CLASS=K>try</SPAN> jest rzucenie wyjątku klasy pochodnej, to prawdopodobnie kompilator wyrzuci nam warninga.
+</P>
+
+
+<P class=UWAGA>
+Kolejność bloków <SPAN CLASS=K>catch</SPAN> MA znaczenie!
+</P>
+
+
+
+
+<h2>
+Propagacja wyjątków
+</h2>
+
+<P>
+Mechanizmy, o których sobie do tej pory powiedzieliśmy, same w sobie są w praktyce mało przydatne (tak przynajmniej mogłoby się nam wydawać w tym momencie). Wyobraźmy sobie na przykład, że jedynym rodzajem wyjątku przewidzianym w naszym programie jest błąd alokacji pamięci. Sytuacja jest więc pozornie niezbyt skomplikowana. Cóż jednak z tego, skoro wyjątek taki może wystąpić w wielu różnych miejscach w programie? Załóżmy, że mamy trzy funkcje, z których każda alokuje pamięć dla różnego rodzaju struktur danych:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> alokuj_obiekt(<SPAN CLASS=K>float</SPAN>* wsk)<BR>
+{<BR>
+&nbsp;wsk = <SPAN CLASS=K>new float</SPAN>;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> alokuj_tablice(<SPAN CLASS=K>int</SPAN> rozmiar, <SPAN CLASS=K>float</SPAN>* wsk)<BR>
+{<BR>
+&nbsp;wsk = <SPAN CLASS=K>new float</SPAN>[rozmiar]; <BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> alokuj_tablice_2d(<SPAN CLASS=K>int</SPAN> rozmiar_x, <SPAN CLASS=K>int</SPAN> rozmiar_y, <SPAN CLASS=K>float</SPAN>* wsk)<BR>
+{<BR>
+&nbsp;wsk = <SPAN CLASS=K>new float</SPAN>*[rozmiar_y];<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;rozmiar_y; ++i)<BR>
+&nbsp;&nbsp;wsk = <SPAN CLASS=K>new float</SPAN>[rozmiar_x];<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Gdybyśmy chcieli teraz wprowadzić tu obsługę wyjątków, to musielibyśmy najpierw ciało każdej funkcji "otulić" blokiem <SPAN CLASS=K>try</SPAN>, następnie dorzucić do niego blok <SPAN CLASS=K>catch</SPAN>. Zawartość bloku <SPAN CLASS=K>catch</SPAN> w każdej z trzech funkcji byłaby identyczna: byłoby to wyświetlenie komunikatu o błędzie i zakończenie programu. Nawet jeśli skorzystalibyśmy z naszej klasy <SPAN CLASS=T>cEXCEPTION</SPAN>, to i tak byłoby z tym mnóstwo niepotrzebnej pisaniny. W dodatku nie byłoby spełnione jedno z założeń dla mechanizmu obsługi wyjątków, o których mówiliśmy na początku tej części kursu: przekazanie sterowania do odpowiedniego miejsca w kodzie, zajmującego się obsługą danego rodzaju wyjątków. Tutaj trzy identyczne rodzaje wyjątków byłyby obsługiwane oddzielnie...
+</P>
+<P>
+Na szczęście nic takiego nie musimy robić, ponieważ mechanizm obsługi wyjątków w C++ ma wbudowane tzw. <SPAN CLASS=Wazne>odwijanie stosu</SPAN>. W szczegóły techniczne zagłębiać się tu nie będziemy; niech wystaczy, że polega to na poszukiwaniu bloku <SPAN CLASS=K>catch</SPAN> poza funkcją, w której rzucono wyjątek. Tak więc jeśli bloku <SPAN CLASS=K>catch</SPAN> w funkcji <SPAN CLASS=T>A</SPAN> nie będzie w ogóle, to wyjątek poleci sobie dalej, do funkcji <SPAN CLASS=T>B</SPAN>, z której wywołano <SPAN CLASS=T>A</SPAN>. Z kolei jeśli funkcja <SPAN CLASS=T>B</SPAN> nie będzie zawierała odpowiadającego bloku <SPAN CLASS=K>catch</SPAN>, wyjątek powędruje do klasy <SPAN CLASS=T>C</SPAN>, z której wywołano <SPAN CLASS=T>B</SPAN>. Brzmi to zapewne dość zawile, więc lepiej zilustrujmy to przykładem:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> C()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>try</SPAN> <BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;B();<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>int</SPAN> parametr)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;clog &lt;&lt; <SPAN CLASS=L>"Wyjatek dotarl wreszcie do bloku catch."</SPAN> &lt;&lt; endl;<BR>
+&nbsp;}<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> B()<BR>
+{<BR>
+&nbsp;A();<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> A()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>throw</SPAN><SPAN CLASS=L> 0</SPAN>;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;C();<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN><SPAN CLASS=L> 0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Program jest prosty; zaczyna się od wywołania funkcji <SPAN CLASS=T>C</SPAN>, która wywołuje funkcję <SPAN CLASS=T>B</SPAN>, a ta z kolei wywołuje <SPAN CLASS=T>A</SPAN>. Tak więc stos można sobie tu wyobrazić tak:
+</P>
+
+<P>
+A<BR>
+B<BR>
+C<BR>
+main<BR>
+</P>
+
+<P>
+ Wewnątrz funkcji <SPAN CLASS=T>A</SPAN> zgłaszany jest wyjątek. Ponieważ funkcja <SPAN CLASS=T>A</SPAN> nie posiada żadnego bloku <SPAN CLASS=K>catch</SPAN>, zdejmujemy <SPAN CLASS=T>A</SPAN> ze stosu i przeszukujemy funkcję, która jest na jego wierzchu (teraz jest to <SPAN CLASS=T>B</SPAN>). Tam też nie ma <SPAN CLASS=K>catch</SPAN>, więc wywalamy <SPAN CLASS=T>B</SPAN> ze szczytu i sprawdzamy <SPAN CLASS=T>C</SPAN>. Tutaj wreszcie jest <SPAN CLASS=K>catch</SPAN> i nawet pasuje do typu rzuconego wyjątku. Tak więc wchodzimy do tego <SPAN CLASS=K>catch</SPAN>.
+</P>
+<P>
+Wracając do naszego wcześniejszego przykładu - gdzie tutaj umieścić konstrukcję <SPAN CLASS=K>try-catch</SPAN>? Oczywiście w funkcji, która wywołuje zarówno <SPAN CLASS=T>alokuj_obiekt, alokuj_tablice</SPAN> i <SPAN CLASS=T>alokuj_tablice_2d</SPAN>. Jeśli nie mamy pewności, jaka to funkcja, to najlepiej wstawić <SPAN CLASS=K>try-catch </SPAN>wewnątrz funkcji <SPAN CLASS=T>main</SPAN> - przecież stamtąd wszystko się zaczyna, więc też i tam skończy się zawsze odwijanie stosu :-). Tak więc jedziemy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>try</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;alokuj_obiekt(wsk_obiekt);<BR>
+&nbsp;&nbsp;alokuj_tablice(tab1);<BR>
+&nbsp;&nbsp;alokuj_tablice_2d(tab2);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(cEXCEPTION Wyjatek)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;Wyjatek.Msg();<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>return</SPAN> EXIT_FAILURE;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> EXIT_SUCCESS;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Sytuacja jest tu już całkiem klarowna: bez względu na to, w której z wywoływanych funkcji alokujących zostanie rzucony wyjątek, trafi on do bloku <SPAN CLASS=K>catch</SPAN> znajdującego się w funkcji <SPAN CLASS=T>main</SPAN>. 
+</P>
+
+<h2>
+Wyjątki w praktyce
+</h2>
+
+<P>
+Schemat opisany pod koniec poprzedniego rozdziału (umieszczanie całej zawartości funkcji <SPAN CLASS=T>main</SPAN> lub <SPAN CLASS=T>WinMain</SPAN> w bloku <SPAN CLASS=K>try</SPAN> i wykorzystanie odwijania stosu) ma jedną niepodważalną zaletę, a jest to prostota. Ma też i wadę. Otóż model taki sprawdza się tylko w przypadku, gdy każdy przewidziany przez nas wyjątek ma być na tyle poważny, że kontynuowanie pracy programu staje się niemożliwe. Zauważ bowiem, że gdy praktycznie cały nasz program jest objęty blokiem <SPAN CLASS=K>try</SPAN>, to każdy zgłoszony wyjątek powoduje zakończenie programu (po opuszczeniu bloku <SPAN CLASS=K>try</SPAN> nie pozostaje już więcej instrukcji do wykonania, nawet jeśli usuniemy <SPAN CLASS=K>return</SPAN> z bloku <SPAN CLASS=K>catch</SPAN>).
+</P>
+<P>
+Oczywiście zawsze możemy stworzyć sobie funkcję (np. <SPAN CLASS=T>main2</SPAN>), w której umieścimy wszystko to, co było w <SPAN CLASS=T>main</SPAN> i wywoływać tę funkcję z bloku <SPAN CLASS=K>try</SPAN>. Następnie wprowadzić drugą klasę wyjątku, która będzie oznaczała taki wyjątek, który nie powoduje wyjścia z programu (np. <SPAN CLASS=T>cSMALL_EXCEPT</SPAN>). Reakcją na wyjątek <SPAN CLASS=T>cEXCEPTION</SPAN> będzie, tak jak wcześniej, wyjście z programu, natomiast na <SPAN CLASS=T>cSMALL_EXCEPT</SPAN> - ponowne wywołanie funkcji <SPAN CLASS=T>main2</SPAN>, co w naszych zamierzeniach ma być "przejściem do porządku dziennego nad wyjątekiem", czyli kontynuacją normalnego działania programu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> main2()<BR>
+{<BR>
+&nbsp;alokuj_obiekt(wsk_obiekt);<BR>
+&nbsp;alokuj_tablice(tab1);<BR>
+&nbsp;alokuj_tablice_2d(tab2);<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>try</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;main2();<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(cSMALL_EXCEPT Wyjatek)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;Wyjatek.Msg();<BR>
+&nbsp;&nbsp;main2();<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(cEXCEPTION Wyjatek)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;Wyjatek.Msg();<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>return</SPAN> EXIT_FAILURE;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> EXIT_SUCCESS;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Taki kod to fatalny błąd programistyczny. Dlaczego? Owszem, skompiluje się on, a nawet zadziała zgodnie z oczekiwaniami... przynajmniej do czasu. Jeśli gdzieś w funkcji <SPAN CLASS=T>main2</SPAN> zostanie zgłoszony wyjątek typu <SPAN CLASS=T>cSMALL_EXCEPT</SPAN>, to zostanie on przechwycony we właściwym bloku <SPAN CLASS=K>catch</SPAN>, a następnie z powrotem wejdziemy w <SPAN CLASS=T>main2</SPAN>. I cóż wtedy? Są dwie możliwości:
+</P>
+
+<UL>
+<LI>sytuacja powtórzy się, czyli ten sam wyjątek zostanie zgłoszony ponownie (jak wiemy, doprowadzi to do natychmiastowego zakończenia programu, ponieważ <SPAN CLASS=T>main2 </SPAN>została wywołana z bloku <SPAN CLASS=K>catch</SPAN>, czyli wciąż jesteśmy w trakcie obsługi poprzedniego wyjątku)
+<LI>tym razem wszystko przebiegnie normalnie, tj. nie będzie zgłoszony żaden wyjątek aż do momentu, gdy użytkownik sam wyłączy program
+</UL>
+
+<P>
+Oczywiście jako programiści nie możemy przewidzieć, który z tych scenariuszy się ziści. Powinniśmy być pesymistami i założyć, że bardzo prawdopodobny jest scenariusz nr 1. A jest on dość katastrofalny w skutkach, gdyż raczej nie chcemy, by nasze programy w sytuacjach wyjątkowych ot tak po prostu się wyłączały (dlatego właśnie zresztą w ogóle zajmujemy się systemem wyjątków).
+</P>
+<P>
+Co robić? Po pierwsze, zapamiętujemy:
+</P>
+<P class=UWAGA>
+Nie łudź się nadzieją, że jeden blok try, obejmujący wszystkie instrukcje w funkcji main załatwi sprawę - chyba że chcesz, żeby każdy wyjątek kończył się wyjściem z programu.
+</P>
+<P>
+Po drugie, rozwijamy naszą koncepcję. Jeśli jeden blok <SPAN CLASS=K>try</SPAN> nie wystarcza, to trzeba ich wprowadzić więcej. Możemy tu wykorzystać możliwość zagnieżdżania tychże bloków. W tym również "niejawnego" zagnieżdżania, tj. zostawiamy jeden "główny" blok <SPAN CLASS=K>try</SPAN> w funkcji <SPAN CLASS=T>main</SPAN>, a pozostałe ("podrzędne") umieszczamy w funkcjach wywoływanych w "głównym" bloku <SPAN CLASS=K>try</SPAN>.
+</P>
+<P>
+Oczywiście nie od rzeczy będzie to zilustrować przykładzikiem. Niemal każda aplikacja otwiera jakieś pliki. Jedne są do jej działania niezbędne (np. biblioteki DLL) i w przypadku niemożności otwarcia lub odczytania takiego pliku nie ma sensu w ogóle kontynuować działania programu (często jest to zresztą po prostu niemożliwe). Inne pliki mogą być bardzo ważne dla pracy z aplikacją, ale nie AŻ TAK ważne, żeby całkiem wyłączyć program, kiedy plików tych nie da się wczytać. Na przykład: mamy edytor tekstu, w którym nie da się otworzyć pewnego dokumentu - nie możemy być aż tak radykalni, by z tego powodu rzucać "bezpowrotny" wyjątek! Trzeba dać użytkownikowi szansę, by spróbował jeszcze raz - może plik "się naprawi", może użytkownik zadowoli się jakimś innym dokumentem... ;-)
+</P>
+<P>
+Tak więc ustalamy, że gdy coś złego dzieje się z plikiem, który miał być odczytany, to rzucamy "nieszkodliwy" wyjątek <SPAN CLASS=T>cSMALL_EXCEPT</SPAN>, natomiast "zwykły"<SPAN CLASS=T> cEXCEPTION </SPAN>zostawiamy dla sytuacji naprawdę krytycznych, kiedy praca programu jako całości nie jest możliwa. Do operacji I/O na pliku wykorzystamy tutaj funkcje WinAPI:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> CzytajPlik(string NazwaPliku)<BR>
+{<BR>
+&nbsp;HANDLE hPlik;<BR>
+&nbsp;DWORD dwRet, dwBuf, dwRead;<BR>
+&nbsp;BYTE* Dane;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>try</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//otwarcie pliku</SPAN><BR>
+&nbsp;&nbsp;hPlik = CreateFile(NazwaPliku.c_str(), GENERIC_READ, <SPAN CLASS=L>0</SPAN>, NULL, OPEN_EXISTING, <SPAN CLASS=L>0</SPAN>, NULL);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(hPlik == INVALID_HANDLE_VALUE)<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>throw</SPAN> cSMALL_EXCEPT(ERR_FILEOPEN);<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//odczytaj z pliku rozmiar bufora</SPAN><BR>
+&nbsp;&nbsp;dwRet = ReadFile(hPlik, &dwBuf, <SPAN CLASS=K>sizeof</SPAN>(DWORD), &dwRead, NULL);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(!dwRet || dwRead &lt; <SPAN CLASS=K>sizeof</SPAN>(DWORD))<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>throw</SPAN> cSMALL_EXCEPT(ERR_FILEREAD);<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//alokuj pamięć dla bufora</SPAN><BR>
+&nbsp;&nbsp;Dane = (BYTE*)GlobalAlloc(GMEM_FIXED, dwBuf);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(Dane == NULL)<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>throw</SPAN> cEXCEPTION(ERR_MEMORY);<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//czytaj dane do bufora</SPAN><BR>
+&nbsp;&nbsp;dwRet = ReadFile(hPlik, Dane, dwBuf, &dwRead, NULL);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(!dwRet || dwRead &lt; dwBuf)<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>throw</SPAN> cSMALL_EXCEPT(ERR_FILEREAD);<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//zamknij plik</SPAN><BR>
+&nbsp;&nbsp;CloseHandle(hPlik);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(cSMALL_EXCEPT Wyjatek)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;MessageBox(hwnd, (<SPAN CLASS=L>"Nie można odczytać pliku "</SPAN> + NazwaPliku).c_str(), NULL, MB_ICONEXCLAMATION); <BR>
+&nbsp;}<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, przy czytaniu danych z pliku może się zdarzyć wiele niemiłych rzeczy. Ich następstwem jest niemożność wczytania danych, dlatego też rzucamy "tylko" <SPAN CLASS=T>cSMALL_EXCEPT</SPAN>, by taki wyjątek powodował wprawdzie wyświetlenie komunikatu o błędzie, ale pozwalał na dalsze użytkowanie programu. Dlatego zastosowaliśmy "lokalny" blok <SPAN CLASS=K>catch</SPAN>, który zajmuje się wyświetleniem komunikatu . Gdy użytkownik przeczyta sobie ten komunikat, sterowanie zostaje przekazane dalej, po czym użytkownik może kontynuować pracę (i ewentualnie wściekać się, że nie może otworzyć pliku, ale to już nie nasza wina ;-)).
+</P>
+<P>
+Przytoczymy sobie jeszcze wygląd funkcji <SPAN CLASS=T>main</SPAN> dla powyższego przykładu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> CzytajPlik(string NazwaPliku); <SPAN CLASS=C>//deklaracja</SPAN><BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>try</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;CzytajPlik(<SPAN CLASS=L>"test.dat"</SPAN>);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(cEXCEPTION Wyjatek)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;Wyjatek.Msg();<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>return</SPAN> EXIT_FAILURE;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> EXIT_SUCCESS;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Ten blok <SPAN CLASS=K>try-catch</SPAN> zajmuje się tylko łapaniem "poważnych" wyjątków i nie zwraca uwagi na takie drobiazgi, jak <SPAN CLASS=T>cSMALL_EXCEPT</SPAN>. To tak jak dyrektor w firmie, którego nie interesuje, że szeregowy pracownik ogląda strony porno, zamiast wykonywać swoje zadania - to jest sprawa kierowników niższego szczebla ;-). Dopiero jak kierownik sam coś przeskrobie, może to mieć negatywny wpływ na funkcjonowanie całej firmy i wtedy dyrektor musi osobiście wkroczyć do akcji ;-).
+</P>
+<P>
+Tak więc wynika stąd nauka, że <SPAN CLASS=K>catch</SPAN> w funkcji main może służyć TYLKO do obsługi bardzo poważnych błędów, które uniemożliwiają pracę całego programu, natomiast "lżejsze" wyjątki (będące zazwyczaj raczej winą użytkownika, niż naszą) - w głębi kodu (o ile kod posiada jakąś głębię - ale chyba wiadomo, o co chodzi).
+</P>
+<P>
+Warto na koniec zauważyć, że rzucenie wyjątku <SPAN CLASS=T>cSMALL_EXCEPT</SPAN> w miejscu, gdzie nie będzie go mógł złapać "lokalny" blok <SPAN CLASS=K>catch</SPAN> miałoby jeszcze gorsze efekty, niż rzucenie <SPAN CLASS=T>cEXCEPTION</SPAN>, gdyby ten pierwszy nie dziedziczył po tym drugim. Mielibyśmy bowiem wtedy niezłapany wyjątek, a jak się kończy niezłapanie wyjątku - wiemy. Ponieważ jednak <SPAN CLASS=T>cSMALL_EXCEPT</SPAN> jest właśnie klasą pochodną, to <SPAN CLASS=K>catch</SPAN> w funkcji <SPAN CLASS=T>main</SPAN> będzie łapać również i takie wyjątki, z tym, że zostaną one potraktowane jak <SPAN CLASS=T>cEXCEPTION</SPAN>. Mamy więc kolejny dowód na to, że tworzenie hierarchii klas wyjątków może być dobrym pomysłem.
+</P>
+
+<h2>
+Podsumowanie
+</h2>
+
+<P>
+Spodziewam się, że przynajmniej część czytelników może mieć teraz w głowie niezły mętlik. Czy te wyjątki są naprawdę przydatne, czy to tylko taki bajer? Czy opłaca się uczyć ich stosowania? Czy należy wprowadzać obsługę wyjątków do już gotowego kodu?
+</P>
+<P>
+Przede wszystkim warto zdawać sobie sprawę, że wyjątki nie są naprawdę niezbędne. Można napisać każdy program bez używania słówek <SPAN CLASS=K>try, throw</SPAN> i <SPAN CLASS=K>catch</SPAN>, zapewniając obsługę sytuacji wyjątkowych tzw. metodami tradycyjnymi (czyli wszystkimi, które stosowano przed "wynalezieniem" <SPAN CLASS=K>try/throw/catch</SPAN> :-)). Jeśli zrobi się to z głową, mechanizm taki może być nawet równie efektywny, zwłaszcza dla małych projektów (generalnie wyjątki wprowadzono głównie z myślą o "profesjonalnych" projektach, które bywają naprawdę bycze i gdzie nawet niewielkie opóźnienie w kodzeniu może się zakończyć czyimś bankructwem ;-)).
+</P>
+<P>
+Z drugiej strony nikt nie zamierza zabronić autorowi projektu małego i amatorskiego korzystania z wyjątków. Dlatego też powinieneś kierować się przede wszystkim własnym wyczuciem. Jeśli wydaje ci się, że nie bardzo kumasz ten temat, to możesz go sobie na razie odpuścić i stosować nadal wspomniane już tradycyjne metody radzenia sobie z błędami. Jeśli robisz mały program i chcesz się pobawić wyjątkami dla celów edukacyjnych - proszę bardzo. Jeśli robisz mały program i zależy ci przede wszystkim na czasie - uważaj, zaimplementowanie w pełni funkcjonalnej hierarchii wyjątków prawdopodobnie zajmie ci więcej tego czasu, niż w ten sposób oszczędzisz. Jeśli robisz duży program i zależy ci na czasie (a zależy ci zawsze, kiedy robisz duży program ;-)), to warto przyjrzeć się wyjątkom. Jeśli masz duży program z "tradycyjną" obsługą wyjątków i działa on zadowalająco - prawdopodobnie szkoda zachodu, by wprowadzać "nowoczesną" obsługę.
+</P>
+<P>
+Bez względu na to, czy w danym projekcie postanowisz używać wyjątków czy też nie, tradycyjnie życzę, by wiedza zawarta w tym odcinku kursu jak najrzadziej ci się przydawała ;-).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs10.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs11.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

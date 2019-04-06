@@ -1,0 +1,235 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Plug-and-Play-HOWTO: PCI Interrupts </TITLE>
+ <LINK HREF="Plug-and-Play-HOWTO-8.html" REL=next>
+ <LINK HREF="Plug-and-Play-HOWTO-6.html" REL=previous>
+ <LINK HREF="Plug-and-Play-HOWTO.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Plug-and-Play-HOWTO-8.html">Next</A>
+<A HREF="Plug-and-Play-HOWTO-6.html">Previous</A>
+<A HREF="Plug-and-Play-HOWTO.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="pci_int"></A> <A NAME="s7">7.</A> <A HREF="Plug-and-Play-HOWTO.html#toc7">PCI Interrupts </A></H2>
+
+<H2><A NAME="ss7.1">7.1</A> <A HREF="Plug-and-Play-HOWTO.html#toc7.1">Introduction</A>
+</H2>
+
+<P>Each PCI device that needs an interrupt comes with a fixed PCI
+interrupt that can't be changed.  It's designated by a slot number and
+a letter A, B, C, or D.  Example 3:B.  But this PCI interrupt is mapped
+(routed or redirected) to an interrupt number like say 21 by a chip on
+the motherboard.</P>
+<P>This routing is done by  a "programmable interrupt router" = PIR.
+Alternatively, an interrupt line may just routed directly (without any
+PIR).  If there's a PIR (router) it can be programmed by the BIOS or
+by Linux.  Thus a PCI device's interrupt may be sometimes be changed,
+not by sending the interrupt on a different wire but by changing the
+routing of the pulse on that wire by programming the PIR.  When the
+routing changes, the interrupt provide by this new routing is written
+in a configuration register located in the device chip.</P>
+
+<H2><A NAME="ss7.2">7.2</A> <A HREF="Plug-and-Play-HOWTO.html#toc7.2">History: From ISA to PCI Interrupts</A>
+</H2>
+
+<P>Before the PCI bus, PCs used the ISA bus and then during the
+transition to the newer PCI bus, most PC computers used both the PCI
+and ISA busses.  The ISA bus had all interrupt lines going to every
+card so any card could change its irq number just by sending out its
+interrupt signal on a different line (on a different pin).  All the
+interrupt signals were sent to the in interrupt controller which then
+signalled the CPU to temporarily stop whatever it was doing and run
+driver code to service the interrupt.</P>
+<P>When PCI first appeared, the simple solution was just to map the PCI
+interrupts to available ISA interrupts that weren't being used.  This
+required the use of "programmable interrupt router" = PIR (hardware)
+to do this mapping.  But since there were only 15 such interrupts, it
+was common to put many PCI devices on just the few available
+interrupts.  To solve this problem is simple: provide new hardware to
+increase the number of interrupts.  The result was the APIC.  But it
+was slow to be adopted since the ability of the PCI bus to share
+interrupts eased the interrupt shortage problem.  So APIC was mostly
+used where it was needed for dual processors.</P>
+
+<H2><A NAME="ss7.3">7.3</A> <A HREF="Plug-and-Play-HOWTO.html#toc7.3">Advanced Programmable Interrupt Controller (APIC)</A>
+</H2>
+
+<P>This can provide (depending on the model) 16, 24, 32, or 64
+interrupts, etc.  It also can handle the routing of interrupts from
+one CPU to another for cases of multiple CPUs.  See the file "IO-APIC"
+in the i386 directory of the kernel documentation and the ACPI-HOWTO.
+Don't confuse APIC with ACPI (Advanced Configuration and Power
+Interface) which may be used by the kernel to configure the APIC.   </P>
+<P>The actual APIC controller that is connected to the interrupt lines is
+an I/O APIC (or IO-APIC or IOAPIC).  By using more than one IO-APIC
+one may obtain more interrupts and they are numbered so as to be
+unique.  For example, the first controller could have input pins 0-23
+and the second would call its input pins 24-47, resulting in 48
+interrupts numbered 0-47.  But a few people find they have high
+interrupt numbers.  Could it be that the second IO-APIC is starting
+with a higher base number than it should, leaving a long gap of
+non-existent irqs?</P>
+<P>Besides IO-APICs there are local APICs (LAPIC) which are part of each
+CPU.  The IO-APIC does it work by communicating with the LAPICs
+inside the CPUs.</P>
+<P>When APIC was introduced, the old ISA PICs were also retained giving
+one a choice of whether or not to use APIC or ISA's PIC (which is
+sometimes just called PIC or XT-PIC in <EM>/proc/interrupts</EM>; the
+"XT" comes from IBM's XT PC which was IBM's second model PC in 1983).
+It's possible to tell the kernel (on the kernel command line) to not
+use APIC in which case it will use the old XT-PIC if its available.
+But since APIC can have more interrupts than the 15 provided by
+XT-PIC, there could be problems ??</P>
+<P>To see if you have PIC or APIC look at <EM>/proc/interrupts</EM>.  If
+you see <EM>XT-PIC</EM> for just irq 2 but <EM>IO-APIC</EM> for the others, it
+may mean that you have the old XT-PIC but it isn't being currently
+used.  Well, irq 2 is available for communication between two old
+XT-PICs just in case you might need to use them if you were to disable
+APIC.  There are two XT-PICs since each only supports 8 interrupts.</P>
+
+<H2><A NAME="ss7.4">7.4</A> <A HREF="Plug-and-Play-HOWTO.html#toc7.4">Message Signalled Interrupts (MSI)</A>
+</H2>
+
+<P>Another development is Message Signalled Interrupts (MSI) where
+the interrupt is just a message sent to a special address over the
+main computer bus (no interrupt lines needed).  But the device that
+sends such a message must first gain control of the main bus so that
+it can send the interrupt message.  Such a message contains more info
+than just "I'm sending an interrupt".  It contains an index for the
+address of program that needs to be run to service the IRQ.  That
+index, such as 3, would mean the the cpu find the address it must jump
+to in the 3rd element of a special table that the cpu knows about.</P>
+<P>Since cards must support MSI and many cards don't, it seems that
+the conventional methods of interrupt hardware support (called INTx)
+will be around for a long time.</P>
+
+<H2><A NAME="ss7.5">7.5</A> <A HREF="Plug-and-Play-HOWTO.html#toc7.5">Sharing PCI Interrupts</A>
+</H2>
+
+<P>PCI interrupts may be shared, meaning that two or more PCI devices
+will generate the same IRQ.  If feasible, it's usually better not to
+share.  Sharing doesn't work right for: 1. very old PCI hardware
+(before 1995 ??) 2. defective PCI hardware which may have a factory
+defect (it was made that way).  For example, if a PCI device on IRQ9
+falsely claims that any IRQ9 was intended for it, then other devices
+using IRQ9 may wind up having all IRQs they issue ignored since the
+bad device is falsely claiming their IRQs.  With no sharing, this
+problem is avoided.</P>
+<P>For an example of sharing the same IRQ between two PCI devices.  see
+<A HREF="Plug-and-Play-HOWTO-11.html#pci_irq_share">PCI interrupt sharing</A> This sharing
+ability is built into the hardware and all device drivers are supposed
+to support it.  Note that you usually can't share the same interrupt
+between the PCI and ISA bus.</P>
+
+<H2><A NAME="ss7.6">7.6</A> <A HREF="Plug-and-Play-HOWTO.html#toc7.6">Looking at Routing Tables</A>
+</H2>
+
+<P>Some info is provided by the boot-time messages which may be viewed
+by typing <EM>dmesg</EM>.  The following ways of looking at tables involve
+software which you may not have (or doesn't exist yet).  To check
+routing where PCI routes to the 16 ISA interrupts use <EM>pirtool</EM>
+which shows the $PIR routing table.  If you have APIC with hard-wired
+routing (no PIR), use <EM>mptable</EM> to look at the MP table.  For
+routeable APIC, a table is accessed by ACPI _PRT methods (but is there
+a command-line command to do this?)</P>
+
+<H2><A NAME="ss7.7">7.7</A> <A HREF="Plug-and-Play-HOWTO.html#toc7.7">For More Information</A>
+</H2>
+
+<P>Detailed technical information about interrupts is at 
+<A HREF="http://people.freebsd.org/~jhb/papers/bsdcan/2007/article/article.html">PCI Interrupts for x86 Machines under FreeBSD</A>.  Microsoft
+has 
+<A HREF="http://www.microsoft.com/whdc/system/sysperf/apic.mspx">The Importance of Implementing APIC-Based Interrupt Subsystems on Uniprocessor PCs</A></P>
+
+
+<H2><A NAME="ss7.8">7.8</A> <A HREF="Plug-and-Play-HOWTO.html#toc7.8">PCI Interrupt Linking</A>
+</H2>
+
+<P>Here are some of the details of the PCI interrupt system.  Each PCI
+card (and device mounted on the motherboard) has 4 possible
+interrupts: INTA#, INTB#, INTC#, INTD#.  From now on we will call them
+just A, B, C, and D.  Each has its own pin on the edge connector of a
+PCI card.  Thus for a 7-slot system (for 7 cards) there could be 7 x 4
+= 28  different interrupt lines for these cards.  Devices built into the motherboard also have additional interrupts.  But the specs permit a
+fewer number of interrupt lines, so some PCI buses seem to be made
+with only 4 or 8 interrupt lines.  This is not too restrictive since
+interrupts may be shared.  For 4 interrupt line (wires, traces, or links)
+LNKA, LNKB, LNKC, LNKD there is a programmable "interrupt router"
+chip that routes LNKA, LNKB, LNKC, LNKD to selected IRQs.  This
+routing can be changed by the BIOS or Linux.  For example, LNKA may
+be routed to IRQ5.  Suppose we designate the B interrupt from slot 3
+as interrupt 3B.  Then interrupts 3B and 2A could both be permanently
+connected to LNKA which is routed to IRQ5.  These 2 interrupts: 3B and
+2A are permanently shared by hardwiring on the motherboard.</P>
+<P>One may type "dmesg" on the command line to see how interrupt lines
+like LNKA are routed (or linked) to IRQs (*5 means that it's linked to
+IRQ 5).  Look for "PCI Interrupt Link".   Note that "link" is used
+here with two meanings: 1. the linking (routing) of PCI interrupt
+lines to IRQs.  2. the label of an interrupt line such as LNKB (link
+B).  The interrupt line labels seem to be provided by the Bios ?? and
+they may have many different names like: LNKC, LNK2, APCF, LUBA, LIDE,
+etc.  Question: When a large number of interrupt lines are shown
+disabled, do they all physically exist on the motherboard?  Or do they
+just exist only in the ACPI BIOS software so that the BIOS can work
+with motherboards which have more interrupt lines?</P>
+<P>One simple method of connecting (hard-wiring) these lines from PCI
+devices (such as 3B) to the interrupts LNKA, etc. would be to connect
+all A interrupts (INTA#) to line LNKA, all B's to LNKB, etc.  This
+method was once used many years ago but it is not a good solution.
+Here's why.  If a card only needs one interrupt, it's required that it
+use A.  If it needs two interrupts, it must use both A and B, etc.
+Thus INTA# is used much more often than INTD#.  So one winds up with
+an excessive number of interrupts sharing the first line (LNKA connected
+to all the INTA#).  To overcome this problem one may connect them in a
+more random way so that each of the 4 interrupt lines (LNKA, LNKB,
+LNKC, LNKD) will share about the same number of actual PCI interrupts.</P>
+<P>One method of doing this would be to have wire LNKA share interrupts 1A,
+2B, 3C, 4D, 5A, 6B, 7C.  This is done by physically connecting wire W
+to wires 1A, 2B, etc.  Likewise wire LNKB could be connected to wires 1B,
+2C, 3D, 4A, 5B, 6C, 7D, etc.  Then on startup, the BIOS maps the LNKB,
+LNKA, LNKC, LNKD to IRQs.  After that, it writes the IRQ that each
+device uses into a hardware configuration register in each device.
+From then on, any program interrogating this register can find out
+what IRQ the device uses.  Note that just writing the IRQ in a
+register on a PCI card doesn't in any way set the IRQ for that device. </P>
+<P>A practical use for this info is that, as a last resort, one may change
+the IRQs of a PCI card by inserting it in a different slot.  In the
+above example, INTA# of a PCI card will be connected to wire LNKA if the
+card is inserted into slot 1 (1A maps to LNKA) but INTA# will be
+connected to wire LNKB when it's inserted into slot 4 (4A maps to
+LNKB).</P>
+<P>A card in a slot may have up to 8 devices on it but there are only 4
+PCI interrupts for it (A, B, C, D).  This is OK since interrupts may
+be shared so that each of the 8 devices (if they exist) can have an
+shared interrupt.  The PCI interrupt letter of a device is often fixed
+and hardwired into the device.  The assignment of interrupts is done
+by either the BIOS or Linux mapping the PCI interrupts to the ISA-like
+interrupts as mentioned above.  </P>
+<P>If there are only 4 lines (LNKA, LNKB, LNKC, and LNKD) as in the above
+example, the mapping choices that the PCI BIOS has are limited.  Some
+motherboards may use more lines and thus have more choices.  For
+example LNKA-LNKH (8 lines).  The boot-time messages (and dmesg) may
+display them and how they are mapped.  The BIOS knows about how they
+are wired.</P>
+<P>On the PCI bus, the BIOS (or Linux) assigns IRQs (interrupts) so as to avoid
+conflicts with the IRQs it knows about on the ISA bus.  Sometimes the
+CMOS BIOS menu may allow one to assign IRQs to PCI cards or to tell
+the BIOS what IRQs are to be reserved for ISA devices.  The assignments are
+known as a "routing table".  In MS Windows it's called "IRQ steering"
+but this also covers the case of dynamic IRQ routing after boot-time.
+The BIOS may support it's own IRQ steering.</P>
+<P>If your PC uses PCI interrupts which are mapped to ISA interrupts, you
+right think that interrupts might be slow since the ISA bus was slow.
+Not really.  The ISA Interrupt Controller Chip(s) has a direct
+interrupt wire going to the CPU so it can get immediate attention.
+While signals on the old ISA address and data buses are slow to get to
+the CPU, the IRQ interrupt signals get there very fast.</P>
+
+<HR>
+<A HREF="Plug-and-Play-HOWTO-8.html">Next</A>
+<A HREF="Plug-and-Play-HOWTO-6.html">Previous</A>
+<A HREF="Plug-and-Play-HOWTO.html#toc7">Contents</A>
+</BODY>
+</HTML>

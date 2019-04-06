@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE> PLIP Install HOWTO: Installing RedHat 6.x</TITLE>
+ <LINK HREF="PLIP-Install-HOWTO-16.html" REL=next>
+ <LINK HREF="PLIP-Install-HOWTO-14.html" REL=previous>
+ <LINK HREF="PLIP-Install-HOWTO.html#toc15" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="PLIP-Install-HOWTO-16.html">Next</A>
+<A HREF="PLIP-Install-HOWTO-14.html">Previous</A>
+<A HREF="PLIP-Install-HOWTO.html#toc15">Contents</A>
+<HR>
+<H2><A NAME="s15">15. Installing RedHat 6.x</A>   </H2>
+
+<P>This section is written by Dr. Tilmann Bubeck,
+bubeck@think-at-work.de
+<P>
+<P>I tried hard to install a laptop through PLIP with a RedHat 6.2 but
+the installer from RedHat is buggy and could not be used for
+PLIP. I verified that it was already broken in RedHat 6.1, but
+works in RedHat 5.2 as desired. Patches have been sent to RedHat
+and will hopefully be applied to the upcoming RedHat 7.0.
+<P>So if you want to install a RedHat 6.x over PLIP you <B>must</B>
+follow these instructions.
+<P>The problem is the "bootnet" disk. This disk should be used for
+PLIP installation but has 2 serious errors:
+<P>
+<UL>
+<LI>it does not contain the necessary driver "parport_pc"</LI>
+<LI>it does not allow you to specify important module
+parameters to "parport_pc" (especially "iobase" and "irq").</LI>
+</UL>
+<P>
+<H2><A NAME="ss15.1">15.1 Using a fixed "bootnet" disk</A>
+   </H2>
+
+<P>Probably the easiest way to solve the above problem is to use a
+fixed "bootnet" disk. You can get a fixed "bootnet" disk for RedHat
+6.2 from 
+<A HREF="http://www-ti.informatik.uni-tuebingen.de/~bubeck/bootnet-plip-62.img">http://www-ti.informatik.uni-tuebingen.de/~bubeck/bootnet-plip-62.img</A><P>Use the following command to copy the downloaded image to an empty disk:
+<P><CODE>dd if=bootnet-plip-62.img of=/dev/fd0</CODE>. 
+<P>Then insert the disk and turn your computer on. When you come to
+the point where you must choose your network device driver please
+do:
+<P>
+<UL>
+<LI>1- Choose "Parallel Port Module for PC" and select "specify
+module parameters".
+</LI>
+<LI>2- Enter iobase and interrupt for your parallel
+port. Typical values are iobase=0x378 or iobase=0x3bc. Interrupt most
+often is "irq=7".
+     </LI>
+<LI>3- Validate that the kernel loads the module and finds the
+parallel port. Use ALT+F4 to switch to kernel messages and look
+for a line saying: "parport: ... irq: 7".
+</LI>
+<LI>4- The installation will then try to access the network
+which is still not available. So the installer asks again for the
+installation method. Choose your method again.
+</LI>
+<LI>5- Now choose the "plip" module without any
+parameters. Again verify the loading of the module in the kernel
+messages.
+</LI>
+<LI>6- Network should be up and running, installation should
+proceed. If not, then check the modules parameters to
+"parport_pc".</LI>
+</UL>
+<P>
+<H2><A NAME="ss15.2">15.2 Building your own "bootnet" disk</A>
+  </H2>
+
+<P>If the above bootnet disk is not suitable for your needs, I will
+present a small description of how to transform a standard bootnet
+disk for using "plip". This description is quite short and is
+addressed to the advanced user.
+<P>
+<UL>
+<LI>1- make a copy of the standard bootnet disk by using "dd".
+</LI>
+<LI>2- insert this copy of standard bootnet disk and mount it
+with: <CODE>mount /dev/fd0 /mnt</CODE>
+</LI>
+<LI>3- gunzip initial ramdisk with <CODE>cp /mnt/initrd.img
+/tmp/initrd.img.gz; gunzip /tmp/initrd.img.gz</CODE>
+</LI>
+<LI>4- Mount initial ramdisk with <CODE>mkdir /mnt2; mount -o loop
+/tmp/initrd.img /mnt2</CODE>
+</LI>
+<LI>5- gunzip and extract modules directory with: <CODE>cd /tmp;
+zcat /mnt2/modules/modules.cgz | cpio -ivd</CODE>
+</LI>
+<LI>6- You should now have a directory called with your kernel
+version number (e.g. "2.2.14-5.0BOOT") containing a lot
+of modules. Check if the modules "parport_pc.o" is
+included in this directory (it is unfortunately NOT
+included in RedHat 6.0-6.2). If you can not find it, then
+please build a custom kernel with the EXTRAVERSION number
+like your bootnet disk (in this case: "5.0BOOT") and
+"parport" support as module. Copy the newly created
+parport_pc.o module to your new modules directory: <CODE>cp
+.../parport_pc.o /tmp/2.2.14-5.0BOOT</CODE>.
+</LI>
+<LI>7- delete a normally unused module, so that you have
+additional space on the disk: <CODE>rm
+/tmp/2.2.14-5.0BOOT/sktr.o</CODE> (driver for token ring
+network adapter).
+</LI>
+<LI>8- rebuild modules archive with: <CODE>find
+/tmp/2.2.14-5.0BOOT | cpio -ov -H crc | gzip &gt;
+/mnt2/modules/modules.cgz</CODE>
+</LI>
+<LI>9- insert a new modules dependency line into modules.dep
+saying that module "parport_pc" needs module "parport":
+<CODE>echo "parport_pc: parport" &gt;&gt;
+/mnt2/modules/modules.dep</CODE>
+</LI>
+<LI>10- insert entry for parport_pc module into module-info so
+that the user can select the parport_pc module during
+installation. Append the following text to the end of
+/mnt2/modules/module-info: 
+<PRE>
+parport_pc
+        plip
+        "Parallel Port Module for PC"
+        io "Base I/O address"
+        irq "IRQ level"
+</PRE>
+
+
+</LI>
+<LI>11- unmount and gzip initial ramdisk with: <CODE>umount /mnt2;
+gzip -9 /tmp/initrd.img</CODE>
+</LI>
+<LI>12- copy initial ramdisk to bootnet disk and unmount: <CODE>cp /tmp/initrd.img.gz /mnt/initrd.img; umount /mnt</CODE></LI>
+</UL>
+<P>By following these instructions, you get a bootnet disk containing
+all necessary modules and therefore allowing for a PLIP
+installation. Please follow the instructions elsewhere in this how-to
+on how to do the installation with the new disk.
+<P>
+<HR>
+<A HREF="PLIP-Install-HOWTO-16.html">Next</A>
+<A HREF="PLIP-Install-HOWTO-14.html">Previous</A>
+<A HREF="PLIP-Install-HOWTO.html#toc15">Contents</A>
+</BODY>
+</HTML>

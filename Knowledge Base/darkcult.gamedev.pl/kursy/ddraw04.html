@@ -1,0 +1,173 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Utrata powierzchni</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="ddraw03.html">&lt;&lt; Bezpośredni dostęp...</A> &nbsp;
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="dimouse.html">Mysz w DirectInput &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h2>
+Utrata powierzchni
+</h2>
+
+<P>
+DirectDraw miewa czasem nieprzyjazne odruchy. Mogłoby się na przykład wydawać, że skoro mamy już zaalokowane wszystkie powierzchnie, to możemy ich sobie spokojnie używać aż do momentu, kiedy je sobie sami zwolnimy. Nic bardziej błędnego - w pewnych sytuacjach nasz kochany dajrekt może nam po prostu znienacka odebrać nasze powierzchnie!
+</P>
+<P>
+Tak, jest to wredne, podłe i niesprawiedliwe. Ale trzeba jakoś się z tym pogodzić ;-). Na szczęście sytuacje takie są dość ściśle określone, a w dodatku przywrócenie utraconych powierzchni jest stosunkowo proste. Zobaczmy więc, jak sprawy wyglądają w praktyce.
+</P>
+<P>
+Załóżmy, że napisaliśmy program, wyświetlający na ekranie nieruchome, ale za to kolorowe kółeczko (tak się składa, że faktycznie to uczyniliśmy w poprzedniej części kursu). Możliwe przypadki utraty powierzchni dla takiego programu (oraz większości innych) to: zmiana trybu graficznego oraz minimalizacja okna aplikacji do ikony na pasku zadań. Trybu graficznego zbyt często się nie zmienia, a jeśli już, to raczej na samym początku działania programu, jeszcze zanim w ogóle utworzymy powierzchnie. Tak więc tym przypadkiem nie będziemy się zajmować.
+</P>
+<P>
+Gorzej, jeśli nasze okno zostanie zminimalizowane. Musimy bowiem najpierw zastanowić się, jak w ogóle wykryć ten fakt w programie. Do dyspozycji mamy kilka komunikatów, które są w takiej sytuacji wysyłane; najbardziej odpowiedni wydaje się komunikat <SPAN CLASS=T>WM_SIZE</SPAN>, który system wysyła zarówno podczas minimalizowania okna, jak i przywracania go do normalnych wymiarów. Z drugiej strony jeszcze wygodniej byłoby użyć <SPAN CLASS=T>WM_PAINT</SPAN>, ponieważ przy okazji zapewnimy sobie odporność na wrednych userów, próbujących w jakiś sposób zamazać nasze śliczne kółko (co może nastąpić np. wówczas, gdy wyświetlimy wiadomość za pomocą <SPAN CLASS=T>MessageBox</SPAN>, a użytkownik programu złośliwie zacznie przenosić okienko z tą wiadomością po całym ekranie). Spróbujmy więc najpierw odrysować nasze kółko w standardowy sposób:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_PAINT:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//typowe dla obsługi WM_PAINT...</SPAN><BR>
+&nbsp;PAINTSTRUCT ps;<BR>
+&nbsp;BeginPaint(hwnd, &ps);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//pobieramy wskaźnik do danych powierzchni</SPAN><BR>
+&nbsp;DDSURFACEDESC ddsd;<BR>
+&nbsp;ZeroMemory(&ddsd, <SPAN CLASS=K>sizeof</SPAN>(ddsd));<BR>
+&nbsp;ddsd.dwSize = <SPAN CLASS=K>sizeof</SPAN>(ddsd);<BR>
+&nbsp;HRESULT ret = lpEkran->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(ret != DD_OK) <SPAN CLASS=K>return</SPAN> FALSE;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>const</SPAN> WORD sx = <SPAN CLASS=L>100</SPAN>; <SPAN CLASS=C>// środek koła - wsp. x</SPAN><BR>
+&nbsp;<SPAN CLASS=K>const</SPAN> WORD sy = <SPAN CLASS=L>100</SPAN>; <SPAN CLASS=C>// środek koła - wsp. y</SPAN><BR>
+&nbsp;<SPAN CLASS=K>const</SPAN> WORD r = <SPAN CLASS=L>100</SPAN>;  <SPAN CLASS=C>// promień koła</SPAN><BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//rysujemy kółko</SPAN><BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(WORD y=<SPAN CLASS=L>0</SPAN>; y&lt;<SPAN CLASS=L>200</SPAN>; ++y)<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(WORD x=<SPAN CLASS=L>0</SPAN>; x&lt;<SPAN CLASS=L>200</SPAN>; ++x)<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>( (x-sx)*(x-sx)+(y-sy)*(y-sy) <= r*r )<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;((DWORD*)ddsd.lpSurface)[ddsd.dwWidth * y + x] = Kolor32(<SPAN CLASS=L>255</SPAN>-x, y, <SPAN CLASS=L>255</SPAN>-y);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//odblokowujemy powierzchnię</SPAN><BR>
+&nbsp;lpEkran->Unlock(NULL);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//sygnalizujemy koniec rysowania</SPAN><BR>
+&nbsp;EndPaint(hwnd, &ps);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Efekty tej jakże ciężkiej pracy są znikome; mimo iż obsłużyliśmy - najzupełniej poprawnie, jak mogło by się wydawać, komunikat <SPAN CLASS=T>WM_PAINT</SPAN>, to po przełączeniu okna za pomocą Alt+Tab i powrocie do niego nadal widzimy tylko puste okno, bez kółeczka. To jest właśnie spowodowane utratą powierzchni.
+</P>
+<P>
+Co robimy? Najpierw sprawdzamy, czy powierzchnia faktycznie została utracona - zajmie się tym metoda <SPAN CLASS=T>IsLost</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HRESULT stracona = lpEkran->IsLost();<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wbrew ewentualnym pozorom, <SPAN CLASS=T>IsLost</SPAN> nie zwraca <SPAN CLASS=T>TRUE</SPAN> lub <SPAN CLASS=T>FALSE</SPAN>, tylko wartość typu <SPAN CLASS=T>HRESULT</SPAN> (tak jak inne metody z DirectDraw zresztą). Wartością tą może być <SPAN CLASS=T>DD_OK</SPAN> (co oznacza, że powierzchnia nie została utracona, czyli bez dalszych ceregieli możemy jej normalnie używać) lub też (co znacznie bardziej w tym przypadku prawdopodobne) <SPAN CLASS=T>DDERR_SURFACELOST</SPAN>, co oznacza... zgadnij co. Mogą też być zwrócone inne wartości (np. w przypadku nieprawidłowych parametrów), ale to raczej rzadko się zdarza i nie musimy się tym aż tak bardzo przejmować ;-). Jeśli zaś <SPAN CLASS=T>IsLost</SPAN> zwróciła <SPAN CLASS=T>DDERR_SURFACELOST</SPAN>, to nie pozostaje nam nic innego, jak tylko przywdziać hartowną zbroicę, dosiąść białego rumaka i wyruszyć na poszukiwania straconej powierzchni.
+</P>
+<P>
+Nie napalajmy się jednak na jakąś większą wyprawę wojenną, albowiem przywrócenie utraconej powierzchni jest równie proste, jak zarzucenie prowadzonemu na śmierć rycerzowi chusty na łeb i oznajmienie "mój ci on!". Otóż wystarczy wywołać metodę <SPAN CLASS=T>Restore</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HRESULT stracona = lpEkran->IsLost();<BR>
+<SPAN CLASS=K>if</SPAN>(stracona == DDERR_SURFACELOST)<BR>
+&nbsp;lpEkran->Restore();<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Dla porządku moglibyśmy jeszcze sprawdzić, co ciekawego zróci nam ta <SPAN CLASS=T>Restore</SPAN>, bowiem może to być coś innego, niż <SPAN CLASS=T>DD_OK</SPAN>. Jednym z najczęściej popełnianych błędów jest próba przywrócenia powierzchni utworzonej niejawnie (np. tylnego bufora w łańcuchu powierzchni) - wtedy zwracana jest wartość <SPAN CLASS=T>DDERR_IMPLICITLYCREATED</SPAN>.
+</P>
+<P>
+Jeśli powyższy kod dołączymy do "jeszcze bardziej powyższej" obsługi <SPAN CLASS=T>WM_PAINT</SPAN>, to wreszcie zobaczymy to, co chcemy ujrzeć; pomimo chwilowego przełączenia na inną aplikację (co powoduje utratę naszych powierzchni) kółeczko nadal żyje i ma się dobrze ;-).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_PAINT:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//typowe dla obsługi WM_PAINT...</SPAN><BR>
+&nbsp;PAINTSTRUCT ps;<BR>
+&nbsp;BeginPaint(hwnd, &ps);<BR>
+<BR>
+
+&nbsp;HRESULT stracona = lpEkran->IsLost(), r = DD_OK;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(stracona == DDERR_SURFACELOST)<BR>
+&nbsp;&nbsp;r = lpEkran->Restore();<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(r == DD_OK)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//pobieramy wskaźnik do danych powierzchni</SPAN><BR>
+&nbsp;&nbsp;DDSURFACEDESC ddsd;<BR>
+&nbsp;&nbsp;ZeroMemory(&ddsd, <SPAN CLASS=K>sizeof</SPAN>(ddsd));<BR>
+&nbsp;&nbsp;ddsd.dwSize = <SPAN CLASS=K>sizeof</SPAN>(ddsd);<BR>
+&nbsp;&nbsp;HRESULT ret = lpEkran->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(ret != DD_OK) <SPAN CLASS=K>return</SPAN> FALSE;<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>const</SPAN> WORD sx = <SPAN CLASS=L>100</SPAN>; <SPAN CLASS=C>// środek koła - wsp. x</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>const</SPAN> WORD sy = <SPAN CLASS=L>100</SPAN>; <SPAN CLASS=C>// środek koła - wsp. y</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>const</SPAN> WORD r = <SPAN CLASS=L>100</SPAN>;  <SPAN CLASS=C>// promień koła</SPAN><BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//rysujemy kółko</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(WORD y=<SPAN CLASS=L>0</SPAN>; y&lt;<SPAN CLASS=L>200</SPAN>; ++y)<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(WORD x=<SPAN CLASS=L>0</SPAN>; x&lt;<SPAN CLASS=L>200</SPAN>; ++x)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>( (x-sx)*(x-sx)+(y-sy)*(y-sy) <= r*r )<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;((DWORD*)ddsd.lpSurface)[ddsd.dwWidth * y + x] = Kolor32(<SPAN CLASS=L>255</SPAN>-x, y, <SPAN CLASS=L>255</SPAN>-y);<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//odblokowujemy powierzchnię</SPAN><BR>
+&nbsp;&nbsp;lpEkran->Unlock(NULL);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//sygnalizujemy koniec rysowania</SPAN><BR>
+&nbsp;EndPaint(hwnd, &ps);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Warto wspomnieć, że istnieje jeszcze metoda <SPAN CLASS=T>RestoreAllSurfaces</SPAN>, która - nietrudno się domyślić - postara się przywrócić wszystkie nasze powierzchnie. Oczywiście jest to metoda głównego obiektu DirectDraw, nie powierzchni.
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="ddraw03.html">&lt;&lt; Bezpośredni dostęp...</A> &nbsp;
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="dimouse.html">Mysz w DirectInput &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

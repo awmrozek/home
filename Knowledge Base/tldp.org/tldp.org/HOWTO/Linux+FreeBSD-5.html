@@ -1,0 +1,90 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux+FreeBSD mini-HOWTO: Mounting filesystems</TITLE>
+ <LINK HREF="Linux+FreeBSD-6.html" REL=next>
+ <LINK HREF="Linux+FreeBSD-4.html" REL=previous>
+ <LINK HREF="Linux+FreeBSD.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Linux+FreeBSD-6.html">Next</A>
+<A HREF="Linux+FreeBSD-4.html">Previous</A>
+<A HREF="Linux+FreeBSD.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Mounting filesystems</A><!--FreeBSD dualboot!filesystems, mounting--><!--FreeBSD dualboot!mounting filesystems--></H2>
+
+<H2><A NAME="ss5.1">5.1 Mounting UFS filesystems under Linux</A>
+<!--FreeBSD dualboot!mounting filesystems!UFS, in Linux--></H2>
+
+<P>Unfortunately the UFS driver in the Linux 2.0.xx kernels do not include
+support for FreeBSD. When you try to mount a FreeBSD filesystem, you just
+get some error messages (the filesystem actually gets mounted, but you
+cannot do anything with it.) This problem has been solved in the newer
+Linux kernels (version 2.1.87 and higher.)
+<P>There is another version of the UFS driver for Linux 2.0.xx kernels (xx &lt;= 30)
+on 
+<A HREF="ftp://metalab.unc.edu/pub/Linux/ALPHA/ufs/">metalab.unc.edu (the former sunsite.unc.edu)</A>. It is called <B>U2FS</B>
+and the current version is <CODE>u2fs-0.4.3.tar.gz</CODE>. A version of U2FS
+(<CODE>ufs-0.4.4.tar.gz</CODE>) for Linux 2.0.31 and higher (2.0.xx; not 2.1.xx) can
+be found at 
+<A HREF="http://www.mathi.uni-heidelberg.de/~flight/projects/u2fs/">this site</A> along with further information about U2FS (and UFS.)
+<P>Now you have to build a new kernel with support for the U2FS filesystem
+and BSD disklabels. See section 
+<A HREF="Linux+FreeBSD-3.html#installlinux">Installing and preparing Linux</A> for more information on this. You can
+leave out <B>UFS filesystem support</B> from the kernel when you use U2FS.
+<P>When you have installed the new kernel, you can mount your UFS filesystems
+(all the partitions in the FreeBSD slice except the swap partition) with a
+command like this:
+<PRE>
+mount -t u2fs /dev/hda8 /mnt
+</PRE>
+<P>You should use a command like
+<PRE>
+mount -t ufs /dev/hda8 /mnt
+</PRE>
+
+if you use a Linux kernel version 2.1.87 or higher. From Linux kernel
+version 2.1.112 you must add <CODE>-o ufstype=44bsd</CODE> to the command like this:
+<PRE>
+mount -t ufs -o ufstype=44bsd /dev/hda8 /mnt
+</PRE>
+<P>The UFS (and U2FS) driver is read-only. That is; you can read from the UFS
+filesystems but you cannot write to them. An experimental read-write UFS
+driver has replaced the read-only driver in Linux kernels version 2.1.112 and
+higher; writing to FreeBSD partitions is supported from version 2.1.127.
+<P>
+<H2><A NAME="ext2fs"></A> <A NAME="ss5.2">5.2 Mounting ext2fs filesystems under FreeBSD</A>
+<!--FreeBSD dualboot!mounting filesystems!ext2fs, in FreeBSD--></H2>
+
+<P>To mount ext2fs filesystems under FreeBSD, you first have to build a new
+kernel with ext2fs support. Read 
+<A HREF="http://www.freebsd.org/handbook/">the FreeBSD handbook</A> to learn how to do that. Put the line
+<PRE>
+options         "EXT2FS"
+</PRE>
+
+in your kernel configuration file for the new kernel.
+<P>When you have booted with the new kernel, you can mount an ext2fs filesystem
+by giving a command like:
+<PRE>
+mount -t ext2fs /dev/wd0s3 /mnt
+</PRE>
+<P>Due to a bug in FreeBSD 2.2.8 and earlier you will have to unmount all ext2fs
+filesystems <EM>before</EM> you shut down FreeBSD if you are using these any of
+these versions. If you shut down FreeBSD with an ext2fs filesystem mounted,
+FreeBSD cannot sync the UFS filesystems. This results in <CODE>fsck</CODE> being run
+the next time FreeBSD is booted. You can work around this bug by putting the
+line:
+<PRE>
+umount -a -t ext2fs
+</PRE>
+
+in the <CODE>/etc/rc.shutdown</CODE> file. The bug has been fixed in FreeBSD 3.x.
+<P>
+<HR>
+<A HREF="Linux+FreeBSD-6.html">Next</A>
+<A HREF="Linux+FreeBSD-4.html">Previous</A>
+<A HREF="Linux+FreeBSD.html#toc5">Contents</A>
+</BODY>
+</HTML>

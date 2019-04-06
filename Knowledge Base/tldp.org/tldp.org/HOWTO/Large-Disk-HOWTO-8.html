@@ -1,0 +1,176 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Large Disk HOWTO: Kernel disk translation for IDE disks</TITLE>
+ <LINK HREF="Large-Disk-HOWTO-9.html" REL=next>
+ <LINK HREF="Large-Disk-HOWTO-7.html" REL=previous>
+ <LINK HREF="Large-Disk-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Large-Disk-HOWTO-9.html">Next</A>
+<A HREF="Large-Disk-HOWTO-7.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8. Kernel disk translation for IDE disks</A></H2>
+
+<P>
+<!--
+disk!translation done by kernel
+-->
+
+If the Linux kernel detects the presence of some disk manager
+on an IDE disk, it will try to remap the disk in the same way
+this disk manager would have done, so that Linux sees the same
+disk partitioning as for example DOS with OnTrack or EZ-Drive.
+However, NO remapping is done when a geometry was specified
+on the command line - so a
+`<CODE>hd=</CODE><I>cyls</I><CODE>,</CODE><I>heads</I><CODE>,</CODE><I>secs</I>' command line option
+might well kill compatibility with a disk manager.
+<P>If you are hit by this, and know someone who can compile a new
+kernel for you, find the file <CODE>linux/drivers/block/ide.c</CODE>
+and remove in the routine <CODE>ide_xlate_1024()</CODE> the test
+<CODE>if (drive->forced_geom) { ...; return 0; }</CODE>.
+<P>The remapping is done by trying 4, 8, 16, 32, 64, 128, 255 heads
+(keeping H<CODE>*</CODE>C constant) until either C &lt;= 1024 or H = 255.
+<P>The details are as follows - subsection headers are the strings
+appearing in the corresponding boot messages.  Here and everywhere
+else in this text partition types are given in hexadecimal.
+<P>
+<H2><A NAME="ss8.1">8.1 EZD</A>
+</H2>
+
+<P>
+<!--
+disk!EZ-Drive translation
+-->
+
+<!--
+disk!EZD translation
+-->
+
+EZ-Drive is detected by the fact that the first primary partition
+has type 55.  The geometry is remapped as described above,
+and the partition table from sector 0 is discarded - instead
+the partition table is read from sector 1.  Disk block numbers
+are not changed, but writes to sector 0 are redirected to sector 1.
+This behaviour can be changed by recompiling the kernel with
+<CODE> #define FAKE_FDISK_FOR_EZDRIVE  0 </CODE>
+in <CODE>ide.c</CODE>.
+<P>
+<H2><A NAME="ss8.2">8.2 DM6:DDO</A>
+</H2>
+
+<P>
+<!--
+disk!OnTrack DiskManager translation
+-->
+
+<!--
+disk!DM6:DD0 translation
+-->
+
+OnTrack DiskManager (on the first disk) is detected by the fact
+that the first primary partition has type 54.  The geometry is
+remapped as described above and the entire disk is shifted by
+63 sectors (so that the old sector 63 becomes sector 0).
+Afterwards a new MBR (with partition table) is read from
+the new sector 0.  Of course this shift is to make room for
+the DDO - that is why there is no shift on other disks.
+<P>
+<H2><A NAME="ss8.3">8.3 DM6:AUX</A>
+</H2>
+
+<P>
+<!--
+disk!OnTrack DiskManager translation
+-->
+
+<!--
+disk!DM6:AUX
+-->
+
+OnTrack DiskManager (on other disks) is detected by the fact
+that the first primary partition has type 51 or 53.
+The geometry is remapped as described above.
+<P>
+<H2><A NAME="ss8.4">8.4 DM6:MBR</A>
+</H2>
+
+<P>
+<!--
+disk!OnTrack DiskManager translation
+-->
+
+<!--
+disk!DM6:MBR
+-->
+
+An older version of OnTrack DiskManager is detected not by
+partition type, but by signature.  (Test whether the offset
+found in bytes 2 and 3 of the MBR is not more than 430, and
+the short found at this offset equals 0x55AA, and is followed
+by an odd byte.) Again the geometry is remapped as above.
+<P>
+<H2><A NAME="ss8.5">8.5 PTBL</A>
+</H2>
+
+<P>
+<!--
+disk!PTBL translation
+-->
+
+Finally, there is a test that tries to deduce a translation
+from the <CODE>start</CODE> and <CODE>end</CODE> values of the primary partitions:
+If some partition has start and end sector number 1 and 63, respectively,
+and end heads 31, 63, 127 or 254, then, since it is customary
+to end partitions on a cylinder boundary, and since moreover
+the IDE interface uses at most 16 heads, it is conjectured
+that a BIOS translation is active, and the geometry is
+remapped to use 32, 64, 128 or 255 heads, respectively.
+However, no remapping is done when the current idea of the
+geometry already has 63 sectors per track and at least as
+many heads (since this probably means that a remapping was
+done already).
+<P>
+<H2><A NAME="ss8.6">8.6 Getting rid of a disk manager</A>
+</H2>
+
+<P>When Linux detects OnTrack Disk Manager, it will shift all disk
+accesses by 63 sectors. Similarly, when Linux detects EZ-Drive,
+it shifts all accesses of sector 0 to sector 1.
+This means that it may be difficult to get rid of these disk managers.
+Most disk managers have an uninstall option, but if you need to remove
+some disk manager an approach that often works is to give an explicit
+disk geometry on the command line. Now Linux skips the <CODE>ide_xlate_1024()</CODE>
+routine, and one can wipe out the partition table with disk manager
+(and probably lose access to all disk data) with the command
+<BLOCKQUOTE><CODE>
+<PRE>
+        dd if=/dev/zero of=/dev/hdx bs=512 count=1
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The details depend a little on kernel version.
+Recent kernels (since 2.3.21) recognize boot parameters like "hda=remap" and
+"hdb=noremap", so that it is possible to get or avoid the EZD shift regardless of
+the contents of the partition table. The "hdX=noremap" boot parameter also
+avoids the OnTrack Disk Manager shift.
+<P>
+<H2><A NAME="ss8.7">8.7 Since 2.5.70: boot parameters</A>
+</H2>
+
+<P>
+<P>In 2.5.70 the automatic disk manager support was removed.
+Instead, two boot options were added: "hda=remap" to do
+the EZ-Drive remapping of sector 0 to sector 1, and
+"hda=remap63" to do the OnTrack Disk Manager shift over 63 sectors.
+<P>This also means that it no longer is a problem to get rid of
+a disk manager.
+<P>
+<HR>
+<A HREF="Large-Disk-HOWTO-9.html">Next</A>
+<A HREF="Large-Disk-HOWTO-7.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

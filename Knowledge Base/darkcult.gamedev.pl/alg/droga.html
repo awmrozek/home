@@ -1,0 +1,288 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Najkrótsza droga</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="algbabel.html"><< Sortowanie bąbelkowe &nbsp;
+<A HREF="../algorytm.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="kolejka.html">Kolejka >></A></TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>Najkrótsza droga w labiryncie</H1>
+
+<P>
+Oto jedna z najczęstszych przeszkód, które stają młodym twórcom gier na drodze do niechybnego sukcesu: poszukiwanie drogi właśnie ;-). Jak sprawić, by potworki i inne bestyje w naszej wspaniałej grze nie stały jak słupy soli tudzież nie błąkały się po jakichś mrocznych zakątkach bez celu? Otóż jeśli już określimy, gdzie dany potworek ma iść - a najczęściej ma iść ku naszej skromnej postaci, z zamiarami przyjaznymi inaczej ma się rozumieć - musimy zastosować odpowiedni algorytm, aby w miarę szybko znaleźć najkrótszą drogę z miejsca, gdzie potworek aktualnie się znajduje do miejsca gdzie znajduje się potencjalny obiad potworka.
+</P>
+<P>
+Metoda, którą tutaj przedstawię, jest jedną z najprostszych, a zarazem jedną z najlepszych. Jest dość szybka, zawsze znajduje drogę (o ile takowa istnieje, oczywiście) i w dodatku zawsze jest to droga najkrótsza. W odmętach sieci można wprawdzie znaleźć bardziej zaawansowane algorytmy, które na ogół są nieco szybsze, ale mają mnóstwo innych wad, np. nie zawsze znajdują najkrótszą trasę albo wykrzaczają się przy pewnych specyficznych labiryntach.
+</P>
+<P>
+Nasz algorytm można by obrazowo nazwać "przeszukaj wszystkie punkty". Załóżmy, że szukamy najkrótszej drogi z punktu A do punktu B. Bierzemy więc punkcik A; badamy wszystkie 8 otaczających go punktów, następnie dla każdego z tej ósemki badamy rekurencyjnie kolejne 8 punktów itd., aż napotkamy punkt B.
+</P>
+<P>
+Algorytm składa się z dwóch etapów: oznaczenie kwadratów na mapie (zaraz sobie wytłumaczymy, na czym to dokładnie polega) oraz wybranie spośród nich "właściwych" kwadratów i "złożenie" z nich drogi. Oba etapy wrzucamy do jednej funkcji o nazwie np. <SPAN CLASS=T>SzukajDrogi</SPAN> i następującym prototypie:
+</P>
+<P>
+<SPAN CLASS=K>bool</SPAN><SPAN CLASS=T> SzukajDrogi(POINT& A, POINT& B, WORD** Mapa, WORD max_x, WORD max_y);</SPAN>
+</P>
+<P>
+Jak nietrudno się domyślić, funkcja szuka drogi między danymi punktami <SPAN CLASS=T>A</SPAN> i <SPAN CLASS=T>B</SPAN> (będą one typu <SPAN CLASS=T>POINT</SPAN> - jeśli przypadkiem nie wiesz, jest to prosta struktura, składająca się z dwóch pól: <SPAN CLASS=T>x</SPAN> i <SPAN CLASS=T>y</SPAN>, co wystarczy nam do zapamiętania pojedynczego kwadratu), opierając się o podaną mapę labiryntu <SPAN CLASS=T>Mapa</SPAN> o wymiarach <SPAN CLASS=T>max_x</SPAN> na <SPAN CLASS=T>max_y</SPAN>.
+</P>
+<P>
+Załóżmy, że mapa labiryntu ma ona postać tablicy dwuwymiarowej typu <SPAN CLASS=T>WORD</SPAN> (patrz prototyp funkcji <SPAN CLASS=T>SzukajDrogi</SPAN>). Na jej podstawie za każdym razem, gdy zaczynamy szukanie trasy, musimy sobie stworzyć nową tablicę. Tablica ta powinna zawierać na razie tylko dwie wartości, np. <SPAN CLASS=L>1</SPAN> w miejscach, gdzie jest ściana labiryntu i <SPAN CLASS=L>0</SPAN> w miejscach, przez które można przejść. W miarę poszukiwania właściwej drogi będziemy wpisywać do tej tablicy jeszcze inne wartości, dlatego powinna ona być (tak jak <SPAN CLASS=T>Mapa</SPAN>) co najmniej typu <SPAN CLASS=T>WORD</SPAN>, co daje nam teoretycznie możliwość operowania na labiryntach o powierzchni do 65 tys. kwadratów, czyli np. o wymiarach 256x256 kwadratów, co na ogół powinno wystarczyć.
+</P>
+<P>
+Sposób sporządzenia takiej zerojedynkowej, tymczasowej mapki ilustruje ten rysunek:
+</P>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/labirynt.gif" ALT="Labirynt z zer i jedynek...">
+</P>
+
+<P>
+Natomiast tutaj mamy przykładowy kod:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//alokacja tablicy 2-wymiarowej</SPAN><BR>
+WORD** Tab = <SPAN CLASS=K>new</SPAN> WORD*[max_y];<BR>
+<SPAN CLASS=K>for</SPAN>(WORD i=<SPAN CLASS=L>0</SPAN>; i&lt;max_y; i++)<BR>
+&nbsp;Tab[i] = <SPAN CLASS=K>new</SPAN> WORD[max_x];<BR>
+<BR>
+<SPAN CLASS=C>//wypełnianie zerami i jedynkami</SPAN><BR>
+<SPAN CLASS=K>for</SPAN>(WORD y=<SPAN CLASS=L>0</SPAN>; y&lt;max_y; y++)<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(WORD x=<SPAN CLASS=L>0</SPAN>; x&lt;max_x; x++)<BR>
+&nbsp;&nbsp;Tab[y][x] = (Mapa[y][x]&gt;<SPAN CLASS=L>0</SPAN>) ? <SPAN CLASS=L>1</SPAN> : <SPAN CLASS=L>0</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy więc pomocniczą tablicę z mapą obszarów, przez które można przejść i przez które przejść nie można. Pora wytłumaczyć, jak dokładnie będzie wyglądało badanie kolejnych kwadratów. Otóż bierzemy pierwszy kwadrat otaczający kwadrat <SPAN CLASS=T>A</SPAN>; jeśli mapa dla tego kwadratu zawiera wartość <SPAN CLASS=L>0</SPAN>, to wpisujemy do mapy wartość <SPAN CLASS=T>licznik</SPAN>, przy czym <SPAN CLASS=T>licznik</SPAN> początkowo równy jest <SPAN CLASS=L>2</SPAN>. Po zbadaniu wszystkich ośmiu kwadratów otaczających <SPAN CLASS=T>A</SPAN> zwiększamy licznik o <SPAN CLASS=L>1</SPAN> i kontynuujemy badanie dla każdego z tych <SPAN CLASS=L>8</SPAN> kwadratów. Jeśli w ten sposób dojdziemy do momentu, że badanym kwadratem będzie <SPAN CLASS=T>B</SPAN>, to znaczy że się udało i znaleźliśmy drogę. Nasza mapa, czyli tablica <SPAN CLASS=T>Tab</SPAN> powinna wtedy wyglądać mniej więcej tak:
+</P>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/droga.gif" ALT="Etap 1. poszukiwań: oznaczamy kwadraty na mapie">
+</P> 
+
+<P>
+W taki sposób tablica będzie wyglądała przy zastosowaniu kolejki do oznaczania punktów (o tym powiemy sobie trochę później). Jeśli zaś użyjemy do tego celu funkcji rekurencyjnej, to algorytm na skrzyżowaniu w pobliżu środka labiryntu w ogóle nie wejdzie w odnogi prowadzące do lewego dolnego rogu! Tak więc rekurencja w tym przypadku da nieco lepszy wynik (tzn. szybciej znajdzie drogę), ale z kolei gdyby punkt B leżał w lewym dolnym rogu labiryntu, to rekurencja przegrałaby z kolejką. Dlatego też nie myśl sobie, że któraś z tych dwóch wersji algorytmu jest generalnie lepsza - wszystko zależy od konkretnego labiryntu.
+</P>
+<P>
+Zauważ, że nie zbadaliśmy WSZYSTKICH punktów labiryntu. Musielibyśmy trafić na jakiś wyjątkowo zakręcone korytarze, żeby była taka konieczność. Na ogół omawiany algorytm przeszukuje niewiele więcej punktów, niż naprawdę potrzeba i w tym jego siła.
+</P>
+<P>
+Jeśli mamy już oznaczone wszystkie potrzebne kwadraty na mapie, pozostaje nam tylko wybrać te właściwe, tak aby uzyskać drogę najkrótszą z możliwych. Zaczynamy od końca, czyli od punktu <SPAN CLASS=T>B</SPAN>. Największa wartość <SPAN CLASS=T>licznik</SPAN>a jaką umieściliśmy w naszej mapie-tablicy to <SPAN CLASS=L>16</SPAN>, a więc szukamy dowolnego kwadratu sąsiadującego z <SPAN CLASS=T>B</SPAN>, który ma wartość <SPAN CLASS=L>16</SPAN>. Następnie bierzemy ten kwadrat i szukamy jego dowolnego sąsiada o wartości <SPAN CLASS=L>15</SPAN>. Potem - sąsiada o wartości <SPAN CLASS=L>14</SPAN> i tak dalej. Postępując w ten sposób na pewno dotrzemy wreszcie do punktu <SPAN CLASS=T>B</SPAN>. Jeśli zapamiętywaliśmy kolejne kwadraty, to otrzymaliśmy jedną z najkrótszych dróg z <SPAN CLASS=T>A</SPAN> do <SPAN CLASS=T>B</SPAN>.
+</P>
+
+<H2>
+Etap 1 - oznaczanie punktów
+</H2>
+
+<P>
+Pora zastanowić się, jak to zrobić w praktyce. Generalnie mamy do wyboru dwie możliwości: z rekurencją lub bez. Jak mówi reklama - wolę beeez. Wprawdzie wersja z rekurencją, jest znacznie prostsza w implementacji, ale przecież nie będziemy iść na łatwiznę, prawda? ;-)
+</P>
+<P>
+Zaczniemy od napisania prostej funkcji, obliczającej współrzędne "sąsiada" podanego punktu. Jak już wspomniałem, każdy kwadrat ma ośmiu sąsiadów. Przyjmujemy, że pierwszy "sąsiad" to ten w lewym górnym rogu, drugi - na górze, trzeci - w prawym górnym rogu itd., zgodnie z ruchem wskazówek zegara:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+POINT Sasiad(POINT& Punkt, WORD NrSasiada)<BR>
+{<BR>
+&nbsp;POINT tmp;<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(NrSasiada)<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>0</SPAN>: tmp.x = Punkt.x-<SPAN CLASS=L>1</SPAN>; tmp.y = Punkt.y-<SPAN CLASS=L>1</SPAN>; <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>1</SPAN>: tmp.x = Punkt.x; &nbsp;&nbsp;tmp.y = Punkt.y-<SPAN CLASS=L>1</SPAN>; <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>2</SPAN>: tmp.x = Punkt.x+<SPAN CLASS=L>1</SPAN>; tmp.y = Punkt.y-<SPAN CLASS=L>1</SPAN>; <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>3</SPAN>: tmp.x = Punkt.x+<SPAN CLASS=L>1</SPAN>; tmp.y = Punkt.y; &nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>4</SPAN>: tmp.x = Punkt.x+<SPAN CLASS=L>1</SPAN>; tmp.y = Punkt.y+<SPAN CLASS=L>1</SPAN>; <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>5</SPAN>: tmp.x = Punkt.x; &nbsp;&nbsp;tmp.y = Punkt.y+<SPAN CLASS=L>1</SPAN>; <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>6</SPAN>: tmp.x = Punkt.x-<SPAN CLASS=L>1</SPAN>; tmp.y = Punkt.y+<SPAN CLASS=L>1</SPAN>; <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>7</SPAN>: tmp.x = Punkt.x-<SPAN CLASS=L>1</SPAN>; tmp.y = Punkt.y;<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> tmp;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz właściwa część algorytmu. Będzie nam potrzebna <SPAN CLASS=Wazne>kolejka</SPAN>. Załóżmy, że już czytałeś o niej w dziale Algorytmy, wiesz jak ją zrobić i w dodatku masz ją gotową do użycia w osobnym pliku (ma to być kolejka elementów typu <SPAN CLASS=T>POINT</SPAN>, rzecz jasna) . Wystarczy wtedy dołączyć jakiś nagłówek, np. <SPAN CLASS=C>kolejka.h</SPAN> i jedziemy.
+</P>
+<P>
+Co oprócz kolejki punktów będzie nam potrzebne? Po pierwsze - zmienna logiczna <SPAN CLASS=T>Gol</SPAN>, która będzie nam mówiła, czy droga została znaleziona i czy wobec tego jest sens przechodzić do drugiego etapu. Następnie potrzebować będziemy trzech zmiennych typu <SPAN CLASS=T>POINT</SPAN>. Pierwsza zmienna, nazwijmy ją <SPAN CLASS=T>CurP</SPAN>, będzie oznaczała aktualnie badany kwadrat. Przeznaczenia pozostałych dwóch dowiesz się w swoim czasie. Wreszcie potrzebne nam będą dwa liczniki: pierwszy typu <SPAN CLASS=T>WORD</SPAN>, nazwijmy go <SPAN CLASS=T>NbrCount</SPAN>, będzie oznaczał liczbę "sąsiadów" danego kwadratu, czyli punktów, w które można się przemieścić (nie-ściana ;-)). Drugi licznik, też <SPAN CLASS=T>WORD</SPAN>, będziemy zwiększać przechodząc do każdego kolejnego punktu.
+</P>
+<P>
+Z lenistwa zakładam, że mamy już przygotowaną mapę zer i jedynek. Nasz <SPAN CLASS=T>licznik</SPAN> ustawiamy na <SPAN CLASS=L>3</SPAN> - taką liczbę jako pierwszą będziemy wpisywać do mapy (punkt <SPAN CLASS=T>A</SPAN> oznaczamy na mapie od razu dwójką). 
+</P>
+<P>
+Jeszcze jedna rzecz godna szczególnej uwagi. Do tablicy <SPAN CLASS=T>Tab</SPAN> mamy wpisywać kolejne wartości licznika, ale w którym momencie ten licznik zwiększać? Otóż numerujemy sobie  równoodległe kwadraty po kolei, tzn. wszystkie kwadraty oznaczone np. liczbą <SPAN CLASS=L>15</SPAN> oznaczane są jeden po drugim, po czym następuje oznaczanie kwadratów następną liczbą, <SPAN CLASS=L>16</SPAN> i tak dalej. Tak więc poszczególne wartości licznika występują w algorytmie pod rząd, z tym że zmienna jest liczba kwadratów, które oznacza się daną wartością.
+</P>
+<P>
+Innymi słowy (bo nieco sprawę zawikłałem ;-)), biorąc przebieg algorytmu taki, jak na rysunku, mamy 3 kwadraty z wartością <SPAN CLASS=L>3</SPAN>, 5 kwadratów z wartością <SPAN CLASS=L>4</SPAN>, 1 kwadrat z wartością <SPAN CLASS=L>5</SPAN>, 2 kwadraty z wartością <SPAN CLASS=L>6</SPAN> itd. Właśnie w takiej kolejności punkty będą pobierane z kolejki i w takiej kolejności będą oznaczane. A więc potencjalnie mamy w kolejce od <SPAN CLASS=L>0</SPAN> do <SPAN CLASS=L>8</SPAN> kwadratów z daną wartością licznika. Problem w tym, powtarzam, żeby wiedzieć, w którym momencie zwiększyć ten licznik...
+</P>
+<P>
+Możemy się tu posłużyć tzw. <SPAN CLASS=Wazne>metodą wartownika</SPAN>. Polega ona na tym, że wrzucamy do kolejki punkt o jakichś nietypowych współrzędnych, np. <SPAN CLASS=L>(-2,-2)</SPAN>. Teraz układamy algorytm w ten sposób, że gdy "wyciągnie" on z kolejki punkt o współrzędnych <SPAN CLASS=L>(-2,-2)</SPAN> (czyli naszego "wartownika"), to bez wahania zwiększa <SPAN CLASS=T>licznik</SPAN>, po czym przechodzi do badania następnego punktu w kolejce. Dodatkowo, jeśli "wartownik" jest OSTATNIM punktem w kolejce, to oznacza, że zabrnęliśmy w ślepą uliczkę, czyli droga z <SPAN CLASS=T>A</SPAN> do <SPAN CLASS=T>B</SPAN> niestety nie istnieje.
+</P>
+<P>
+Starczy ględzenia, piszemy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>bool</SPAN> Gol = <SPAN CLASS=K>false</SPAN>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//czy droga istnieje?</SPAN><BR>
+cKOLEJKA Kolejka;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//kolejka punktów</SPAN><BR>
+POINT CurP,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//aktualnie badany punkt</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tmpP,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//pomocnicza zmienna</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Warta(<SPAN CLASS=L>-2</SPAN>,<SPAN CLASS=L>-2</SPAN>);&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>// "wartownik"</SPAN><BR>
+WORD NbrCount,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//liczba "prawidłowych" sąsiadów badanego punktu</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;licznik = <SPAN CLASS=L>3</SPAN>;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//licznik badanych punktów</SPAN><BR>
+WORD** Tab;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//tablica pomocnicza</SPAN><BR>
+<BR><SPAN CLASS=C>
+//<-- tu wklejamy kod tworzenia i wypełniania Tab<BR></SPAN>
+<BR>
+Kolejka.Dodaj(A);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//Pierwszy punkt poszukiwań to A</SPAN><BR>
+Kolejka.Dodaj(Warta); <SPAN CLASS=C>//Pierwszy wartownik musi być postawiony na zewnątrz pętli</SPAN><BR>
+Mapa[A.Y][A.X] = <SPAN CLASS=L>2</SPAN>;&nbsp;&nbsp; <SPAN CLASS=C>//Punkt A jest jedynym na mapie oznaczonym liczbą 2</SPAN><BR>
+<SPAN CLASS=K>do</SPAN><BR>
+{<BR>
+&nbsp;Kolejka.Usun(&CurP);&nbsp; <SPAN CLASS=C>//Weź kolejny punkt i zarazem usuń go z kolejki</SPAN><BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(CurP.x == Warta.x) <SPAN CLASS=C>//Jeśli bieżący punkt to "wartownik"...</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//...to zwiększ licznik i bierz następny punkt</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//...chyba że wartownik jest ostatnim punktem w kolejce</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(Kolejka.LiczbaEl()==<SPAN CLASS=L>0</SPAN>) <SPAN CLASS=K>break</SPAN>; <SPAN CLASS=C>// (tzn. nie ma drogi)</SPAN><BR>
+&nbsp;&nbsp;++licznik;<BR>
+&nbsp;&nbsp;Kolejka.Dodaj(Warta); <SPAN CLASS=C>//Postaw "wartownika"</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>continue</SPAN>;<BR>
+&nbsp;}<BR>
+&nbsp;NbrCount = <SPAN CLASS=L>0</SPAN>;<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(WORD i=<SPAN CLASS=L>0</SPAN>; i<<SPAN CLASS=L>8</SPAN>; i++) <SPAN CLASS=C>//zbadaj otoczenie bieżącego punktu</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;tmpP = Sasiad(CurP, i);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(tmp.xP>=<SPAN CLASS=L>0</SPAN> && tmpP.y>=<SPAN CLASS=L>0</SPAN> && tmpP.x < max_x && tmpP.y < max_y)<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(tmpP.x == B.x && tmpP.y == B.y) <SPAN CLASS=C>//Osiągnęliśmy nasz cel...</SPAN><BR>
+&nbsp;&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;Gol = <SPAN CLASS=K>true</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>else if</SPAN>(Tab[tmpP.y][tmpP.x] == <SPAN CLASS=L>0</SPAN>)<BR>
+&nbsp;&nbsp;&nbsp;{ <SPAN CLASS=C>//zakolejkuj punkt do przyszłego zbadania</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;Kolejka.Dodaj(tmpP);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;Tab[tmpP.y][tmpP.x] = licznik;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;++NbrCount;<BR>
+&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;}<BR>
+}<BR>
+<SPAN CLASS=K>while</SPAN>(!Gol);<BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+Etap 2 - wybór drogi
+</H2>
+
+<P>
+W ten sposób mamy oznaczone odpowiednie kwadraty na mapie, pozostaje tylko złożyć je w konkretną drogę. Robimy to, jak już wcześniej powiedziałem, od punktu <SPAN CLASS=T>B</SPAN>. Spośród ośmiu sąsiadów kwadratu aktualnie badanego musimy wybrać taki, który jest na mapie oznaczony liczbą o <SPAN CLASS=L>1</SPAN> mniejszą, niż aktualnie badany kwadrat. Zwykle takich sąsiadów jest więcej niż jeden, dlatego musimy spośród nich wybrać. Jest to wybór dowolny - i tak na pewno otrzymamy w ten sposób drogę najkrótszą, jednak sposób wyboru kolejnych kwadratów wpłynie na ogólny kształt trasy. I tak na przykład wybierając kwadraty położone możliwie najbliżej lewego górnego rogu zgodnie z kierunkiem ruchu zegara (w takim kierunku wybieraliśmy kolejnych "sąsiadów" do badania w pierwszej części algorytmu) otrzymujemy trasę dość dziwną, poruszający się po takiej trasie potworek będzie sprawiał wrażenie, jakby wiatr znosił go na lewą. Z kolei losowy wybór punktów sprawi, że potwór będzie się "zataczał", krocząc przez kolejne punkty drogi. 
+</P>
+<P>
+Co natomiast będzie, jeśli uczynimy kierunek wyboru odwrotnym do ruchu wskazówek zegara? Otóż wtedy potwór będzie zasuwał prosto przed siebie! Ten ostatni styl poruszania się chyba najbardziej nam pasuje, więc zastosujemy go w przykładowym kodzie. 
+</P>
+<P>
+Wprowadzamy sobie małą, pomocniczą tablicę <SPAN CLASS=T>Mniejszy</SPAN>, do której będziemy wpisywać <SPAN CLASS=L>1</SPAN>, jeśli dany z ośmiu "sąsiadów" ma wartość licznika o <SPAN CLASS=L>1</SPAN> mniejszą niż aktualny kwadrat. Natomiast zmienna <SPAN CLASS=T>Wyb</SPAN> będzie zawierała liczbę od <SPAN CLASS=L>0</SPAN> do <SPAN CLASS=L>7</SPAN> - numer wybranego "sąsiada", tego, którego ostatecznie dodamy do drogi.
+</P>
+<P>
+Nasza wynikowa droga będzie zapisywana w ten sposób, że kolejne punkty (zmienne typu <SPAN CLASS=T>POINT</SPAN>) będziemy odkładać na <SPAN CLASS=Wazne>stos</SPAN>. O stosie należało by oczywiście wcześniej sobie poczytać w osobnym artykule działu Algorytmy ;-). A jeśli już tam byłeś - do dzieła:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+cSTOS Droga;<BR>
+WORD Mniejszy[<SPAN CLASS=L>8</SPAN>], Wyb;<BR>
+POINT CurP = {B.x, B.y}, <SPAN CLASS=C>//zaczynamy od B</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tmp;<BR>
+<SPAN CLASS=K>do</SPAN><BR>
+{<BR>
+&nbsp;ZeroMemory(Mniejszy, <SPAN CLASS=L>8</SPAN>*<SPAN CLASS=L>2</SPAN>);<SPAN CLASS=C> //wyzeruj tablicę Mniejszy</SPAN><BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(WORD i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>8</SPAN>; i++)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;tmp = Sasiad(CurP, i);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(tmp.x&gt;=<SPAN CLASS=L>0</SPAN> && tmp.y&gt;=<SPAN CLASS=L>0</SPAN> && tmp.x &lt; max_x && tmp.y &lt; max_y)<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(Tab[tmp.y][tmp.x] == licznik-<SPAN CLASS=L>1</SPAN>) <SPAN CLASS=C>//zaznacz, że ten punkt bierzemy pod uwagę</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;Mniejszy[i] = <SPAN CLASS=L>1</SPAN>;<BR>
+&nbsp;}<BR>
+&nbsp;Wyb=<SPAN CLASS=L>8</SPAN>;<BR>
+&nbsp;<SPAN CLASS=K>while</SPAN>(Mniejszy[--Wyb]!=<SPAN CLASS=L>1</SPAN>);<BR>
+&nbsp;<SPAN CLASS=C>//dodaj go do drogi</SPAN><BR>
+&nbsp;CurP = Sasiad(CurP, Wyb+<SPAN CLASS=C>1</SPAN>);<BR>
+&nbsp;Droga.Dodaj(CurP);<BR>
+}<BR>
+<SPAN CLASS=K>while</SPAN>(--licznik&gt;<SPAN CLASS=L>3</SPAN>);<BR>
+<BR>
+<SPAN CLASS=K>return true</SPAN>; <SPAN CLASS=C>//szczęśliwy powrót z funkcji SzukajDrogi :-)<BR></SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+O zwolnieniu pamięci zajmowanej przez tablicę <SPAN CLASS=T>Tab</SPAN> pamiętasz, prawda...?
+</P>
+
+<H2>
+Optymalizacje
+</H2>
+
+<P>
+Przedstawiona realizacja algorytmu szukania drogi nieźle sprawdza się np. w grach turowych, ale spróbujcie sobie wykorzystać ją w czasie rzeczywistym, kiedy szukanie drogi odbywa się wiele razy na sekundę... Mogiła. Dlatego też warto wiedzieć, jak można ów algorytm udoskonalić w razie potrzeby.
+</P>
+<P>
+Zanim dobierzemy się do kodu funkcji <SPAN CLASS=T>SzukajDrogi</SPAN>, zastanówmy się, czy w ogóle musimy cały czas funkcję tę wywoływać. Załóżmy, że mamy potwora, który nas wywęszył z danej odległości. Na początku, gdy wredniak nas jeszcze nie widział, musieliśmy użyć funkcji szukania drogi, aby pokazać mu, jak powinien się poruszać. Jeśli poruszymy się o 1 kwadrat w dowolnym kierunku, a następnie będziemy czekać, aż potwór podejdzie do nas według wcześniej wytyczonej trasy (zakładając, że trasa ta nie będzie w międzyczasie modyfikowana), to zauważymy, że drań zatrzyma się w odległości 1 kwadratu od nas, stanie jak wryty i będzie się gapił jak cielę na malowane wrota. Poruszyliśmy się tylko o 1 kwadrat i wystarczyło, żeby go zmylić! Właśnie dlatego teoretycznie powinniśmy wykonywać poszukiwanie drogi po każdej jednostce czasowej, aby potwór CAŁY CZAS wiedział, jak do nas dojść.
+</P>
+<P>
+Ale czy nie prościej byłoby mu wskazać drogę tylko raz, a później tylko dodawać do niej na końcu pojedyncze punkty, w miarę jak będziemy się poruszać naszą postacią? 
+</P>
+<P>
+W ten sposób zaoszczędzimy najwięcej. Czasami jednak może się i tak zdarzyć, że musimy wyszukiwać drogę korzystając mimo wszystko z naszej funkcji. Może się tak stać np. w przypadku, gdy część poprzednio wytyczonej trasy zostanie zawalona przez lawinę albo zagrodzona przez innego stwora. Wówczas możemy uciec się do innych algorytmów, mniej pewnych ale za to szybszych. Nie zawsze muszą one odnaleźć najkrótszą drogę, ale zrobią to w krótszym czasie. Podobne działanie będzie miało ograniczanie obszaru poszukiwań. Jeśli nie będziemy przeszukiwać CAŁEGO labiryntu, a tylko ten jego obszar, w którym NAJPRAWDOPODOBNIEJ znajduje się droga między dwoma kluczowymi punktami, wówczas możemy zabrnąć w ślepy zaułek, ale w WIĘKSZOŚCI przypadków znajdziemy drogę i to szybciej.
+</P>
+<P>
+Ostatnia z optymalizacji, które mi akurat przychodzą do głowy (co nie znaczy oczywiście, że inne już nie istnieją ;-)), dotyczy już drobnych szczegółów algorytmu, jak np. korzystanie z referencji podczas przekazywania argumentów do wykorzystywanych funkcji. A najlepiej w ogóle zrezygnować z dodatkowych funkcji, takich jak np. przedstawiona wyżej funkcja <SPAN CLASS=T>Sasiad</SPAN>. Pozwala ona skrócić kod żródłowy, ale jej ciągłe wywoływanie może dość znacznie spowolnić cały proces szukania drogi, więc lepiej umieścić ciąg instrukcji, z jakiego się ta funkcja składa, bezpośrednio w algorytmie szukania trasy.
+</P>
+<H2>
+PathFinder
+</H2>
+<P>
+Napisałem fajny programik, który pokazuje algorytm szukania drogi w praktyce. Wczytuje on sobie przykładowo labirynt z pliku, ale możesz ten labirynt w każdej chwili zmienić "ręcznie", przestawić punkty A i B oraz kazać koputerowi znaleźć drogę między nimi. Ścieżka może być wybierana trzema stylami, o których mimochodem wspomniałem gdzieś powyżej. Dzięki PathFinderowi łatwiej będziesz się orientował w problematyce wszelkich zawikłanych korytarzy labiryntów.
+</P>
+<P>
+Programik w wersji źródłowej oraz skompilowanej znajdziesz oczywiście w dziale Download.
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="algbabel.html"><< Sortowanie bąbelkowe &nbsp;
+<A HREF="../algorytm.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="kolejka.html">Kolejka >></A></TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

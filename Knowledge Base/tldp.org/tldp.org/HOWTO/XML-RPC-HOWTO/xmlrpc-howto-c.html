@@ -1,0 +1,457 @@
+<HTML
+><HEAD
+><TITLE
+>Using XML-RPC with C and C++</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="XML-RPC HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Using XML-RPC with Python"
+HREF="xmlrpc-howto-python.html"><LINK
+REL="NEXT"
+TITLE="Using XML-RPC with Java"
+HREF="xmlrpc-howto-java.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>XML-RPC HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="xmlrpc-howto-python.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="xmlrpc-howto-java.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="xmlrpc-howto-c"
+>8. Using XML-RPC with C and C++</A
+></H1
+><P
+>To get a copy of XML-RPC for C/C++, see the <A
+HREF="http://xmlrpc-c.sourceforge.net"
+TARGET="_top"
+>xmlrpc-c website</A
+>.</P
+><P
+>You can either download everything in RPM format, or you can
+    build it from source.</P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="xmlrpc-howto-c-client"
+>8.1. A C Client</A
+></H2
+><P
+>Save the following code in a file called
+      <TT
+CLASS="filename"
+>getSumAndDifference.c</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>#include &#60;stdio.h&#62;
+#include &#60;xmlrpc.h&#62;
+#include &#60;xmlrpc_client.h&#62;
+
+#define NAME       "XML-RPC getSumAndDifference C Client"
+#define VERSION    "0.1"
+#define SERVER_URL "http://xmlrpc-c.sourceforge.net/api/sample.php"
+
+void die_if_fault_occurred (xmlrpc_env *env)
+{
+    /* Check our error-handling environment for an XML-RPC fault. */
+    if (env-&#62;fault_occurred) {
+        fprintf(stderr, "XML-RPC Fault: %s (%d)\n",
+                env-&#62;fault_string, env-&#62;fault_code);
+        exit(1);
+    }
+}
+
+int main (int argc, char** argv)
+{
+    xmlrpc_env env;
+    xmlrpc_value *result;
+    xmlrpc_int32 sum, difference;
+    
+    /* Start up our XML-RPC client library. */
+    xmlrpc_client_init(XMLRPC_CLIENT_NO_FLAGS, NAME, VERSION);
+    xmlrpc_env_init(&#38;env);
+
+    /* Call our XML-RPC server. */
+    result = xmlrpc_client_call(&#38;env, SERVER_URL,
+                                "sample.sumAndDifference", "(ii)",
+                                (xmlrpc_int32) 5,
+                                (xmlrpc_int32) 3);
+    die_if_fault_occurred(&#38;env);
+    
+    /* Parse our result value. */
+    xmlrpc_parse_value(&#38;env, result, "{s:i,s:i,*}",
+                       "sum", &#38;sum,
+                       "difference", &#38;difference);
+    die_if_fault_occurred(&#38;env);
+
+    /* Print out our sum and difference. */
+    printf("Sum: %d, Difference: %d\n", (int) sum, (int) difference);
+    
+    /* Dispose of our result value. */
+    xmlrpc_DECREF(result);
+
+    /* Shutdown our XML-RPC client library. */
+    xmlrpc_env_clean(&#38;env);
+    xmlrpc_client_cleanup();
+
+    return 0;
+}</PRE
+></TD
+></TR
+></TABLE
+><P
+>To compile it, you can type:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>bash$ CLIENT_CFLAGS=`xmlrpc-c-config libwww-client --cflags`
+bash$ CLIENT_LIBS=`xmlrpc-c-config libwww-client --libs`
+bash$ gcc $CLIENT_CFLAGS -o getSumAndDifference getSumAndDifference.c $CLIENT_LIBS</PRE
+></TD
+></TR
+></TABLE
+><P
+>You may need to replace <B
+CLASS="command"
+>gcc</B
+> with the name of
+      your system's C compiler.</P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="xmlrpc-howto-cc-client"
+>8.2. A C++ Client</A
+></H2
+><P
+>Save the following code in a file called
+      <TT
+CLASS="filename"
+>getSumAndDifference2.cc</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>#include &#60;iostream.h&#62;
+#include &#60;XmlRpcCpp.h&#62;
+
+#define NAME       "XML-RPC getSumAndDifference C++ Client"
+#define VERSION    "0.1"
+#define SERVER_URL "http://xmlrpc-c.sourceforge.net/api/sample.php"
+
+static void get_sum_and_difference () {
+
+    // Build our parameter array.
+    XmlRpcValue param_array = XmlRpcValue::makeArray();
+    param_array.arrayAppendItem(XmlRpcValue::makeInt(5));
+    param_array.arrayAppendItem(XmlRpcValue::makeInt(3));
+
+    // Create an object to resprent the server, and make our call.
+    XmlRpcClient server (SERVER_URL);
+    XmlRpcValue result = server.call("sample.sumAndDifference", param_array);
+
+    // Extract the sum and difference from our struct.
+    XmlRpcValue::int32 sum = result.structGetValue("sum").getInt();
+    XmlRpcValue::int32 diff = result.structGetValue("difference").getInt();
+        
+    cout &#60;&#60; "Sum: " &#60;&#60; sum &#60;&#60; ", Difference: " &#60;&#60; diff &#60;&#60; endl;
+}
+
+int main (int argc, char **argv) {
+
+    // Start up our client library.
+    XmlRpcClient::Initialize(NAME, VERSION);
+
+    // Call our client routine, and watch out for faults.
+    try {
+        get_sum_and_difference();
+    } catch (XmlRpcFault&#38; fault) {
+        cerr &#60;&#60; argv[0] &#60;&#60; ": XML-RPC fault #" &#60;&#60; fault.getFaultCode()
+             &#60;&#60; ": " &#60;&#60; fault.getFaultString() &#60;&#60; endl;
+        XmlRpcClient::Terminate();
+        exit(1);
+    }
+
+    // Shut down our client library.
+    XmlRpcClient::Terminate();
+    return 0;
+}</PRE
+></TD
+></TR
+></TABLE
+><P
+>To compile it, you can type:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>bash$ CLIENT_CFLAGS=`xmlrpc-c-config c++ libwww-client --cflags`
+bash$ CLIENT_LIBS=`xmlrpc-c-config c++ libwww-client --libs`
+bash$ c++ $CLIENT_CFLAGS -o getSumAndDifference2 getSumAndDifference2.cc $CLIENT_LIBS</PRE
+></TD
+></TR
+></TABLE
+><P
+>You'll need a reasonably modern C++ compiler for this to
+      work.</P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="xmlrpc-howto-cc-proxy"
+>8.3. A C++ Client with Proxy Classes</A
+></H2
+><P
+>If your XML-RPC server supports the <A
+HREF="xmlrpc-howto-interfaces.html#xmlrpc-howto-api-introspection"
+>Introspection API</A
+>,
+      you can automatically generate C++ proxy classes for it.  To generate
+      a proxy class, type the following command and save the output to a
+      file:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>bash$ xml-rpc-api2cpp \
+&#62; http://xmlrpc-c.sourceforge.net/api/sample.php sample SampleProxy</PRE
+></TD
+></TR
+></TABLE
+><P
+>This will generate a proxy class named
+      <TT
+CLASS="literal"
+>SampleProxy</TT
+> containing wrappers for all the
+      methods beginning with <TT
+CLASS="literal"
+>sample</TT
+>. You can edit this
+      class in any fashion you'd like.</P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="xmlrpc-howto-c-cgi"
+>8.4. A CGI-Based C Server</A
+></H2
+><P
+>Save the following code in a file called
+      <TT
+CLASS="filename"
+>sumAndDifference.c</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>#include &#60;xmlrpc.h&#62;
+#include &#60;xmlrpc_cgi.h&#62;
+
+xmlrpc_value *
+sumAndDifference (xmlrpc_env *env, xmlrpc_value *param_array, void *user_data)
+{
+    xmlrpc_int32 x, y;
+
+    /* Parse our argument array. */
+    xmlrpc_parse_value(env, param_array, "(ii)", &#38;x, &#38;y);
+    if (env-&#62;fault_occurred)
+        return NULL;
+
+    /* Return our result. */
+    return xmlrpc_build_value(env, "{s:i,s:i}",
+                              "sum", x + y,
+                              "difference", x - y);
+}
+
+int main (int argc, char **argv)
+{
+    /* Set up our CGI library. */
+    xmlrpc_cgi_init(XMLRPC_CGI_NO_FLAGS);
+
+    /* Install our only method (with a method signature and a help string). */
+    xmlrpc_cgi_add_method_w_doc("sample.sumAndDifference",
+                                &#38;sumAndDifference, NULL,
+                                "S:ii", "Add and subtract two integers.");
+
+    /* Call the appropriate method. */
+    xmlrpc_cgi_process_call();
+
+    /* Clean up our CGI library. */
+    xmlrpc_cgi_cleanup();
+}</PRE
+></TD
+></TR
+></TABLE
+><P
+>To compile it, you can type:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>bash$ CGI_CFLAGS=`xmlrpc-c-config cgi-server --cflags`
+bash$ CGI_LIBS=`xmlrpc-c-config cgi-server --libs`
+bash$ gcc $CGI_CFLAGS -o sumAndDifference.cgi sumAndDifference.c $CGI_LIBS</PRE
+></TD
+></TR
+></TABLE
+><P
+>Once this is done, copy
+      <TT
+CLASS="filename"
+>sumAndDifference.cgi</TT
+> into your webserver's
+      <TT
+CLASS="filename"
+>cgi-bin</TT
+> directory.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="xmlrpc-howto-python.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="xmlrpc-howto-java.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Using XML-RPC with Python</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Using XML-RPC with Java</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

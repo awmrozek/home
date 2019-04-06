@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The teTeX HOWTO: The Linux-teTeX Local Guide: Mixing text and graphics with dvips. </TITLE>
+ <LINK HREF="TeTeX-HOWTO-7.html" REL=next>
+ <LINK HREF="TeTeX-HOWTO-5.html" REL=previous>
+ <LINK HREF="TeTeX-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="TeTeX-HOWTO-7.html">Next</A>
+<A HREF="TeTeX-HOWTO-5.html">Previous</A>
+<A HREF="TeTeX-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="dvips"></A> <A NAME="s6">6. Mixing text and graphics with <CODE>dvips</CODE>. </A></H2>
+
+<P>In general, this section applies to any TeX or LaTeX document which
+mixes text and graphics.  teTeX, like most other TeX distributions, is
+configured to request Computer Modern fonts by default.  When printing
+documents with Type 1 scalable fonts or graphics, font and graphics
+imaging is the job of <CODE>dvips</CODE>. <CODE>dvips</CODE> can use either
+Computer Modern bit mapped fonts or Type 1 scalable fonts, or any
+combination of the two.  First, let's concentrate on printing and
+previewing some graphics.
+<P>You will probably want to follow this procedure any time a LaTeX
+source document has the statement 
+<PRE>
+ 
+\includepackage{graphics}
+</PRE>
+ 
+in the document preamble.  This statement tells LaTeX to include the
+text of the <CODE>graphics.sty</CODE> package in the source document.
+There are other commands to perform graphics operations, and the
+statements in plain-TeX documents may not clue you in whether you need
+to use <CODE>dvips</CODE>.  The difference will be apparent in the
+output, though, when the document is printed with missing figures and
+other graphics.
+<P>So, for now, we'll concentrate on printing documents which use the
+LaTeX <CODE>graphics.sty</CODE> package.  You might want to take a look at
+the original TeX input.  It isn't included in the teTeX distribution,
+but it is available at
+<PRE>
+~CTAN/macros/latex/packages/graphics/grfguide.tex.
+</PRE>
+
+What the teTeX distribution does include is the <CODE>.dvi</CODE> output
+file, and it is already TeXed for you.  There is a reason for this,
+and it has to do with the necessity of including Type 1 fonts in the
+output in order for the document to print properly.  If you want to
+LaTeX <CODE>grfguide.tex,</CODE> see the next section.  For now, however,
+we'll work on getting usable output using <CODE>dvips</CODE>.
+<P>The file <CODE>grfguide.dvi</CODE> is located in the directory
+<PRE>
+texmf/doc/latex/graphics
+</PRE>
+
+The first step in outputting <CODE>grfguide.dvi</CODE> is to translate it
+to Postscript.  The program <CODE>dvips</CODE> is used for this.  It
+does just exactly what its name implies.  There are many options
+available for invoking <CODE>dvips</CODE>, but the simplest (nearly)
+form is
+<PRE>
+dvips -f -r &lt;grfguide.dvi >grfguide.ps
+</PRE>
+
+The <CODE>-f</CODE> command switch tells <CODE>dvips</CODE> to operate as a
+filter, reading from standard input and writing to standard output.
+<CODE>dvips</CODE> output can be configured so its output defaults to
+<CODE>lpr</CODE>.  
+<P>If you can print Postscript directly to your printer via
+<CODE>lpr</CODE>, you can simply type
+<PRE>
+dvips -r grfguide.dvi
+</PRE>
+
+The <CODE>-r</CODE> option tells dvips to output the pages in reverse
+order so they stack correctly when they exit a printer.  Use it or
+not, as appropriate for your output device.
+<P>Depending on whether you still have the fonts that <CODE>dvilj2</CODE>
+generated from the last document, <CODE>dvips</CODE> and metafont may
+or may not need to create new fonts needed by <CODE>grfguide.dvi.</CODE>
+Eventually, though, <CODE>dvips</CODE> will output a list of the pages
+translated to Postscript, and you will have your Postscript output
+ready to be rendered on whatever output device you have available.
+<P>If you're lucky (and rich), then you have a Postscript-capable printer
+already and will be able to print <CODE>grfguide.ps</CODE> directly.  You
+can either spool the output to the printer using <CODE>lpr</CODE>.  If
+for some reason your printer software doesn't work right with
+Postscript files, you can, in a pinch, simply dump the file to
+printer, with
+<PRE>
+cat grfguide.ps >/dev/lp0
+</PRE>
+
+or whichever port your printer is attached to, though this is not
+recommended for everyday use.
+<P>If you want or need to invoke Ghostscript manually, this is the
+standard procedure for its operation.  The first thing you want to do
+is invoke Ghostscript to view its command line arguments, like this:
+<PRE>
+gs -help | less
+</PRE>
+
+You'll see a list of supported output devices and sundry other
+commands.  Pick the output device which most nearly matches your
+printer.  I generally produce black-and-white text and use the
+<CODE>cdjmono</CODE> driver, which drives a color Deskjet in monochrome
+(black and white) mode.
+<P>The command line I would use is: 
+<PRE>
+gs -dNOPAUSE -sDEVICE=cdjmono -sOutputFile=/tmp/gs.out grfguide.ps -c quit
+</PRE>
+
+This will produce my HP-compatible output in the <CODE>/tmp</CODE>
+directory.  It's a good idea to use a directory like <CODE>/tmp,</CODE>
+because <CODE>gs</CODE> can be particular about access permissions, and
+you can't (and shouldn't) always count on being logged in as
+<CODE>root</CODE> to perform these steps.  Now you can print the file:
+<PRE>
+lpr /tmp/gs.out
+</PRE>
+
+Obviously, this can all go into a shell script.  On my system, I have
+two simple scripts written, <CODE>pv</CODE> and <CODE>pr,</CODE> which simply
+outputs the Postscript file either to the display or the printer.
+Screen previewing is possible without X, but it's far from ideal.  So,
+it's definitely worth the effort to install XFree86 to view the output
+on the screen..
+<P>The order of commands in a <CODE>gs</CODE> command line is significant,
+because some of the options tell Ghostscript to look for pieces of
+Postscript code from its library.
+<P>The important thing to remember is that <CODE>grfguide.dvi</CODE> makes
+requests for both Computer Modern bit mapped and Type 1 scaled fonts.
+If you can mix scalable and bit mapped fonts in a document, you're
+well on the way to becoming a TeXpert.  
+<P>
+<H2><A NAME="ss6.1">6.1 What if my printer isn't supported?</A>
+</H2>
+
+<P>The teTeX distribution comes with only a limited selection of DVI
+output drivers: <CODE>dvips</CODE>, drivers for Hewlett Packard
+LaserJets, and nothing else.  You have two options if you have a
+printer which isn't LaserJet-compatible: You can use <CODE>dvips</CODE>
+and Ghostscript, which I would recommend anyway, for reasons already
+mentioned, or you can investigate other dviware sources.
+<P>A limited number of DVI drivers have been ported to Linux and are
+available as pre-built binaries.  They are located in the Linux
+archives at 
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/apps/tex/dvi/">ftp://sunsite.unc.edu/pub/Linux/apps/tex/dvi/</A>.
+<P>The master dviware libraries are maintained at the University of Utah
+archives.  If you can't find a DVI driver there that supports your
+printer, chances are that it doesn't exist.  You can also write your
+<EM>own</EM> DVI driver using the templates available there.  The
+library's URL is 
+<A HREF="ftp://ftp.math.utah.edu/pub/tex/dvi/">ftp://ftp.math.utah.edu/pub/tex/dvi/</A>.
+<P>
+<HR>
+<A HREF="TeTeX-HOWTO-7.html">Next</A>
+<A HREF="TeTeX-HOWTO-5.html">Previous</A>
+<A HREF="TeTeX-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

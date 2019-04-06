@@ -1,0 +1,193 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>The Software-RAID HOWTO: Performance</TITLE>
+ <LINK HREF="Software-RAID-HOWTO-10.html" REL=next>
+ <LINK HREF="Software-RAID-HOWTO-8.html" REL=previous>
+ <LINK HREF="Software-RAID-HOWTO.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-RAID-HOWTO-10.html">Next</A>
+<A HREF="Software-RAID-HOWTO-8.html">Previous</A>
+<A HREF="Software-RAID-HOWTO.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="s9">9.</A> <A HREF="Software-RAID-HOWTO.html#toc9">Performance</A></H2>
+
+<P><B>This HOWTO is deprecated; the Linux RAID HOWTO is maintained as a wiki by the
+linux-raid community at 
+<A HREF="http://raid.wiki.kernel.org/">http://raid.wiki.kernel.org/</A></B></P>
+<P>This section contains a number of benchmarks from a real-world system
+using software RAID. There is some general information about benchmarking
+software too.</P>
+<P>Benchmark samples were done with the <CODE>bonnie</CODE> program, and at all
+times on files twice- or more the size of the physical RAM in the machine.</P>
+<P>The benchmarks here <EM>only</EM> measures input and output bandwidth
+on one large single file.  This is a nice thing to know, if it's
+maximum I/O throughput for large reads/writes one is interested in.
+However, such numbers tell us little about what the performance would
+be if the array was used for a news spool, a web-server, etc. etc.
+Always keep in mind, that benchmarks numbers are the result of running
+a "synthetic" program. Few real-world programs do what
+<CODE>bonnie</CODE> does, and although these I/O numbers are nice to look
+at, they are not ultimate real-world-appliance performance
+indicators. Not even close.</P>
+<P>For now, I only have results from my own machine. The setup is:
+<UL>
+<LI>Dual Pentium Pro 150 MHz</LI>
+<LI>256 MB RAM (60 MHz EDO)</LI>
+<LI>Three IBM UltraStar 9ES 4.5 GB, SCSI U2W</LI>
+<LI>Adaptec 2940U2W</LI>
+<LI>One IBM UltraStar 9ES 4.5 GB, SCSI UW</LI>
+<LI>Adaptec 2940 UW</LI>
+<LI>Kernel 2.2.7 with RAID patches</LI>
+</UL>
+</P>
+<P>The three U2W disks hang off the U2W controller, and the UW disk off
+the UW controller.</P>
+<P>It seems to be impossible to push much more than 30 MB/s thru the SCSI
+busses on this system, using RAID or not. My guess is, that because
+the system is fairly old, the memory bandwidth sucks, and thus limits
+what can be sent thru the SCSI controllers.</P>
+
+<H2><A NAME="ss9.1">9.1</A> <A HREF="Software-RAID-HOWTO.html#toc9.1">RAID-0</A>
+</H2>
+
+<P><B>Read</B> is <B>Sequential block input</B>, and <B>Write</B>
+is <B>Sequential block output</B>. File size was 1GB in all
+tests. The tests where done in single-user mode. The SCSI driver was
+configured not to use tagged command queuing.</P>
+<P>
+<BR><CENTER>
+<TABLE BORDER><TR><TD>
+Chunk size </TD><TD> Block size </TD><TD> Read kB/s </TD><TD> Write kB/s </TD></TR><TR><TD>
+</TD></TR><TR><TD>
+4k </TD><TD> 1k </TD><TD> 19712 </TD><TD> 18035 </TD></TR><TR><TD>
+4k </TD><TD> 4k </TD><TD> 34048 </TD><TD> 27061 </TD></TR><TR><TD>
+8k </TD><TD> 1k </TD><TD> 19301 </TD><TD> 18091 </TD></TR><TR><TD>
+8k </TD><TD> 4k </TD><TD> 33920 </TD><TD> 27118 </TD></TR><TR><TD>
+16k </TD><TD> 1k </TD><TD> 19330 </TD><TD> 18179 </TD></TR><TR><TD>
+16k </TD><TD> 2k </TD><TD> 28161 </TD><TD> 23682 </TD></TR><TR><TD>
+16k </TD><TD> 4k </TD><TD> 33990 </TD><TD> 27229 </TD></TR><TR><TD>
+32k </TD><TD> 1k </TD><TD> 19251 </TD><TD> 18194 </TD></TR><TR><TD>
+32k </TD><TD> 4k </TD><TD> 34071 </TD><TD> 26976
+</TD></TR></TABLE>
+</CENTER><BR>
+</P>
+<P>>From this it seems that the RAID chunk-size doesn't make that much
+of a difference. However, the ext2fs block-size should be as large as
+possible, which is 4kB (eg. the page size) on IA-32.</P>
+
+<H2><A NAME="ss9.2">9.2</A> <A HREF="Software-RAID-HOWTO.html#toc9.2">RAID-0 with TCQ</A>
+</H2>
+
+<P>This time, the SCSI driver was configured to use tagged command
+queuing, with a queue depth of 8. Otherwise, everything's the same as
+before.</P>
+<P>
+<BR><CENTER>
+<TABLE BORDER><TR><TD>
+Chunk size </TD><TD> Block size </TD><TD> Read kB/s </TD><TD> Write kB/s </TD></TR><TR><TD>
+</TD></TR><TR><TD>
+32k </TD><TD> 4k </TD><TD> 33617 </TD><TD> 27215
+</TD></TR></TABLE>
+</CENTER><BR>
+</P>
+<P>No more tests where done. TCQ seemed to slightly increase write
+performance, but there really wasn't much of a difference at all.</P>
+
+<H2><A NAME="ss9.3">9.3</A> <A HREF="Software-RAID-HOWTO.html#toc9.3">RAID-5</A>
+</H2>
+
+<P>The array was configured to run in RAID-5 mode, and similar tests
+where done.</P>
+<P>
+<BR><CENTER>
+<TABLE BORDER><TR><TD>
+Chunk size </TD><TD> Block size </TD><TD> Read kB/s </TD><TD> Write kB/s </TD></TR><TR><TD>
+</TD></TR><TR><TD>
+8k </TD><TD> 1k </TD><TD> 11090 </TD><TD> 6874 </TD></TR><TR><TD>
+8k </TD><TD> 4k </TD><TD> 13474 </TD><TD> 12229 </TD></TR><TR><TD>
+32k </TD><TD> 1k </TD><TD> 11442 </TD><TD> 8291 </TD></TR><TR><TD>
+32k </TD><TD> 2k </TD><TD> 16089 </TD><TD> 10926 </TD></TR><TR><TD>
+32k </TD><TD> 4k </TD><TD> 18724 </TD><TD> 12627
+</TD></TR></TABLE>
+</CENTER><BR>
+</P>
+<P>Now, both the chunk-size and the block-size seems to actually make a
+difference.</P>
+
+<H2><A NAME="ss9.4">9.4</A> <A HREF="Software-RAID-HOWTO.html#toc9.4">RAID-10</A>
+</H2>
+
+<P>RAID-10 is "mirrored stripes", or, a RAID-1 array of two RAID-0
+arrays. The chunk-size is the chunk sizes of both the RAID-1 array and
+the two RAID-0 arrays. I did not do test where those chunk-sizes
+differ, although that should be a perfectly valid setup.</P>
+<P>
+<BR><CENTER>
+<TABLE BORDER><TR><TD>
+Chunk size </TD><TD> Block size </TD><TD> Read kB/s </TD><TD> Write kB/s </TD></TR><TR><TD>
+</TD></TR><TR><TD>
+32k </TD><TD> 1k </TD><TD> 13753 </TD><TD> 11580 </TD></TR><TR><TD>
+32k </TD><TD> 4k </TD><TD> 23432 </TD><TD> 22249
+</TD></TR></TABLE>
+</CENTER><BR>
+</P>
+<P>No more tests where done. The file size was 900MB, because the four
+partitions involved where 500 MB each, which doesn't give room for a
+1G file in this setup (RAID-1 on two 1000MB arrays).</P>
+
+
+<H2><A NAME="ss9.5">9.5</A> <A HREF="Software-RAID-HOWTO.html#toc9.5">Fresh benchmarking tools</A>
+</H2>
+
+<P>To check out speed and performance of your RAID systems, do NOT use hdparm.
+It won't do real benchmarking of the arrays.</P>
+<P>Instead of hdparm, take a look at the tools described here: IOzone and Bonnie++.</P>
+<P>
+<A HREF="http://www.iozone.org/">IOzone</A> is a small, versatile 
+and modern tool to use. It benchmarks file I/O performance for <CODE>read, write, re-read, re-write, read backwards, read strided, fread, fwrite, random read, pread, mmap, aio_read</CODE> and <CODE>aio_write</CODE> operations.
+Don't worry, it can run on any of the ext2, ext3, reiserfs, JFS, or XFS 
+filesystems in OSDL STP.</P>
+<P>You can also use IOzone to show throughput performance as a function of
+number of processes and number of disks used in a filesystem, something
+interesting when it's about RAID striping.</P>
+<P>Although documentation for IOzone is available in Acrobat/PDF, PostScript, nroff, 
+and MS Word formats, we are going to cover here a nice example of IOzone in action: 
+<PRE>
+iozone -s 4096 
+</PRE>
+
+This would run a test using a 4096KB file size.</P>
+<P>And this is an example of the output quality IOzone gives
+<PRE>
+        File size set to 4096 KB
+        Output is in Kbytes/sec
+        Time Resolution = 0.000001 seconds.
+        Processor cache size set to 1024 Kbytes.
+        Processor cache line size set to 32 bytes.
+        File stride size set to 17 * record size.
+                                                            random  random    bkwd  record  stride            
+              KB  reclen   write rewrite    read    reread    read   write    read rewrite    read   fwrite frewrite   fread  freread
+            4096       4   99028  194722   285873   298063  265560  170737  398600  436346  380952    91651   127212  288309   292633
+</PRE>
+
+Now you just need to know about the feature that makes IOzone useful for RAID
+benchmarking: the file operations involving RAID are the <CODE>read strided</CODE>.
+The example above shows a 380.952Kb/sec. for the <CODE>read strided</CODE>, so you
+can go figure.</P>
+
+<P>
+<A HREF="http://www.coker.com.au/bonnie++/">Bonnie++</A> seems to be more targeted at benchmarking single drives that
+at RAID, but it can test more than 2Gb of storage on 32-bit machines, and tests 
+for file <CODE>creat, stat, unlink</CODE> operations.</P>
+
+
+
+<HR>
+<A HREF="Software-RAID-HOWTO-10.html">Next</A>
+<A HREF="Software-RAID-HOWTO-8.html">Previous</A>
+<A HREF="Software-RAID-HOWTO.html#toc9">Contents</A>
+</BODY>
+</HTML>

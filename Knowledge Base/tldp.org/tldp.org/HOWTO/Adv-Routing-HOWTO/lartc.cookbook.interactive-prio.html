@@ -1,0 +1,257 @@
+<HTML
+><HEAD
+><TITLE
+>Prioritizing interactive traffic</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Cookbook"
+HREF="lartc.cookbook.html"><LINK
+REL="PREVIOUS"
+TITLE="Rate limit ICMP to prevent dDoS"
+HREF="lartc.cookbook.icmp-ratelimit.html"><LINK
+REL="NEXT"
+TITLE="Transparent web-caching using netfilter,
+  iproute2, ipchains and 
+  squid"
+HREF="lartc.cookbook.squid.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.icmp-ratelimit.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 15. Cookbook</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.squid.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.COOKBOOK.INTERACTIVE-PRIO"
+></A
+>15.4. Prioritizing interactive traffic</H1
+><P
+>If lots of data is coming down your link, or going up for that matter, and
+you are trying to do some maintenance via telnet or ssh, this may not go too
+well. Other packets are blocking your keystrokes. Wouldn't it be great if
+there were a way for your interactive packets to sneak past the bulk
+traffic? Linux can do this for you!</P
+><P
+>As before, we need to handle traffic going both ways. Evidently, this works
+best if there are Linux boxes on both ends of your link, although other
+UNIX's are able to do this. Consult your local Solaris/BSD guru for this.</P
+><P
+>The standard pfifo_fast scheduler has 3 different 'bands'. Traffic in band 0
+is transmitted first, after which traffic in band 1 and 2 gets considered.
+It is vital that our interactive traffic be in band 0!</P
+><P
+>We blatantly adapt from the (soon to be obsolete) ipchains HOWTO:</P
+><P
+>There are four seldom-used bits in the IP header, called the Type of Service
+(TOS) bits. They effect the way packets are treated; the four bits are
+"Minimum Delay", "Maximum Throughput", "Maximum Reliability" and "Minimum
+Cost". Only one of these bits is allowed to be set. Rob van Nieuwkerk, the
+author of the ipchains TOS-mangling code, puts it as follows:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Especially the "Minimum Delay" is important for me. I switch it on for
+"interactive" packets in my upstream (Linux) router. I'm
+behind a 33k6 modem link. Linux prioritizes packets in 3 queues. This
+way I get acceptable interactive performance while doing bulk
+downloads at the same time. </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The most common use is to set telnet &#38; ftp control connections to "Minimum
+Delay" and FTP data to "Maximum Throughput". This would be
+done as follows, on your upstream router:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># iptables -A PREROUTING -t mangle -p tcp --sport telnet \
+  -j TOS --set-tos Minimize-Delay
+# iptables -A PREROUTING -t mangle -p tcp --sport ftp \
+  -j TOS --set-tos Minimize-Delay
+# iptables -A PREROUTING -t mangle -p tcp --sport ftp-data \
+  -j TOS --set-tos Maximize-Throughput</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Now, this only works for data going from your telnet foreign host to your
+local computer. The other way around appears to be done for you, ie, telnet,
+ssh &#38; friends all set the TOS field on outgoing packets automatically.</P
+><P
+>Should you have an application that does not do this, you can always do it 
+with netfilter. On your local box:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># iptables -A OUTPUT -t mangle -p tcp --dport telnet \
+  -j TOS --set-tos Minimize-Delay
+# iptables -A OUTPUT -t mangle -p tcp --dport ftp \
+  -j TOS --set-tos Minimize-Delay
+# iptables -A OUTPUT -t mangle -p tcp --dport ftp-data \
+  -j TOS --set-tos Maximize-Throughput</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.icmp-ratelimit.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.squid.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Rate limit ICMP to prevent dDoS</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Transparent web-caching using <SPAN
+CLASS="APPLICATION"
+>netfilter</SPAN
+>,
+  <SPAN
+CLASS="APPLICATION"
+>iproute2</SPAN
+>, <SPAN
+CLASS="APPLICATION"
+>ipchains</SPAN
+> and 
+  <SPAN
+CLASS="APPLICATION"
+>squid</SPAN
+></TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

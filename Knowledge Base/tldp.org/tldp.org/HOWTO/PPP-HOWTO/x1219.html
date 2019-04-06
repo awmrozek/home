@@ -1,0 +1,474 @@
+<HTML
+><HEAD
+><TITLE
+>What a Chat script means...</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.52"><LINK
+REL="HOME"
+TITLE="Linux PPP HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Automating your connections - Creating the connection scripts"
+HREF="automate.html"><LINK
+REL="PREVIOUS"
+TITLE="Editing the supplied PPP startup scripts"
+HREF="x1200.html"><LINK
+REL="NEXT"
+TITLE="A chat script for PAP/CHAP authenticated connections"
+HREF="x1285.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+><A
+HREF="http://www.linuxports.com/howto/ppp"
+TARGET="_top"
+>Linux PPP HOWTO</A
+></TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x1200.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 18. Automating your connections - Creating the connection scripts</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x1285.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN1219"
+>18.4. What a Chat script means...</A
+></H1
+><P
+>A chat script is a sequence of expect
+string, send string pairs. In particular, note that we <I
+CLASS="EMPHASIS"
+>ALWAYS</I
+> 
+expect <I
+CLASS="EMPHASIS"
+>something</I
+>
+before we send something.</P
+><P
+>If we are to send something <I
+CLASS="EMPHASIS"
+>WITHOUT</I
+> receiving anything first, we
+must use an empty expect string (indicated by " ") and similarly for expecting something
+without sending anything! Also, if a string consists of several words,
+(e.g. NO CARRIER), you must quote the string so that it is seen as a
+single entity by chat.</P
+><P
+>The chat line in our template is:-</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>exec /usr/sbin/chat -v</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Invoke chat, the -v tells chat to copy ALL its I/O into the system log
+(usually /var/log/messages). Once you are happy that the chat script is
+working reliably, edit this line to remove the -v to save unnecessary
+clutter in your syslog.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>TIMEOUT         3</PRE
+></TD
+></TR
+></TABLE
+>
+
+This sets the timeout for the receipt of expected input to three
+seconds. You may need to increase this to say 5 or 10 seconds if you are
+using a really slow modem!</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>ABORT           '\nBUSY\r'</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>If the string BUSY is received, abort the operation.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>ABORT           '\nNO ANSWER\r'</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>If the string NO ANSWER is received, abort the operation</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>ABORT           '\nRINGING\r\n\r\nRINGING\r'</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>If the (repeated) string RINGING is received, abort the
+operation. This is because someone is ringing your phone line!</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>\rAT</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Expect nothing from the modem and send the string AT.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>OK-+++\c-OK   ATH0</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This one is a bit more complicated as it uses some of chat's error
+recovery capabilities.</P
+><P
+>What is says is...Expect OK, if it is NOT received (because the modem is
+not in command mode) then send +++ (the standard Hayes-compatible modem
+string that returns the modem to command mode) and expect OK. Then send
+ATH0 (the modem hang up string). This allows your script to
+cope with the situation of your modem being stuck on-line!</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>TIMEOUT         30</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Set the timeout to 30 seconds for the remainder of the script. If you
+experience trouble with the chat script aborting due to timeouts,
+increase this to 45 seconds or more.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>OK              ATDT$TELEPHONE</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Expect OK (the modem's response to the ATH0 command) and dial the number
+we want to call.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>CONNECT         ''</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Expect CONNECT (which our modem sends when the remote modem answers) and
+send nothing in reply.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>ogin:--ogin:    $ACCOUNT</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Again, we have some error recovery built in here. Expect the login
+prompt (...ogin:) but if we don't receive it by the timeout, send a
+return and then look for the login prompt again. When the prompt is
+received, send the username (stored in the shell variable $ACCOUNT).</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>assword:        $PASSWORD</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Expect the password prompt and send our password (again, stored in a
+shell variable).</P
+><P
+>This chat script has reasonable error recovery capability. Chat has
+considerably more features than demonstrated here. For more information
+consult the chat manual page (<TT
+CLASS="LITERAL"
+>man 8 chat</TT
+>).</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1265"
+>18.4.1. Starting PPP at the server end</A
+></H2
+><P
+>Whilst the ppp-on-dialer script is fine for servers that automatically
+start pppd at the server end once you have logged in, some servers
+require that you explicitly start PPP on the server.</P
+><P
+>If you need to issue a command to start up PPP on the server, you DO need
+to edit the ppp-on-dialer script.</P
+><P
+> At the END of the script (after the password line) add an additional
+<I
+CLASS="EMPHASIS"
+>expect send</I
+> pair - this one would look for your login prompt (beware
+of characters that have a special meaning in the Bourne shell - such as
+$ and [ or ] (open and close square brackets).</P
+><P
+>Once chat has found the shell prompt, chat must issue the ppp
+start up command required for your ISPs PPP server.</P
+><P
+>In my case, my PPP server uses the standard Linux Bash prompt
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>[hartr@kepler hartr]$</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>and requires that I type</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>ppp</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>to start up PPP on the server.</P
+><P
+>It is a good idea to allow for a bit of error recovery here, so in my
+case I use
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>	hartr--hartr	ppp</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This says,  if we don't receive the prompt within the timeout, send a
+carriage return and looks for the prompt again.</P
+><P
+>Once the prompt is received, then send the string <TT
+CLASS="LITERAL"
+>ppp</TT
+>.</P
+><P
+>Note: don't forget to add a \ to the end of the previous line so chat
+still thinks the entire chat script is on one line!</P
+><P
+>Unfortunately, some servers produce a very variable set of prompts! You
+may need to log in several times using minicom to understand what is
+going on and pick the stable "expect" strings.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x1200.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x1285.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Editing the supplied PPP startup scripts</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="automate.html"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>A chat script for PAP/CHAP authenticated connections</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

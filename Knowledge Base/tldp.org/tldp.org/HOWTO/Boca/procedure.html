@@ -1,0 +1,335 @@
+<HTML
+><HEAD
+><TITLE
+>The Basic Procedure</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.60"><LINK
+REL="HOME"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="What do you need to install a BocaBoard?"
+HREF="requiredmaterials.html"><LINK
+REL="NEXT"
+TITLE="Possible Problems"
+HREF="problems.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+></TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="requiredmaterials.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="problems.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="PROCEDURE"
+>4. The Basic Procedure</A
+></H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RECOMPILINGKERNEL"
+>4.1. Recompiling the Kernel</A
+></H2
+><P
+>The first step is to change your kernel so that it knows you
+				have a BocaBoard. Unfortunately, this is not a part of the configure script;
+				you must go in and modify the source by hand. In the older versions of the
+				kernel, this consists of putting the following line at the beginning of
+				<TT
+CLASS="FILENAME"
+>linux/drivers/char/serial.c</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+> #define CONFIG_BOCA 1</PRE
+></TD
+></TR
+></TABLE
+><P
+>As of some kernel version or another, this has changed. To make
+				it work with newer kernels, search for the 
+				<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>"BOCA_FLAGS" #define</PRE
+></TD
+></TR
+></TABLE
+> in
+				<TT
+CLASS="FILENAME"
+>serial.c</TT
+>, and change the value to</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#define BOCA_FLAGS ASYNC_BOOT_AUTOCONF
+				</PRE
+></TD
+></TR
+></TABLE
+><P
+>You can then recompile your kernel using the instructions
+				included with the source tree. I recommend running the new kernel from a floppy
+				until you're very sure it works; otherwise, the procedure for getting back your
+				system is mind-numbing at best.</P
+><P
+>At least to me, digging into my kernel and re-compiling it was
+				quite a stressful venture! Relax; as long as you copy it to a floppy, your new
+				kernel is completely harmless. It won't bite! Honest! :-)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="INSTALLINGCARD"
+>4.2. Installing the Card</A
+></H2
+><P
+>The default address on both the card and the Linux software for
+				the configuration is 0x100; leave that alone. Set the IRQ on the card to Linux
+				default of 12. If you want to change the IRQ, you will have to search for
+				"BOCA_FLAGS" in the file. You will find lines like this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+> { BASE_BAUD, 0x100, 12, BOCA_FLAGS }, /* ttyS16
+				*/
+			        { BASE_BAUD, 0x108, 12, BOCA_FLAGS }, /* ttyS17
+				*/</PRE
+></TD
+></TR
+></TABLE
+><P
+>You can change the IRQ from 12 by changing the 12 to any valid
+				IRQ. I have not tried this, however.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="TELLINGLINUX"
+>4.3. Telling Linux about Your Card</A
+></H2
+><P
+>Once you have compiled your new kernel, switch off the machine
+				and install the card. Then, turn your machine on with the new kernel floppy in
+				the drive. If the installation succeeded, you should see all sorts of strange
+				stuff about 16550 UARTS being connected to ttyS16-ttyS32. The system will then
+				come up normally.</P
+><P
+>The odds are pretty good that you don't actually have entries in
+				<TT
+CLASS="FILENAME"
+>/dev </TT
+>for those lines. Remember that they start at 16 and go on to 32. If you
+				look at the source code, you'll see why; support for other cards is included in
+				the code for lower line numbers. Creating them is pretty simple, once you know
+				the trick. </P
+><P
+>To create entries for dial-out lines (where you call out), type:
+				
+				<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>#mknod /dev/cuaxx c 4 N</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>n = 64 + {line number}. The C indicates that this is a character
+				mode device. For example, to create the first couple of lines on your board,
+				type: 
+				<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>#mknod /dev/cua16 c 4 80 
+				#mknod /dev/cua17 c 4 81</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>To create dial-in lines (where users call you), type:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>#mknod /dev/ttySxx c 5 n</PRE
+></TD
+></TR
+></TABLE
+><P
+>where N is the same as described above. For example, to create
+				the first couple of lines on your BocaBoard, type:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>#mknod /dev/ttyS16 c 5 80
+			#mknod /dev/ttyS17 c 5 81</PRE
+></TD
+></TR
+></TABLE
+><P
+>It is recommended that you create both dial in and dial out
+				lines for each port, so that you have maximum flexibility. It turns out to be
+				very handy to call another line of your system by activating one of your lines
+				as dial-out and calling your main number. I've done this already and it works
+				great! It's most useful for checking how things look "on the other side of the
+				fence"; I used it to find out how my software looked at 2400bps. (It's slower
+				than the Linux console. A LOT slower, in fact).</P
+><P
+>Once you've finished with this, you can add entries to your
+				<TT
+CLASS="FILENAME"
+>inittab</TT
+> file in the same way as you would for a standard ttySx entry, and the
+				modems or terminals should come up!</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="requiredmaterials.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="problems.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>What do you need to install a BocaBoard?</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Possible Problems</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

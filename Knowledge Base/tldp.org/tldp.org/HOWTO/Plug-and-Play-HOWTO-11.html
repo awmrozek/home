@@ -1,0 +1,407 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Plug-and-Play-HOWTO: Appendix</TITLE>
+ <LINK HREF="Plug-and-Play-HOWTO-10.html" REL=previous>
+ <LINK HREF="Plug-and-Play-HOWTO.html#toc11" REL=contents>
+</HEAD>
+<BODY>
+Next
+<A HREF="Plug-and-Play-HOWTO-10.html">Previous</A>
+<A HREF="Plug-and-Play-HOWTO.html#toc11">Contents</A>
+<HR>
+<H2><A NAME="s11">11.</A> <A HREF="Plug-and-Play-HOWTO.html#toc11">Appendix</A></H2>
+
+<H2><A NAME="UPnP_"></A> <A NAME="ss11.1">11.1</A> <A HREF="Plug-and-Play-HOWTO.html#toc11.1">Universal Plug and Play (UPnP) </A>
+ </H2>
+
+<P> This is actually a sort of network plug-and-play developed by
+Microsoft but usable by Linux.  You plug something into a network and
+that something doesn't need to be configured provided it will only
+communicate with other UPnP enabled devices on the network.  Here
+"configure" is used in the broad sense and doesn't mean just
+configuring bus-resources.  One objective is to allow people who know
+little about networks or configuring to install routers, gateways,
+network printers, etc.  A major use for UPnP would be in wireless
+networking.</P>
+<P>UPnP uses: 
+<UL>
+<LI> Simple Service Discovery Protocol to find
+devices </LI>
+<LI> General Event Notification Architecture </LI>
+<LI> Simple
+Object Access Protocol for controlling devices </LI>
+</UL>
+</P>
+<P>This HOWTO doesn't cover UPnP.  UPnP for Linux is supported by Intel
+which has developed software for it.  There are other programs which
+do about the same thing as UPnP.  A comparison of some of them is at
+<A HREF="http://www.cs.umbc.edu/~dchakr1/papers/mcommerce.html">http://www.cs.umbc.edu/~dchakr1/papers/mcommerce.html</A> A
+UPnP project for Linux is at SourceForge: 
+<A HREF="http://sourceforge.net/projects/upnp/">UPnP SDK for Linux</A></P>
+
+<H2><A NAME="address_details"></A> <A NAME="ss11.2">11.2</A> <A HREF="Plug-and-Play-HOWTO.html#toc11.2">Address Details </A>
+ </H2>
+
+<P> There are three types of addresses: main memory addresses, I/O
+addresses (ports) and configuration addresses.  On the PCI bus,
+configuration addresses constitute a separate address space just like
+I/O addresses do.  Except for the complicated case of ISA
+configuration addresses, whether or not an address on the bus is a
+memory address, I/O address, or configuration address depends only on
+the voltage on other wires (traces) of the bus.  For the ISA
+configuration addresses see 
+<A HREF="#isa_conf_addresses">ISA Bus Configuration Addresses (Read-Port etc.)</A> for details</P>
+
+<H3>Address ranges </H3>
+
+<P> The term "address" is sometimes used in this document to mean a
+contiguous range of addresses.  Addresses are in units of bytes, So
+for example, a serial port at I/O address range 3F8-3FF will often
+just be referred to by its base address, 3F8.  The 3F8 is the location
+of the first byte in the range (address range).  To see the address
+ranges for various devices, look at /proc/iomem and /proc/ioports.</P>
+
+<H3>Address space </H3>
+
+<P>To access both I/O and (main) memory address "spaces" the same
+address bus is used (the wires used for the address are shared).  How
+does the device know whether or not an address which appears on the
+address bus is a memory address or I/O address?  Well, for ISA (for PCI
+read this too), there are 4 dedicated wires on the bus that convey this
+sort of information.  If a certain one of these 4 wires is asserted,
+it says that the CPU wants to read from an I/O address, and the main
+memory ignores the address on the bus.  In all, read and write wires
+exist for both main memory and I/O addresses (4 wires in all).</P>
+<P>For the PCI bus it's the same basic idea (also using 4 wires) but it's
+done a little differently.  Instead of only one of the four wires
+being asserted, a binary number is put on the wires (16 different
+possibilities).  Thus, more info may be conveyed by these 4 wires..
+Four of these 16 numbers serve the I/O and memory spaces as in the
+above paragraph.  In addition there is also configuration address
+space which uses up two more numbers.  This leaves 10 more numbers
+left over for other purposes.</P>
+
+<H3><A NAME="pci_conf"></A> PCI Configuration Address Space </H3>
+
+<P>This is different from the IO and memory address spaces because 
+configuration address space is "geographic".  Each slot for a card has
+the slot number as part of the address.  This way, Linux (or the BIOS)
+can address a certain slot and find out what type of card is in that
+slot.  Each device has 64 standard byte-size registers and some of
+these hold numbers which can unambiguously identify the device.  Since
+the number of slots is limited as are the number of PCI devices built
+into motherboard, Linux (or the BIOS) only needs to check a limited
+number of addresses to find all the PCI devices.  If it reads all ones
+(0xFF in hexadecimal) from the first register of a device, then that
+means that no device is present.  Since there is no card or device to
+supply all these ones (0xFF) number, the PCI "host bridge" on the
+motherboard supplies (spoofs) this number for all non-existent device.</P>
+<P>The PCI slot number is called (in PCI lingo) the "Device Number" and
+since a card may have up to 8 devices on it, a "Function Number" from
+0-7 identifies which device it is on a PCI card.  These numbers are
+part of the geographic address.  Linux programmers call it
+"pci-slot-name".  Thus what Linux calls a "device" is actually a
+"function" in PCI lingo.  The PCI bus number (often 00) also becomes
+part of the geographic address.  For example, 0000:00:0d.2 is PCI bus
+0, slot 0d, function 2.  For the full geographic address, one must
+include the double-word number of the device's configuration
+registers which one wants to access.  The leading 0000 (in 1999) were
+reserved for future use.</P>
+<P>How does the CPU designate that a read or write is to a PCI
+configuration space?  It doesn't, at least not directly.  Instead when
+access to configuration space is desired it does a 32-bit
+(double-word) write to 0cf8-0cfb in IO space and writes the full
+geographic address there.  The PCI host bridge is listening at this
+address and insures that any next write of data to 0cfc-0cff is put into the
+specified configuration registers of the specified device.  The bridge
+does this both by sending a special signal to the specified PCI card
+(or the like) on a dedicated wire that goes only to the slot where the
+card is plugged in.  It also puts bits on the control bus saying that
+what's on the address bus now is a geographic configuration space
+address.</P>
+<P>Why not make it simple and just have the CPU put bits on the control
+bus to say that the address on the main bus is a geographic one for
+PCI configuration?  Well, most CPU's are not capable of doing this so
+the PCI host bridge gets to do it instead.</P>
+
+<H3>Range Check (ISA Testing for IO Address Conflicts) </H3>
+
+<P> On the ISA bus, there's a method built into each PnP card for
+checking that there are no other cards that use the same I/O address.
+If two or more cards use the same IO address, neither card is likely
+to work right (if at all).  Good PnP software should assign
+bus-resources so as to avoid this conflict, but even in this case a
+legacy card might be lurking somewhere with the same address.</P>
+<P>The test works by a card putting a known test number in its own IO
+registers.  Then the PnP software reads it and verifies that what it
+reads is the same as the known test number.  If not, something is
+wrong (such as another card with the same address).  It repeats the
+same test with another test number.  Since it actually checks the
+range of IO addresses assigned to the card, it's called a "range
+check".  It could be better called an address-conflict test.  If there
+is an address conflict you get an error message.</P>
+
+<H3>Communicating Directly via Memory </H3>
+
+<P> Traditionally, most I/O devices used only I/O memory to
+communicate with the CPU.  The device driver, running on the CPU would
+read and write data to/from the I/O address space and main memory.
+Unfortunately, this requires two steps.  For example, 1. read data from
+a device (in IO address space) and temporarily store in in the CPU; 2.
+write this data to main memory.  A faster way would be for the device
+itself to put the data directly into main memory.  One way to do this
+is by using ISA 
+<A HREF="Plug-and-Play-HOWTO-2.html#dma_">DMA Channels</A> or PCI bus
+mastering.  Another way is for the physical device to actually contain
+some main memory (at high addresses so as not to conflict with main
+memory chip addresses).  This way the device reads and writes directly
+to it's self-contained main memory without having to bother with DMA
+or bus mastering.  Such a device may also use IO addresses.</P>
+
+<H2><A NAME="isa_conf_addresses"></A> <A NAME="ss11.3">11.3</A> <A HREF="Plug-and-Play-HOWTO.html#toc11.3">ISA Bus Configuration Addresses (Read-Port etc.) </A>
+ </H2>
+
+<P> These addresses are also known as the "Auto-configuration Ports".
+For the ISA bus, there is technically no configuration address space,
+but there is a special way for the CPU to access PnP configuration
+registers on the PnP cards.  For this purpose 3 @ I/O addresses are
+allocated and each addresses only a single byte (there is no "range").
+This is not 3 addresses for each card but 3 addresses shared by all
+ISA-PnP cards.</P>
+<P>These 3 addresses are named read-port, write-port, and address-port.
+Each port is just one byte in size.  Each PnP card has many
+configuration registers so that just 3 addresses are not even
+sufficient for the configuration registers on a single card.  To solve
+this problem, each card is assigned a card number (handle) using a
+technique called "isolation".  See 
+<A HREF="#isolation_">ISA Isolation</A> for the complex details.</P>
+<P>Then to configure a certain card, its card number (handle) is sent out
+via the write-port address to tell that card that it is to listen at
+its address port.  All other cards note that this isn't their card
+number and thus don't listen.  Then the address of a configuration
+register (for that card) is sent to the address-port (for all cards
+--but only one is listening).  Next, data transfer takes place with
+that configuration register on that card by either doing a read on the
+read-port or a write on the write-port.</P>
+<P>The write-port is always at A79 and the address-port is always at 279
+(hex).  The read-port is not fixed but is set by the configuration
+software at some address (in the range 203-3FF) that will hopefully
+not conflict with any other ISA card.  If there is a conflict, it will
+change the address.  All PnP cards get "programmed" with this address.
+Thus if you use say isapnp to set or check configuration data it must
+determine this read-port address.</P>
+
+<H2><A NAME="interrupt_detail"></A> <A NAME="ss11.4">11.4</A> <A HREF="Plug-and-Play-HOWTO.html#toc11.4">Interrupts --Details </A>
+ </H2>
+
+<H3>Serialized Interrupts</H3>
+
+<P>It was previously stated that there was a wire for each interrupt.
+But the serialized interrupt (or serial interrupt) is an exception.  A
+single wire is used for all interrupt which are multiplexed on that
+wire.  Each interrupt has a time slot on the interrupt line.  It's
+used on the LPC bus and is also for the PCI bus, but it's seldom used
+for PCI ??</P>
+
+<H3>DMA</H3>
+
+<P> Before going into interrupt details, there is another way for some
+devices to initiate communication besides sending out an interrupt.
+This method is a DMA (Direct Memory Access) request to take control of
+the computer from the CPU for a limited amount of time.  On the PCI
+bus, it uses no "resources".  Not all devices are capable of doing
+DMA.  See 
+<A HREF="Plug-and-Play-HOWTO-2.html#dma_">DMA Channels</A>.  </P>
+
+<H3>Soft interrupts</H3>
+
+<P>There's also another type of interrupt known as a "soft interrupt"
+which is not covered in this HOWTO and doesn't use any "resources".
+While a hardware interrupt is generated by hardware, a soft interrupt
+is initiated by software.  There are a couple of ways to do this.  One
+way is for software to tell the CPU to issue an interrupt (an
+interrupt instruction).  Another way is for the software to send
+messages to other processes so as to interrupt them although it's not
+clear that this should be called an interrupt.  The ksoftirq process,
+which you may find running on a Linux PC, is a program which does this
+kind of interrupt for dealing with device drivers.  The device driver
+starts running due to a hardware interrupt but later on, software
+interrupts are used for the "bottom half" of the driver's interrupt
+service routine.  Thus, the ksoftirq process is also known as
+"bottom-half".  For more details see the kernel documentation.</P>
+
+<H3>Hardware interrupts</H3>
+
+<P>Interrupts convey a lot of information but only indirectly.  The
+interrupt request signal (a voltage on a wire) sent by a device just
+tells a chip called the interrupt controller that a certain device
+needs attention.  The interrupt controller then signals the CPU.  The
+CPU then interrupts whatever it was doing, finds the driver code for
+this device and runs a part of it known as an "interrupt service
+routine" (or "interrupt handler").  This "routine" tries to find out
+what has happened and then deals with the problem.  For example, bytes
+may need to be transferred from/to the device.   This program
+(routine) can easily find out what has happened since the device has
+registers at addresses known to the driver software (provided the IRQ
+number and the I/O address of the device has been set correctly).
+These registers contain status information about the device .  The
+software reads the contents of these registers and by inspecting the
+contents, finds out what happened and takes appropriate action.</P>
+<P>
+<A NAME="pci_irq_share"></A> 
+Thus each device driver needs to know what interrupt number (IRQ) to
+listen for.  On the PCI bus (and for some special cases on the ISA bus)
+it's possible for two (or more) devices to share the same IRQ number.
+Note that you can't share a PCI interrupt with an ISA interrupt (are
+there any exceptions ??).  When a shared interrupt is issued, the CPU
+runs all interrupt service routines sequentially for all devices using
+that interrupt.  The first thing such a service routine does is to
+check its device's registers to see if an interrupt actually happened
+for its device.  If it finds that its device didn't issue an interrupt
+(a false alarm) then it likely will immediately exit and the next service
+routine begins for the second device which uses that same interrupt.
+It checks out the device like described above.  This sequence is
+repeated until the device is found that actually issued the interrupt.
+All the interrupt routines for an interrupt are said to be
+constitute a chain.  So the chain is traversed until a routine on the
+chain claims the interrupt by saying in effect: this interrupt was for
+me.  After it handles the interrupt, the interrupt service routines
+further out on the chain don't run. </P>
+<P>The putting of a voltage on the IRQ line is only a request that the
+CPU be interrupted so it can run a device driver.  In almost all cases
+the CPU is interrupted per the request.  But interrupts may be
+temporarily disabled or prioritized so that in rare cases the actual
+interrupt of the CPU doesn't happen (or gets delayed).  Thus what was
+above called an "interrupt" is more precisely only an interrupt
+request and explains why IRQ stands for Interrupt ReQuest.</P>
+
+<H2><A NAME="ss11.5">11.5</A> <A HREF="Plug-and-Play-HOWTO.html#toc11.5">How the Device Driver Catches its Interrupt</A>
+</H2>
+
+<P>The previous statement, that device drivers listen for their
+interrupt, was an oversimplification.   Actually it's a chip (or part
+of a chip) on the motherboard called the "interrupt controller" that
+listens for all interrupts.  When the interrupt controller catches an
+interrupt, it sends a signal to the CPU to start the appropriate
+device driver's "interrupt service routine" to handle the interrupt.</P>
+<P>There are various types of interrupt controllers.  One type is the
+APIC = Advanced Programmable Interrupt Controller which usually has
+input pins for many interrupts, including PCI interrupts.  Older
+controllers only have pins for ISA interrupts but they can still
+handle PCI interrupts since there is a "programmable interrupt router"
+that converts PCI interrupts to ISA interrupts and routes them to
+certain pins (= certain IRQs) on the ISA interrupt controller.</P>
+
+<H2><A NAME="isolation_"></A> <A NAME="ss11.6">11.6</A> <A HREF="Plug-and-Play-HOWTO.html#toc11.6">ISA Isolation </A>
+ </H2>
+
+<P> This is only for the old ISA bus.  Isolation is a complex method
+of assigning a temporary handle (id number or Card Select Number =
+CSN) to each PnP device on the ISA bus.  Since there are more
+efficient (but more complex) ways to do this, some might claim that
+it's a simple method.  Only one write address is used for PnP writes
+to all PnP devices so that writing to this address goes to all PnP
+device that are listening.  This write address is used to send
+(assign) a unique handle to each PnP device.  To assign this handle
+requires that only one device be listening when the handle is sent
+(written) to this common address.  All PnP devices have a unique
+serial number which they use for the process of isolation.  Doing
+isolation is something like a game.  It's done using the equivalent of
+just one common bus wire connecting all PnP devices to the isolation
+program.</P>
+<P>For the first round of the "game" all PnP devices listen on this wire
+and send out simultaneously a sequence of bits to the wire.  The
+allowed bits are either a 1 (positive voltage) or an "open 0" of no
+voltage (open circuit or tri-state).  To do this, each PnP device just
+starts to sequentially send out its serial number on this wire,
+voltage (open circuit or tri-state).  To do this, each PnP device just
+starts to sequentially send out its serial number on this wire,
+bit-by-bit, starting with the high-order bit.  If any device sends a
+1, a 1 will be heard on the wire by all other devices.  If all devices
+send an "open 0" nothing will be heard on the wire.  The object is to
+eliminate (by the end of this first round) all but highest serial
+number device.  "Eliminate" means to drop out of this round of the
+game and thus temporarily cease to listen anymore to the wire.  (Note
+that all serial numbers are of the same length.)  When there remains
+only one device still listening, it will be given a handle (card
+number).</P>
+<P>First consider only the high-order bit of the serial number which is
+put on the wire first by all devices which have no handle yet.  If any
+PnP device sends out a 0 (open 0) but hears a 1, this means that some
+other PnP device has a higher serial number, so it temporarily drops
+out of this round.  Now the devices remaining in the game (for this
+round) all have the same leading digit (a 1) so we may strip off this
+digit and consider only the resulting "stripped serial number" for
+future participation in this round.  Then go to the start of this
+paragraph and repeat until the entire serial number has been examined
+for each device (see below for the all-0 case).</P>
+<P>Thus it's clear that only cards with the lower serial number get
+eliminated during a round.  But what happens if all devices in the
+game all send out a 0 as their high-order bit?  In this case an "open
+0" is sent on the line and all participants stay in the game.  If they
+all have a leading 0 then this is a tie and the 0's are stripped off
+just like the 1's were in the above paragraph.  The game then
+continues as the next digit (of the serial number) is sent out.</P>
+<P>At the end of the round (after the low-order bit of the serial number
+has been sent out) only one PnP device with the highest serial number
+remains in the game.  It then gets assigned a handle and drops out of
+the game permanently.  Then all the dropouts from the previous round
+(that don't have a handle yet) reenter the game and a new round begins
+with one less participant.  Eventually, all PnP devices are assigned
+handles.  It's easy to prove that this algorithm works.  The actual
+algorithm is a little more complex than that presented above since
+each step is repeated twice to ensure reliability and the repeats are
+done somewhat differently (but use the same basic idea).</P>
+<P>Once all handles are assigned, they are used to address each PnP
+device for sending/reading configuration data.  Note that these
+handles are only used for PnP configuration and are not used for
+normal communication with the PnP device.  When the computer starts up
+a PnP BIOS will often do such an isolation and then a PnP
+configuration.  After that, all the handles are "lost" so that if one
+wants to change (or inspect) the configuration again, the isolation
+must be done over again.</P>
+
+<H2><A NAME="ss11.7">11.7</A> <A HREF="Plug-and-Play-HOWTO.html#toc11.7">Bus Mastering and DMA resources</A>
+</H2>
+
+<P>If a bus has bus mastering available, it's unlikely that any
+resources will be needed for DMA on that bus.  For example, the PCI bus
+doesn't need DMA resources since it has "bus mastering".  However, "bus
+mastering" is often called DMA.   But since it's not strictly DMA it
+needs no DMA resources.  The ISA and VESA local bus had no bus
+mastering.  The old MCA and EISA buses did have bus mastering.</P>
+
+<H2><A NAME="ss11.8">11.8</A> <A HREF="Plug-and-Play-HOWTO.html#toc11.8">Historical and Obsolete</A>
+</H2>
+
+<H3>OSS-Lite Sound Driver</H3>
+
+<P>You must give the IO, IRQ, and DMA as parameters to a module or
+compile them into the kernel.  But some PCI cards will get
+automatically detected.  RedHat supplies a program "sndconfig" which
+detects ISA PnP sound cards and automatically sets up the modules for
+loading with the detected bus-resources.</P>
+
+<H3>ALSA (Advanced Linux Sound Architecture) as of 2000</H3>
+
+<P> This will detect the card by PnP methods and then select the
+appropriate driver and load it.  It will also set the bus-resources on
+an ISA-PnP cards or PCI cards.  OSS (Open Sound System) was formerly
+popular.</P>
+
+<H3>MS Windows Notes </H3>
+
+<P>Windows NT4 didn't support ISAPNP but had a
+PNPISA program which one could "use at your own risk".  For NT4 users
+were advised to set "not a PnP OS" in the BIOS so that the BIOS would
+do the resource configuring.  Thus both MS Windows and Linux were in
+olden days dependent on the BIOS doing the configuring (and still are).</P>
+<P>END OF Plug-and-Play-HOWTO</P>
+<HR>
+Next
+<A HREF="Plug-and-Play-HOWTO-10.html">Previous</A>
+<A HREF="Plug-and-Play-HOWTO.html#toc11">Contents</A>
+</BODY>
+</HTML>

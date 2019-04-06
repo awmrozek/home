@@ -1,0 +1,284 @@
+<HTML
+><HEAD
+><TITLE
+>Clone script</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="HOWTO Clone Disk Images on Linux Booted from a Network"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="List of files on initrd"
+HREF="initrdfiles.html"><LINK
+REL="NEXT"
+TITLE="References"
+HREF="references.html"></HEAD
+><BODY
+CLASS="APPENDIX"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>HOWTO Clone Disk Images on Linux Booted from a Network</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="initrdfiles.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="references.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="APPENDIX"
+><H1
+CLASS="APPENDIX"
+><A
+NAME="CLONESCRIPT">B. Clone script</H1
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>#!/bin/bash
+
+set -e
+
+export PATH=/sbin:/bin
+
+tftp_server=10.0.0.1
+nic_module=3c59x.o
+major_a=(2 3 22)
+family_a=(fd hda hdc)
+image_a=(img0001 img0002 img0003 img0004)
+
+operation_a=(	"Copy from network to device" \
+		"Copy from device to network" \
+		"Run fdisk")
+
+mount -t proc proc /proc
+insmod /lib/${nic_module}
+/sbin/dhcpcd
+
+while true; do \
+	[ ! -z "${image}" ] &#38;&#38; unset image
+	echo
+	echo "Clone Menu"
+	echo
+	echo "Operation"
+	echo
+	PS3="Choose operation (1-${#operation_a[*]}): "
+	select operation in "${operation_a[@]}"; do \
+		[ -z "${operation}" ] &#38;&#38; continue
+		echo
+		echo $REPLY - $operation
+		echo
+		break
+	done
+
+	echo "Device Family"
+	echo
+	PS3="Choose device family (1-${#family_a[*]}): "
+	select family in "${family_a[@]}"; do \
+		[ -z "${family}" ] &#38;&#38; continue
+		echo
+		echo $REPLY - $family
+		echo
+		break
+	done
+
+	major_i=$[REPLY-1]
+	major=${major_a[$major_i]}
+
+	echo "Minor Number"
+	echo
+	PS3="Choose minor number (0-255): "
+	echo -n "$PS3" &#62;&#38;2
+	read minor
+	minor=$[minor%256]
+	echo
+	echo $minor
+	echo
+
+	if [ "${operation}" != "${operation_a[2]}" ]; then \
+		echo "Image"
+		echo
+		PS3="Choose image (1-${#image_a[*]}): "
+		select image in "${image_a[@]}"; do \
+			[ -z "${image}" ] &#38;&#38; continue
+			echo
+			echo $REPLY - $image
+			echo
+			break
+		done
+		image_i=$[REPLY-1]
+		image=${image_a[${image_i}]}
+	fi
+
+	echo
+	echo -e "Operation:\t$operation"
+	device_name=/dev/${family_a[${major_i}]}${minor}
+	echo -e "Device:\t\t${device_name} ($major, $minor)"
+	[ ! -z "${image}" ] &#38;&#38; echo -e "Image:\t\t${image}"
+	echo
+
+	echo "Confirmation"
+	echo
+	PS3="Ok/Cancel (1-2): "
+	select ok in Ok Cancel; do \
+		[ -z "${ok}" ] &#38;&#38; continue
+		echo
+		echo $REPLY - $ok
+		echo
+		break
+	done
+	if [ "${ok}" = "Ok" ]; then \
+		if [ ! -b ${device_name} ]; then \
+			echo "Creating ${device_name}"
+			mknod ${device_name} b ${major} ${minor}
+		fi
+		if [ ! -z "${image}" ]; then \
+			if [ ! -p ${image} ]; then \
+				echo "Creating pipe"
+				mknod ${image} p
+			fi
+		fi
+		if [ "${operation}" = "${operation_a[0]}" ]; then \
+			tftp ${tftp_server} &#60;&#60;-EOT &#38;
+			binary
+			get ${image}
+			EOT
+			gzip -c -d &#60; ${image} | dd of=${device_name}
+		elif [ "${operation}" = "${operation_a[1]}" ]; then \
+			tftp ${tftp_server} &#60;&#60;-EOT &#38;
+			binary
+			put ${image}
+			EOT
+			dd if=${device_name} | gzip -c &#62; ${image}
+		elif [ "${operation}" = "${operation_a[2]}" ]; then \
+			fdisk ${device_name}
+		fi
+		echo
+	fi
+
+	echo "Continuation"
+	echo
+	PS3="Continue/Exit (1-2): "
+	select new in Continue Exit; do \
+		[ -z "${new}" ] &#38;&#38; continue
+		echo
+		echo $REPLY - $new
+		echo
+		break
+	done
+	[ "${new}" = "Exit" ] &#38;&#38; break
+done
+exit 0
+		</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="initrdfiles.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="references.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>List of files on initrd</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>References</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux BootPrompt-HowTo: Overview of Boot Prompt Arguments</TITLE>
+ <LINK HREF="BootPrompt-HOWTO-3.html" REL=next>
+ <LINK HREF="BootPrompt-HOWTO-1.html" REL=previous>
+ <LINK HREF="BootPrompt-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="BootPrompt-HOWTO-3.html">Next</A>
+<A HREF="BootPrompt-HOWTO-1.html">Previous</A>
+<A HREF="BootPrompt-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="oview"></A> <A NAME="s2">2. Overview of Boot Prompt Arguments</A></H2>
+
+<P>
+<P>This section gives some examples of software that can be used
+to pass kernel boot-time arguments to the kernel itself.
+It also gives you an idea of how the arguments are processed,
+what limitations there are on the boot args, and how they filter
+down to each appropriate device that they are intended for.
+<P>It is <EM>important</EM> to note that spaces should <EM>not</EM> be
+used in a boot argument, but only between separate arguments.
+A list of values that are for a single argument are to be
+separated with a comma between the values, and again without
+any spaces. See the following examples below.
+<P>
+<HR>
+<PRE>
+        ether=9,0x300,0xd0000,0xd4000,eth0  root=/dev/hda1            *RIGHT*
+        ether = 9, 0x300, 0xd0000, 0xd4000, eth0  root = /dev/hda1    *WRONG*
+</PRE>
+<HR>
+<P>Once the Linux kernel is up and running, one can view the command
+line arguments that were in place at boot by simply typing
+<CODE>cat /proc/cmdline</CODE> at a shell prompt. 
+<P>
+<H2><A NAME="lilo"></A> <A NAME="ss2.1">2.1 LILO (LInux LOader)</A>
+</H2>
+
+<P>The LILO program (LInux LOader) written by Werner Almesberger
+is the most commonly used. It has the ability to boot
+various kernels, and stores the configuration information
+in a plain text file. Most distributions ship with LILO
+as the default boot-loader. LILO can boot DOS, OS/2, Linux,
+FreeBSD, etc. without any difficulties, and is quite flexible.
+<P>A typical configuration will have LILO stop and print <CODE>LILO:</CODE>
+shortly after you turn on your computer. It will then wait for
+a few seconds for any optional input from the user, and failing
+that it will then boot the default system. Typical system labels
+that people use in the LILO configuration files are <CODE>linux</CODE>
+and <CODE>backup</CODE> and <CODE>msdos</CODE>. If you want to type in a boot
+argument, you type it in here, after typing in the system label
+that you want LILO to boot from, as shown in the example below.
+<P>
+<HR>
+<PRE>
+        LILO: linux root=/dev/hda1
+</PRE>
+<HR>
+<P>LILO comes with excellent documentation, and for the purposes
+of boot args discussed here, the LILO <CODE>append=</CODE> command
+is of significant importance when one wants to add a boot time
+argument as a permanent addition to the LILO config file.
+You simply add something like <CODE>append = "foo=bar"</CODE> to the
+<CODE>/etc/lilo.conf</CODE> file. It can either be added at the top
+of the config file, making it apply to all sections, or to a
+single system section by adding it inside an <CODE>image=</CODE> section.
+Please see the LILO documentation for a more complete description.
+<P>
+<H2><A NAME="loadlin"></A> <A NAME="ss2.2">2.2 LoadLin</A>
+</H2>
+
+<P>The other commonly used Linux loader is `LoadLin' which is
+a DOS program that has the capability to launch a Linux
+kernel from the DOS prompt (with boot-args) assuming that
+certain resources are available. This is good for people
+that use DOS and want to launch into Linux from DOS.
+<P>It is also very useful if you have certain hardware which relies
+on the supplied DOS driver to put the hardware into a known
+state. A common example is `SoundBlaster Compatible' sound
+cards that require the DOS driver to set a few proprietary
+registers to put the card into a SB compatible mode. Booting
+DOS with the supplied driver, and then loading Linux from
+the DOS prompt with <CODE>LOADLIN.EXE</CODE> avoids the reset of 
+the card that
+happens if one rebooted instead. Thus the card is left in a
+SB compatible mode and hence is useable under Linux.
+<P>There are also other programs that can be used to boot Linux.
+For a complete list, please look at the programs available
+on your local Linux ftp mirror, under <CODE>system/Linux-boot/</CODE>.
+<P>
+<H2><A NAME="rdev"></A> <A NAME="ss2.3">2.3 The ``rdev'' utility</A>
+</H2>
+
+<P>There are a few of the kernel boot parameters that have their
+default values stored in various bytes in the kernel image itself.
+There is a utility called <CODE>rdev</CODE> that is installed on most
+systems that knows where these values are, and how to change them.
+It can also change things that have no kernel boot argument
+equivalent, such as the default video mode used.
+<P>The rdev utility is usually also aliased to swapdev, ramsize,
+vidmode and rootflags. These are the five things that rdev
+can change, those being the root device, the swap device,
+the RAM disk parameters, the default video mode, and the        
+readonly/readwrite setting of root device.
+<P>More information on <CODE>rdev</CODE> can be found by typing
+<CODE>rdev -h</CODE> or by reading the supplied man page (<CODE>man rdev</CODE>).
+<P>
+<H2><A NAME="ss2.4">2.4 How the Kernel Sorts the Arguments</A>
+</H2>
+
+<P>Most of the boot args take the form of:
+<HR>
+<PRE>
+        name[=value_1][,value_2]...[,value_11]
+</PRE>
+<HR>
+<P>where `name' is a unique keyword that is used to identify
+what part of the kernel the associated values (if any) are to be
+given to. Multiple boot args are just a space separated list
+of the above format. Note the limit of 11 is real, as the
+present code only handles 11 comma separated parameters per
+keyword. (However, you can re-use the same keyword with
+up to an additional 11 parameters in unusually complicated
+situations, assuming the setup function supports it.)
+Also note that the kernel splits the list into a maximum of
+ten integer arguments, and a following string, so you
+can't really supply 11 integers unless you convert the
+11th arg from a string to an int in the driver itself.
+<P>Most of the sorting goes on in <CODE>linux/init/main.c</CODE>.
+First, the kernel checks to see if the argument is any of
+the special arguments `root=', `ro', `rw', or `debug'.
+The meaning of these special arguments is described further
+on in the document.
+<P>Then it walks a list of      setup functions (contained in the
+<CODE>bootsetups</CODE> array) to see if the specified
+argument string (such as `foo') has been associated with a
+setup function (<CODE>foo_setup()</CODE>) for a particular
+device or part of the kernel. If you
+passed the kernel the line <CODE>foo=3,4,5,6,bar</CODE> then the
+kernel would search the <CODE>bootsetups</CODE> array to see if
+`foo' was registered. If it was, then it would call the
+setup function associated with `foo' (<CODE>foo_setup()</CODE>)
+and hand it the integer arguments
+3, 4, 5 and 6 as given on the kernel command line, and
+also hand it the string argument <CODE>bar</CODE>.
+<P>
+<H2><A NAME="ss2.5">2.5 Setting Environment Variables.</A>
+</H2>
+
+<P>Anything of the form `foo=bar' that is not accepted as a
+setup function as described above is then interpreted as an
+environment variable to be set. An example would
+be to use <CODE>TERM=vt100</CODE> or <CODE>BOOT_IMAGE=vmlinuz.bak</CODE>
+as a boot argument.  These environment
+variables are typically tested for in the initialization 
+scripts to enable or disable a wide range of things.
+<P>
+<H2><A NAME="ss2.6">2.6 Passing Arguments to the `init' program</A>
+</H2>
+
+<P>Any remaining arguments that were not picked up by the
+kernel and were not interpreted as environment variables
+are then passed onto process one, which is usually the
+<CODE>init</CODE> program. The most common argument that is passed to
+the <CODE>init</CODE> process is the word <EM>single</EM> which instructs
+<CODE>init</CODE> to boot the computer in single user mode, and not
+launch all the usual daemons. Check the manual page for the
+version of <CODE>init</CODE> installed on your system to see what
+arguments it accepts.
+<P>
+<HR>
+<A HREF="BootPrompt-HOWTO-3.html">Next</A>
+<A HREF="BootPrompt-HOWTO-1.html">Previous</A>
+<A HREF="BootPrompt-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

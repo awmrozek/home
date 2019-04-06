@@ -1,0 +1,279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Remote X Apps mini-HOWTO: Setting Up an X Terminal</TITLE>
+ <LINK HREF="Remote-X-Apps-10.html" REL=next>
+ <LINK HREF="Remote-X-Apps-8.html" REL=previous>
+ <LINK HREF="Remote-X-Apps.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Remote-X-Apps-10.html">Next</A>
+<A HREF="Remote-X-Apps-8.html">Previous</A>
+<A HREF="Remote-X-Apps.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="s9">9. Setting Up an X Terminal</A></H2>
+
+<P>Make use of your old PC!  Turn it into an extra work place!  No need
+for buying expensive new hardware!  You've already got all it takes!
+<P>
+<P>Seriously, you can set up an old PC as an X terminal.  An X terminal
+is a computer that basically runs nothing but an X server.  You can log
+in on it, and get an X session, with xterms, xbiff, xclock, every other
+conceivable X client.  However, all clients are running on a remote host,
+and are using remote X to display their output on your local X terminal.
+Even the window manager is running remotely.
+<P>
+<P>An X terminal takes very few resources, compared to a full blown unix
+machine.  Over here I have an X terminal with a 486 CPU, 16M of RAM,
+and 250M of disk space.  Oh, and a network connection, of course.
+It doesn't even have user home directories.
+<P>
+<P>For some related reading, have a look at:
+<P>
+<UL>
+<LI>
+The <EM>XDM and X Terminal mini-HOWTO</EM> (
+<A HREF="http://www.ibiblio.org/pub/Linux/docs/HOWTO/mini/other-formats/html_single/XDM-Xterm.html">http://www.ibiblio.org/pub/Linux/docs/HOWTO/mini/other-formats/html_single/XDM-Xterm.html</A>).
+This document is an extensive description of what is possible with
+XDMCP and xdm, applied for building X terminals.  Definitely have
+a look at this.
+</LI>
+<LI>
+The <EM>XDMCP HOWTO</EM> (
+<A HREF="http://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/html_single/XDMCP.html">http://www.ibiblio.org/pub/Linux/docs/HOWTO/other-formats/html_single/XDMCP.html</A>).
+This document describes the steps necessary to set up xdm for use
+with remote X servers, such as from X terminals.  The setup of the
+X server in such a situation is described less extensively.
+</LI>
+<LI>
+The <EM>Xterminal mini-HOWTO</EM> (
+<A HREF="http://metalab.unc.edu/pub/Linux/docs/HOWTO/unmaintained/mini/Xterminal">http://metalab.unc.edu/pub/Linux/docs/HOWTO/unmaintained/mini/Xterminal</A>).
+It is currently unmaintained, but it might contain some useful
+information for you.
+</LI>
+</UL>
+<P>
+<P>Contrasted to the above documents, this document (the Remote X Apps
+mini-HOWTO) limits itself to a short description of XDMCP, but puts more
+emphasis on the security issues involved.
+<P>
+<H2><A NAME="ss9.1">9.1 Once More, a Little Theory First</A>
+</H2>
+
+<P>As far as X is concerned, the X terminal will be running nothing but an
+X server.  This X server will be configured to talk to a remote host
+using XDMCP (the X Display Manager Control Protocol).  It will ask
+the remote host for an X session.  The remote host will put up a login
+window on the X terminal, and after login it will run an X session with
+all bells and whistles, including the window manager, all using remote
+X to display on the X terminal.
+<P>
+<P>You will probably notice that the remote host is acting like a server,
+though not an X server.  The remote host is providing X sessions to X
+servers that ask for one.  So, with respect to XDMCP, the remote host is
+actually a server, providing X sessions, also known as an XDMCP server.
+The X server is playing the role of an XDMCP client!  Are you still
+with me?
+<P>
+<P>The program that provides the XDMCP service on the XDMCP server is
+<CODE>xdm</CODE>.  So, in order to get an X terminal up and running, you must
+configure two programs: <CODE>X</CODE> (the XDMCP client) on the X terminal,
+and xdm (the XDMCP server) on the remote host.
+<P>
+<P>You must always remember that the X protocol (and the XDMCP protocol)
+are not encrypted.  If you use remote X, everything that goes over the
+network can be sniffed by other hosts on the network.  This is especially
+bad with remote X sessions, since the first thing that happens is logging
+in by giving a username and password.  So, you must run remote X over
+a trusted network only!
+<P>
+<H2><A NAME="ss9.2">9.2 Configuring <CODE>X</CODE> as an XDMCP Client</A>
+</H2>
+
+<P>If you want to set up a Linux machine as an X terminal, you need very
+few resources.  Basically, you need what it takes to get a bare bones
+Linux machine running, plus an X server.  Specifically, you do <EM>not</EM>
+need the X clients and libraries.  It can be useful to install some X
+fonts, but you can also use a font server somewhere on the network.
+<P>
+<P>There are a few ways for an X server to get an X session from an XDMCP
+server.  The simplest one is to go straight to a known XDMCP server and
+ask for one.  Alternatively, the X server can broadcast a request for
+an XDMCP service and use the first XDMCP server that responds.  Lastly,
+the X server can go to an XDMCP server, ask it for a list of hosts
+willing to provide a session, and let the user choose a session host.
+<P>
+<OL>
+<LI>When you know the host that is going to provide you with sessions,
+go straight to it.  Run
+<BLOCKQUOTE><CODE>
+<PRE>
+X -query sessionhost
+</PRE>
+</CODE></BLOCKQUOTE>
+
+and, assuming <CODE>xdm</CODE> is running on <CODE>sessionhost</CODE>, you'll get a
+login window, and after login, an X session.
+</LI>
+<LI>When you don't really care on which host you're getting your session,
+use the broadcast method.  Run
+<BLOCKQUOTE><CODE>
+<PRE>
+X -broadcast
+</PRE>
+</CODE></BLOCKQUOTE>
+
+and, assuming <CODE>xdm</CODE> is running somewhere on the network, you'll get
+a login window from the first (and hopefully quickest) <CODE>xdm</CODE> that
+responds, and after login, an X session.
+</LI>
+<LI>When you want to choose the host where you want to have your session,
+ask an XDMCP server for a list.  Run
+<BLOCKQUOTE><CODE>
+<PRE>
+X -indirect xdmcpserver
+</PRE>
+</CODE></BLOCKQUOTE>
+
+and, assuming <CODE>xdm</CODE> is configured right there, you'll be presented a
+list of hosts to choose from.  Choose one; you'll get the login window
+for that host, and after login, the session you were looking for.
+</LI>
+</OL>
+<P>
+<P>You may have noticed the absence of the <CODE>-auth</CODE> option.  The X
+server will use XDMCP to negotiate a magic cookie with the XDMCP server.
+The XDMCP server will put the cookie in your remote <CODE>~/.Xauthority</CODE>
+after login.
+<P>
+<P>After a session is over, the X server will loop and go back to the
+original XDMCP server and ask for another session (or chooser list).
+If you don't want that, you can use the <CODE>-once</CODE> option.  Note:
+this doesn't seem to work with the <CODE>-indirect</CODE> option due to the
+implementation of the chooser.
+<P>
+<P>When you have determined the way in which you want to run the
+X server, you can also put it in a startup script, or even run
+it straight from <CODE>/etc/inittab</CODE>.  Please consult your own
+distribution's documentation for how to modify your startup scripts
+or <CODE>/etc/inittab</CODE>.
+<P>
+<P>Do <EM>not</EM> run an X server like this from the <CODE>Xservers</CODE> configuration
+file.  <CODE>xdm</CODE> expects to be able to connect to such servers, and may
+kill them if it can't connect.
+<P>
+<H2><A NAME="ss9.3">9.3 Configuring <CODE>xdm</CODE> as an XDMCP Server</A>
+</H2>
+
+<P>The program that provides the XDMCP service (the session service) is
+usually <CODE>xdm</CODE>.  There are variants of this such as <CODE>wdm</CODE> or <CODE>gdm</CODE>
+on Linux, but these basically work the same way.  So, make sure <CODE>xdm</CODE>
+or variant is installed on the host where you want to run your X sessions.
+If you've got a local graphical login on the X session host, <CODE>xdm</CODE>
+is already installed; most Linux distributions come that way these days.
+<P>
+<P>In addition to <CODE>xdm</CODE>, you will need the programs that you wish to be
+able to run in an X session.  That is, all X clients like <CODE>xterm</CODE>,
+<CODE>xfig</CODE>, <CODE>xclock</CODE>, window managers and all that.  However, for an
+XDMCP server, you do <EM>not</EM> have to install an X server; the X server
+will be running on the X terminal instead.
+<P>
+<P>From the X server story above, you can conclude that there are
+basically two kinds of XDMCP service.  There is the <EM>direct</EM> service,
+consisting of letting an XDMCP client log in, and then providing it
+with an X session.  Alternatively, there is the <EM>indirect</EM> service,
+in which an XDMCP client is provided with a list of hosts, providing a
+direct service, to choose from.
+<P>
+<P>All <CODE>xdm</CODE> services are configured in the access file, generally
+located at <CODE>/etc/X11/xdm/Xaccess</CODE> or a similar location.  This
+location is actually defined in the general <CODE>xdm</CODE> configuration file
+<CODE>/etc/X11/xdm/xdm-config</CODE>, through the <CODE>accessFile</CODE> resource.
+See your <CODE>xdm</CODE> manual for the default location.
+<P>
+<OL>
+<LI><P>If you want to allow <CODE>xdm</CODE> to provide connecting XDMCP clients with an
+X session, whether by broadcast or not, you put the host name of the XDMCP
+client (the X server, remember?) by itself on a line in <CODE>Xaccess</CODE>.
+Actually, you can put a pattern on the line matching multiple hosts.
+Here are some valid patterns:
+<BLOCKQUOTE><CODE>
+<PRE>
+xterm023.my.domain      # xterm023.my.domain can get an X session
+*.my.domain             # any host in my.domain can get an X session
+*                       # any host on Internet can get an X session (unsafe)
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Whether you should want to provide any host in Internet with an X
+session is arguable.  Obviously, any service you provide is one more
+possible hole in your server's security.  On the other hand, the server
+should be secure itself, and an XDMCP client asking for an X session
+has to provide a valid authentication before the X session is granted.
+<P>
+<P>Furthermore, the X session uses a remote X connection, which is
+not encrypted.  The username/password pair for the login will be
+transported on this connection.  People out there could be sniffing valid
+username/password combinations, just as with plain telnet connections.
+This is even worse then having xauth magic cookies sniffed.
+<P>
+<P>Make your own decisions here, but I recommend not enabling this service
+to the world unless you have a good reason.
+<P>
+</LI>
+<LI><P>If you want to provide XDMCP clients (<CODE>X -indirect xdmcpserver</CODE>) with a
+chooser list (a list of hosts to choose from to get an X session), follow
+the client pattern with the keyword <CODE>CHOOSER</CODE> and the list of hosts
+that that client may choose from.  Instead of the list of hosts to choose
+from, you can also specify <CODE>BROADCAST</CODE>; with this, <CODE>xdm</CODE> broadcasts
+on the network to query for servers willing to provide the session.  Some valid examples:
+<BLOCKQUOTE><CODE>
+<PRE>
+xterm023.my.domain      CHOOSER seshost1 seshost2
+*.my.domain             CHOOSER BROADCAST
+*                       CHOOSER extseshost1 extseshost2
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The first lets <CODE>xterm023</CODE> choose between sessions on either
+<CODE>seshost1</CODE> and <CODE>seshost2</CODE>.  The second lets any host in
+<CODE>my.domain</CODE> choose from any host that is willing to provide an
+X session.  The third lets any host out there choose between a session
+on <CODE>extseshost1</CODE> or <CODE>etsseshost2</CODE>.
+<P>
+<P>It is probably not a good idea to do <CODE>* CHOOSER BROADCAST</CODE>.  This will
+allow hosts outside your network to get information about the hosts inside
+your network.  You probably don't want to pass out such information.
+In fact, allowing a chooser to any outside host is probably not useful
+anyway, since you should not be enabling arbitrary direct connections
+either.
+<P>
+</LI>
+</OL>
+<P>
+<P>When you have reconfigured <CODE>xdm</CODE>, send it the <CODE>HUP</CODE> signal to make
+it re-read its configuration files.
+<BLOCKQUOTE><CODE>
+<PRE>
+# kill -HUP pid-of-xdm
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss9.4">9.4 XDMCP Technically</A>
+</H2>
+
+<P>Technically, as far as I can see, XDMCP is not entirely what you would
+expect from the above description.  <CODE>xdm</CODE> can redirect connecting X
+servers to another place, and uses this trick to implement the chooser.
+So, the choosing happens inside xdm, not in the X server, although the
+chooser list is represented on the X server's display.  This is also
+why the X server's <CODE>-once</CODE> option does not combine with <CODE>-indirect</CODE>.
+<P>
+<HR>
+<A HREF="Remote-X-Apps-10.html">Next</A>
+<A HREF="Remote-X-Apps-8.html">Previous</A>
+<A HREF="Remote-X-Apps.html#toc9">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,300 @@
+<HTML
+><HEAD
+><TITLE
+>Policing filters</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Advanced filters for (re-)classifying packets"
+HREF="lartc.adv-filter.html"><LINK
+REL="PREVIOUS"
+TITLE="The route classifier"
+HREF="lartc.adv-filter.route.html"><LINK
+REL="NEXT"
+TITLE="Hashing filters for very fast massive filtering"
+HREF="lartc.adv-filter.hashing.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.route.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 12. Advanced filters for (re-)classifying packets</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.hashing.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.ADV-FILTER.POLICING"
+></A
+>12.3. Policing filters</H1
+><P
+>To make even more complicated setups possible, you can have filters that
+only match up to a certain bandwidth. You can declare a filter to entirely
+cease matching above a certain rate, or only to not match only the bandwidth
+exceeding a certain rate.</P
+><P
+>So if you decided to police at 4mbit/s, but 5mbit/s of traffic is present,
+you can stop matching either the entire 5mbit/s, or only not match 1mbit/s,
+and do send 4mbit/s to the configured class.</P
+><P
+>If bandwidth exceeds the configured rate, you can drop a packet, reclassify
+it, or see if another filter will match it.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1162"
+></A
+>12.3.1. Ways to police</H2
+><P
+>There are basically two ways to police. If you compiled the kernel 
+with 'Estimators', the kernel can measure for each filter how much traffic
+it is passing, more or less. These estimators are very easy on the CPU, as
+they simply count 25 times per second how many data has been passed, and
+calculate the bitrate from that.</P
+><P
+>The other way works again via a Token Bucket Filter, this time living within
+your filter. The TBF only matches traffic UP TO your configured bandwidth,
+if more is offered, only the excess is subject to the configured overlimit
+action.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN1166"
+></A
+>12.3.1.1. With the kernel estimator</H3
+><P
+>This is very simple and has only one parameter: avrate. Either the flow
+remains below avrate, and the filter classifies the traffic to the classid
+configured, or your rate exceeds it in which case the specified action is
+taken, which is 'reclassify' by default.</P
+><P
+>The kernel uses an Exponential Weighted Moving Average for your bandwidth
+which makes it less sensitive to short bursts.</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN1170"
+></A
+>12.3.1.2. With Token Bucket Filter</H3
+><P
+>Uses the following parameters:
+
+<P
+></P
+><UL
+><LI
+><P
+>buffer/maxburst</P
+></LI
+><LI
+><P
+>mtu/minburst</P
+></LI
+><LI
+><P
+>mpu</P
+></LI
+><LI
+><P
+>rate</P
+></LI
+></UL
+>&#13;</P
+><P
+>Which behave mostly identical to those described in the Token Bucket Filter
+section. Please note however that if you set the mtu of a TBF policer too
+low, *no* packets will pass, whereas the egress TBF qdisc will just pass
+them slower.</P
+><P
+>Another difference is that a policer can only let a packet pass, or drop it.
+It cannot delay hold on to it in order to delay it.</P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1184"
+></A
+>12.3.2. Overlimit actions</H2
+><P
+>If your filter decides that it is overlimit, it can take 'actions'.
+Currently, three actions are available:
+<P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>continue</DT
+><DD
+><P
+>Causes this filter not to match, but perhaps other filters will.</P
+></DD
+><DT
+>drop</DT
+><DD
+><P
+>This is a very fierce option which simply discards traffic exceeding a
+certain rate. It is often used in the ingress policer and has limited uses.
+For example, you may have a name server that falls over if offered more than
+5mbit/s of packets, in which case an ingress filter could be used to make
+sure no more is ever offered.</P
+></DD
+><DT
+>Pass/OK</DT
+><DD
+><P
+>Pass on traffic ok. Might be used to disable a complicated filter, but leave
+it in place.</P
+></DD
+><DT
+>reclassify</DT
+><DD
+><P
+>Most often comes down to reclassification to Best Effort. This is the
+default action.</P
+></DD
+></DL
+></DIV
+></P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1204"
+></A
+>12.3.3. Examples</H2
+><P
+>The only real example known is mentioned in the 'Protecting your host 
+from SYN floods' section. </P
+><P
+>FIXME: if you have used this, please share your experience with us</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.route.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.hashing.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>The <TT
+CLASS="OPTION"
+>route</TT
+> classifier</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Hashing filters for very fast massive filtering</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

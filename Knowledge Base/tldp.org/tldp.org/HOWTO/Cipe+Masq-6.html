@@ -1,0 +1,649 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux Cipe+Masquerading mini-HOWTO: Common Machine Configuration</TITLE>
+ <LINK HREF="Cipe+Masq-7.html" REL=next>
+ <LINK HREF="Cipe+Masq-5.html" REL=previous>
+ <LINK HREF="Cipe+Masq.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Cipe+Masq-7.html">Next</A>
+<A HREF="Cipe+Masq-5.html">Previous</A>
+<A HREF="Cipe+Masq.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Common Machine Configuration</A></H2>
+
+<H2><A NAME="ss6.1">6.1 /etc/cipe/ip-up</A>
+</H2>
+
+<H3>Kernel 2.0, ipfwadm, cipe 1.0.x</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+
+#!/bin/bash 
+# ip-up &lt;interface> &lt;myaddr> &lt;daemon-pid> &lt;local> &lt;remote> &lt;arg> 
+#3/29/1999 
+#An example ip-up script for the older 1.x 2.x kernels using ipfwadm that 
+#will setup routes and firewall rules to connect your local class c network 
+#to a remote class c network. 
+
+#The rules are configured to prevent spoofing and stuffed routing between 
+#the networks.  There are also additional security enhancements commented 
+#out towards the bottom of the script. 
+#Send questions or comments to acj@home.com. 
+
+#-------------------------------------------------------------------------- 
+#Set some script variables 
+device=$1               # the CIPE interface 
+me=$2                   # our UDP address 
+pid=$3                  # the daemon's process ID 
+ipaddr=$4               # IP address of our CIPE device 
+vptpaddr=$5              # IP address of the remote CIPE device 
+option=$6               # argument supplied via options 
+
+PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin" 
+
+#comment/uncomment to enable/disbale kernel logging for all unauthorized 
+#access attempts. Must be same as ip-down script in order to remove rules. 
+log="-o" 
+
+#-------------------------------------------------------------------------- 
+umask 022 
+
+# just a logging example 
+#echo "UP   $*" >> /var/adm/cipe.log 
+
+# many systems like these pid files 
+#echo $3 > /var/run/$device.pid 
+
+#-------------------------------------------------------------------------- 
+
+#add route entry for remote cipe network 
+network=`expr $ptpaddr : '\([0-9]*\.[0-9]*\.[0-9]*\.\)'`0 
+route add -net $network netmask 255.255.255.0 dev $device 
+
+#need to add route entry for host in 2.0 kernels 
+route add -host $ptpaddr dev $device 
+
+#-------------------------------------------------------------------------- 
+#cipe interface incoming firewall rules 
+#must be inserted into list in reverse order 
+
+#deny all other incoming packets to cipe interface 
+ipfwadm -I -i deny -W $device -S 0/0 -D 0/0 $log 
+
+#accept incoming packets from remotenet to localnet on cipe interface 
+ipfwadm -I -i accept -W $device -S $ptpaddr/24 -D $ipaddr/24 
+
+#accept incoming packets from localnet to remotenet on cipe interface 
+ipfwadm -I -i accept -W $device -S $ipaddr/24 -D $ptpaddr/24 
+
+#deny incoming packets, cipe interface, claiming to be from localnet; log 
+ipfwadm -I -i deny -W $device -S $ipaddr/24 -D $ipaddr/24 $log 
+
+#-------------------------------------------------------------------------- 
+#cipe interface outgoing firewall rules 
+#must be inserted into list in reverse order 
+
+#deny all other outgoing packets from cipe interface 
+ipfwadm -O -i deny -W $device -S 0/0 -D 0/0 $log 
+
+#accept outgoing from remotenet to localnet on cipe interface 
+ipfwadm -O -i accept -W $device -S $ptpaddr/24 -D $ipaddr/24 
+
+#accept outgoing from localnet to remotenet on cipe interface 
+ipfwadm -O -i accept -W $device -S $ipaddr/24 -D $ptpaddr/24 
+
+#deny outgoing to localnet from localnet, cipe interface, deny; log 
+ipfwadm -O -i deny -W $device -S $ipaddr/24 -D $ipaddr/24 $log 
+
+#-------------------------------------------------------------------------- 
+#The forwarding is configured so machines on your local network do not get 
+#masqueraded to the remote network.  This provides better access control 
+#between networks.  Must be inserted into list in reverse order 
+
+#deny all other forwarding through cipe interface; log 
+ipfwadm -F -i deny -W $device -S 0/0 -D 0/0 $log 
+
+#accept forwarding from remotenet to localnet on cipe interfaces 
+ipfwadm -F -i accept -W $device -S $ptpaddr/24 -D $ipaddr/24 
+
+#accept forwarding from localnet to remotenet on cipe interfaces 
+ipfwadm -F -i accept -W $device -S $ipaddr/24 -D $ptpaddr/24 
+
+#-------------------------------------------------------------------------- 
+#Make sure forwarding is enabled in the kernel. The kernel by default may 
+#have forwarding disabled. 
+/bin/echo 1 > /proc/sys/net/ipv4/ip_forward 
+
+#-------------------------------------------------------------------------- 
+#Optional security enhancement - set default forward policy to 
+#DENY or REJECT.  If your forwarding default policy is DENY/REJECT 
+#you will need to add the following rules to your main forward chain.  It 
+#is a good idea to have all default policies set for DENY or 
+#REJECT. 
+
+#define machine interfaces 
+#localif="eth0" 
+#staticif="eth1"                ;cable modem users 
+#staticif="ppp0"                ;dialup users 
+
+#a real sloppy way to get the peer ip address from the options file - a new 
+#argument with peer ip:port passed to script would be nice. 
+#both lines need to be uncommented 
+#peerfile=`grep $device /etc/cipe/options.* | cut -f1 -d:` 
+#peer=`grep peer $peerfile | cut -f1 -d: | awk '{print $2}'` 
+
+#must log peer ip address for ip-down script 
+#echo $peer > /var/run/$device.peerip 
+
+#accept forwarding from localnet to remotenet on internal network interface 
+#ipfwadm -F -i accept -W $localif -S $ipaddr/24 -D $ptpaddr/24 
+#accept forwarding from remotenet to localnet on internal network interface 
+#ipfwadm -F -i accept -W $localif -S $ptpaddr/24 -D $ipaddr/24 
+#accept forwarding on staticif from me to peer 
+#myaddr=`echo $me | cut -f1 -d:` 
+#ipfwadm -F -i accept -W $staticif -S $myaddr -D $peer 
+#-------------------------------------------------------------------------- 
+#Other optional security enhancement 
+#block all incoming requests from everywhere to our cipe udp port 
+#except our peer's udp port 
+
+#need to determine udp ports for the cipe interfaces 
+#get our udp port 
+#if [ "$option" = "" ]; then 
+#       myport=`echo $me | cut -f2 -d:` 
+#else 
+#       myport=$option 
+#fi 
+
+#get remote udp port -- peerfile variable must be set above 
+#peerport=`grep peer $peerfile | cut -f2 -d:` 
+
+#must log peer udp port for ip-down script 
+#echo $peerport > /var/run/$device.peerport 
+
+#get our ip address 
+#myaddr=`echo $me | cut -f1 -d:` 
+
+#deny and log all requests to cipe udp port must be inserted first 
+#ipfwadm -I -i deny -P udp -W $staticif -S 0/0 -D $myaddr $myport $log 
+#accept udp packets from peer at udp cipe port to my udp cipe port 
+#ipfwadm -I -i accept -P udp -W $staticif -S $peer $peerport \
+#-D $myaddr $myport 
+
+exit 0 
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Kernel 2.1/2.2, ipchains, cipe 1.2.x</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+
+#!/bin/bash 
+# ip-up &lt;interface> &lt;myaddr> &lt;daemon-pid> &lt;local> &lt;remote> &lt;arg> 
+#3/29/1999 
+#An example ip-up script for the newer 2.1/2.2 kernels using ipchains that 
+#will setup routes and firewall rules to connect your local class c network 
+#to a remote class c network.  This script creates 3 user defined chains
+#-input, output, and forward - for each cipe interface, based on the
+#interface name. It will then insert a rule into each of the built-in
+#input, output, and forward chains to use the user defined chains. The
+#rules are configured to prevent spoofing and stuffed routing between the
+#networks. There are also additional security enhancements commented out
+#towards the bottom of the script. 
+#Send questions or comments to acj@home.com. 
+
+#-------------------------------------------------------------------------- 
+
+#Set some script variables 
+device=$1               # the CIPE interface 
+me=$2                   # our UDP address 
+pid=$3                  # the daemon's process ID 
+ipaddr=$4               # IP address of our CIPE device 
+ptpaddr=$5              # IP address of the remote CIPE device 
+option=$6               # argument supplied via options 
+
+PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin" 
+
+#comment/uncomment to enable/disbale kernel logging for all unauthorized 
+#access attempts. Must be same as ip-down script in order to remove rules. 
+log="-l" 
+
+#-------------------------------------------------------------------------- 
+umask 022 
+# just a logging example 
+#echo "UP   $*" >> /var/adm/cipe.log 
+
+# many systems like these pid files 
+#echo $3 > /var/run/$device.pid 
+
+#-------------------------------------------------------------------------- 
+#add route entry for remote cipe network 
+network=`expr $ptpaddr : '\([0-9]*\.[0-9]*\.[0-9]*\.\)'`0 
+route add -net $network netmask 255.255.255.0 dev $device 
+
+#-------------------------------------------------------------------------- 
+#create new ipchain for cipe interface input rules 
+ipchains -N $device"i" 
+#flush all rules in chain (sanity flush) 
+ipchains -F $device"i" 
+#deny incoming packets, cipe interface, claiming to be from localnet; log 
+ipchains -A $device"i" -j DENY -i $device -s $ipaddr/24 -d $ipaddr/24 $log 
+#accept incoming packets from localnet to remotenet on cipe interface 
+ipchains -A $device"i" -j ACCEPT -i $device -s $ipaddr/24 -d $ptpaddr/24 
+#accept incoming packets from remotenet to localnet on cipe interface 
+ipchains -A $device"i" -j ACCEPT -i $device -s $ptpaddr/24 -d $ipaddr/24 
+#deny all other incoming packets 
+ipchains -A $device"i" -j DENY -s 0/0 -d 0/0 $log 
+
+#-------------------------------------------------------------------------- 
+#create new ipchain for cipe interface output rules 
+ipchains -N $device"o" 
+#flush all rules in chain (sanity flush) 
+ipchains -F $device"o" 
+#deny outgoing to localnet from localnet, cipe interface, deny; log 
+ipchains -A $device"o" -j DENY -i $device -s $ipaddr/24 -d $ipaddr/24 $log 
+#accept outgoing from localnet to remotenet on cipe interface 
+ipchains -A $device"o" -j ACCEPT -i $device -s $ipaddr/24 -d $ptpaddr/24 
+#accept outgoing from remotenet to localnet on cipe interface 
+ipchains -A $device"o" -j ACCEPT -i $device -s $ptpaddr/24 -d $ipaddr/24 
+#deny all other outgoing packets 
+ipchains -A $device"o" -j DENY -s 0/0 -d 0/0 $log 
+
+#-------------------------------------------------------------------------- 
+#The forward chain is configured so machines on your local network do not 
+#get masqueraded to the remote network.  This provides better access
+#control between networks. 
+
+#create new ipchain for cipe interface forward rules 
+ipchains -N $device"f" 
+#flush all rules in chain (sanity flush) 
+ipchains -F $device"f" 
+#accept forwarding from localnet to remotenet on cipe interfaces 
+ipchains -A $device"f" -j ACCEPT -i $device -s $ipaddr/24 -d $ptpaddr/24 
+#accept forwarding from remotenet to localnet on cipe interfaces 
+ipchains -A $device"f" -j ACCEPT -i $device -s $ptpaddr/24 -d $ipaddr/24 
+#deny all other forwarding; log 
+ipchains -A $device"f" -j DENY -s 0/0 -d 0/0 $log 
+
+#-------------------------------------------------------------------------- 
+#Make sure forwarding is enabled in the kernel. New kernels by default have 
+#forwarding disabled. 
+/bin/echo 1 > /proc/sys/net/ipv4/ip_forward 
+
+#-------------------------------------------------------------------------- 
+#insert rules to main input, output, and forward chains to enable new rules 
+#for the cipe interface 
+ipchains -I input -i $device -j $device"i" 
+ipchains -I output -i $device -j $device"o" 
+ipchains -I forward -i $device -j $device"f" 
+
+#-------------------------------------------------------------------------- 
+#Optional security enhancement - set built-in forward chain policy to 
+#DENY or REJECT.  If your main forward chain default policy is DENY/REJECT 
+#you will need to add the following rules to your main forward chain.  It 
+#is a good idea to have all built-in chain default policies set for DENY or 
+#REJECT. 
+
+#define machine interfaces 
+#localif="eth0" 
+#staticif="eth1"                ;cable modem users 
+#staticif="ppp0"                ;dialup users 
+
+#a real sloppy way to get the peer ip address from the options file - a new 
+#argument with peer ip:port passed to script would be nice. 
+#both lines need to be uncommented 
+#peerfile=`grep $device /etc/cipe/options.* | cut -f1 -d:` 
+#peer=`grep peer $peerfile | cut -f1 -d: | awk '{print $2}'` 
+
+#must log peer ip address for ip-down script 
+#echo $peer > /var/run/$device.peerip 
+
+#accept forwarding from localnet to remotenet on internal network interface 
+#ipchains -I forward -j ACCEPT -i $localif -s $ipaddr/24 -d $ptpaddr/24 
+#accept forwarding from remotenet to localnet on internal network interface 
+#ipchains -I forward -j ACCEPT -i $localif -s $ptpaddr/24 -d $ipaddr/24 
+#accept forwarding on staticif from me to peer 
+#myaddr=`echo $me | cut -f1 -d:` 
+#ipchains -I forward -j ACCEPT -i $staticif -s $myaddr -d $peer 
+#-------------------------------------------------------------------------- 
+#Other optional security enhancement 
+#block all incoming requests from everywhere to our cipe udp port 
+#except our peer's udp port 
+
+#need to determine udp ports for the cipe interfaces 
+#get our udp port 
+#if [ "$option" = "" ]; then 
+#       myport=`echo $me | cut -f2 -d:` 
+#else 
+#       myport=$option 
+#fi 
+
+#get remote udp port -- peerfile variable must be set above 
+#peerport=`grep peer $peerfile | cut -f2 -d:` 
+
+#must log peer udp port for ip-down script 
+#echo $peerport > /var/run/$device.peerport 
+
+#get our ip address 
+#myaddr=`echo $me | cut -f1 -d:` 
+
+#deny and log all requests to cipe udp port must be inserted first 
+#ipchains -I input -j DENY -p udp -i $staticif -s 0/0 \
+#-d $myaddr $myport $log 
+#accept udp packets from peer at udp cipe port to my udp cipe port 
+#ipchains -I input -j ACCEPT -p udp -i $staticif -s $peer $peerport \
+# -d $myaddr $myport 
+
+#-------------------------------------------------------------------------- 
+# Set up spoofing protection in kernel as an additional security measure 
+#-------------------------------------------------------------------------- 
+#Why do I have spoofing protection in the firewall rules in addition to
+#this script that sets up spoof protection for each interface in the
+#kernel? Guess I'm paranoid. 
+
+if [ -e /proc/sys/net/ipv4/conf/all/rp_filter ]; then 
+        echo -n "Setting up IP spoofing protection..." 
+        iface="/proc/sys/net/ipv4/conf/$device/rp_filter" 
+        echo 1 > $iface 
+        echo "done." 
+else 
+        echo "Cannot setup spoof protection in kernel for $device" \
+                | mail -s"Security Warning: $device" root 
+        exit 1 
+fi 
+
+exit 0 
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss6.2">6.2 /etc/cipe/ip-down</A>
+</H2>
+
+<H3>Kernel 2.0, ipfwadm, cipe 1.0.x</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+
+#!/bin/bash 
+
+# ip-down &lt;interface> &lt;myaddr> &lt;daemon-pid> &lt;local> &lt;remote> &lt;arg> 
+#3/29/1999 
+#An example ip-down script for the older 1.x 2.x kernels using ipfwadm that 
+#will remove firewall rules that were setup to connect your local class c
+#network to a remote class c network. 
+
+#-------------------------------------------------------------------------- 
+#Set some script variables 
+device=$1               # the CIPE interface 
+me=$2                   # our UDP address 
+pid=$3                  # the daemon's process ID 
+ipaddr=$4               # IP address of our CIPE device 
+ptpaddr=$5              # IP address of the remote CIPE device 
+option=$6               # argument supplied via options 
+
+PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin" 
+
+#comment/uncomment to enable/disbale kernel logging for all unauthorized 
+#access attempts. Must be same as ip-down script in order to remove rules. 
+log="-o" 
+
+#-------------------------------------------------------------------------- 
+umask 022 
+
+# just a logging example 
+#echo "DOWN   $*" >> /var/adm/cipe.log 
+
+# many systems like these pid files 
+#rm -f /var/run/$device.pid 
+
+#-------------------------------------------------------------------------- 
+#cipe interface incoming firewall rules 
+
+#delete (deny all other incoming packets to cipe interface) 
+ipfwadm -I -d deny -W $device -S 0/0 -D 0/0 $log 
+
+#delete (accept incoming packets from remotenet to localnet on cipe 
+#interface) 
+ipfwadm -I -d accept -W $device -S $ptpaddr/24 -D $ipaddr/24 
+
+#delete (accept incoming packets from localnet to remotenet on cipe
+#interface) 
+ipfwadm -I -d accept -W $device -S $ipaddr/24 -D $ptpaddr/24 
+
+#delete (deny incoming packets, cipe interface, claiming to be from
+#localnet and log) 
+ipfwadm -I -d deny -W $device -S $ipaddr/24 -D $ipaddr/24 $log 
+
+#-------------------------------------------------------------------------- 
+#cipe interface incoming firewall rules 
+
+#delete (deny all other outgoing packets from cipe interface) 
+ipfwadm -O -d deny -W $device -S 0/0 -D 0/0 $log 
+
+#delete (accept outgoing from remotenet to localnet on cipe interface) 
+ipfwadm -O -d accept -W $device -S $ptpaddr/24 -D $ipaddr/24 
+
+#delete (accept outgoing from localnet to remotenet on cipe interface) 
+ipfwadm -O -d accept -W $device -S $ipaddr/24 -D $ptpaddr/24 
+
+#delete (deny outgoing to localnet from localnet, cipe interface, deny
+#and log) 
+ipfwadm -O -d deny -W $device -S $ipaddr/24 -D $ipaddr/24 $log 
+
+#-------------------------------------------------------------------------- 
+#cipe interface forwarding firewall rules 
+
+#delete (deny all other forwarding through cipe interface; log) 
+ipfwadm -F -d deny -W $device -S 0/0 -D 0/0 $log 
+
+#delete (accept forwarding from remotenet to localnet on cipe interfaces) 
+ipfwadm -F -d accept -W $device -S $ptpaddr/24 -D $ipaddr/24 
+
+#delete (accept forwarding from localnet to remotenet on cipe interfaces) 
+ipfwadm -F -d accept -W $device -S $ipaddr/24 -D $ptpaddr/24 
+
+#-------------------------------------------------------------------------- 
+#Optional security enhancement - set default forward policy to 
+#DENY or REJECT.  If your forwarding default policy is DENY/REJECT 
+#you will need to add the following rules to your main forward chain.  It 
+#is a good idea to have all default policies set for DENY or 
+#REJECT. 
+
+#define machine interfaces 
+#localif="eth0" 
+#staticif="eth1"                ;cable modem users 
+#staticif="ppp0"                ;dialup users 
+
+#a real sloppy way to get the peer ip address from the options file - a new 
+#argument with peer ip:port passed to script would be nice. 
+#both lines need to be uncommented 
+#peerfile=`grep $device /etc/cipe/options.* | cut -f1 -d:` 
+#peer=`grep peer $peerfile | cut -f1 -d: | awk '{print $2}'` 
+
+#must log peer ip address for ip-down script 
+#echo $peer > /var/run/$device.peerip 
+
+#delete (accept forwarding from localnet to remotenet on internal network
+interface) 
+#ipfwadm -F -d accept -W $localif -S $ipaddr/24 -D $ptpaddr/24 
+#delete (accept forwarding from remotenet to localnet on internal network
+interface) 
+#ipfwadm -F -d accept -W $localif -S $ptpaddr/24 -D $ipaddr/24 
+#delete (accept forwarding on staticif from me to peer) 
+#myaddr=`echo $me | cut -f1 -d:` 
+#ipfwadm -F -d accept -W $staticif -S $myaddr -D $peer 
+#-------------------------------------------------------------------------- 
+#Other optional security enhancement 
+#block all incoming requests from everywhere to our cipe udp port 
+#except our peer's udp port 
+
+#need to determine udp ports for the cipe interfaces 
+#get our udp port 
+#if [ "$option" = "" ]; then 
+#       myport=`echo $me | cut -f2 -d:` 
+#else 
+#       myport=$option 
+#fi 
+
+#get remote udp port -- peerfile variable must be set above 
+#peerport=`grep peer $peerfile | cut -f2 -d:` 
+
+#must log peer udp port for ip-down script 
+#echo $peerport > /var/run/$device.peerport 
+
+#get our ip address 
+#myaddr=`echo $me | cut -f1 -d:` 
+
+#delete (deny and log all requests to cipe udp port must be inserted first) 
+#ipfwadm -I -d deny -P udp -W $staticif -S 0/0 -D $myaddr $myport $log 
+#delete (accept udp packets from peer at udp cipe port to my udp cipe port) 
+#ipfwadm -I -d accept -P udp -W $staticif -S $peer $peerport \
+#-D $myaddr $myport 
+
+exit 0
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Kernel 2.1/2.2, ipchains, cipe 1.2.x</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+
+#!/bin/sh 
+# ip-down &lt;interface> &lt;myaddr> &lt;daemon-pid> &lt;local> &lt;remote> &lt;arg> 
+#3/29/1999 
+#An example ip-down script for the newer 2.1/2.2 kernels using ipchains
+#that will remove firewall rules that were setup to connect your local
+#class c network to a remote class c network.  Optional security
+#enhancement rules removal is also added and commented towards end of
+#script. 
+#Send questions or comments to acj@home.com. 
+
+#-------------------------------------------------------------------------- 
+#Set some script variables 
+device=$1               # the CIPE interface 
+me=$2                   # our UDP address 
+pid=$3                  # the daemon's process ID 
+ipaddr=$4               # IP address of our CIPE device 
+ptpaddr=$5              # IP address of the remote CIPE device 
+option=$6               # argument supplied via options 
+PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin" 
+
+#comment/uncomment to enable/disbale kernel logging for all unauthorized 
+#access attempts 
+#must be same as ip-up script in order to remove rules 
+log="-l" 
+
+#-------------------------------------------------------------------------- 
+umask 022 
+
+# Logging example 
+#echo "DOWN $*" >> /var/adm/cipe.log 
+
+# remove the daemon pid file 
+#rm -f /var/run/$device.pid 
+
+#-------------------------------------------------------------------------- 
+#remove rules from main input, output, and forward chains for cipe
+#interface 
+ipchains -D input -i $device -j $device"i" 
+ipchains -D output -i $device -j $device"o" 
+ipchains -D forward -i $device -j $device"f" 
+
+#-------------------------------------------------------------------------- 
+#flush all rules in cipe interface input chain 
+ipchains -F $device"i" 
+#remove cipe interface input chain 
+ipchains -X $device"i" 
+
+#-------------------------------------------------------------------------- 
+#flush all rules in cipe interface output chain 
+ipchains -F $device"o" 
+#remove cipe interface output chain 
+ipchains -X $device"o" 
+
+#-------------------------------------------------------------------------- 
+#flush all rules in cipe interface forward chain 
+ipchains -F $device"f" 
+#remove cipe interface forward chain 
+ipchains -X $device"f" 
+
+#-------------------------------------------------------------------------- 
+#Remove optional security enhancement rules 
+
+#get peer ip address 
+#peer=`cat /var/run/$device.peerip` 
+
+#define machine interfaces 
+#localif="eth0" 
+#staticif="eth1"                ;cable modem users 
+#staticif="ppp0"                ;dialup users 
+
+#get our ip address 
+#myaddr=`echo $me |cut -f1 -d:` 
+
+#delete (accept forwarding from localnet to remotenet on internal network
+#interface) 
+#ipchains -D forward -j ACCEPT -i $localif -s $ipaddr/24 -d $ptpaddr/24 
+#delete (accept forwarding from remotenet to localnet on internal network
+#interface) 
+#ipchains -D forward -j ACCEPT -i $localif -s $ptpaddr/24 -d $ipaddr/24 
+#delete (accept forwarding on staticif from me to peer) 
+#ipchains -D forward -j ACCEPT -i $staticif -s $myaddr -d $peer 
+
+#remove peer ip file 
+#rm /var/run/$device.peerip 
+
+#-------------------------------------------------------------------------- 
+#Remove other optional security enhancement rules 
+
+#get peer udp port 
+#peerport=`cat /var/run/$device.peerport` 
+
+#get our udp port 
+#if [ "$option" = "" ]; then 
+#        myport=`echo $me | cut -f2 -d:` 
+#else 
+#        myport=$option 
+#fi 
+
+#delete (deny and log all requests to cipe udp port must be inserted first) 
+#ipchains -D input -j DENY -p udp -i $staticif -s 0/0 \
+#-d $myaddr $myport $log 
+#delete (accept udp packets from peer at udp cipe port to my udp cipe port) 
+#ipchains -D input -j ACCEPT -p udp -i $staticif -s $peer $peerport \
+#-d $myaddr $myport 
+
+#remove peer port file 
+#rm /var/run/$device.peerport 
+
+#-------------------------------------------------------------------------- 
+
+exit 0 
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<HR>
+<A HREF="Cipe+Masq-7.html">Next</A>
+<A HREF="Cipe+Masq-5.html">Previous</A>
+<A HREF="Cipe+Masq.html#toc6">Contents</A>
+</BODY>
+</HTML>

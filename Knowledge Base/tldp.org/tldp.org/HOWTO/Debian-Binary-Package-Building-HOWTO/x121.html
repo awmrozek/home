@@ -1,0 +1,505 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Double Check</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Debian Binary Package Building HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Hands On"
+HREF="x88.html"><LINK
+REL="NEXT"
+TITLE="Summary"
+HREF="x169.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Debian Binary Package Building HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x88.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x169.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="AEN121"
+></A
+>5. Double Check</H1
+><P
+>&#13;	 Now that you have gotten a first impression and build your own
+	 binary package, it is time to get a little bit more serious
+	 and have a look at the quality of the package that we have
+	 produced.
+
+
+	 </P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN124"
+></A
+>5.1. lintian</H2
+><P
+>&#13;	 Luckily for us the Debian project provides a 'lint'
+	 like tool for checking Debian packages. This tool is named
+	 'lintian'.
+	 If you have not installed it yet on your system, this is a good moment
+	 (<TT
+CLASS="literal"
+>apt-get install lintian</TT
+>).</P
+><P
+>&#13;
+	 Now we use this little treasure tool on our new package file:
+	 </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>$ lintian linuxstatus_1.1-1_all.deb
+E: linuxstatus: binary-without-manpage linuxstatus
+E: linuxstatus: no-copyright-file
+W: linuxstatus: prerm-does-not-remove-usr-doc-link
+W: linuxstatus: postinst-does-not-set-usr-doc-link</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;
+	 Uh, doesn't look so perfect. We miss a man page, copyright
+file, and also those 'prerm' and 'postinst' scripts.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN131"
+></A
+>5.2. Minimal Documentation</H2
+><P
+>&#13;This is not the place to say much about writing and creating
+man pages, there are many books that have one or another chapter
+related to this
+topic and there is also <A
+HREF="http://www.tldp.org/HOWTO/mini/Man-Page.html"
+TARGET="_top"
+>The Linux MAN-PAGE-HOWTO</A
+>
+online. So lets do a little time warp and assume you have now
+a perfect
+man page for your script at location <TT
+CLASS="literal"
+>./man/man1/linuxstatus.1</TT
+>.
+</P
+><P
+>&#13;	 
+The same for a 'copyright' file.	You can find enough
+examples under the <TT
+CLASS="literal"
+>/usr/share/doc</TT
+> directory
+with this command: <TT
+CLASS="literal"
+>find /usr/share/doc -name "copyright"</TT
+>
+</P
+><P
+>&#13;
+So here is our own example of a 'copyright' file:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>linuxstatus
+
+Copyright: Chr. Clemens Lee &#60;clemens@kclee.de&#62;
+
+2002-12-07
+
+The home page of linuxstatus is at: 
+http://www.kclee.de/clemens/unix/index.html#linuxstatus
+
+The entire code base may be distributed under the terms of the GNU General
+Public License (GPL), which appears immediately below.  Alternatively, all
+of the source code as any code derived from that code may instead be
+distributed under the GNU Lesser General Public License (LGPL), at the
+choice of the distributor. The complete text of the LGPL appears at the
+bottom of this file.
+
+See /usr/share/common-licenses/(GPL|LGPL)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;
+For the 'prerm' and 'postinst' scripts we copy one to one the
+<A
+HREF="#postinst"
+TARGET="_top"
+>examples</A
+> from the 'parted' package above
+into files with the same name in our own project directory. 
+These files should work for us just as well.</P
+><P
+>&#13;
+Now we create the debian package again. In the 'control' file
+we first increase the version number from 1.1-1 to 1.2-1
+(since we have written a new man page we increase our internal
+release number).
+We also need to copy the new files to their appropriate places:
+
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>$ mkdir -p ./debian/usr/share/man/man1
+$ mkdir -p ./debian/usr/share/doc/linuxstatus
+$ find ./debian -type d | xargs chmod 755
+$ cp ./man/man1/linuxstatus.1 ./debian/usr/share/man/man1
+$ cp ./copyright ./debian/usr/share/doc/linuxstatus
+$ cp ./prerm ./postinst ./debian/DEBIAN
+$ gzip --best ./debian/usr/share/man/man1/linuxstatus.1
+$
+$ dpkg-deb --build debian
+dpkg-deb: building package `linuxstatus' in `debian.deb'.
+$ mv debian.deb linuxstatus_1.2-1_all.deb</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;
+Gzip is necessary because lintian expects man page files to be
+compressed as small as possible.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN146"
+></A
+>5.3. fakeroot</H2
+><P
+>&#13;Now lets see if our package has become a better Debian citizen:
+
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>$ lintian linuxstatus_1.2-1_all.deb
+E: linuxstatus: control-file-has-bad-owner prerm clemens/clemens != root/root
+E: linuxstatus: control-file-has-bad-owner postinst clemens/clemens != root/root
+E: linuxstatus: bad-owner-for-doc-file usr/share/doc/linuxstatus/ clemens/clemens != root/root
+E: linuxstatus: bad-owner-for-doc-file usr/share/doc/linuxstatus/copyright clemens/clemens != root/root
+E: linuxstatus: debian-changelog-file-missing</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;
+Ups, new complains. OK, we will not give up.
+Actually most errors seem to be the same problem. Our files are
+all packaged for user and group 'clemens', while
+I assume most people would prefer having them installed as
+'root/root'. But this is easily fixed using the tool '<EM
+>fakeroot</EM
+>'.
+So lets fix and
+check this quickly (while ignoring the changelog issue):
+
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>$ <EM
+>fakeroot</EM
+> dpkg-deb --build debian
+dpkg-deb: building package `linuxstatus' in `debian.deb'.
+$ mv debian.deb linuxstatus_1.2-1_all.deb
+$ lintian linuxstatus_1.2-1_all.deb
+E: linuxstatus: debian-changelog-file-missing</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;
+Fine, but we have yet another file to add to the package.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN155"
+></A
+>5.4. More Documentation</H2
+><P
+>&#13;Let me tell
+you already that next to a 'changelog' file in the 'doc/linuxstatus'
+directory
+a 'changelog.Debian' file is also required. Both should be gzipped
+as well.</P
+><P
+>&#13;
+Here are two example files, 'changelog':
+
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>linuxstatus (1.2-1)
+
+  * Made Debian package lintian clean.
+
+ -- Chr. Clemens Lee &#60;clemens@kclee.de&#62;  2002-12-13</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;and 'changelog.Debian':
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>linuxstatus Debian maintainer and upstream author are identical.
+Therefore see also normal changelog file for Debian changes.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;
+The Debian Policy file has more details regarding 
+the <A
+HREF="http://www.debian.org/doc/debian-policy/ch-miscellaneous.html#s-dpkgchangelog"
+TARGET="_top"
+>format of the changelog</A
+>
+file.</P
+><P
+>&#13;
+Now hopefully our last step will be:
+
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>$ cp ./changelog ./changelog.Debian ./debian/usr/share/doc/linuxstatus
+$ gzip --best ./debian/usr/share/doc/linuxstatus/changelog 
+$ gzip --best ./debian/usr/share/doc/linuxstatus/changelog.Debian
+$ fakeroot dpkg-deb --build ./debian
+dpkg-deb: building package `linuxstatus' in `debian.deb'.
+$ mv debian.deb linuxstatus_1.2-1_all.deb
+$ lintian linuxstatus_1.2-1_all.deb</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;
+Ah, we get no more complains :-). As root you can install 
+now this
+package over the old one, again with the standard '<TT
+CLASS="literal"
+>dpkg -i</TT
+>' command.
+
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>root# dpkg -i ./linuxstatus_1.2-1_all.deb
+(Reading database ... 97124 files and directories currently installed.)
+Preparing to replace linuxstatus 1.1-1 (using linuxstatus_1.2-1_all.deb) ...
+Unpacking replacement linuxstatus ...
+Setting up linuxstatus (1.2-1) ...</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x88.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x169.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Hands On</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Summary</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

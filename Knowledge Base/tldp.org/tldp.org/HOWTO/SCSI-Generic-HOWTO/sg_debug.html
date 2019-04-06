@@ -1,0 +1,267 @@
+<HTML
+><HEAD
+><TITLE
+>/proc/scsi/sg/debug</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE='Sg and the "proc" file system'
+HREF="proc.html"><LINK
+REL="PREVIOUS"
+TITLE='Sg and the "proc" file system'
+HREF="proc.html"><LINK
+REL="NEXT"
+TITLE="Asynchronous usage of sg"
+HREF="async.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="proc.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 11. Sg and the "proc" file system</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="async.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="SG_DEBUG">11.1. /proc/scsi/sg/debug</H1
+><P
+>This appendix explains the output from the <TT
+CLASS="FILENAME"
+>/proc/scsi/sg/debug</TT
+> which is typically viewed by the command
+<B
+CLASS="COMMAND"
+>cat /proc/scsi/sg/debug</B
+>. Below is the (slightly
+abridged) output while this command: <B
+CLASS="COMMAND"
+>sgp_dd if=/dev/sg0
+of=/dev/null bs=512</B
+> is executing on the system. That sgp_dd
+command is using command queuing to read a disk (and the data is 
+written to <TT
+CLASS="FILENAME"
+>/dev/null</TT
+> which forgets it).
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ cat /proc/scsi/sg/debug
+dev_max(currently)=7 max_active_device=1 (origin 1)
+ scsi_dma_free_sectors=416 sg_pool_secs_aval=320 def_reserved_size=32768
+ &#62;&#62;&#62; device=sg0 scsi0 chan=0 id=0 lun=0   em=0 sg_tablesize=255 excl=0
+   FD(1): timeout=60000ms bufflen=65536 (res)sgat=2 low_dma=0
+   cmd_q=1 f_packid=1 k_orphan=0 closed=0
+     fin: id=3949312 blen=65536 dur=10ms sgat=2 op=0x28
+     act: id=3949440 blen=65536 t_o/elap=60000/10ms sgat=2 op=0x28
+     rb&#62;&#62; act: id=3949568 blen=65536 t_o/elap=60000/10ms sgat=2 op=0x28
+     act: id=3949696 blen=65536 t_o/elap=60000/0ms sgat=2 op=0x28</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Those items output above that are significant to user applications
+are described below.</P
+><P
+>Broadly speaking the above output shows everything is going fine.
+Four SCSI READ(10) commands (SCSI opcode 0x28) for different ids
+are underway. Three commands are active while one is finished with its
+status and data read() and the request structure is pending deletion.
+The "id" corresponds to the pack_id given in the sg_io_hdr structure
+(or the sg_header structure). In the case if sgp_dd the pack_id
+value is the block number being given to the SCSI READ (or WRITE).
+You will notice the 4 ids are 128 apart.</P
+><P
+>The "&#62;&#62;&#62;" line shows the sg device name followed by the linux scsi
+adapter, channel, scsi id and lun numbers. The "em=" argument indicates
+whether the driver emulates a SCSI HBA. The ide-scsi driver would
+set "em=1". The "sg_tablesize" is the maximum number of scatter gather
+elements supported by the adapter driver. The "excl=0" indicates no
+sg open() on this device is currently using the O_EXCL flag.</P
+><P
+>The next two lines starting with "FD(1)" supply data about the first
+(and only in this case) open file descriptor on <TT
+CLASS="FILENAME"
+>/dev/sg0</TT
+>. The default timeout is 60 seconds however this is only
+significant if the sg_header interface is being used since the
+sg_io_hdr interface explicits sets the timeout on a per command basis.
+"bufflen=65536" is the reserved buffer size for this file descriptor.
+The "(res)sgat=2" indicates that this reserved buffer requires 2
+scatter gather elements. The "low_dma" will be set to 1 for ISA HBAs
+indicating only the bottom 16 MB of RAM can be used for its kernel
+buffers. The "cmd_q=1" indicates command queuing is being allowed.
+The "f_packid=1" indicates the SG_SET_FORCE_PACK_ID mode is on.
+The "k_orphan" value is 1 in the rare cases when a SG_IO is interrupted
+while a SCSI command is "in flight". The "closed" value is 1 in the
+rare cases the file descriptor has been closed while a SCSI command
+is "in flight".</P
+><P
+>Each line indented with 5 spaces represents a SCSI command. The state
+of the command is either:
+<P
+></P
+><UL
+><LI
+><P
+>prior: command hasn't been sent to mid level (rare)</P
+></LI
+><LI
+><P
+>act: mid level (adapter driver or device) has command</P
+></LI
+><LI
+><P
+>rcv: sg bottom half handler has received response to this
+command (awaiting read() or SG_IO ioctl to complete</P
+></LI
+><LI
+><P
+>fin: SCSI response (and optionally data) has been or is
+being read but the command data structures have not been removed</P
+></LI
+></UL
+>
+These states can be optionally prefixed by "rb&#62;&#62;" which means the reserved
+buffer is being used, "dio&#62;&#62;" which means this command is using direct IO,
+or "mmap&#62;&#62;" which means that mmap-ed IO is being used by this command.
+The "id" is the pack_id from this command's interface structure. The "blen"
+is the buffer length used by the data transfer associated with this command.
+For commands that a response has been received "dur" shows its duration
+in milliseconds. For commands still "in flight" an indication of
+"t_o/elap=60000/10ms" means this command has a timeout of 60000 milliseconds
+of which 10 milliseconds has already elapsed. The "sgat=2" argument
+indicates that this command's "blen" requires 2 scatter gather elements.
+The "op" value is the hexadecimal value of the SCSI command being executed.</P
+><P
+>If sg has lots of activity then the "debug" output may span many lines
+and in some cases appear to be corrupted. This occurs because procfs requests
+fixed buffer sizes of information and, if there is more data to output,
+returns later to get the remainder. The problem with this strategy is that 
+sg's internal state may have changed. Rather than double buffering, the sg
+driver just continues from the same offset. While procfs is very useful, 
+ioctl()s (such as SG_GET_REQUEST_TABLE) still have their place.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="proc.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="async.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Sg and the "proc" file system</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="proc.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Asynchronous usage of sg</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,328 @@
+<HTML
+><HEAD
+><TITLE
+>Sg and the "proc" file system</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Driver and module initialization"
+HREF="init.html"><LINK
+REL="NEXT"
+TITLE="/proc/scsi/sg/debug"
+HREF="sg_debug.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="init.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="sg_debug.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="PROC">Chapter 11. Sg and the "proc" file system</H1
+><P
+>The sg driver provides information about the SCSI subsystem and the current
+internal state of the sg driver in the <TT
+CLASS="FILENAME"
+>/proc/scsi/sg</TT
+>
+directory. Some sg driver defaults can be changed by super user writing values
+to these "pseudo" files
+<A
+NAME="AEN730"
+HREF="#FTN.AEN730"
+>[1]</A
+>.</P
+><P
+>The following files which are readable by all:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>allow_dio       0 indicates direct IO disable, 1 for enabled
+debug           debug information including active request data
+def_reserved_size  default buffer size reserved for each file descriptor
+devices         one line of numeric data per device
+device_hdr      single line of column names corresponding to 'devices'
+device_strs     one line of vendor, product and rev info per device
+hosts           one line of numeric data per host
+host_hdr        single line of column names corresponding to 'hosts'
+host_strs       one line of host information (string) per host
+version         sg version as a number followed by a string representation</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Each line in 'devices' and 'device_strs' corresponds to an sg device. For
+example the first line corresponds to <TT
+CLASS="FILENAME"
+>/dev/sg0</TT
+>. The line
+number (origin 0) also corresponds to the sg minor device number. This
+mapping is local to sg and is normally the same as given by th
+<B
+CLASS="COMMAND"
+>cat /proc/scsi/scsi</B
+> command which is reported by the SCSI 
+mid level driver. The two mappings may diverge when 'remove-single-device' 
+and 'add-single-device' are used (see the <A
+HREF="refs.html#SCSI_HOWTO"
+>SCSI-2.4-HOWTO</A
+> for more information).</P
+><P
+>Each line in 'hosts' and 'host_strs' corresponds to a SCSI host. For example
+the first line corresponds to the host normally represented as "scsi0".
+This mapping is invariant across the SCSI sub system. [So these entries
+could arguably be migrated to the mid level.]</P
+><P
+>The column headers in 'device_hdr' are given below. If the device is not
+present (and one is present after it) then a line of "-1" entries is
+output. Each entry is separated by a whitespace (currently a tab):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>host            host number (indexes 'hosts' table, origin 0)
+chan            channel number of device
+id              SCSI id of device
+lun             Logical Unit number of device
+type            SCSI type (e.g. 0-&#62;disk, 5-&#62;cdrom, 6-&#62;scanner)
+opens           number of opens (by sd, sr, sr and sg) at this time
+depth           maximum queue depth supported by device
+busy            number of commands being processed by host for this device
+online          1 indicates device is in normal online state, 0-&#62;offline</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+A SCSI device is set offline by the SCSI mid level when it decides that
+a device is no longer responding (e.g. the device does not respond to
+an SCSI INQUIRY command after it has been reset).</P
+><P
+>The column headers in 'host_hdr' are given below. Each entry is separated
+by a whitespace (currently a tab):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>uid             unique id (non-zero if multiple hosts of same type)
+busy            number of commands being processed for this host
+cpl             maximum number of command per lun (may be 0 if "device depth"
+                is given
+sgat            maximum elements of scatter gather the adapter (pseudo)
+                DMA can accommodate
+isa             0 -&#62; non-ISA adapter, 1 -&#62; ISA adapter. ISA adapters are
+                assumed to have a 24 bit address bus limit (16 MB).
+emu             0 -&#62; real SCSI adapter, 1 -&#62; emulated SCSI adapter
+                (e.g. ide-scsi device driver)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>The 'def_reserved_size' is both readable and writable. It is only writable
+by root. It is initialized to the value of DEF_RESERVED_SIZE in the "sg.h"
+file. Values between 0 and 1048576 (which is 2 ** 20) are accepted and can
+be set from the command line with the following syntax:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ echo "262144" &#62; /proc/scsi/sg/def_reserved_size</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Note that the actual reserved buffer associated with a file descriptor could
+be less than 'def_reserved_size' if appropriate memory is not available. If
+the sg driver is compiled into the kernel (but not when it is a module)
+this value can also be read at /proc/sys/kernel/sg-big-buff . This latter
+feature is deprecated.</P
+><P
+>The 'allow_dio' is both readable and writable. It is only writable by
+root. When it is 0 (default) any request to do direct IO (i.e. by
+setting SG_FLAG_DIRECT_IO) will be ignored and indirect IO will be done
+instead.</P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN730"
+HREF="proc.html#AEN730"
+>[1]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>One strange quirk is that the <TT
+CLASS="FILENAME"
+>/proc/scsi/sg</TT
+> directory
+will not appear if there are no SCSI devices (or pseudo devices such as
+USB mass storage) attached to the system. The reason for this is that
+in the absence of SCSI devices, the SCSI mid level does not initialize
+the sg driver (even if it has been loaded as a module).
+When the sg driver is a module and the <B
+CLASS="COMMAND"
+>rmmod sg</B
+> is
+successfully executed then the <TT
+CLASS="FILENAME"
+>/proc/scsi/sg</TT
+> directory
+and its contents are removed.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="init.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="sg_debug.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Driver and module initialization</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>/proc/scsi/sg/debug</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

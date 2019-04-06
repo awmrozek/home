@@ -1,0 +1,333 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>( MASQ and Dynamic IPs ) - Does IP Masquerade work with dynamically 
+assigned IP addresses? </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Frequently Asked Questions"
+HREF="faq.html"><LINK
+REL="PREVIOUS"
+TITLE="( GUI ) - Are there any GUI firewall creation/management tools? "
+HREF="gui-tools.html"><LINK
+REL="NEXT"
+TITLE="( MASQ and various networks ) - Can I use a cable modem (both 
+bi-directional and with modem returns), DSL, satellite link, etc. to connect 
+to the Internet and use IP Masquerade?"
+HREF="diff-network-support.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="gui-tools.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. Frequently Asked Questions</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="diff-network-support.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="MASQ-AND-DYN-ADDR"
+></A
+>7.8. ( MASQ and Dynamic IPs ) - Does IP Masquerade work with dynamically 
+assigned IP addresses?</H1
+><P
+><STRONG
+>Yes</STRONG
+>, it works with either dynamic IP 
+addressed assigned by your ISP via either PPP or a DHCP server (common for
+Cablemodem and DSL users).  As long as you have a valid Internet IP address, 
+it should work.  Of course, static IPs work too.  If you plan on implementing 
+a strong IPTABLES, IPCHAINS, or IPFWADM ruleset and/or plan on using a Port 
+forwarder, your ruleset will have to be re-executed everytime your IP address 
+changes.</P
+><P
+>So, re-running the rc-firewall-* ruleset really depends on which method you 
+get your IP addresses:</P
+><P
+> <P
+></P
+><UL
+><LI
+><P
+>PPP:  The /etc/ppp/ip-up script is always run when a PPP connection comes 
+up.  Because of this, we can make the rc.firewall-* go get the new PPP IP 
+address and update the firewall ruleset.  If the /etc/ppp/ip-up file doesn't 
+exist or if does exists, simply edit that file and append a line containing 
+the name of your chosen firewall ruleset.  For example, to run the SIMPLE 
+IPTABLES ruleset:
+   </P
+><P
+>   <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>/etc/rc.d/rc.firewall-iptables
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+></LI
+><LI
+><P
+>DHCP:  If you get your IP address via DHCP, common for Cablemodem and DSL 
+users, it's easy get the rc.firewall-* ruleset to run when you get a new 
+IP lease.   How this happens depends on what DHCP client your distribution 
+uses:
+  <P
+></P
+><UL
+><LI
+><P
+><STRONG
+>dhclient</STRONG
+> : Most modern Linux distributions 
+use dhclient from ISC.  To re-run your specific rc-firewall-* script when your 
+system gets a new IP address, add the following line to the 
+/etc/dhclient-exit-hooks file.  Please note that this example is loging the 
+SIMPLE IPTABLES ruleset.  Please use the correct rc.firewall-* name for your 
+specific setup:
+    <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>/etc/rc.d/rc.firewall-iptables
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></LI
+><LI
+><P
+><STRONG
+>pump</STRONG
+> : Many older Redhat distributions use 
+this DHCP client.  To re-run the rc-firewall-* script when your system gets a 
+new IP address, add the following line to the /etc/pump.conf file.  Please 
+note that this example is loading the SIMPLE IPTABLES ruleset.  Please use the 
+correct rc.firewall-* name for your specific setup:
+    <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>script /etc/rc.d/rc.firewall-iptables
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></LI
+><LI
+><P
+><STRONG
+>dhcpcd</STRONG
+> : Many older distros use this DHCP 
+client.  To re-run the rc-firewall-* script when your system gets a new IP 
+address depends on which verion of dhcpcd you're using.  
+    </P
+><P
+>For newer dhcpcd client versions, append the following line to the 
+/etc/dhcpcd-[interface].exe file.  Please note that you have to replace the 
+[interface] text with the name of your Interface connecting to the Internet.
+For this example, we are going run the SIMPLE IPTABLES ruleset against the
+eth0 interface by editing the /etc/dhcpc/dhcpcd-eth0.exe file:
+     <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>/etc/rc.d/rc.firewall-iptables
+     </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>For old dhcpcd client versions, you need to figure out what script starts up
+dhcpcd (depends on the Linux distribution and it's version).  From there, you 
+need to replace the specific dhcpcd line with the folling line with the 
+correct Internet-facing interface name.  For this example, dhcpcd will run
+the SIMPLE IPTABLES ruleset against the eth0 interface: 
+    <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>dhcpcd -c /etc/rc.d/rc.firewall eth0
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></LI
+></UL
+>
+  </P
+></LI
+></UL
+></P
+><P
+>Please also see the top of 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#TrinityOS"
+TARGET="_top"
+>TrinityOS - Section 10</A
+> 
+for additional help with strong firewall rulesets and Dynamic IP addresses.  </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="gui-tools.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="diff-network-support.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>( GUI ) - Are there any GUI firewall creation/management tools?</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="faq.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>( MASQ and various networks ) - Can I use a cable modem (both 
+bi-directional and with modem returns), DSL, satellite link, etc. to connect 
+to the Internet and use IP Masquerade?</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,2167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Configuring IP Forwarding Policies</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Setting Up IP Masquerade"
+HREF="c472.html"><LINK
+REL="PREVIOUS"
+TITLE="Assigning Private Network IP Addresses to the Internal LAN"
+HREF="addressing-the-lan.html"><LINK
+REL="NEXT"
+TITLE="Configuring the other internal to-be MASQed machines "
+HREF="configuring-clients.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="addressing-the-lan.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. Setting Up IP Masquerade</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="configuring-clients.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="FIREWALL-EXAMPLES"
+></A
+>3.4. Configuring IP Forwarding Policies</H1
+><P
+>At this point, you should have your kernel and other required packages 
+installed.  All network IP addresses, gateway, and DNS addresses should be 
+configured on your Linux MASQ server.  If you don't know how to configure your 
+Linux network cards, please consult the HOWTOs listed in either the 2.4.x 
+<A
+HREF="kernel-2.4.x-requirements.html"
+>Section 2.6</A
+>, the 2.2.x 
+<A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+>, or the 2.0.x 
+<A
+HREF="kernel-2.0.x-requirements.html"
+>Section 2.8</A
+>.</P
+><P
+>Now, the only thing left to do is to configure the IP firewalling tools to 
+both FORWARD and MASQUERADE the appropriate packets to the correct machine.</P
+><P
+><STRONG
+>** This section ONLY provides the user with the 
+bare minimum firewall ruleset to get IP Masquerading working.  </STRONG
+></P
+><P
+>Once IP MASQ has been successfully tested (as described later in this HOWTO), 
+please refer to the Stronger IPTABLES ruleset for 2.4.x kernels in 
+<A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPTABLES-STRONGER"
+>Section 6.4.1</A
+>, the Stronger IPCHAINS ruleset
+for 2.2.x kernels in <A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPCHAINS-STRONGER"
+>Section 6.4.2</A
+>, and
+the Stronger IPFWADM ruleset for 2.0.x kernels in 
+<A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPFWADM-STRONGER"
+>Section 6.4.3</A
+>.  Please note that these
+stronger firewall rulesets are more of a template than anything else.
+For truly secure firewall rulesets, check out the the requirements section
+of the HOWTO ( 2.4.x - <A
+HREF="kernel-2.4.x-requirements.html"
+>Section 2.6</A
+>, 2.2.x - 
+<A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+>, 2.0.x - 
+<A
+HREF="kernel-2.0.x-requirements.html"
+>Section 2.8</A
+> ).</P
+><P
+>Instead of manually typing one of these files by hand, I recommend to simply 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/ipmasq/examples/"
+TARGET="_top"
+>browse
+the Example directory</A
+> or 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/ipmasq/examples/rc.firewall-examples.tar.gz"
+TARGET="_top"
+>download an archive of all of these rc.firewall-* files</A
+>.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RC.FIREWALL-IPTABLES"
+></A
+>3.4.1. Configuring IP Masquerade on Linux 2.6.x and 2.4.x Kernels</H2
+><P
+>Please note that IPCHAINS is <STRONG
+>no longer the primary 
+firewall configuration tool </STRONG
+> for the 2.6.x and 2.4.x kernels.  The 
+new kernels now use the IPTABLES toolkit though the new 2.4.x kernels CAN 
+still run most old IPCHAINS or IPFWADM rulesets via a compatiblity 
+module.  It should also be noted that when running in this compatibility mode, 
+NO IPTABLES modules can be loaded.  The reason for this is that none of the 
+2.2.x IPMASQ modules are compatible with 2.4.x kernels.  For a more detailes 
+for these changes, please see the <A
+HREF="ipchains-on-2.4.x.html"
+>Section 7.40</A
+> section.</P
+><P
+>Ok, as mentioned before, the <TT
+CLASS="LITERAL"
+>/etc/rc.d/rc.local-*</TT
+> script
+can be loaded once after every reboot.  The mechanism to load the script varies
+between different Linux distros (please see below for some exampels).  The 
+rc.firewall-iptables script will load all required IPMASQ modules as well as 
+enable the final IPMASQ functionality.  For advanced setups, this same file 
+would contain very secure firewall rulesets as well.</P
+><P
+>Anyway, create the file /etc/rc.d/rc.firewall-iptables with the following 
+initial SIMPLE ruleset:</P
+><P
+>&#60;rc.firewall-iptables START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# rc.firewall-iptables
+FWVER=0.76
+#
+#               Initial SIMPLE IP Masquerade test for 2.6 / 2.4 kernels
+#               using IPTABLES.  
+#
+#               Once IP Masquerading has been tested, with this simple 
+#               ruleset, it is highly recommended to use a stronger 
+#               IPTABLES ruleset either given later in this HOWTO or 
+#               from another reputable resource.
+#
+#
+#
+# Log:
+#       0.76 - Added comments on why the default policy is ACCEPT
+#       0.75 - Added more kernel modules to the comments section
+#       0.74 - the ruleset now uses modprobe vs. insmod
+#       0.73 - REJECT is not a legal policy yet; back to DROP
+#       0.72 - Changed the default block behavior to REJECT not DROP
+#       0.71 - Added clarification that PPPoE users need to use
+#              "ppp0" instead of "eth0" for their external interface
+#       0.70 - Added commented option for IRC nat module
+#            - Added additional use of environment variables 
+#            - Added additional formatting
+#       0.63 - Added support for the IRC IPTABLES module
+#       0.62 - Fixed a typo on the MASQ enable line that used eth0
+#              instead of $EXTIF
+#       0.61 - Changed the firewall to use variables for the internal
+#              and external interfaces.
+#       0.60 - 0.50 had a mistake where the ruleset had a rule to DROP
+#              all forwarded packets but it didn't have a rule to ACCEPT
+#              any packets to be forwarded either
+#            - Load the ip_nat_ftp and ip_conntrack_ftp modules by default
+#       0.50 - Initial draft
+#
+
+echo -e "\n\nLoading simple rc.firewall-iptables version $FWVER..\n"
+
+
+# The location of the iptables and kernel module programs
+#
+#   If your Linux distribution came with a copy of iptables, 
+#   most likely all the programs will be located in /sbin.  If 
+#   you manually compiled iptables, the default location will
+#   be in /usr/local/sbin
+#
+# ** Please use the "whereis iptables" command to figure out 
+# ** where your copy is and change the path below to reflect 
+# ** your setup
+#
+#IPTABLES=/sbin/iptables
+IPTABLES=/usr/local/sbin/iptables
+DEPMOD=/sbin/depmod
+MODPROBE=/sbin/modprobe
+
+
+#Setting the EXTERNAL and INTERNAL interfaces for the network
+#
+#  Each IP Masquerade network needs to have at least one
+#  external and one internal network.  The external network
+#  is where the natting will occur and the internal network
+#  should preferably be addressed with a RFC1918 private address
+#  scheme.
+#
+#  For this example, "eth0" is external and "eth1" is internal"
+#
+#
+#  NOTE:  If this doesnt EXACTLY fit your configuration, you must 
+#         change the EXTIF or INTIF variables above. For example: 
+#
+#            If you are a PPPoE or analog modem user:
+#
+#               EXTIF="ppp0" 
+#
+#
+EXTIF="eth0"
+INTIF="eth1"
+echo "   External Interface:  $EXTIF"
+echo "   Internal Interface:  $INTIF"
+
+
+#======================================================================
+#== No editing beyond this line is required for initial MASQ testing ==
+
+
+echo -en "   loading modules: "
+
+# Need to verify that all modules have all required dependencies
+#
+echo "  - Verifying that all kernel modules are ok"
+$DEPMOD -a
+
+# With the new IPTABLES code, the core MASQ functionality is now either
+# modular or compiled into the kernel.  This HOWTO shows ALL IPTABLES
+# options as MODULES.  If your kernel is compiled correctly, there is
+# NO need to load the kernel modules manually.  
+#
+#  NOTE: The following items are listed ONLY for informational reasons.
+#        There is no reason to manual load these modules unless your
+#        kernel is either mis-configured or you intentionally disabled
+#        the kernel module autoloader.
+#
+
+# Upon the commands of starting up IP Masq on the server, the
+# following kernel modules will be automatically loaded:
+#
+# NOTE:  Only load the IP MASQ modules you need.  All current IP MASQ 
+#        modules are shown below but are commented out from loading.
+# ===============================================================
+
+echo "----------------------------------------------------------------------"
+
+#Load the main body of the IPTABLES module - "iptable"
+#  - Loaded automatically when the "iptables" command is invoked
+#
+#  - Loaded manually to clean up kernel auto-loading timing issues
+#
+echo -en "ip_tables, "
+$MODPROBE ip_tables
+
+
+#Load the IPTABLES filtering module - "iptable_filter" 
+#  - Loaded automatically when filter policies are activated
+
+
+#Load the stateful connection tracking framework - "ip_conntrack"
+#
+# The conntrack  module in itself does nothing without other specific 
+# conntrack modules being loaded afterwards such as the "ip_conntrack_ftp"
+# module
+#
+#  - This module is loaded automatically when MASQ functionality is 
+#    enabled 
+#
+#  - Loaded manually to clean up kernel auto-loading timing issues
+#
+echo -en "ip_conntrack, "
+$MODPROBE ip_conntrack
+
+
+#Load the FTP tracking mechanism for full FTP tracking
+#
+# Enabled by default -- insert a "#" on the next line to deactivate
+#
+echo -en "ip_conntrack_ftp, "
+$MODPROBE ip_conntrack_ftp
+
+
+#Load the IRC tracking mechanism for full IRC tracking
+#
+# Enabled by default -- insert a "#" on the next line to deactivate
+#
+echo -en "ip_conntrack_irc, "
+$MODPROBE ip_conntrack_irc
+
+
+#Load the general IPTABLES NAT code - "iptable_nat"
+#  - Loaded automatically when MASQ functionality is turned on
+# 
+#  - Loaded manually to clean up kernel auto-loading timing issues
+#
+echo -en "iptable_nat, "
+$MODPROBE iptable_nat
+
+
+#Loads the FTP NAT functionality into the core IPTABLES code
+# Required to support non-PASV FTP.
+#
+# Enabled by default -- insert a "#" on the next line to deactivate
+#
+echo -en "ip_nat_ftp, "
+$MODPROBE ip_nat_ftp
+
+
+#Loads the IRC NAT functionality into the core IPTABLES code
+# Required to support NAT of IRC DCC requests
+#
+# Disabled by default -- remove the "#" on the next line to activate
+#
+#echo -e "ip_nat_irc"
+#$MODPROBE ip_nat_irc
+
+echo "----------------------------------------------------------------------"
+
+# Just to be complete, here is a partial list of some of the other  
+# IPTABLES kernel modules and their function.  Please note that most 
+# of these modules (the ipt ones) are automatically loaded by the 
+# master kernel module for proper operation and don't need to be 
+# manually loaded.
+# --------------------------------------------------------------------
+#
+#    ip_nat_snmp_basic - this module allows for proper NATing of some 
+#                        SNMP traffic
+#
+#    iptable_mangle    - this target allows for packets to be 
+#                        manipulated for things like the TCPMSS 
+#                        option, etc.
+#
+# --
+#
+#    ipt_mark       - this target marks a given packet for future action.
+#                     This automatically loads the ipt_MARK module
+#
+#    ipt_tcpmss     - this target allows to manipulate the TCP MSS
+#                     option for braindead remote firewalls.
+#                     This automatically loads the ipt_TCPMSS module
+#
+#    ipt_limit      - this target allows for packets to be limited to
+#                     to many hits per sec/min/hr
+#
+#    ipt_multiport  - this match allows for targets within a range
+#                     of port numbers vs. listing each port individually
+#
+#    ipt_state      - this match allows to catch packets with various
+#                     IP and TCP flags set/unset
+#
+#    ipt_unclean    - this match allows to catch packets that have invalid
+#                     IP/TCP flags set
+#
+#    iptable_filter - this module allows for packets to be DROPped, 
+#                     REJECTed, or LOGged.  This module automatically 
+#                     loads the following modules:
+#
+#                     ipt_LOG - this target allows for packets to be 
+#                               logged
+#
+#                     ipt_REJECT - this target DROPs the packet and returns 
+#                                  a configurable ICMP packet back to the 
+#                                  sender.
+# 
+
+echo -e "   Done loading modules.\n"
+
+
+
+#CRITICAL:  Enable IP forwarding since it is disabled by default since
+#
+#           Redhat Users:  you may try changing the options in
+#                          /etc/sysconfig/network from:
+#
+#                       FORWARD_IPV4=false
+#                             to
+#                       FORWARD_IPV4=true
+#
+echo "   Enabling forwarding.."
+echo "1" &#62; /proc/sys/net/ipv4/ip_forward
+
+
+# Dynamic IP users:
+#
+#   If you get your IP address dynamically from SLIP, PPP, or DHCP, 
+#   enable this following option.  This enables dynamic-address hacking
+#   which makes the life with Diald and similar programs much easier.
+#
+echo "   Enabling DynamicAddr.."
+echo "1" &#62; /proc/sys/net/ipv4/ip_dynaddr
+
+
+# Enable simple IP forwarding and Masquerading
+#
+#  NOTE:  In IPTABLES speak, IP Masquerading is a form of SourceNAT or SNAT.
+#
+#  NOTE #2:  The following is an example for an internal LAN address in the
+#            192.168.0.x network with a 255.255.255.0 or a "24" bit subnet mask
+#            connecting to the Internet on external interface "eth0".  This
+#            example will MASQ internal traffic out to the Internet but not
+#            allow non-initiated traffic into your internal network.
+#
+#            
+#         ** Please change the above network numbers, subnet mask, and your 
+#         *** Internet connection interface name to match your setup
+#         
+
+
+#Clearing any previous configuration
+#
+#  Unless specified, the defaults for INPUT and OUTPUT is ACCEPT
+#    The default for FORWARD is DROP (REJECT is not a valid policy)
+#
+#   Isn't ACCEPT insecure?  To some degree, YES, but this is our testing
+#   phase.  Once we know that IPMASQ is working well, I recommend you run
+#   the rc.firewall-*-stronger rulesets which set the defaults to DROP but
+#   also include the critical additional rulesets to still let you connect to
+#   the IPMASQ server, etc.
+#
+echo "   Clearing any existing rules and setting default policy.."
+$IPTABLES -P INPUT ACCEPT
+$IPTABLES -F INPUT 
+$IPTABLES -P OUTPUT ACCEPT
+$IPTABLES -F OUTPUT 
+$IPTABLES -P FORWARD DROP
+$IPTABLES -F FORWARD 
+$IPTABLES -t nat -F
+
+echo "   FWD: Allow all connections OUT and only existing and related ones IN"
+$IPTABLES -A FORWARD -i $EXTIF -o $INTIF -m state --state ESTABLISHED,RELATED -j ACCEPT
+$IPTABLES -A FORWARD -i $INTIF -o $EXTIF -j ACCEPT
+$IPTABLES -A FORWARD -j LOG
+
+echo "   Enabling SNAT (MASQUERADE) functionality on $EXTIF"
+$IPTABLES -t nat -A POSTROUTING -o $EXTIF -j MASQUERADE
+
+echo -e "\nrc.firewall-iptables v$FWVER done.\n"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;rc.firewall-iptables STOP&#62;&#13;</P
+><P
+>Once you are finished with editing this /etc/rc.d/rc.firewall-iptables ruleset, 
+make it executable by typing in 
+<TT
+CLASS="LITERAL"
+>chmod 700 /etc/rc.d/rc.firewall-iptables</TT
+></P
+><P
+>Now that the firewall ruleset is ready, you need to let it run after every 
+reboot.  You could either do this by running it by hand everytime (such a 
+pain) or add it to the boot scripts.  We have covered two methods below:
+Redhat (SyS-V style) and Slackware (BSD style)</P
+><P
+>1. Redhat and Redhat-derived distros:</P
+><P
+></P
+><UL
+><LI
+><P
+>There are two ways to automatically load things in Redhat:  /etc/rc.d/rc.local 
+or a init script in /etc/rc.d/init.d/.  The first method is the easiest but
+isn't doing things the SYS-V way.  All you have to do is add the line:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>echo "Loading the rc.firewall-iptables ruleset.. "
+/etc/rc.d/rc.firewall-iptables</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>to the end of the /etc/rc.d/rc.local file and thats it (as described earlier
+in the HOWTO).  </P
+><P
+>The problem with this approach is that the firewall isn't executed until 
+the last stages of booting.  </P
+></LI
+><LI
+><P
+>The preferred approach is to have the firewall 
+loaded just after the networking subsystem is loaded.  To do this, 
+copy the following file into the /etc/rc.d/init.d directory:</P
+><P
+>&#60;firewall-iptables START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# chkconfig: 2345 11 89
+#
+# description: Loads the rc.firewall-iptables ruleset.
+#
+# processname: firewall-iptables
+# pidfile: /var/run/firewall.pid
+# config: /etc/rc.d/rc.firewall-iptables
+# probe: true
+
+# ----------------------------------------------------------------------------
+# v05/24/03
+#
+# Part of the copyrighted and trademarked TrinityOS document.
+# http://www.ecst.csuchico.edu/~dranch
+#
+# Written and Maintained by David A. Ranch
+# dranch@trinnet.net
+#
+# Updates
+# -------
+# 05/24/03 - removed a old networking up check that had some
+#            improper SGML ampersand conversions.
+# ----------------------------------------------------------------------------
+
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Check that networking is up.
+
+[ "XXXX${NETWORKING}" = "XXXXno" ] &#38;&#38; exit 0
+
+[ -x /sbin/ifconfig ] || exit 0
+
+# The location of various iptables and other shell programs
+#
+#   If your Linux distribution came with a copy of iptables, most
+#   likely it is located in /sbin.  If you manually compiled
+#   iptables, the default location is in /usr/local/sbin
+#
+# ** Please use the "whereis iptables" command to figure out
+# ** where your copy is and change the path below to reflect
+# ** your setup
+#
+IPTABLES=/usr/local/sbin/iptables
+
+
+# See how we were called.
+case "$1" in
+  start)
+    /etc/rc.d/rc.firewall-iptables
+    ;;
+
+  stop)
+    echo -e "\nFlushing firewall and setting default policies to DROP\n"
+    $IPTABLES -P INPUT DROP
+    $IPTABLES -F INPUT
+    $IPTABLES -P OUTPUT DROP
+    $IPTABLES -F OUTPUT
+    $IPTABLES -P FORWARD DROP
+    $IPTABLES -F FORWARD
+    $IPTABLES -F -t nat
+
+    # Delete all User-specified chains
+    $IPTABLES -X
+    #
+    # Reset all IPTABLES counters
+    $IPTABLES -Z
+    ;;
+
+  restart)
+        $0 stop
+        $0 start
+        ;;
+
+  status)
+        $IPTABLES -L
+        ;;
+
+  mlist)
+    cat /proc/net/ip_conntrack
+    ;;
+
+  *)
+        echo "Usage: firewall-iptables {start|stop|status|mlist}"
+        exit 1
+esac
+
+exit 0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;firewall-iptables STOP&#62;</P
+><P
+>With this script in place, all you need to do now is make it executable and
+then make it load upon reboot.  First, make it executable by running:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat-style
+#
+chmod 700 /etc/rc.d/init.d/firewall-iptables</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Now, enable the ruleset load upon reboot:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat style
+#
+/sbin/chkconfig --level=345 firewall-iptables on</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+That's it!  Now upon reboot, the firewall will be loaded automatically.  Just 
+to make sure, run the following command to see that the firewall should start 
+upon reboot by running the command:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat style
+#
+chkconfig --list firewall-iptables
+
+#The output should look like:
+#
+firewall-iptables 0:off 1:off 2:off 3:on 4:on 5:on 6:off</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></LI
+></UL
+><P
+>2. Slackware:</P
+><P
+><P
+></P
+><UL
+><LI
+><P
+>There are two ways to load things in Slackware: /etc/rc.d/rc.local or editing 
+the /etc/rc.d/rc.inet2 file.  The first method is the easiest but isn't the
+most secure (see below).  All you have to do is append the following lines to 
+the /etc/rc.d/rc.local file:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>echo "Loading the rc.firewall-iptables ruleset.."
+ 
+/etc/rc.d/rc.firewall-iptables</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>The problem with this approach is that if you are running a STRONG firewall 
+ruleset, the firewall isn't executed until the last stages of booting.  The 
+preferred approach is to have the firewall loaded just after the networking 
+subsystem is loaded.  For now, the HOWTO only covers how to do so using 
+/etc/rc.d/rc.local but if you know what you're doing (it's easy), go ahead 
+and and modify the inet2 startup script to load the 
+/etc/rc.d/rc.firewall-iptables file just after the network is up.  If you 
+want a more detailed guide and/or a stronger firewall ruleset, I recommend 
+you check out Section 10 of TrinityOS found in the links section at 
+the bottom of this HOWTO.</P
+></LI
+></UL
+></P
+><P
+><STRONG
+>Notes on how users might want to change the above 
+firewall ruleset:</STRONG
+></P
+><P
+>You could also have IP Masquerading enabled on a PER MACHINE basis instead of 
+the above method, which is enabling an ENTIRE TCP/IP network. For example, say 
+if I wanted only the 192.168.0.2 and 192.168.0.8 hosts to have access to the 
+Internet and NOT any of the other internal machines. I would change the in the 
+"Enable simple IP forwarding and Masquerading" section (shown above) of the 
+/etc/rc.d/rc.firewall-iptables ruleset. </P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# Partial IPTABLES config to enable simple IP forwarding and Masquerading
+# v0.61
+#
+#  NOTE:  The following is an example to allow only IP Masquerading for the 
+#         192.168.0.2 and 192.168.0.8 machines with a 255.255.255.0 or a 
+#         "/24" subnet mask connecting to the Internet on interface eth0.
+#
+#         ** Please change the network number, subnet mask, and the Internet
+#         ** connection interface name to match your internal LAN setup
+#
+echo "  - Setting the default FORWARD policy to DROP"
+$IPTABLES -P FORWARD DROP
+
+echo "  - Enabling SNAT (IPMASQ) functionality on $EXTIF"
+$IPTABLES -t nat -A POSTROUTING -o $EXTIF -s 192.168.0.2/32 -j MASQUERADE
+$IPTABLES -t nat -A POSTROUTING -o $EXTIF -s 192.168.0.8/32 -j MASQUERADE
+
+echo "  - Setting the FORWARD policy to 'DROP' all incoming / unrelated traffic"
+$IPTABLES -A INPUT -i $EXTIF -m state --state NEW,INVALID -j DROP
+$IPTABLES -A FORWARD -i $EXTIF -m state --state NEW,INVALID -j DROP</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+><STRONG
+>Common mistakes:</STRONG
+></P
+><P
+>It appears that a common mistake with new IP Masq users is to make the first 
+command simply the following: </P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>IPTABLES:
+---------
+iptables -t nat -A POSTROUTING -j MASQUERADE</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Do <STRONG
+>NOT</STRONG
+> make your default policy 
+MASQUERADING.  Otherwise, someone can manipulate their routing tables to 
+tunnel straight back through your gateway, using it to masquerade their OWN 
+identity!</P
+><P
+>Again, you can add these lines to the <TT
+CLASS="LITERAL"
+>/etc/rc.d/rc.firewall-iptables</TT
+> 
+file, one of the other rc files you prefer, or do it manually every time you 
+need IP Masquerade.</P
+><P
+>Please see <A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPTABLES-STRONGER"
+>Section 6.4.1</A
+> for a detailed guide 
+on a strong IPTABLES ruleset example.  For additional details on IPTABLES usage, 
+please refer to <A
+HREF="http://www.netfilter.org/"
+TARGET="_top"
+>http://www.netfilter.org/</A
+> for the primary IPTABLES site.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RC.FIREWALL-IPCHAINS"
+></A
+>3.4.2. Configuring IP Masquerade on Linux 2.2.x Kernels</H2
+><P
+>Please note that <STRONG
+>IPFWADM is no longer the firewall 
+tool </STRONG
+> for manipulating IP Masquerading rules for both the 2.1.x and 
+2.2.x kernels.  These new kernels now use the IPCHAINS toolkit.  For a more 
+detailed reason for this change, please see <A
+HREF="faq.html"
+>Chapter 7</A
+>.</P
+><P
+>Create the file /etc/rc.d/rc.firewall-ipchains with the following initial SIMPLE 
+ruleset:</P
+><P
+>&#60;rc.firewall-ipchains START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# rc.firewall-ipchains
+#
+#     - Initial SIMPLE IP Masquerade test for 2.1.x and 2.2.x kernels 
+#       using IPCHAINS.
+#
+#       Once IP Masquerading has been tested, with this simple 
+#       ruleset, it is highly recommended to use a stronger 
+#       IPTABLES ruleset either given later in this HOWTO or 
+#       from another reputable resource.
+
+FWVER="1.23"
+#
+# 1.23 - Added comments on why the default policy is ACCEPT
+# 1.22 - ruleset now uses modprobe instead of insmod
+# 1.21 - Added clarification that PPPoE users need to use
+#        "ppp0" instead of "eth0" for their external interface
+# 1.20 - Updated the script to use environment vars
+# 1.01 - Original version
+
+
+echo -e "\n\nLoading simple rc.firewall-ipchains : version $FWVER..\n"
+
+
+# The location of the ipchains and kernel module programs
+#
+#   If your Linux distribution came with a copy of ipchains, 
+#   most likely all the programs will be located in /sbin.  If 
+#   you manually compiled ipchains, the default location will
+#   be in /usr/local/sbin
+#
+# ** Please use the "whereis ipchains" command to figure out 
+# ** where your copy is and change the path below to reflect 
+# ** your setup
+#
+IPCHAINS=/sbin/ipchains
+#IPTABLES=/usr/local/sbin/ipchains
+DEPMOD=/sbin/depmod
+MODPROBE=/sbin/modprobe
+
+
+#Setting the EXTERNAL and INTERNAL interfaces for the network
+#
+#  Each IP Masquerade network needs to have at least one
+#  external and one internal network.  The external network
+#  is where the NATing will occur and the internal network
+#  should preferably be addressed with a RFC1918 private addressing
+#  scheme.
+#
+#  For this example, "eth0" is external and "eth1" is internal"
+#
+#  NOTE:  If this doesnt EXACTLY fit your configuration, you must
+#         change the EXTIF or INTIF variables above. For example:
+#
+#            If you are a PPPoE or analog modem user:
+#
+#               EXTIF="ppp0" 
+#
+#  ** Please change this to reflect your specific configuration **
+#
+EXTIF="eth0"
+INTIF="eth1"
+echo "   External Interface:  $EXTIF"
+echo "   Internal Interface:  $INTIF"
+
+
+# Network Address of the Internal Network
+#
+#   This example rc.firewall-ipchains file uses the 192.168.0.0 network
+#   with a /24 or 255.255.255.0 netmask.
+#
+#    ** Change this variable to reflect your specific setup **
+#
+INTLAN="192.168.0.0/24"
+echo -e "   Internal Interface:  $INTLAN\n"
+
+
+
+# Load all required IP MASQ modules
+#
+#   NOTE:  Only load the IP MASQ modules you need.  All current IP MASQ modules
+#          are shown below but are commented out from loading.
+echo "   loading required IPMASQ kernel modules.."
+
+# Needed to initially load modules
+#
+$DEPMOD -a
+
+echo -en "   Loading modules: "
+
+# Supports the proper masquerading of FTP file transfers using the PORT method
+#
+echo -en "FTP, "
+$MODPROBE ip_masq_ftp
+
+# Supports the masquerading of RealAudio over UDP.  Without this module,
+#       RealAudio WILL function but in TCP mode.  This can cause a reduction
+#       in sound quality
+#
+#echo -en "RealAudio, "
+$MODPROBE ip_masq_raudio
+
+# Supports the masquerading of IRC DCC file transfers
+#
+#echo -en "Irc, "
+#$MODPROBE ip_masq_irc
+
+
+# Supports the masquerading of Quake and QuakeWorld by default.  This modules is
+#   for for multiple users behind the Linux MASQ server.  If you are going to 
+#   play Quake I, II, and III, use the second example.
+#
+#   NOTE:  If you get ERRORs loading the QUAKE module, you are running an old
+#   -----  kernel that has bugs in it.  Please upgrade to the newest kernel.
+#
+#echo -en "Quake, "
+#Quake I / QuakeWorld (ports 26000 and 27000)
+#$MODPROBE ip_masq_quake
+#
+#Quake I/II/III / QuakeWorld (ports 26000, 27000, 27910, 27960)
+#$MODPROBE ip_masq_quake 26000,27000,27910,27960
+
+
+# Supports the masquerading of the CuSeeme video conferencing software
+#
+#echo -en "CuSeeme, "
+#$MODPROBE ip_masq_cuseeme
+
+#Supports the masquerading of the VDO-live video conferencing software
+#
+#echo -en "VdoLive "
+#$MODPROBE ip_masq_vdolive
+
+echo ".  Done loading modules."
+
+
+#CRITICAL:  Enable IP forwarding since it is disabled by default since
+#
+#           Redhat Users:  you may try changing the options in 
+#                          /etc/sysconfig/network from:
+#
+#                       FORWARD_IPV4=false
+#                             to
+#                       FORWARD_IPV4=true
+#
+echo "   enabling forwarding.."
+echo "1" &#62; /proc/sys/net/ipv4/ip_forward
+
+
+#CRITICAL:  Enable automatic IP defragmenting since it is disabled by default 
+#           in 2.2.x kernels.  This used to be a compile-time option but the 
+#           behavior was changed in 2.2.12
+#
+echo "   enabling AlwaysDefrag.."
+echo "1" &#62; /proc/sys/net/ipv4/ip_always_defrag
+
+
+# Dynamic IP users:
+#
+#   If you get your IP address dynamically from SLIP, PPP, or DHCP, enable this 
+#   following option.  This enables dynamic-ip address hacking in IP MASQ, 
+#   making the life with Diald and similar programs much easier.
+#
+#echo "   enabling DynamicAddr.."
+#echo "1" &#62; /proc/sys/net/ipv4/ip_dynaddr
+
+
+# Enable the LooseUDP patch which some Internet-based games require
+#
+#  If you are trying to get an Internet game to work through your IP MASQ box,
+#  and you have set it up to the best of your ability without it working, try
+#  enabling this option (delete the "#" character).  This option is disabled
+#  by default due to possible internal machine UDP port scanning 
+#  vulnerabilities.
+#
+#echo "   enabling LooseUDP.."
+#echo "1" &#62; /proc/sys/net/ipv4/ip_masq_udp_dloose
+
+
+#Clearing any previous configuration
+#
+#  Unless specified, the defaults for INPUT and OUTPUT is ACCEPT
+#    The default for FORWARD is REJECT
+#
+#   Isn't ACCEPT insecure?  To some degree, YES, but this is our testing
+#   phase.  Once we know that IPMASQ is working well, I recommend you run
+#   the rc.firewall-*-stronger rulesets which set the defaults to DROP but
+#   also include the critical additional rulesets to still let you connect to
+#   the IPMASQ server, etc.
+#
+echo "   clearing any existing rules and setting default policy.."
+$IPCHAINS -P input ACCEPT
+$IPCHAINS -P output ACCEPT
+$IPCHAINS -P forward REJECT
+$IPCHAINS -F input
+$IPCHAINS -F output
+$IPCHAINS -F forward
+
+
+# MASQ timeouts
+#
+#   2 hrs timeout for TCP session timeouts
+#  10 sec timeout for traffic after the TCP/IP "FIN" packet is received
+#  160 sec timeout for UDP traffic (Important for MASQ'ed ICQ users) 
+#
+echo "   setting default timers.."
+$IPCHAINS -M -S 7200 10 160
+
+
+# DHCP:  For people who receive their external IP address from either DHCP or 
+#        BOOTP for connctions such as DSL or Cablemodem users, it is necessary 
+#        to use the following before the deny command.  
+#
+#        This example is currently commented out.
+#
+#
+#$IPCHAINS -A input -j ACCEPT -i $EXTIF -s 0/0 67 -d 0/0 68 -p udp
+
+# Enable simple IP forwarding and Masquerading
+#
+#  NOTE:  The following is an example for an internal LAN address in the 
+#         192.168.0.x network with a 255.255.255.0 or a "24" bit subnet mask
+#         connecting to the Internet on interface eth0.
+#
+#         ** Please change this network number, subnet mask, and your Internet
+#         ** connection interface name to match your internal LAN setup
+#
+echo "   enabling IPMASQ functionality on $EXTIF"
+$IPCHAINS -P forward DENY
+$IPCHAINS -A forward -i $EXTIF -s $INTLAN -j MASQ
+
+echo -e "\nrc.firewall-ipchains v$FWVER done.\n"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;rc.firewall-ipchains STOP&#62;&#13;</P
+><P
+>Once you are finished with editing the /etc/rc.d/rc.firewall-ipchains ruleset, 
+make it executable by typing in 
+<TT
+CLASS="LITERAL"
+>chmod 700 /etc/rc.d/rc.firewall-ipchains</TT
+></P
+><P
+>Now that the firewall ruleset is ready, you need to let it run after every 
+reboot.  You could either do this by running it by hand everytime (such a 
+pain) or add it to the boot scripts.  We have covered two methods below: 
+Redhat (SyS-V style) and Slackware (BSD style)</P
+><P
+>1. Redhat and Redhat-derived distros:</P
+><P
+></P
+><UL
+><LI
+><P
+>There are two ways to automatically load things in Redhat:  /etc/rc.d/rc.local 
+or a init script in /etc/rc.d/init.d/.  The first method is the easiest but 
+isn't doing things the Sys-V way.  All you have to do is add the line:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>echo "Loading the rc.firewall ruleset.."
+/etc/rc.d/rc.firewall-ipchains</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>to the end of the /etc/rc.d/rc.local file and thats it (as described earlier
+in the HOWTO).  </P
+><P
+>The problem with this approach is that the firewall isn't executed until 
+the last stages of booting.  The preferred approach is to have the firewall 
+loaded just after the networking subsystem is loaded.  To do this, 
+copy the following file into the /etc/rc.d/init.d directory:</P
+><P
+>&#60;firewall-ipchains START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# chkconfig: 2345 11 89
+#
+# description: Loads the rc.firewall-ipchains ruleset.
+#
+# processname: firewall-ipchains
+# pidfile: /var/run/firewall.pid
+# config: /etc/rc.d/rc.firewall-ipchains
+# probe: true
+
+# ----------------------------------------------------------------------------
+# v08/29/02
+#
+# Part of the copyrighted and trademarked TrinityOS document.
+# http://www.ecst.csuchico.edu/~dranch
+#
+# Written and Maintained by David A. Ranch
+# dranch@trinnet.net
+#
+# Updates
+# -------
+#
+# ----------------------------------------------------------------------------
+
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Check that networking is up.
+
+# This line no longer work with bash2
+#[ ${NETWORKING} = "no" ] &#38;&#38; exit 0
+# This should be OK. 
+[ "XXXX${NETWORKING}" = "XXXXno" ] &#38;&#38; exit 0
+
+[ -x /sbin/ifconfig ] || exit 0
+
+# The location of various iptables and other shell programs
+#
+#   If your Linux distribution came with a copy of iptables, most
+#   likely it is located in /sbin.  If you manually compiled
+#   iptables, the default location is in /usr/local/sbin
+#
+# ** Please use the "whereis iptables" command to figure out
+# ** where your copy is and change the path below to reflect
+# ** your setup
+#
+IPCHAINS=/sbin/ipchains
+
+
+# See how we were called.
+case "$1" in
+  start)
+    /etc/rc.d/rc.firewall-ipchains
+    ;;
+
+  stop)
+    echo -e "\nFlushing firewall and setting default policies to REJECT\n"
+
+    $IPCHAINS -P input REJECT
+    $IPCHAINS -P output REJECT
+    $IPCHAINS -P forward REJECT
+
+    $IPCHAINS -F input
+    $IPCHAINS -F output
+    $IPCHAINS -F forward
+    ;;
+
+  restart)
+    $0 stop
+    $0 start
+    ;;
+
+  status)
+    $IPCHAINS -L
+    ;;
+
+  mlist)
+    $IPCHAINS -M -L
+    ;;
+
+  *)
+    echo "Usage: firewall-ipchains {start|stop|status|mlist}"
+    exit 1
+esac
+
+exit 0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;firewall-ipchains STOP&#62;</P
+><P
+>With this script in place, all you need to do now is make it executable and
+then make it load upon reboot.  First, make it executable by running:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat-style
+#
+chmod 700 /etc/rc.d/init.d/firewall-ipchains</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Now, make the ruleset load upon reboot:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat style
+#
+chkconfig --level=345 firewall-ipchains on</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+That's it!  Now upon boot, the firewall will be loaded automatically.  Just 
+to make sure, run the command to see that the firewall should start upon
+reboot by running the command:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat style
+#
+chkconfig --list firewall-ipchains
+
+#The output should look like:
+#
+firewall-ipchains 0:off 1:off 2:off 3:on 4:on 5:on 6:off</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></LI
+></UL
+><P
+>2. Slackware:</P
+><P
+><P
+></P
+><UL
+><LI
+><P
+>There are two ways to load things in Slackware: /etc/rc.d/rc.local or editing 
+the /etc/rc.d/rc.inet2 file.  The first method is the easiest but isn't the 
+most secure (see below).  All you have to do is append the following lines to 
+the /etc/rc.d/rc.local file:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>echo "Loading the rc.firewall-ipchains ruleset.."
+/etc/rc.d/rc.firewall-ipchains</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>The problem with this approach is that if you are running a STRONG firewall 
+ruleset, the firewall isn't executed until the last stages of booting.  The 
+preferred approach is to have the firewall loaded just after the networking 
+subsystem is loaded.  For now, the HOWTO only covers how to do so using 
+/etc/rc.d/rc.local but if you know what you're doing (it's easy), go ahead 
+and and modify the inet2 startup script to load the 
+/etc/rc.d/rc.firewall-ipchains file just after the network is up.  If you 
+want a more detailed guide and/or a stronger firewall ruleset, I recommend 
+you check out Section 10 of TrinityOS found in the links section at 
+the bottom of this HOWTO.</P
+></LI
+></UL
+></P
+><P
+><STRONG
+>Notes on how users might want to change the above 
+firewall ruleset:</STRONG
+></P
+><P
+>You could also have IP Masquerading enabled on a PER MACHINE basis instead of 
+the above method, which is enabling an ENTIRE TCP/IP network. For example, say 
+if I wanted only the 192.168.0.2 and 192.168.0.8 hosts to have access to the 
+Internet and NOT any of the other internal machines. I would change the in 
+the "Enable simple IP forwarding and Masquerading" section (shown above) of 
+the /etc/rc.d/rc.firewall-ipchains ruleset. </P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13;#!/bin/sh
+#
+# Enable simple IP forwarding and Masquerading
+# v1.01
+#
+#  NOTE:  The following is an example used in addition to the simple 
+#         IPCHAINS ruleset anove to allow only IP Masquerading for the 
+#         192.168.0.2 and 192.168.0.8 machines with a 255.255.255.0 or a 
+#         "24" bit subnet mask connecting to the Internet on interface $EXTIF.
+#
+#         ** Please change the network number, subnet mask, and the Internet
+#         ** connection interface name to match your internal LAN setup
+#
+$IPCHAINS -P forward DENY
+$IPCHAINS -A forward -i $EXTIF -s 192.168.0.2/32 -j MASQ
+$IPCHAINS -A forward -i $EXTIF -s 192.168.0.8/32 -j MASQ</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+><STRONG
+>Common mistakes:</STRONG
+></P
+><P
+>What appears to be a common mistake with new IP MASQ users is to make the 
+first command: </P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>$IPCHAINS -P forward masquerade</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Do <STRONG
+>NOT</STRONG
+> make your default policy 
+MASQUERADING.  Otherwise, someone can manipulate their routing tables to 
+tunnel straight back through your gateway, using it to masquerade their OWN 
+identity!</P
+><P
+>Again, you can add these lines to the <TT
+CLASS="LITERAL"
+>/etc/rc.d/rc.firewall-ipchains</TT
+> 
+file, one of the other rc files you prefer, or do it manually every time you 
+need IP Masquerade.</P
+><P
+>Please see <A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPCHAINS-STRONGER"
+>Section 6.4.2</A
+> for a detailed guide on 
+IPCHAINS and a strong IPCHAINS ruleset example.  For additional details on 
+IPCHAINS usage, please refer to 
+<A
+HREF="http://www.netfilter.org/ipchains/"
+TARGET="_top"
+>http://www.netfilter.org/ipchains/</A
+> 
+for the primary IPCHAINS site or the 
+<A
+HREF="http://www.tldp.org/HOWTO/IPCHAINS-HOWTO.html"
+TARGET="_top"
+>Linux IP CHAINS HOWTO Backup</A
+> site</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RC.FIREWALL-IPFWADM"
+></A
+>3.4.3. Configuring IP Masquerade on Linux 2.0.x Kernels</H2
+><P
+>Create the file /etc/rc.d/rc.firewall-ipfwadm with the following initial SIMPLE 
+ruleset:
+
+&#60;rc.firewall-ipfwadm START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# rc.firewall-ipfwadm
+#
+#  A Initial SIMPLE IP Masquerade setup for 2.0.x kernels using IPFWADM
+#
+FWVER="2.03"
+# 
+# 2.03 - Added comments on why the default policy is ACCEPT
+# 2.02 - Added clarification that PPPoE users need to use
+#        "ppp0" instead of "eth0" for their external interface
+#
+#
+#        Once IP Masquerading has been tested, with this simple 
+#        ruleset, it is highly recommended to use a stronger 
+#        IPTABLES ruleset either given later in this HOWTO or 
+#        from another reputable resource.
+#
+echo -e "\n\nLoading simple rc.firewall-ipfwadm version $FWVER..\n"
+
+
+#Setting the EXTERNAL and INTERNAL interfaces for the network
+#
+#  Each IP Masquerade network needs to have at least one
+#  external and one internal network.  The external network
+#  is where the NATing will occur and the internal network
+#  should preferably be addressed with a RFC1918 private addressing
+#  scheme.
+#
+#  For this example, "eth0" is external and "eth1" is internal"
+#
+#  NOTE:  If this doesnt EXACTLY fit your configuration, you must
+#         change the EXTIF or INTIF variables above. For example:
+#
+#            If you are a PPPoE or analog modem user:
+#
+#               EXTIF="ppp0" 
+#
+#  ** Please change this to reflect your specific configuration **
+#
+EXTIF="eth0"
+INTIF="eth1"
+echo "   External Interface:  $EXTIF"
+echo "   Internal Interface:  $INTIF"
+
+
+# Network Address of the Internal Network
+#
+#   This example rc.firewall-ipfwadm file uses the 192.168.0.0 network
+#   with a /24 or 255.255.255.0 netmask.
+#
+#    ** Change this variable to reflect your specific setup **
+#
+INTLAN="192.168.0.0/24"
+echo -e "   Internal Interface:  $INTLAN\n"
+
+
+# Load all required IP MASQ modules
+#
+#   NOTE:  Only load the IP MASQ modules you need.  All current available IP 
+#          MASQ modules are shown below but are commented out from loading.
+echo -en "Loading modules: "
+
+
+# Needed to initially load modules
+#
+/sbin/depmod -a
+
+# Supports the proper masquerading of FTP file transfers using the PORT method
+#
+echo -en "FTP, "
+/sbin/modprobe ip_masq_ftp
+
+# Supports the masquerading of RealAudio over UDP.  Without this module, 
+#	RealAudio WILL function but in TCP mode.  This can cause a reduction
+#	in sound quality
+#
+#echo -en "RealAudio, "
+#/sbin/modprobe ip_masq_raudio
+
+# Supports the masquerading of IRC DCC file transfers
+#
+#echo -en "Irc, "
+#/sbin/modprobe ip_masq_irc
+
+# Supports the masquerading of Quake and QuakeWorld by default.  These modules 
+#   are for multiple users behind the Linux MASQ server.  If you are going to 
+#   play Quake I, II, and III, use the second example.
+#
+#   NOTE:  If you get ERRORs loading the QUAKE module, you are running an old
+#   -----  kernel that has bugs in it.  Please upgrade to the newest kernel.
+#
+#echo -en "Quake, "
+#Quake I / QuakeWorld (ports 26000 and 27000)
+#/sbin/modprobe ip_masq_quake
+#
+#Quake I/II/III / QuakeWorld (ports 26000, 27000, 27910, 27960)
+#/sbin/modprobe ip_masq_quake 26000,27000,27910,27960
+
+# Supports the masquerading of the CuSeeme video conferencing software
+#
+#echo -en "CuSeeme, "
+#/sbin/modprobe ip_masq_cuseeme
+
+#Supports the masquerading of the VDO-live video conferencing software
+#
+#echo -en "VdoLive, "
+#/sbin/modprobe ip_masq_vdolive
+
+echo ".  Done loading modules."
+
+
+#CRITICAL:  Enable IP forwarding since it is disabled by default 
+#
+#           Redhat Users:  you may try changing the options in 
+#                          /etc/sysconfig/network from:
+#
+#                       FORWARD_IPV4=false  
+#                             to
+#                       FORWARD_IPV4=true
+#
+echo "   enabling forwarding.."
+echo "1" &#62; /proc/sys/net/ipv4/ip_forward
+
+
+#CRITICAL:  Enable automatic IP defragmenting since it is disabled by default 
+#
+#           This used to be a compile-time option but the behavior was changed 
+#           in 2.2.12.  This option is required for both 2.0 and 2.2 kernels.
+#
+echo "   enabling AlwaysDefrag.."
+echo "1" &#62; /proc/sys/net/ipv4/ip_always_defrag
+
+
+# Dynamic IP users:
+#
+#   If you get your Internet IP address dynamically from SLIP, PPP, or DHCP, 
+#   enable the following option.  This enables dynamic-ip address hacking in 
+#   IP MASQ, making the life with DialD, PPPd, and similar programs much easier.
+#
+#echo "   enabling DynamicAddr.."
+#echo "1" &#62; /proc/sys/net/ipv4/ip_dynaddr
+
+
+#Clearing any previous configuration
+#
+#  Unless specified, the defaults for INPUT and OUTPUT is ACCEPT
+#    The default for FORWARD is REJECT
+#
+#   Isn't ACCEPT insecure?  To some degree, YES, but this is our testing
+#   phase.  Once we know that IPMASQ is working well, I recommend you run
+#   the rc.firewall-*-stronger rulesets which set the defaults to DROP but
+#   also include the critical additional rulesets to still let you connect to
+#   the IPMASQ server, etc.
+#
+echo "   clearing any existing rules and setting default policy.."
+/sbin/ipfwadm -I -p accept
+/sbin/ipfwadm -O -p accept
+/sbin/ipfwadm -F -p reject
+/sbin/ipfwadm -I -f
+/sbin/ipfwadm -O -f
+/sbin/ipfwadm -F -f
+
+
+# MASQ timeouts
+#
+#   2 hrs timeout for TCP session timeouts
+#  10 sec timeout for traffic after the TCP/IP "FIN" packet is received
+#  160 sec timeout for UDP traffic (Important for MASQ'ed ICQ users)
+#
+echo "   setting default timers.."
+/sbin/ipfwadm -M -s 7200 10 160
+
+
+# DHCP:  For people who receive their external IP address from either DHCP or 
+#        BOOTP such as DSL or Cablemodem users, it is necessary to use the 
+#        following before the deny command.  
+#
+#        This example is currently commented out.
+#
+#
+#/sbin/ipfwadm -I -a accept -S 0/0 67 -D 0/0 68 -W $EXTIF -P udp
+
+
+# Enable simple IP forwarding and Masquerading
+#
+#  NOTE:  The following is an example for an internal LAN address in the 
+#         192.168.0.x network with a 255.255.255.0 or a "24" bit subnet mask
+#         connecting to the Internet on interface eth0.
+#
+#         ** Please change this network number, subnet mask, and your Internet
+#         ** connection interface name to match your internal LAN setup.
+#
+echo "   enabling IPMASQ functionality on $EXTIF"
+/sbin/ipfwadm -F -p deny
+/sbin/ipfwadm -F -a m -W $EXTIF -S $INTLAN -D 0.0.0.0/0
+
+echo -e "\nrc.firewall-ipfwadm v$FWVER done.\n"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;rc.firewall-ipfwadm STOP&#62;</P
+><P
+>Once you are finished with editing the /etc/rc.d/rc.firewall-ipfwadm ruleset, 
+make it executable by typing in "<TT
+CLASS="LITERAL"
+>chmod 700 /etc/rc.d/rc.firewall-ipfwadm</TT
+>"</P
+><P
+>Now that the firewall ruleset is ready to go, you need to let it run after 
+every reboot.  You could either do this by running it by hand everytime (such 
+a pain) or add it to the boot scripts.  We have covered two methods below: 
+Redhat (SyS-V style) and Slackware (BSD style)</P
+><P
+>Redhat and Redhat-derived distros:</P
+><P
+></P
+><UL
+><LI
+><P
+>There are two ways to automatically load things in Redhat:  /etc/rc.d/rc.local 
+or a init script in /etc/rc.d/init.d/.  The first method is the easiest but 
+isn't doing it the Sys-V way.  All you have to do is add the line:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>echo "Loading the rc.firewall-ipfwadm ruleset.." 
+
+/etc/rc.d/rc.firewall-ipfwadm</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>The problem with this approach is that the firewall isn't executed until 
+the last stages of booting.  The preferred approach is to have the firewall 
+loaded just after the networking subsystem is loaded.  To do this, 
+copy the following file into the /etc/rc.d/init.d directory:</P
+><P
+>&#60;firewall-ipfwadm START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# chkconfig: 2345 11 89
+#
+# description: Loads the rc.firewall-ipfwadm ruleset.
+#
+# processname: firewall-ipfwadm
+# pidfile: /var/run/firewall.pid
+# config: /etc/rc.d/rc.firewall-ipfwadm
+# probe: true
+
+# ----------------------------------------------------------------------------
+# v02/09/02
+#
+# Part of the copyrighted and trademarked TrinityOS document.
+# http://www.ecst.csuchico.edu/~dranch
+#
+# Written and Maintained by David A. Ranch
+# dranch@trinnet.net
+#
+# Updates
+# -------
+#
+# ----------------------------------------------------------------------------
+
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Check that networking is up.
+
+# This line no longer work with bash2
+#[ ${NETWORKING} = "no" ] &#38;&#38; exit 0
+# This should be OK. 
+[ "XXXX${NETWORKING}" = "XXXXno" ] &#38;&#38; exit 0
+
+[ -x /sbin/ifconfig ] || exit 0
+
+# The location of various iptables and other shell programs
+#
+#   If your Linux distribution came with a copy of iptables, most
+#   likely it is located in /sbin.  If you manually compiled
+#   iptables, the default location is in /usr/local/sbin
+#
+# ** Please use the "whereis iptables" command to figure out
+# ** where your copy is and change the path below to reflect
+# ** your setup
+#
+IPFWADM=/sbin/ipfwadm
+
+
+# See how we were called.
+case "$1" in
+  start)
+    /etc/rc.d/rc.firewall-ipfwadm
+    ;;
+
+  stop)
+    echo -e "\nFlushing firewall and setting default policies to REJECT\n"
+
+    $IPFWADM -I -p REJECT
+    $IPFWADM -O -p REJECT
+    $IPFWADM -F -p REJECT
+
+    $IPFWADM -I -f
+    $IPFWADM -O -f
+    $IPFWADM -F -f
+    ;;
+
+  restart)
+    $0 stop
+    $0 start
+    ;;
+
+  status)
+    $IPFWADM -l
+    ;;
+
+  mlist)
+    $IPFWADM -M -l
+    ;;
+
+  *)
+    echo "Usage: firewall-ipfwadm {start|stop|status|mlist}"
+    exit 1
+esac
+
+exit 0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;firewall-ipfwadm STOP&#62;</P
+><P
+>With this script in place, all you need to do now is make it executable and
+then make it load upon reboot.  First, make it executable by running:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat-style
+#
+chmod 700 /etc/rc.d/init.d/firewall-ipfwadm</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Now, make the ruleset load upon reboot:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat style
+#
+chkconfig --level=345 firewall-ipfwadm on</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+That's it!  Now upon boot, the firewall will be loaded automatically.  Just 
+to make sure, run the command to see that the firewall should start upon
+reboot by running the command:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#Redhat style
+#
+chkconfig --list firewall-ipfwadm
+
+#The output should look like:
+#
+firewall-ipfwadm 0:off 1:off 2:off 3:on 4:on 5:on 6:off</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></LI
+></UL
+><P
+>Slackware:</P
+><P
+></P
+><UL
+><LI
+><P
+>There are two ways to automatically load things in Slackware: 
+/etc/rc.d/rc.local or editing the /etc/rc.d/rc.inet2 file.  The first method 
+is the easiest but isn't the most secure (see below).  All you have to do is 
+append the following lines to the /etc/rc.d/rc.local file:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>echo "Loading the rc.firewall-ipfwadm ruleset.."
+
+/etc/rc.d/rc.firewall-ipfwadm</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>The problem with this approach is that if you are running a STRONG firewall 
+ruleset, the firewall isn't executed until the last stages of booting.  The 
+preferred approach is to have the firewall loaded just after the networking 
+subsystem is loaded.  For now, the HOWTO only covers how to do so using 
+/etc/rc.d/rc.local but if you know what you're doing (it's easy), go ahead 
+and and modify the inet2 startup script to load the 
+/etc/rc.d/rc.firewall-ipfwadm file just after the network is up.  If you 
+want a more detailed guide and/or a stronger firewall ruleset, I recommend 
+you check out Section 10 of TrinityOS found in the links section at 
+the bottom of this HOWTO.</P
+></LI
+></UL
+><P
+><STRONG
+>Notes on how users might want to change the above 
+firewall ruleset:</STRONG
+></P
+><P
+>  
+You could have also enabled IP Masquerading on a PER MACHINE basis instead of 
+the above method enabling an ENTIRE TCP/IP network.  For example, say if I 
+wanted only the 192.168.0.2 and 192.168.0.8 hosts to have access to the 
+Internet and NOT any of the other internal machines.  I would change the in 
+the "Enable simple IP forwarding and Masquerading" section (shown above) of 
+the /etc/rc.d/rc.firewall-ipfwadm ruleset.</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># Enable simple IP forwarding and Masquerading
+# v2.01
+#
+#  NOTE:  The following is an example to only allow IP Masquerading for the 
+#         192.168.0.2 and 192.168.0.8 machines with a 255.255.255.0 or a "24" 
+#         bit subnet mask connected to the Internet on interface eth0.
+#
+#         ** Please change this network number, subnet mask, and your Internet
+#         ** connection interface name to match your internal LAN setup 
+#
+#         Please use the following in ADDITION to the simple rulesets above for 
+#         specific MASQ networks.  
+#
+/sbin/ipfwadm -F -p deny
+/sbin/ipfwadm -F -a m -W $EXTIF -S 192.168.0.2/32 -D 0.0.0.0/0
+/sbin/ipfwadm -F -a m -W $EXTIF -S 192.168.0.8/32 -D 0.0.0.0/0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+><STRONG
+>Common mistakes:</STRONG
+></P
+><P
+>What appears to be a common mistake with new IP Masq users is to make the 
+first command: </P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ipfwadm -F -p masquerade</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Do <STRONG
+>NOT</STRONG
+> make your default policy 
+MASQUERADING.  Otherwise, someone who has the ability to manipulate 
+their routing tables will be able to tunnel straight back through your 
+gateway, using it to masquerade their OWN identity!</P
+><P
+>Again, you can add these lines to the <TT
+CLASS="LITERAL"
+>/etc/rc.d/rc.firewall-ipfwadm</TT
+> 
+file, one of the other rc files (if you prefer), or manually add those lines 
+every time you need IP Masquerade.</P
+><P
+>Please see <A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPFWADM-STRONGER"
+>Section 6.4.3</A
+> and 
+<A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPFWADM-STRONGER"
+>Section 6.4.3</A
+>for a detailed guide and stronger 
+examples of IPCHAINS and IPFWADM ruleset examples.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="addressing-the-lan.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="configuring-clients.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Assigning Private Network IP Addresses to the Internal LAN</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c472.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Configuring the other internal to-be MASQed machines</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

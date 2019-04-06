@@ -1,0 +1,242 @@
+<HTML
+><HEAD
+><TITLE
+>Errors reported in errno</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="System calls"
+HREF="syscalls.html"><LINK
+REL="PREVIOUS"
+TITLE="fcntl(sg_fd, F_SETFL, oflags | FASYNC)"
+HREF="fcntl.html"><LINK
+REL="NEXT"
+TITLE="Ioctl()s"
+HREF="ioctl.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="fcntl.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. System calls</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="ioctl.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="ERRORS">7.8. Errors reported in errno</H1
+><P
+>With the original interface almost any string could be accidentally
+given to write() and potentially (but rarely) something nasty could happen.
+If some error was detected then more than likely EIO was placed in errno.</P
+><P
+>Unfortunately this can still happen with write() since it can accept
+both the original struct sg_header or the newer sg_io_hdr_t described in
+this note. However since the SG_IO ioctl() will only accept the sg_io_hdr_t
+structure there is less chance of a random string being interpreted
+as a command. Since the sg_io_hdr_t interface does a lot more error
+checking, it attempts to give out more precise errno values to help
+the user pinpoint the problem. [Admittedly some of these errno values
+are picked in an arbitrary way from the large set of available values.]</P
+><P
+>In most cases when a system call on a sg file descriptor fails, the call
+in question will return -1. After an application detects that a system
+call has failed it should read the value in the "errno" variable (prior
+to do any more system calls). Applications should include the &#60;errno.h&#62;
+header.</P
+><P
+>Below is a table of errno values indicating which calls to sg will
+generate them and the meaning of the error. A write() call is indicated by
+"w", a read() call by "r" and an open() call by "o".</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>errno    which_calls    Meaning
+-----    -----------    ----------------------------------------------
+EACCES    &#60;some ioctls&#62; Root permission (more precisely CAP_SYS_ADMIN
+                        or CAP_SYS_RAWIO) required. Also may occur during
+                        an attempted write to /proc/scsi/sg files.
+EAGAIN    r             The file descriptor is non-blocking and the request
+                        has not been completed yet.
+EAGAIN    w,SG_IO       SCSI sub-system has (temporarily) run out of 
+                        command blocks.
+EBADF     w             File descriptor was not open()ed O_RDWR.
+EBUSY     o             Someone else has an O_EXCL lock on this device.
+EBUSY     w             With mmap-ed IO, the reserved buffer already in use.
+EBUSY     &#60;some ioctls&#62; Attempt to change something (e.g. reserved buffer
+                        size) when the resource was in use.
+EDOM      w,SG_IO       Too many requests queued against this file
+                        descriptor. Limit is SG_MAX_QUEUE active requests.
+                        If sg_header interface is being used then the
+                        default queue depth is 1. Use SG_SET_COMMAND_Q
+                        ioctl() to increase it.
+EFAULT    w,r,SG_IO     Pointer to user space invalid.
+          &#60;most ioctls&#62; 
+EINVAL    w,r           Size given as 3rd argument not large enough for the
+                        sg_io_hdr_t structure. Both direct and mmap-ed IO
+			selected.
+EIO       w             Size given as 3rd argument less than size of old
+                        header structure (sg_header). Additionally a write()
+                        with the old header will yield this error for most
+                        detected malformed requests.
+EIO       r             A read() with the older sg_header structure yields
+			this value for some errors that it detects.
+EINTR     o             While waiting for the O_EXCL lock to clear this call
+                        was interrupted by a signal.
+EINTR     r,SG_IO       While waiting for the request to finish this call
+                        was interrupted by a signal.
+EINTR     w             [Very unlikely] While waiting for an internal SCSI
+                        resource this call was interrupted by a signal.
+EMSGSIZE  w,SG_IO       SCSI command size ('cmd_len') was too small 
+                        (i.e. &#60; 6) or too large
+ENODEV    o             Tried to open() a file with no associated device.
+                        [Perhaps sg has not been built into the kernel or
+                        is not available as a module?]
+ENODEV    o,w,r,SG_IO   SCSI device has detached, awaiting cleanup.
+                        User should close fd. Poll() will yield POLLHUP.
+ENOENT    o             Given filename not found.
+ENOMEM    o             [Very unlikely] Kernel was not even able to find
+                        enough memory for this file descriptor's context.
+ENOMEM    w,SG_IO       Kernel unable to find memory for internal buffers.
+                        This is usually associated with indirect IO.
+			For mmap-ed IO 'dxfer_len' greater than reserved
+			buffer size.
+			Lower level (adapter) driver does not support enough
+			scatter gather elements for requested data transfer.
+ENOSYS    w,SG_IO       'interface_id' of a sg_io_hdr_t object was _not_ 'S'.
+ENXIO     o             "remove-single-device" may have removed this device.
+ENXIO     o, w,r,SG_IO  Internal error (including SCSI sub-system busy doing
+                        error processing - e.g. SCSI bus reset). When a
+			SCSI device is offline, this is the response. This 
+			can be bypassed by opening O_NONBLOCK.
+EPERM     o             Can't use O_EXCL when open()ing with O_RDONLY
+EPERM     w,SG_IO       File descriptor open()-ed O_RDONLY but O_RDWR
+          &#60;some ioctls&#62; access mode needed for this operation.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="fcntl.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="ioctl.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>fcntl(sg_fd, F_SETFL, oflags | FASYNC)</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="syscalls.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Ioctl()s</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

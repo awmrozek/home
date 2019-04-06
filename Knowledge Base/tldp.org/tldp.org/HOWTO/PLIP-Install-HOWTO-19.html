@@ -1,0 +1,171 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE> PLIP Install HOWTO: Install the plip interface permanently</TITLE>
+ <LINK HREF="PLIP-Install-HOWTO-20.html" REL=next>
+ <LINK HREF="PLIP-Install-HOWTO-18.html" REL=previous>
+ <LINK HREF="PLIP-Install-HOWTO.html#toc19" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="PLIP-Install-HOWTO-20.html">Next</A>
+<A HREF="PLIP-Install-HOWTO-18.html">Previous</A>
+<A HREF="PLIP-Install-HOWTO.html#toc19">Contents</A>
+<HR>
+<H2><A NAME="s19">19. Install the plip interface permanently</A>   </H2>
+
+<P>
+<P>
+<H2><A NAME="ss19.1">19.1 On the source side</A>
+    </H2>
+
+<P>
+<P>I use an old Linux RedHat 4.1 distribution. The location of the
+files can be different on other GNU/Linux distributions but the
+philosophy is the same (The Unix System V convention).
+<P>Create the file <CODE>/etc/rc.d/init.d/plip</CODE> with this content:
+<P>
+<PRE>
+#!/bin/sh
+
+##############################
+# file /etc/rc.d/init.d/plip #
+##############################
+
+# See how we were called.
+case "$1" in
+  start)
+        # Start daemons.
+        /bin/echo "Starting plip interface: "
+        /bin/echo "Doing /sbin/ifconfig plip0 source pointopoint target netmask 255.255.255.255 up"
+        /sbin/ifconfig plip0 source pointopoint target netmask 255.255.255.255 up
+        /bin/echo  "Doing /bin/ping -q -c 4 target"
+        /bin/ping -q -c 4 target
+        /bin/echo "Starting plip interface: done"
+        ;;
+  stop)
+        # Stop daemons.
+        /bin/echo  "Shutting down plip interface:"
+        /bin/echo  "Doing /sbin/ifconfig plip0 source pointopoint target netmask 255.255.255.255 down"
+        /sbin/ifconfig plip0 source pointopoint target netmask 255.255.255.255 down
+        /bin/echo  "Doing /sbin/modprobe  -r plip "
+        /sbin/modprobe  -r plip
+        /bin/echo "Shutting down plip interface: done"
+        ;;
+  *)
+        echo "Usage: $0 {start|stop}"
+        exit 1
+esac
+
+exit 0
+
+# === End of File ===
+
+    
+</PRE>
+<P>Only the ifconfig lines are strictly necessary. Perhaps you will
+need to add some <CODE>modprobe</CODE> commands if you don't use
+<CODE>kerneld</CODE> or the <CODE>kmod</CODE> feature of new kernels 2.2.x
+<P>Create the symbolic links in the <CODE>rc*.d</CODE> directories:
+<P>
+<PRE>
+      
+      $ cd /etc/rc.d/rc0.d/
+      $ ln -s ../init.d/plip K97plip
+      
+      $ cd /etc/rc.d/rc1.d/
+      $ ln -s ../init.d/plip K92plip
+      
+      $ cd /etc/rc.d/rc3.d/
+      $ ln -s ../init.d/plip S11plip
+
+
+      $ cd /etc/rc.d/rc5.d/
+      $ ln -s ../init.d/plip S11plip
+     
+</PRE>
+<P>You can choose other numbers. Make sure that the two-digit number
+after 'K' is greater than the number of every other file that stops
+a service depending on plip.
+<P>Make sure that the two-digit number after 'S' is less than the
+number of every other file that start a service depending on plip:
+nfs, nis, ftp, http etc.
+<P>Update the <CODE>/etc/conf.modules</CODE> file, choosing the correct
+IRQ number (7 is mine, yours may be different):
+<P>
+<PRE>
+# /etc/conf.modules
+...
+alias parport_lowlevel parport_pc
+post-install parport_pc echo 7 >  /proc/parport/0/irq
+...
+     
+</PRE>
+<P>Test the plip shell:
+<P>
+<PRE>
+      $ /etc/rc.d/init.d/plip 
+      Usage: /etc/rc.d/init.d/plip {start|stop}
+
+      $ /etc/rc.d/init.d/plip stop
+      Shutting down plip interface: 
+      Doing /sbin/ifconfig plip0 source pointopoint target netmask 255.255.255.255 down 
+      Doing /sbin/modprobe  -r plip 
+      Shutting down plip interface: done
+
+      $ /etc/rc.d/init.d/plip start
+      Starting plip interface: 
+      Doing /sbin/ifconfig plip0 source pointopoint target netmask 255.255.255.255 up 
+      Doing /bin/ping -q -c 4 target
+      PING target (192.168.0.1): 56 data bytes
+      
+      --- target ping statistics ---
+      4 packets transmitted, 4 packets received, 0% packet loss
+      round-trip min/avg/max = 4.4/8.3/14.0 ms
+      Starting plip interface: done
+     
+</PRE>
+<P>Updating the start scripts is a good occasion to reboot a Unix
+system, to check the modifications. Do it:
+<P>
+<PRE>
+      $ init 6 # or "shutdown -r now" or "reboot"
+     
+</PRE>
+<P>
+<P>
+<P>
+<H2><A NAME="ss19.2">19.2 On the target side</A>
+    </H2>
+
+<P>
+<P>Update the file <CODE>/etc/init.d/network</CODE>:
+<P>
+<PRE>
+      #! /bin/sh
+      #######################
+      # /etc/init.d/network #
+      #######################
+
+      ifconfig lo 127.0.0.1
+      route add -net 127.0.0.0
+      
+      ifconfig plip1 192.168.0.1 pointopoint 192.168.0.2 netmask 255.255.255.255 up
+      route add -host 192.168.0.2 dev plip1
+     
+</PRE>
+<P>That's all because the parport features are directly in the kernel.
+<P>Updating the start scripts is a good occasion to reboot a Unix
+system, to check the modifications. Do it:
+<P>
+<PRE>
+      $ init 6
+     
+</PRE>
+<P>
+<HR>
+<A HREF="PLIP-Install-HOWTO-20.html">Next</A>
+<A HREF="PLIP-Install-HOWTO-18.html">Previous</A>
+<A HREF="PLIP-Install-HOWTO.html#toc19">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,338 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux IPX-HOWTO: Configuring your Linux machine as an NCP client.</TITLE>
+ <LINK HREF="IPX-HOWTO-10.html" REL=next>
+ <LINK HREF="IPX-HOWTO-8.html" REL=previous>
+ <LINK HREF="IPX-HOWTO.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="IPX-HOWTO-10.html">Next</A>
+<A HREF="IPX-HOWTO-8.html">Previous</A>
+<A HREF="IPX-HOWTO.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="s9">9. Configuring your Linux machine as an NCP client.</A></H2>
+
+<P>If you are a user of a mixed technology network that comprises both IP and IPX
+protocols it is likely that at some time or another you have wanted to have
+your Linux machine access data stored on a Novell fileserver on your
+network. Novell have long offered an NFS server package for their
+fileservers that would allow this, but if you are a small site or have only
+a small number of people interested in doing this it is difficult to justify
+the cost of the commercial package.
+<P>Volker Lendecke <CODE>&lt;lendecke@namu01.gwdg.de></CODE> has written a Linux
+filesystem kernel module that supports a subset of the Novell NCP
+that will allow you to mount Novell volumes into your Linux filesystem
+without requiring any additional products for your fileserver.
+Volker has called the package <EM>ncpfs</EM> and derived the necessary
+information mainly from the book "Netzwerkprogrammierung in C" by
+Manfred Hill and Ralf Zessin (further details of the book are contained within
+the README file in the <EM>ncpfs</EM> package).
+<P>The software causes Linux to emulate a normal Novell workstation for file
+services. It also includes a small print utility that allows you to print to
+Novell print queues (This is documented in the Print Client section later).
+The <EM>ncpfs</EM> package will work with Novell fileservers of version 3.x and
+later, it will not work the Novell 2.x. The <EM>ncpfs</EM> client will also work
+with close Novell compatible products, but unfortunately some products that
+claim to be compatible aren't compatible enough. To use <EM>ncpfs</EM> with Novell
+4.x fileservers, it is preferred to use the Novell server in <EM>bindery</EM>
+emulation mode. The NDS support is a very recent early beta addition to
+<EM>ncpfs</EM> and additionally its use may be prohibited in your country due to
+the inclusion of patented technology. 
+<P>
+<P>
+<H2><A NAME="ss9.1">9.1 Obtaining <B><EM>ncpfs</EM></B>.</A>
+</H2>
+
+<P>The latest <EM>ncpfs</EM> package was designed to be built against the version
+<CODE>1.2.13</CODE> kernel or kernels later than <CODE>1.3.71</CODE> (this includes 2.x.x).
+If you not using a kernel in either of these categories then you will have
+to upgrade your kernel. The
+<A HREF="Kernel-HOWTO.html">Kernel-HOWTO</A> describes how to do this in
+detail.
+<P>You can obtain the <EM>ncpfs</EM> package by anonymous ftp from
+Volker's home site at:
+<A HREF="ftp://ftp.gwdg.de/pub/linux/misc/ncpfs/">ftp.gwdg.de</A>
+or
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/system/filesystems/ncpfs">sunsite.unc.edu</A> 
+or mirror sites. The current version at the time of writing was:
+<P><CODE>ncpfs-2.0.11.tgz</CODE> or <CODE>ncpfs-2.2.0.tgz</CODE> which adds the NDS support.
+<P>
+<H2><A NAME="ss9.2">9.2 Building <B><EM>ncpfs</EM></B> for kernel 1.2.13.</A>
+</H2>
+
+<P>
+<DL>
+<DT><B>Build a kernel with Ethernet and IPX support</B><DD><P>The first thing you
+need to do is ensure that your kernel has been built with IPX support enabled.
+In the <CODE>1.2.13</CODE> version kernel you need only ensure that you have
+answered <CODE>Y</CODE> to the question: '<CODE>The IPX protocol</CODE>' as
+illustrated:
+<PRE>
+ ...
+ ...
+Assume subnets are local (CONFIG_INET_SNARL) [y] 
+Disable NAGLE algorithm (normally enabled) (CONFIG_TCP_NAGLE_OFF) [n] 
+The IPX protocol (CONFIG_IPX) [n] y
+*
+* SCSI support
+ ...
+ ...
+</PRE>
+
+You will also need to ensure that you include an appropriate driver for your
+Ethernet card. If you do not know how to do this then you should read the
+<A HREF="Ethernet-HOWTO.html">Ethernet-HOWTO</A>.
+<P>You can then proceed to build your kernel. Make sure you remember to run
+<EM>lilo</EM> to install it when you have finished.
+<P>
+<DT><B>Untar the <EM>ncpfs</EM> software</B><DD><P>
+<PRE>
+# cd /usr/src
+# tar xvfz ncpfs-2.0.11.tgz
+# cd ncpfs
+</PRE>
+<P>
+<DT><B>Check the Makefile</B><DD><P>If you intend to use <EM>kerneld</EM> to
+autoload the <EM>ncpfs</EM> kernel module then you must uncomment the
+line in the <CODE>Makefile</CODE> that refers to: <CODE>KERNELD</CODE>. If you
+are unsure what this means then you should read the
+<A HREF="Kernel-HOWTO.html">Kernel-HOWTO</A> to familiarise
+yourself with kernel module configuration.
+<P>
+<DT><B>Make the <EM>ncpfs</EM> software</B><DD><P>The software should compile cleanly
+with no other configuration necessary:
+<PRE>
+# make
+</PRE>
+<P>
+<DT><B>Copy the IPX tools somewhere useful if you don't already have them.</B><DD><P>After the <EM>make</EM> has completed you should find all of the tools
+you need in the <CODE>ncpfs/bin</CODE> directory. You can use:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# make install
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>to install the tools in Volkers choice of directories. If you are running
+on an ELF based system then you will need to rerun <CODE>`ldconfig -v'</CODE> to
+ensure that the shared library is able to be found.
+<P>
+<DT><B>Copy the <EM>ncpfs.o</EM> module somewhere useful if necessary.</B><DD><P>If you are compiling for a <CODE>1.2.*</CODE> kernel then you will find a file
+called <CODE>ncpfs.o</CODE> in the <CODE>ncpfs/bin</CODE> directory after the
+<EM>make</EM> has completed. This is the <EM>ncpfs</EM> kernel module.
+You should copy this somewhere useful. On my <EM>debian</EM> system I have
+copied it to the <CODE>/lib/modules/1.2.13/fs</CODE> directory and added
+<CODE>ncpfs</CODE> to the <CODE>/etc/modules</CODE> file so that it will be
+automatically started at boot time. If you are using some other distribution
+you should find where it keeps its modules and copy it there, or just copy it
+to your <CODE>/etc</CODE> directory. To load the modules manually you need to use
+the command:
+<PRE>
+# insmod ncpfs.o
+</PRE>
+<P>
+</DL>
+<P>
+<H2><A NAME="ss9.3">9.3 Building <B><EM>ncpfs</EM></B> for kernels 1.3.71++/2.0.*.</A>
+</H2>
+
+<P>For the latest version of <EM>ncpfs</EM> you must use kernel <CODE>1.3.71</CODE>
+or newer, this includes the <CODE>2.0.*</CODE> kernels.
+<P>If you intend using a kernel that is version <CODE>1.3.71</CODE> or newer then the
+<EM>ncpfs</EM> kernel code has been included in the standard kernel
+distribution. You need only answer <CODE>Y</CODE> to:
+<BLOCKQUOTE><CODE>
+<PRE>
+Networking options  --->
+    ...
+    ...
+    &lt;*> The IPX protocol
+    ...
+Filesystems  --->
+    ...
+    ...
+    &lt;*> NCP filesystem support (to mount NetWare volumes)
+    ...
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You will still need to follow the instructions for building for kernels
+<CODE>1.2.*</CODE> so that you can build the tools but there will not be a module
+file for you to install.
+<P>
+<H2><A NAME="ss9.4">9.4 Configuring and using <B><EM>ncpfs</EM></B>.</A>
+</H2>
+
+<P>
+<DL>
+<DT><B>Configure the IPX network software</B><DD><P>There are two ways of configuring
+the IPX network software. You can manually configure all of your IPX network
+information or you can choose to let the software determine for itself some
+reasonable settings using the command:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipx_configure --auto_interface=on --auto_primary=on
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This should be reasonable in most circumstances, but if it doesn't work for
+you then read the 'IPX tools' section above to configure your software
+manually. Problems have been noted using this on networks containing
+Windows '95 clients.
+<P>
+<DT><B>Test the configuration</B><DD><P>After your IPX network is configured you
+should be able to use the <EM>slist</EM> command to see a list of all of
+the Novell fileserver on your network:
+<PRE>
+# slist
+</PRE>
+
+If the slist command displays a message like:
+<CODE>ncp_connect: Invalid argument</CODE> then your kernel probably does not
+support IPX. Check that you have actually booted off the appropriate kernel.
+When you boot you should see messages about '<CODE>IPX</CODE>' and '<CODE>ncpfs</CODE>' in
+the system startup messages. If the <EM>slist</EM> command does not list all
+of your fileservers then you may need to use the manual network configuration
+method.
+<P>
+<DT><B>Mount a Novell(tm) server or volume.</B><DD><P>If your IPX network software
+is working
+ok you should now be able to mount a Novell fileserver or volume into your
+Linux filesystem. The <EM>ncpmount</EM> command is used for this purpose
+and requires that you specify at least the following information:
+<OL>
+<LI>The fileserver name</LI>
+<LI>(optionally) The fileserver directory to mount</LI>
+<LI>The fileserver login id. If it has a password you will also need that.</LI>
+<LI>The mount point ie. where you want the mount to go. This will be an
+existing directory on your machine.</LI>
+</OL>
+<P>There is an equivalent <EM>ncpumount</EM> command to unmount a mounted NCP
+filesystem. The NCP filesystems will be unmounted cleanly if you shutdown
+your machine normally, so you needn't worry about <EM>ncpumount</EM>ing your
+filesystems manually before a <EM>halt</EM> or <EM>shutdown</EM>.
+<P>An example command to mount fileserver <CODE>ACCT_FS01</CODE>, with a login id of 
+<CODE>guest</CODE> with no password, under the <CODE>/mnt/Accounts</CODE> directory
+might look like the following:
+<PRE>
+# ncpmount -S ACCT_FS01 /mnt/Accounts -U guest -n
+</PRE>
+
+Note the use of the <CODE>-n</CODE> option to indicate that no password is
+required for the login. The same login specifying a password of <CODE>secret</CODE>
+would look like:
+<PRE>
+# ncpmount -S ACCT_FS01 /mnt/Accounts -U guest -P secret
+</PRE>
+
+If you don't specify either the <CODE>-n</CODE> or the <CODE>-P</CODE> options you
+will be prompted for a password.
+<P>
+<DT><B>Check the mount</B><DD><P>If the mount is successful you will find all the
+volumes accessible to the userid used for login listed as directories under
+the mount point. You should then also be able to traverse the directory
+structure to find other files. You may alternatively use the <CODE>-V</CODE> option
+to mount a single volume.
+<P>NCP does not provide uid or gid ownership of files. All the files will have
+the permission and ownership assigned to the mount point directory restricted
+by trustee permissions on the Novell server. Bear this in mind when sharing
+mounts between Linux users.
+<P>
+<DT><B>Configure mounts to be automatically performed.</B><DD><P>If you have some
+need to permanently have an ncp mount then you will want to configure the
+commands above into your <EM>rc</EM> files so that they occur automatically
+at boot time. If your distribution doesn't already provide some way of
+configuring IPX like debian then I recommend you place them in your
+<CODE>/etc/rc.local</CODE> file if you have one. You might use something like:
+<BLOCKQUOTE><CODE>
+<PRE>
+#
+# Start the ncp filesystem
+
+/sbin/insmod /lib/modules/1.2.13/fs/ncpfs.o
+
+# configure the IPX network
+ipx_configure --auto_interface=on --auto_primary=on
+
+# guest login to the Accounting fileserver
+ncpmount -S ACCT_FS01 /mnt/Accounts -U guest -n
+
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+
+There is another means of configuring NCP mounts and that is by building
+a <CODE>$HOME/.nwclient</CODE> file. This file contains details of temporary
+or user specific NCP mounts that would be performed regularly. It allows
+you to store the details of mounts so that you can recreate them without
+having to specify all of the detail each time.
+<P>Its format is quite straightforward:
+<BLOCKQUOTE><CODE>
+<PRE>
+# The first entry is the 'preferred server' entry and is
+# used whenever you do not specify a server explicitly.
+#
+# User TERRY login to DOCS_FS01 fileserver with password 'password'
+DOCS_FS01/TERRY password
+#
+# Guest login to the ACCT_FS01 fileserver with no password.
+ACCT_FS01/GUEST -
+</PRE>
+</CODE></BLOCKQUOTE>
+
+To activate these mounts you could use:
+<BLOCKQUOTE><CODE>
+<PRE>
+$ ncpmount /home/terry/docs
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to mount: DOCS_FS01 with a login of TERRY under the /home/terry/docs
+directory. Note that this entry was chosen because no fileserver was
+specified in the mount command. If the following command were used:
+<BLOCKQUOTE><CODE>
+<PRE>
+$ ncpmount -S ACCT_FS01 /home/terry/docs
+</PRE>
+</CODE></BLOCKQUOTE>
+
+then a GUEST login to ACCT_FS01 would be mounted there instead.
+<P><B>Note:</B> for this mechanism to work the permissions of the
+<CODE>$HOME/.nwclient</CODE> file must be <CODE>0600</CODE> so you would
+need to use the command:
+<BLOCKQUOTE><CODE>
+<PRE>
+$ chmod 0600 $HOME/.nwclient
+</PRE>
+</CODE></BLOCKQUOTE>
+
+If non-root users are to be allowed to use this mechanism then
+the <EM>ncpmount</EM> command must be Set Userid Root, so you
+would need to give it permissions:
+<BLOCKQUOTE><CODE>
+<PRE>
+# chmod 4755 ncpmount
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<DT><B>Try out the <EM>nsend</EM> utility</B><DD><P>a utility to send messages
+to Novell users is also included in the package, it is called <EM>nsend</EM>
+and is used as follows:
+<PRE>
+# nsend rod hello there
+</PRE>
+
+would send the message "hello there" to a logged in user "rod" on your
+"primary" fileserver (the first one appearing in your <CODE>.nwclient</CODE>
+file. You can specify another fileserver with the same syntax as for the
+<EM>ncpmount</EM> command.
+<P>
+</DL>
+<P>
+<HR>
+<A HREF="IPX-HOWTO-10.html">Next</A>
+<A HREF="IPX-HOWTO-8.html">Previous</A>
+<A HREF="IPX-HOWTO.html#toc9">Contents</A>
+</BODY>
+</HTML>

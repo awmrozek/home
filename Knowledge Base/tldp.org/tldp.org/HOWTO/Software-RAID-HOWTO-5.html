@@ -1,0 +1,541 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>The Software-RAID HOWTO: RAID setup</TITLE>
+ <LINK HREF="Software-RAID-HOWTO-6.html" REL=next>
+ <LINK HREF="Software-RAID-HOWTO-4.html" REL=previous>
+ <LINK HREF="Software-RAID-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-RAID-HOWTO-6.html">Next</A>
+<A HREF="Software-RAID-HOWTO-4.html">Previous</A>
+<A HREF="Software-RAID-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5.</A> <A HREF="Software-RAID-HOWTO.html#toc5">RAID setup</A></H2>
+
+<P><B>This HOWTO is deprecated; the Linux RAID HOWTO is maintained as a wiki by the
+linux-raid community at 
+<A HREF="http://raid.wiki.kernel.org/">http://raid.wiki.kernel.org/</A></B></P>
+
+<H2><A NAME="ss5.1">5.1</A> <A HREF="Software-RAID-HOWTO.html#toc5.1">General setup</A>
+</H2>
+
+<P>This is what you need for any of the RAID levels:
+<UL>
+<LI>A kernel. Preferably a kernel from the 2.4 series. Alternatively
+a 2.0 or 2.2 kernel with the RAID patches applied.</LI>
+<LI>The RAID tools.</LI>
+<LI>Patience, Pizza, and your favorite caffeinated beverage.</LI>
+</UL>
+</P>
+<P>All of this is included as standard in most GNU/Linux distributions
+today.</P>
+<P>If your system has RAID support, you should have a file called
+<CODE>/proc/mdstat</CODE>.  Remember it, that file is your friend. If you do not have
+that file, maybe your kernel does not have RAID support. See what the
+contains, by doing a <CODE>cat </CODE><CODE>/proc/mdstat</CODE>. It should tell you that
+you have the right RAID personality (eg. RAID mode) registered, and
+that no RAID devices are currently active.</P>
+<P>Create the partitions you want to include in your RAID set.</P>
+
+
+<H2><A NAME="ss5.2">5.2</A> <A HREF="Software-RAID-HOWTO.html#toc5.2">Downloading and installing the RAID tools</A>
+</H2>
+
+<P>The RAID tools are included in almost every major Linux distribution.</P>
+<P><EM>IMPORTANT:</EM>
+If using Debian Woody (3.0) or later, you can install the package by
+running
+<PRE>
+apt-get install raidtools2
+</PRE>
+
+This <CODE>raidtools2</CODE> is a modern version of the old <CODE>raidtools</CODE>
+package, which doesn't support the persistent-superblock and parity-algorithm
+settings.</P>
+
+
+
+<H2><A NAME="ss5.3">5.3</A> <A HREF="Software-RAID-HOWTO.html#toc5.3">Downloading and installing mdadm </A>
+</H2>
+
+<P>You can download the most recent mdadm tarball at 
+<A HREF="http://www.cse.unsw.edu.au/~neilb/source/mdadm/">http://www.cse.unsw.edu.au/~neilb/source/mdadm/</A>.
+Issue a nice <CODE>make install</CODE> to compile and then 
+install mdadm and its documentation, manual pages and
+example files.
+<PRE>
+tar xvf ./mdadm-1.4.0.tgz
+cd mdadm-1.4.0.tgz
+make install
+</PRE>
+
+If using an RPM-based distribution, you can download and install
+the package file found at
+<A HREF="http://www.cse.unsw.edu.au/~neilb/source/mdadm/RPM">http://www.cse.unsw.edu.au/~neilb/source/mdadm/RPM</A>.
+<PRE>
+rpm -ihv mdadm-1.4.0-1.i386.rpm  
+</PRE>
+
+If using Debian Woody (3.0) or later, you can install the package by
+running
+<PRE>
+apt-get install mdadm
+</PRE>
+
+Gentoo has this package available in the portage tree. There you can
+run
+<PRE>
+emerge mdadm
+</PRE>
+
+Other distributions may also have this package available. Now, let's
+go mode-specific.</P>
+
+
+<H2><A NAME="ss5.4">5.4</A> <A HREF="Software-RAID-HOWTO.html#toc5.4">Linear mode</A>
+</H2>
+
+<P>Ok, so you have two or more partitions which are not necessarily the
+same size (but of course can be), which you want to append to
+each other.</P>
+<P>Set up the <CODE>/etc/raidtab</CODE> file to describe your
+setup. I set up a raidtab for two disks in linear mode, and the file
+looked like this:</P>
+<P>
+<PRE>
+raiddev /dev/md0
+        raid-level      linear
+        nr-raid-disks   2
+        chunk-size      32
+        persistent-superblock 1
+        device          /dev/sdb6
+        raid-disk       0
+        device          /dev/sdc5
+        raid-disk       1
+</PRE>
+
+Spare-disks are not supported here.  If a disk dies, the array dies
+with it. There's no information to put on a spare disk.</P>
+<P>You're probably wondering why we specify a <CODE>chunk-size</CODE> here
+when linear mode just appends the disks into one large array with no
+parallelism. Well, you're completely right, it's odd. Just put in some
+chunk size and don't worry about this any more.</P>
+<P>Ok, let's create the array. Run the command
+<PRE>
+  mkraid /dev/md0
+</PRE>
+</P>
+<P>This will initialize your array, write the persistent superblocks, and
+start the array.</P>
+<P>If you are using mdadm, a single command like
+<PRE>
+   mdadm --create --verbose /dev/md0 --level=linear --raid-devices=2 /dev/sdb6 /dev/sdc5
+</PRE>
+
+should create the array. The parameters talk for themselves.
+The output might look like this
+<PRE>
+  mdadm: chunk size defaults to 64K
+  mdadm: array /dev/md0 started.
+</PRE>
+</P>
+<P>Have a look in <CODE>/proc/mdstat</CODE>. You should see that the array is running.</P>
+<P>Now, you can create a filesystem, just like you would on any other
+device, mount it, include it in your <CODE>/etc/fstab</CODE> and so on.</P>
+
+
+<H2><A NAME="ss5.5">5.5</A> <A HREF="Software-RAID-HOWTO.html#toc5.5">RAID-0</A>
+</H2>
+
+<P>You have two or more devices, of approximately the same size, and you 
+want to combine their storage capacity and also combine their
+performance by accessing them in parallel.</P>
+<P>Set up the <CODE>/etc/raidtab</CODE> file to describe your configuration. An
+example raidtab looks like:
+<PRE>
+raiddev /dev/md0
+        raid-level      0
+        nr-raid-disks   2
+        persistent-superblock 1
+        chunk-size     4
+        device          /dev/sdb6
+        raid-disk       0
+        device          /dev/sdc5
+        raid-disk       1
+</PRE>
+
+Like in Linear mode, spare disks are not supported here either. RAID-0
+has no redundancy, so when a disk dies, the array goes with it.</P>
+<P>Again, you just run 
+<PRE>
+  mkraid /dev/md0
+</PRE>
+
+to initialize the array. This should initialize the superblocks and
+start the raid device.  Have a look in <CODE>/proc/mdstat</CODE> to see what's
+going on. You should see that your device is now running.</P>
+<P>/dev/md0 is now ready to be formatted, mounted, used and abused.</P>
+
+
+<H2><A NAME="ss5.6">5.6</A> <A HREF="Software-RAID-HOWTO.html#toc5.6">RAID-1</A>
+</H2>
+
+<P>You have two devices of approximately same size, and you want the two
+to be mirrors of each other. Eventually you have more devices, which
+you want to keep as stand-by spare-disks, that will automatically
+become a part of the mirror if one of the active devices break.</P>
+<P>Set up the <CODE>/etc/raidtab</CODE> file like this:
+<PRE>
+raiddev /dev/md0
+        raid-level      1
+        nr-raid-disks   2
+        nr-spare-disks  0
+        persistent-superblock 1
+        device          /dev/sdb6
+        raid-disk       0
+        device          /dev/sdc5
+        raid-disk       1
+</PRE>
+
+If you have spare disks, you can add them to the end of the device
+specification like
+<PRE>
+        device          /dev/sdd5
+        spare-disk      0
+</PRE>
+
+Remember to set the <CODE>nr-spare-disks</CODE> entry correspondingly.</P>
+<P>Ok, now we're all set to start initializing the RAID. The mirror must
+be constructed, eg. the contents (however unimportant now, since the
+device is still not formatted) of the two devices must be
+synchronized.</P>
+<P>Issue the
+<PRE>
+  mkraid /dev/md0
+</PRE>
+
+command to begin the mirror initialization.</P>
+<P>Check out the <CODE>/proc/mdstat</CODE> file. It should tell you that the /dev/md0
+device has been started, that the mirror is being reconstructed, and
+an ETA of the completion of the reconstruction.</P>
+<P>Reconstruction is done using idle I/O bandwidth. So, your system
+should still be fairly responsive, although your disk LEDs should be
+glowing nicely.</P>
+<P>The reconstruction process is transparent, so you can actually use the
+device even though the mirror is currently under reconstruction.</P>
+<P>Try formatting the device, while the reconstruction is running. It
+will work.  Also you can mount it and use it while reconstruction is
+running. Of Course, if the wrong disk breaks while the reconstruction
+is running, you're out of luck.</P>
+
+
+<H2><A NAME="ss5.7">5.7</A> <A HREF="Software-RAID-HOWTO.html#toc5.7">RAID-4</A>
+</H2>
+
+<P><B>Note!</B> I haven't tested this setup myself. The setup below is
+my best guess, not something I have actually had up running. If you
+use RAID-4, please write to the 
+<A HREF="mailto:jakob@unthought.net">author</A> and share
+your experiences.</P>
+<P>You have three or more devices of roughly the same size, one device is
+significantly faster than the other devices, and you want to combine
+them all into one larger device, still maintaining some redundancy
+information.
+Eventually you have a number of devices you wish to use as
+spare-disks.</P>
+<P>Set up the <CODE>/etc/raidtab</CODE> file like this:
+<PRE>
+raiddev /dev/md0
+        raid-level      4
+        nr-raid-disks   4
+        nr-spare-disks  0
+        persistent-superblock 1
+        chunk-size      32
+        device          /dev/sdb1
+        raid-disk       0
+        device          /dev/sdc1
+        raid-disk       1
+        device          /dev/sdd1
+        raid-disk       2
+        device          /dev/sde1
+        raid-disk       3
+</PRE>
+
+If we had any spare disks, they would be inserted in a similar way,
+following the raid-disk specifications;
+<PRE>
+        device         /dev/sdf1
+        spare-disk     0
+</PRE>
+
+as usual.</P>
+<P>Your array can be initialized with the
+<PRE>
+   mkraid /dev/md0
+</PRE>
+
+command as usual.</P>
+<P>You should see the section on special options for mke2fs before
+formatting the device.</P>
+
+
+<H2><A NAME="ss5.8">5.8</A> <A HREF="Software-RAID-HOWTO.html#toc5.8">RAID-5</A>
+</H2>
+
+<P>You have three or more devices of roughly the same size, you want to
+combine them into a larger device, but still to maintain a degree of
+redundancy for data safety. Eventually you have a number of devices to
+use as spare-disks, that will not take part in the array before
+another device fails.</P>
+<P>If you use N devices where the smallest has size S, the size of the
+entire array will be (N-1)*S. This "missing" space is used for
+parity (redundancy) information.  Thus, if any disk fails, all data
+stay intact. But if two disks fail, all data is lost.</P>
+<P>Set up the <CODE>/etc/raidtab</CODE> file like this:
+<PRE>
+raiddev /dev/md0
+        raid-level      5
+        nr-raid-disks   7
+        nr-spare-disks  0
+        persistent-superblock 1
+        parity-algorithm        left-symmetric
+        chunk-size      32
+        device          /dev/sda3
+        raid-disk       0
+        device          /dev/sdb1
+        raid-disk       1
+        device          /dev/sdc1
+        raid-disk       2
+        device          /dev/sdd1
+        raid-disk       3
+        device          /dev/sde1
+        raid-disk       4
+        device          /dev/sdf1
+        raid-disk       5
+        device          /dev/sdg1
+        raid-disk       6
+</PRE>
+
+If we had any spare disks, they would be inserted in a similar way,
+following the raid-disk specifications;
+<PRE>
+        device         /dev/sdh1
+        spare-disk     0
+</PRE>
+
+And so on.</P>
+<P>A chunk size of 32 kB is a good default for many general purpose
+filesystems of this size. The array on which the above raidtab is
+used, is a 7 times 6 GB = 36 GB (remember the (n-1)*s = (7-1)*6 = 36)
+device. It holds an ext2 filesystem with a 4 kB block size.  You could
+go higher with both array chunk-size and filesystem block-size if your
+filesystem is either much larger, or just holds very large files.</P>
+<P>Ok, enough talking. You set up the <CODE>/etc/raidtab</CODE>, so let's see if it
+works. Run the 
+<PRE>
+  mkraid /dev/md0
+</PRE>
+
+command, and see what happens.  Hopefully your disks start working
+like mad, as they begin the reconstruction of your array. Have a look
+in <CODE>/proc/mdstat</CODE> to see what's going on.</P>
+<P>If the device was successfully created, the reconstruction process has
+now begun.  Your array is not consistent until this reconstruction
+phase has completed. However, the array is fully functional (except
+for the handling of device failures of course), and you can format it
+and use it even while it is reconstructing.</P>
+<P>See the section on special options for mke2fs before formatting the
+array.</P>
+<P>Ok, now when you have your RAID device running, you can always stop it
+or re-start it using the
+<PRE>
+  raidstop /dev/md0
+</PRE>
+
+or
+<PRE>
+  raidstart /dev/md0
+</PRE>
+
+commands.</P>
+<P>With mdadm you can stop the device using
+<PRE>
+  mdadm -S /dev/md0
+</PRE>
+
+and re-start it with 
+<PRE>
+  mdadm -R /dev/md0
+</PRE>
+
+Instead of putting these into init-files and rebooting a zillion times
+to make that work, read on, and get autodetection running.</P>
+
+
+<H2><A NAME="ss5.9">5.9</A> <A HREF="Software-RAID-HOWTO.html#toc5.9">The Persistent Superblock</A>
+</H2>
+
+<P>Back in "The Good Old Days" (TM), the raidtools would read your
+<CODE>/etc/raidtab</CODE> file, and then initialize the array.  However, this would
+require that the filesystem on which <CODE>/etc/raidtab</CODE> resided was
+mounted. This is unfortunate if you want to boot on a RAID.</P>
+<P>Also, the old approach led to complications when mounting filesystems
+on RAID devices. They could not be put in the <CODE>/etc/fstab</CODE> file as usual,
+but would have to be mounted from the init-scripts.</P>
+<P>The persistent superblocks solve these problems. When an array is
+initialized with the <CODE>persistent-superblock</CODE> option in the
+<CODE>/etc/raidtab</CODE> file, a special superblock is written in the beginning of
+all disks participating in the array. This allows the kernel to read
+the configuration of RAID devices directly from the disks involved,
+instead of reading from some configuration file that may not be
+available at all times.</P>
+<P>You should however still maintain a consistent <CODE>/etc/raidtab</CODE> file, since
+you may need this file for later reconstruction of the array.</P>
+<P>The persistent superblock is mandatory if you want auto-detection of
+your RAID devices upon system boot. This is described in the
+<B>Autodetection</B> section.</P>
+
+
+<H2><A NAME="ss5.10">5.10</A> <A HREF="Software-RAID-HOWTO.html#toc5.10">Chunk sizes</A>
+</H2>
+
+<P>The chunk-size deserves an explanation.  You can never write
+completely parallel to a set of disks. If you had two disks and wanted
+to write a byte, you would have to write four bits on each disk,
+actually, every second bit would go to disk 0 and the others to disk
+1. Hardware just doesn't support that.  Instead, we choose some
+chunk-size, which we define as the smallest "atomic" mass of data
+that can be written to the devices.  A write of 16 kB with a chunk
+size of 4 kB, will cause the first and the third 4 kB chunks to be
+written to the first disk, and the second and fourth chunks to be
+written to the second disk, in the RAID-0 case with two disks.  Thus,
+for large writes, you may see lower overhead by having fairly large
+chunks, whereas arrays that are primarily holding small files may
+benefit more from a smaller chunk size.</P>
+<P>Chunk sizes must be specified for all RAID levels, including linear
+mode. However, the chunk-size does not make any difference for linear
+mode.</P>
+<P>For optimal performance, you should experiment with the value, as well
+as with the block-size of the filesystem you put on the array.</P>
+<P>The argument to the chunk-size option in <CODE>/etc/raidtab</CODE> specifies the
+chunk-size in kilobytes. So "4" means "4 kB".</P>
+
+<H3>RAID-0</H3>
+
+<P>Data is written "almost" in parallel to the disks in the
+array. Actually, <CODE>chunk-size</CODE> bytes are written to each disk,
+serially.</P>
+<P>If you specify a 4 kB chunk size, and write 16 kB to an array of three
+disks, the RAID system will write 4 kB to disks 0, 1 and 2, in
+parallel, then the remaining 4 kB to disk 0.</P>
+<P>A 32 kB chunk-size is a reasonable starting point for most arrays. But
+the optimal value depends very much on the number of drives involved,
+the content of the file system you put on it, and many other factors.
+Experiment with it, to get the best performance.</P>
+
+<H3>RAID-0 with ext2</H3>
+
+<P>The following tip was contributed by 
+<A HREF="mailto:michael@freenet-ag.de">michael@freenet-ag.de</A>:</P>
+<P>There is more disk activity at the beginning of ext2fs block groups.
+On a single disk, that does not matter, but it can hurt RAID0, if all
+block groups happen to begin on the same disk.  Example:</P>
+<P>With 4k stripe size and 4k block size, each block occupies one stripe.
+With two disks, the stripe-#disk-product is 2*4k=8k.  The default
+block group size is 32768 blocks, so all block groups start on disk 0,
+which can easily become a hot spot, thus reducing overall performance.
+Unfortunately, the block group size can only be set in steps of 8 blocks
+(32k when using 4k blocks), so you can not avoid the problem by adjusting
+the block group size with the -g option of mkfs(8).</P>
+<P>If you add a disk, the stripe-#disk-product is 12, so the first block
+group starts on disk 0, the second block group starts on disk 2 and the
+third on disk 1.  The load caused by disk activity at the block group
+beginnings spreads over all disks.</P>
+<P>In case you can not add a disk, try a stripe size of 32k.  The
+stripe-#disk-product is 64k.  Since you can change the block group size
+in steps of 8 blocks (32k), using a block group size of 32760 solves
+the problem.</P>
+<P>Additionally, the block group boundaries should fall on stripe boundaries.
+That is no problem in the examples above, but it could easily happen
+with larger stripe sizes.</P>
+
+<H3>RAID-1</H3>
+
+<P>For writes, the chunk-size doesn't affect the array, since all data
+must be written to all disks no matter what.  For reads however, the
+chunk-size specifies how much data to read serially from the
+participating disks.  Since all active disks in the array
+contain the same information, the RAID layer has complete freedom in
+choosing from which disk information is read - this is used by the
+RAID code to improve average seek times by picking the disk best
+suited for any given read operation.</P>
+
+<H3>RAID-4</H3>
+
+<P>When a write is done on a RAID-4 array, the parity information must be
+updated on the parity disk as well.</P>
+<P>The chunk-size affects read performance in the same way as in RAID-0,
+since reads from RAID-4 are done in the same way.</P>
+
+<H3>RAID-5</H3>
+
+<P>On RAID-5, the chunk size has the same meaning for reads as for
+RAID-0. Writing on RAID-5 is a little more complicated: When a chunk
+is written on a RAID-5 array, the corresponding parity chunk must be
+updated as well. Updating a parity chunk requires either
+<UL>
+<LI>The original chunk, the new chunk, and the old parity block</LI>
+<LI>Or, all chunks (except for the parity chunk) in the stripe</LI>
+</UL>
+
+The RAID code will pick the easiest way to update each parity chunk as
+the write progresses. Naturally, if your server has lots of memory
+and/or if the writes are nice and linear, updating the parity chunks
+will only impose the overhead of one extra write going over the bus
+(just like RAID-1). The parity calculation itself is extremely
+efficient, so while it does of course load the main CPU of the system,
+this impact is negligible. If the writes are small and scattered all
+over the array, the RAID layer will almost always need to read in all
+the untouched chunks from each stripe that is written to, in order to
+calculate the parity chunk. This will impose extra bus-overhead and
+latency due to extra reads.</P>
+<P>A reasonable chunk-size for RAID-5 is 128 kB, but as always, you may
+want to experiment with this.</P>
+<P>Also see the section on special options for mke2fs.  This affects
+RAID-5 performance.</P>
+
+
+<H2><A NAME="ss5.11">5.11</A> <A HREF="Software-RAID-HOWTO.html#toc5.11">Options for mke2fs</A>
+</H2>
+
+<P>There is a special option available when formatting RAID-4 or -5
+devices with mke2fs. The <CODE>-R stride=nn</CODE> option will allow
+mke2fs to better place different ext2 specific data-structures in an
+intelligent way on the RAID device.</P>
+<P>If the chunk-size is 32 kB, it means, that 32 kB of consecutive data
+will reside on one disk. If we want to build an ext2 filesystem with 4
+kB block-size, we realize that there will be eight filesystem blocks
+in one array chunk. We can pass this information on the mke2fs
+utility, when creating the filesystem:
+<PRE>
+  mke2fs -b 4096 -R stride=8 /dev/md0
+</PRE>
+</P>
+<P>RAID-{4,5} performance is severely influenced by this option. I am
+unsure how the stride option will affect other RAID levels. If anyone
+has information on this, please send it in my direction.</P>
+<P>The ext2fs blocksize <I>severely</I> influences the performance of
+the filesystem. You should always use 4kB block size on any filesystem
+larger than a few hundred megabytes, unless you store a very large
+number of very small files on it.</P>
+
+
+
+<HR>
+<A HREF="Software-RAID-HOWTO-6.html">Next</A>
+<A HREF="Software-RAID-HOWTO-4.html">Previous</A>
+<A HREF="Software-RAID-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

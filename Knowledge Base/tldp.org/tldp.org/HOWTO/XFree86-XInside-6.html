@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux XFree-to-Xinside mini-HOWTO: Automating the process</TITLE>
+ <LINK HREF="XFree86-XInside-7.html" REL=next>
+ <LINK HREF="XFree86-XInside-5.html" REL=previous>
+ <LINK HREF="XFree86-XInside.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="XFree86-XInside-7.html">Next</A>
+<A HREF="XFree86-XInside-5.html">Previous</A>
+<A HREF="XFree86-XInside.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Automating the process</A></H2>
+
+<P>This small script automates most of the work. Be very careful with the
+ScanType and with the two Polarity lines: the script do not set them
+and, if you are too lazy to correct them, the risks of blowing up your
+monitor increase quite a lot.
+<P>Notice that I don't know if the 'Doublescan' flag has meaning in XInside:
+if you try to convert a low-res doublescan mode BE CAREFUL, you can easily
+kill your monitor since the refresh rate that you get is doubled ( in
+fact my 400x300@72Hz became a 400x300@144Hz !).
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+##########################################################################
+# XF2XInside
+#
+# This script converts modelines from XF86Config format to XInside
+# format as needed for the etc/Xtiming file.
+#
+# This is a quick hack, so don't expect much error checking (not to
+# speak of anything like user friendlyness).
+#
+# If you call it without arguments it should tell you what to do.
+#
+#                               ( July 1996, hcz@tazlwurm.bb.bawue.de)
+#
+# Btw: New modes created as described in the HOWTO work, but don't
+# show up in Xsetup's menu. Anybody who knows why?
+#
+##########################################################################
+#----------------------------------------------- Here we go:
+# Change this if your modeline file lives somewhere else:
+XF=/usr/X11/lib/X11/XF86Config
+if [ $# -ne 1 ] ; then
+  echo "usage: ${0##*/} &lt;mode>"
+  echo " example: ${0##*/} 1024x764"
+  echo -e " function: converts $XF modeline entry into\n Xinside Format (stdout)"
+  exit 1
+fi
+egrep -i "^[\t ]*modeline.+\"$1\""  /usr/X11/lib/X11/XF86Config |
+gawk '
+NF &lt; 11  { print "! invalid Modeline:\n! " $0 "\n!"; next }
+{
+  print "//", $0  ":"
+  name = $2
+  DOT_CLK = $3;
+  A = $4;
+  B = $5;
+  C = $6;
+  D = $7;
+  a = $8;
+  b = $9;
+  c = $10;
+  d = $11;
+  VerFrequency =  1000000 / ((D / DOT_CLK) * d)
+  print "[PREADJUSTED_TIMING]"
+  printf "  PreadjustedTimingName = \"%dx%d @ %.0dHz\";\n", A, a, VerFrequency
+  print "  HorPixel\t\t= " A ";"
+  print "  VerPixel\t\t= " a ";"
+  print "  PixelWidthRatio\t= 4;\n  PixelHeightRatio\t= 3;"
+  print "  HorFrequency\t\t= " DOT_CLK / D * 1000 ";\t// kHz"
+  print "  VerFrequency\t\t= " VerFrequency  ";\t// Hz"
+  print "  ScanType\t\t= NONINTERLACED;\t\t// *CHECK*"
+  print "  HorSyncPolarity\t= NEGATIVE;\t\t\t// *CHECK*"
+  print "  VerSyncPolarity\t= NEGATIVE;\t\t\t// *CHECK*"
+  print "  CharacterWidth\t= 8;"
+  print "  PixelClock\t\t= " DOT_CLK ";"
+  HorTotalTime = D / DOT_CLK
+  print "  HorTotalTime\t\t= " HorTotalTime ";"
+  print "  HorAddrTime \t\t= " A / DOT_CLK ";"
+  print "  HorBlankStart\t\t= " A / DOT_CLK ";"
+  print "  HorBlankTime\t\t= " D / DOT_CLK - A / DOT_CLK ";"
+  print "  HorSyncStart\t\t= " B / DOT_CLK ";"
+  print "  HorSyncTime\t\t= " C / DOT_CLK - B / DOT_CLK ";"
+  VerTotalTime  = ( HorTotalTime * d ) / 1000
+  print "  VerTotalTime\t\t= " VerTotalTime ";"
+  print "  VerAddrTime\t\t= " ( HorTotalTime * a ) / 1000 ";"
+  VerBlankStart = ( HorTotalTime * a ) / 1000
+  print "  VerBlankStart\t\t= " VerBlankStart ";"
+  print "  VerBlankTime\t\t= " VerTotalTime - VerBlankStart ";"
+  print "  VerSyncStart\t\t= " ( HorTotalTime * b ) / 1000 ";"
+  print "  VerSyncTime\t\t= " ( HorTotalTime * ( c - b ) ) / 1000
+  print ""
+}'
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="XFree86-XInside-7.html">Next</A>
+<A HREF="XFree86-XInside-5.html">Previous</A>
+<A HREF="XFree86-XInside.html#toc6">Contents</A>
+</BODY>
+</HTML>

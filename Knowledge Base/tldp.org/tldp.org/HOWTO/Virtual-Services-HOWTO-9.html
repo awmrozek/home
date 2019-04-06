@@ -1,0 +1,676 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Virtual Services Howto: Virtual Mail/Pop</TITLE>
+ <LINK HREF="Virtual-Services-HOWTO-10.html" REL=next>
+ <LINK HREF="Virtual-Services-HOWTO-8.html" REL=previous>
+ <LINK HREF="Virtual-Services-HOWTO.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Virtual-Services-HOWTO-10.html">Next</A>
+<A HREF="Virtual-Services-HOWTO-8.html">Previous</A>
+<A HREF="Virtual-Services-HOWTO.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="s9">9. Virtual Mail/Pop</A></H2>
+
+<H2><A NAME="ss9.1">9.1 Problem</A>
+</H2>
+
+<P>Virtual mail support is in ever increasing demand.  Sendmail says
+it supports virtual mail.  What it does support is listening
+for incoming mail from different domains.  You can then specify to 
+have the mail forwarded somewhere.  However, if you forward it to
+the local machine and have incoming mail to bob@domain1.com 
+and bob@domain2.com they will go to the same mail folder.  This is a 
+problem since both bob's are different people with different mail.  
+<P>
+<H2><A NAME="ss9.2">9.2 Solution</A>
+</H2>
+
+<P>You can make sure that each user name is unique by using a 
+numbering scheme: bob1, bob2, etc or prepending a few characters
+to each username dom1bob, dom2bob, etc.  You could also hack
+mail and pop to do these conversions behind the scenes but
+that can get messy.  Outgoing mail also has the banner 
+maindomain.com and you want each subdomain's outgoing mail
+banner to be different.  
+<P>
+<P>I have two solutions.  One works with sendmail and one works
+with Qmail.  The solution with sendmail should work with a stock install of
+sendmail.  However, it shares all the limitations built into sendmail.
+It also requires that one sendmail has to be run in queue mode for
+each domain.  Having 50 or more sendmail queue processes that wake
+up every hour can put a little strain on a machine.
+<P>
+<P>The solution offered with Qmail does not require multiple instances of Qmail 
+and can run out of one queue directory.  It does require an extra program
+since Qmail does not rely on virtuald.  I believe a similar procedure can be 
+done with sendmail.  However, Qmail lends itself to this solution more 
+readily.
+<P>
+<P>I do not endorse any one program over the other.  The sendmail install
+is a little more straight forward but Qmail is probably the more powerful
+of the two mail server packages.
+<P>
+<H2><A NAME="ss9.3">9.3 Sendmail Solution</A>
+</H2>
+
+<H3>Introduction</H3>
+
+<P>Each virtual filesystem gives a domain its own /etc/passwd.  This
+means that bob@domain1.com and bob@domain2.com are different users
+in different /etc/passwds so mail will be no problem.  They also
+have their own spool directories so the mail folders will be
+different files on different virtual filesystems.
+<P>
+<H3>Create Sendmail Configuration File</H3>
+
+<P>Create /etc/sendmail.cf like you would normally through m4.  I used:
+<P>
+<PRE>
+divert(0)
+VERSIONID(`tcpproto.mc')
+OSTYPE(linux)
+FEATURE(redirect)
+FEATURE(always_add_domain)
+FEATURE(use_cw_file)
+FEATURE(local_procmail)
+MAILER(local)
+MAILER(smtp)
+</PRE>
+<P>
+<H3>Edit Sendmail Configuration File</H3>
+
+<P>Edit /virtual/domain1.com/etc/sendmail.cf to respond as your virtual domain:
+<P>
+<PRE>
+vi /virtual/domain1.com/etc/sendmail.cf # Approximately Line 86 
+It should say:
+
+#Dj$w.Foo.COM
+
+Replace it with:
+
+Djdomain1.com
+</PRE>
+<P>
+<H3>Sendmail Local Delivery</H3>
+
+<P>Edit /virtual/domain1.com/etc/sendmail.cw with the local hostnames.
+<P>
+<PRE>
+vi /virtual/domain1.com/etc/sendmail.cw
+mail.domain1.com
+domain1.com
+domain1
+localhost
+</PRE>
+<P>
+<H3>Sendmail Between Virtual Domains: The Hack (PRE8.8.6)</H3>
+
+<P>However, sendmail requires one minor source code modification.  
+Sendmail has a file called /etc/sendmail.cw and it contains all machine names
+that sendmail will deliver mail to locally rather than forwarding
+to another machine.  Sendmail does internal checking of all
+the devices on the machine to initialize this list with the
+local IPs.  This presents a problem if you are mailing
+between virtual domains on the same machine.  Sendmail will be 
+fooled into thinking another virtual domain is a local address and 
+spool the mail locally.  For example, bob@domain1.com sends mail 
+to fred@domain2.com.  Since domain1.com's sendmail thinks domain2.com 
+is local, it will spool the mail on domain1.com and never send it to 
+domain2.com.  You have to modify sendmail (I did this on v8.8.5 without 
+a problem):
+<P>
+<PRE>
+vi v8.8.5/src/main.c # Approximately Line 494
+It should say:
+
+load_if_names();
+
+Replace it with:
+
+/* load_if_names(); Commented out since hurts virtual */
+</PRE>
+<P>Note only do this if you need to send mail between virtual domains which
+I think is probable.  
+<P>This will fix the problem.  However, the main ethernet device eth0
+is not removed.  Therefore, if you send mail from a virtual IP to the
+one on eth0 on the same box it will delivery locally.  Therefore, I 
+just use this as a dummy IP virtual1.maindomain.com (10.10.10.157).  I never 
+send mail to this host so neither will the virtual domains.  This
+is also the IP I would use to ssh into the box to check if the system is ok.  
+<P>
+<H3>Sendmail Between Virtual Domains: New Sendmail Feature (POST8.8.6)</H3>
+
+<P>As of Sendmail V8.8.6, there is a new option to disable loading of the
+extra network interfaces.  This means you do NOT have to alter the
+code in any way.  It is called <CODE> DontProbeInterfaces </CODE>.
+<P>
+<P>Edit /virtual/domain1.com/etc/sendmail.cf
+<P>
+<PRE>
+vi /virtual/domain1.com/etc/sendmail.cf # Add the line
+O DontProbeInterfaces=True
+</PRE>
+<P>
+<H3>Sendmail.init </H3>
+
+<P>Sendmail cannot be started stand alone anymore so you have to
+run it through inetd.  This is inefficient and will result in
+lower start up time but if you had such a high hit site you would
+not share it on a virtual box with other domains.  Note that you
+are NOT running with the <CODE> -bd </CODE> flag.  Also note that
+you need a <CODE> sendmail -q </CODE> running for each domain to
+queue up undelivered mail. The new sendmail.init file:
+<P>
+<PRE>
+#!/bin/sh
+
+. /etc/rc.d/init.d/functions
+
+case "$1" in
+  start)
+        echo -n "Starting sendmail: "
+        daemon sendmail -q1h
+        echo
+        echo -n "Starting virtual sendmail: "
+        for i in /virtual/*
+        do
+                if [ ! -d "$i" ]
+                then
+                        continue
+                fi
+                if [ "$i" = "/virtual/lost+found" ]
+                then
+                        continue
+                fi
+                chroot $i sendmail -q1h
+                echo -n "."
+        done
+        echo " done"
+        touch /var/lock/subsys/sendmail
+        ;;
+  stop)
+        echo -n "Stopping sendmail: "
+        killproc sendmail
+        echo
+        rm -f /var/lock/subsys/sendmail
+        ;;
+  *)
+        echo "Usage: sendmail {start|stop}"
+        exit 1
+esac
+
+exit 0
+</PRE>
+<P>
+<H3>Inetd Setup</H3>
+
+<P>Pop should install normally with no extra effort.  It will
+just need the inetd entry for it with the virtuald part added.
+The inetd.conf entries for sendmail and pop:
+<P>
+<PRE>
+pop-3 stream tcp nowait root /usr/local/bin/virtuald \
+        virtuald /virtual/conf.pop in.qpop -s 
+smtp stream tcp nowait root /usr/local/bin/virtuald \
+        virtuald /virtual/conf.mail sendmail -bs
+</PRE>
+<P>
+<H2><A NAME="ss9.4">9.4 Qmail Solution</A>
+</H2>
+
+<H3>Introduction</H3>
+
+<P>This solution takes over the delivery responsibilities of qmail-local, so
+use of the .qmail files in the virtual home directories will not work.  However,
+each domain will still get a domain master user that will control aliasing for 
+the whole domain.  Two external programs will be used for that domain masters
+.qmail-default file.  The mail will be passed through these two programs in
+order to deliver mail for each domain. 
+<P>
+<P>Two programs are required since one of them is run setuid root.  It is a small
+program that changes to a non-root user and then runs the second program.  Consult
+your nearest security related site for a discussion as to why this is necessary.
+<P>
+<P>This solution bypasses the need for using virtuald.  Qmail is flexible enough
+to not require a general virtuald setup.  Qmail's design utilizes the chaining of
+programs together to deliver mail.  This design makes it very easy to insert the virtual
+section into the Qmail delivery process without altering a stock install of Qmail.
+<P>
+<P>A note that since you are using one Qmail any unqualified domain name will be
+expanded with the domain of the main server.  This is because you do not
+have a separate Qmail server for each domain.  Therefore, make sure that your client 
+(Eudora, elm, mutt, etc.) knows to expand all of your unqualified domain names.
+<P>
+<H3>Setup Virtual Domains</H3>
+
+<P>Qmail has to be configured to accept mail for each of the virtual domains
+you will be serving.  Type the following commands.
+<P>
+<PRE>
+echo "domain1.com:domain1" &gt;&gt; /var/qmail/control/virtualdomains
+</PRE>
+<P>
+<H3>Setup Domain Master User</H3>
+
+<P>Add to your main /etc/passwd file the user domain1.  I would make the shell
+/bin/false so that the domain master cannot log in.   That user will be
+able to add .qmail files and all mail for domain1 will route through that
+account.  Note that usernames can only be eight characters long and domain
+names can be longer.  The remaining characters are truncated.  That means
+that user domain12 and domain123 are going to be the same user and Qmail
+might get confused.  So be careful in your master domain user naming
+convention.
+<P>
+<P>Create the domain master's .qmail files with the following commands.  Add
+any other system aliases at this point.  For example, webmaster or hostmaster.
+<P>
+<PRE>
+echo "user@domain1.com" &gt; /home/d/domain1/.qmail-mailer-daemon
+echo "user@domain1.com" &gt; /home/d/domain1/.qmail-postmaster
+echo "user@domain1.com" &gt; /home/d/domain1/.qmail-root
+</PRE>
+<P>Create the domain master's .qmail-default file.  This will filter all mail
+to the virtual domain.
+<P>
+<PRE>
+echo "| /usr/local/bin/virtmailfilter" &gt; /home/d/domain1/.qmail-default
+</PRE>
+<P>
+<H3>Tcpserver</H3>
+
+<P>Qmail requires a special pop that can support the Maildir 
+format.  The pop program has to be virtualized.  The author
+of Qmail recommends using tcpserver (an inetd replacement) with
+Qmail so my examples use tcpserver and NOT inetd.
+<P>
+<P>Tcpserver does not require a config file.  All the information can be passed 
+to it via the command line.  Here is the tcpserver.init file that you would use
+for the mail daemon and popper:
+<P>
+<PRE>
+#!/bin/sh
+
+. /etc/rc.d/init.d/functions
+
+QMAILDUSER=`grep qmaild /etc/passwd | cut -d: -f3`
+QMAILDGROUP=`grep qmaild /etc/passwd | cut -d: -f4`
+
+# See how we were called.
+case "$1" in
+  start)
+        echo -n "Starting tcpserver: "
+        tcpserver -u 0 -g 0 0 pop-3 /usr/local/bin/virtuald \
+                /virtual/conf.pop qmail-popup virt.domain1.com \
+                /bin/checkpassword /bin/qmail-pop3d Maildir &amp;
+        echo -n "pop "  
+        tcpserver -u $QMAILDUSER -g $QMAILDGROUP 0 smtp \
+                /var/qmail/bin/qmail-smtpd &amp;
+        echo -n "qmail "
+        echo
+        touch /var/lock/subsys/tcpserver
+        ;;
+  stop)
+        echo -n "Stopping tcpserver: "
+        killall -TERM tcpserver 
+        echo -n "killing "
+        echo 
+        rm -f /var/lock/subsys/tcpserver
+        ;;
+  *)
+        echo "Usage: tcpserver {start|stop}"
+        exit 1
+esac
+
+exit 0
+</PRE>
+<P>
+<H3>Qmail.init</H3>
+
+<P>You can use the standard Qmail init script provided.  Qmail comes with very
+good documentation describing how to set this up.
+<P>
+<H3>Source</H3>
+
+<P>You require two other programs to get virtual mail working with Qmail.  They
+are virtmailfilter and virtmaildelivery.  This is the C source to virtmailfilter.
+It should be installed in /usr/local/bin with permissions 4750, user root, and 
+group nofiles.  
+<P>
+<PRE>
+#include &lt;sys/wait.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;ctype.h&gt;
+#include &lt;pwd.h&gt;
+
+#define VIRTPRE                 "/virtual"
+
+#define VIRTPWFILE              "etc/passwd"
+#define VIRTDELIVERY            "/usr/local/bin/virtmaildelivery"
+#define VIRTDELIVERY0           "virtmaildelivery"
+
+#define PERM                    100
+#define TEMP                    111
+#define BUFSIZE                 8192
+
+int main(int argc,char **argv)
+{
+        char *username,*usernameptr,*domain,*domainptr,*homedir;
+        char virtpath[BUFSIZE];
+        struct passwd *p;
+        FILE *fppw;
+        int status;
+        gid_t gid;
+        pid_t pid;
+
+        if (!(username=getenv("EXT")))
+        {
+                fprintf(stdout,"environment variable EXT not set\n");
+                exit(TEMP);
+        }
+
+        for(usernameptr=username;*usernameptr;usernameptr++)
+        {
+                *usernameptr=tolower(*usernameptr);
+        }
+
+        if (!(domain=getenv("HOST")))
+        {
+                fprintf(stdout,"environment variable HOST not set\n");
+                exit(TEMP);
+        }
+
+        for(domainptr=domain;*domainptr;domainptr++)
+        {
+                if (*domainptr=='.' &amp;&amp; *(domainptr+1)=='.')
+                {
+                        fprintf(stdout,"environment variable HOST has ..\n");
+                        exit(TEMP);
+                }
+                if (*domainptr=='/')
+                {
+                        fprintf(stdout,"environment variable HOST has /\n");
+                        exit(TEMP);
+                }
+
+                *domainptr=tolower(*domainptr);
+        }
+
+        for(domainptr=domain;;)
+        {
+                snprintf(virtpath,BUFSIZE,"%s/%s",VIRTPRE,domainptr);
+                if (chdir(virtpath)&gt;=0)
+                        break;
+
+                if (!(domainptr=strchr(domainptr,'.')))
+                {
+                        fprintf(stdout,"domain failed: %s\n",domain);
+                        exit(TEMP);
+                }
+
+                domainptr++;
+        }
+
+        if (!(fppw=fopen(VIRTPWFILE,"r+")))
+        {
+                fprintf(stdout,"fopen failed: %s\n",VIRTPWFILE);
+                exit(TEMP);
+        }
+
+        while((p=fgetpwent(fppw))!=NULL)
+        {
+                if (!strcmp(p-&gt;pw_name,username))
+                        break;
+        }
+
+        if (!p)
+        {
+                fprintf(stdout,"user %s: not exist\n",username);
+                exit(PERM);
+        }
+
+        if (fclose(fppw)==EOF)
+        {
+                fprintf(stdout,"fclose failed\n");
+                exit(TEMP);
+        }
+
+        gid=p-&gt;pw_gid;
+        homedir=p-&gt;pw_dir;
+
+        if (setgid(gid)&lt;0 || setuid(p-&gt;pw_uid)&lt;0)
+        {
+                fprintf(stdout,"setuid/setgid failed\n");
+                exit(TEMP);
+        }
+
+        switch(pid=fork())
+        {
+                case -1:
+                        fprintf(stdout,"fork failed\n");
+                        exit(TEMP);
+                case 0:
+                        if (execl(VIRTDELIVERY,VIRTDELIVERY0,username,homedir,NULL)&lt;0)
+                        {
+                                fprintf(stdout,"execl failed\n");
+                                exit(TEMP);
+                        }
+                default:
+                        if (wait(&amp;status)&lt;0)
+                        {
+                                fprintf(stdout,"wait failed\n");
+                                exit(TEMP);
+                        }
+                        if (!WIFEXITED(status))
+                        {
+                                fprintf(stdout,"child did not exit normally\n");
+                                exit(TEMP);
+                        }
+                        break;
+        }
+
+        exit(WEXITSTATUS(status));
+}
+</PRE>
+<P>
+<H3>Source</H3>
+
+<P>You require two other programs to get virtual mail working with Qmail.  They
+are virtmailfilter and virtmaildelivery.  This is the C source to virtmaildelivery.
+It should be installed in /usr/local/bin with permissions 0755, user root, and
+group root.  
+<P>
+<PRE>
+#include &lt;sys/stat.h&gt;
+#include &lt;sys/file.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;time.h&gt;
+
+#define TEMP                    111
+#define BUFSIZE                 8192
+#define ATTEMPTS                10
+
+int main(int argc,char **argv)
+{
+        char *user,*homedir,*dtline,*rpline,buffer[BUFSIZE],*p,mail[BUFSIZE];
+        char maildir[BUFSIZE],newmaildir[BUFSIZE],host[BUFSIZE];
+        int fd,n,nl,i,retval;
+        struct stat statp;
+        time_t thetime;
+        pid_t pid;
+        FILE *fp;
+
+        retval=0;
+
+        if (!argv[1])
+        {
+                fprintf(stdout,"invalid arguments: need username\n");
+                exit(TEMP);
+        }
+
+        user=argv[1];
+
+        if (!argv[2])
+        {
+                fprintf(stdout,"invalid arguments: need home directory\n");
+                exit(TEMP);
+        }
+
+        homedir=argv[2];
+
+        if (!(dtline=getenv("DTLINE")))
+        {
+                fprintf(stdout,"environment variable DTLINE not set\n");
+                exit(TEMP);
+        }
+
+        if (!(rpline=getenv("RPLINE")))
+        {
+                fprintf(stdout,"environment variable RPLINE not set\n");
+                exit(TEMP);
+        }
+
+        while (*homedir=='/')
+                homedir++;
+        snprintf(maildir,BUFSIZE,"%s/Maildir",homedir);
+        if (chdir(maildir)&lt;0)
+        {
+                fprintf(stdout,"chdir failed: %s\n",maildir);
+                exit(TEMP);
+        }
+
+        time(&amp;thetime);
+        pid=getpid();
+        if (gethostname(host,BUFSIZE)&lt;0)
+        {
+                fprintf(stdout,"gethostname failed\n");
+                exit(TEMP);
+        }
+
+        for(i=0;i&lt;ATTEMPTS;i++)
+        {
+                snprintf(mail,BUFSIZE,"tmp/%u.%d.%s",thetime,pid,host);
+                errno=0;
+                stat(mail,&amp;statp);
+                if (errno==ENOENT)
+                        break;
+
+                sleep(2);
+                time(&amp;thetime);
+        }
+        if (i&gt;=ATTEMPTS)
+        {
+                fprintf(stdout,"could not create %s\n",mail);
+                exit(TEMP);
+        }
+
+        if (!(fp=fopen(mail,"w+")))
+        {
+                fprintf(stdout,"fopen failed: %s\n",mail);
+                retval=TEMP; goto unlinkit;
+        }
+
+        fd=fileno(fp);
+
+        if (fprintf(fp,"%s",rpline)&lt;0)
+        {
+                fprintf(stdout,"fprintf failed\n");
+                retval=TEMP; goto unlinkit;
+        }
+
+        if (fprintf(fp,"%s",dtline)&lt;0)
+        {
+                fprintf(stdout,"fprintf failed\n");
+                retval=TEMP; goto unlinkit;
+        }
+
+        while(fgets(buffer,BUFSIZE,stdin))
+        {
+                for(p=buffer;*p=='&gt;';p++)
+                        ;
+
+                if (!strncmp(p,"From ",5))
+                {
+                        if (fputc('&gt;',fp)&lt;0)
+                        {
+                                fprintf(stdout,"fputc failed\n");
+                                retval=TEMP; goto unlinkit;
+                        }
+                }
+
+                if (fprintf(fp,"%s",buffer)&lt;0)
+                {
+                        fprintf(stdout,"fprintf failed\n");
+                        retval=TEMP; goto unlinkit;
+                }
+        }
+
+        p=buffer+strlen(buffer);
+        nl=2;
+        if (*p=='\n')
+                nl=1;
+
+        for(n=0;n&lt;nl;n++)
+        {
+                if (fputc('\n',fp)&lt;0)
+                {
+                        fprintf(stdout,"fputc failed\n");
+                        retval=TEMP; goto unlinkit;
+                }
+        }
+
+        if (fsync(fd)&lt;0)
+        {
+                fprintf(stdout,"fsync failed\n");
+                retval=TEMP; goto unlinkit;
+        }
+
+        if (fclose(fp)==EOF)
+        {
+                fprintf(stdout,"fclose failed\n");
+                retval=TEMP; goto unlinkit;
+        }
+
+        snprintf(newmaildir,BUFSIZE,"new/%u.%d.%s",thetime,pid,host);
+        if (link(mail,newmaildir)&lt;0)
+        {
+                fprintf(stdout,"link failed: %s %s\n",mail,newmaildir);
+                retval=TEMP; goto unlinkit;
+        }
+
+unlinkit:
+        if (unlink(mail)&lt;0)
+        {
+                fprintf(stdout,"unlink failed: %s\n",mail);
+                retval=TEMP;
+        }
+
+        exit(retval);
+}
+</PRE>
+<P>
+<H2><A NAME="ss9.5">9.5 Acknowledgement</A>
+</H2>
+
+<P>Thank you 
+<A HREF="mailto:vince@nycrc.net">Vicente Gonzalez (vince@nycrc.net)</A> for helping 
+make the Qmail solution possible.  You can certainly mail your thanks to Vince, however all questions
+and comments including issues regarding Qmail, about this HOWTO should continue to be directed to
+me.
+<P>
+<HR>
+<A HREF="Virtual-Services-HOWTO-10.html">Next</A>
+<A HREF="Virtual-Services-HOWTO-8.html">Previous</A>
+<A HREF="Virtual-Services-HOWTO.html#toc9">Contents</A>
+</BODY>
+</HTML>

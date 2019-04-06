@@ -1,0 +1,353 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Alsa-sound-mini-HOWTO: Testing and using</TITLE>
+ <LINK HREF="Alsa-sound-7.html" REL=next>
+ <LINK HREF="Alsa-sound-5.html" REL=previous>
+ <LINK HREF="Alsa-sound.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Alsa-sound-7.html">Next</A>
+<A HREF="Alsa-sound-5.html">Previous</A>
+<A HREF="Alsa-sound.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Testing and using</A></H2>
+
+<P>Now you should test if the sound driver really is available, then try to
+use it.
+<H2><A NAME="ss6.1">6.1 The /proc filesystem</A>
+</H2>
+
+<P>You can find a lot of useful information about your system in the /proc subdirectory. /proc is
+a "virtual" filesystem, meaning that it does not exist in real life, but merely is a mapping to
+various processes and tasks in your computer. In order for /proc to work, you need to have support
+for it compiled into your kernel. Most linux distributions have this as a default, but if you
+compiled a kernel and left /proc out obviously there won't be anything in /proc.
+<P>/proc/modules gives information about loaded modules. Once the ALSA sound
+drivers are loaded, if you type cat /proc/modules you should see
+something like:
+<BLOCKQUOTE><CODE>
+<PRE>
+snd-pcm1-oss      4            0
+snd-sb16          1            1
+snd-sb-dsp        4    [snd-sb16]      0
+snd-pcm1          4    [snd-pcm1-oss snd-sb-dsp]      0
+snd-pcm           3    [snd-pcm1-oss snd-sb16 snd-sb-dsp snd-pcm1]    0
+snd-mixer         3    [snd-pcm1-oss snd-sb16 snd-sb-dsp]      1
+snd-mpu401-uart   1    [snd-sb16]      0
+snd-midi          4    [snd-sb16 snd-sb-dsp snd-mpu401-uart]   0
+snd-opl3          1    [snd-sb16]      0
+snd-synth         1    [snd-sb16 snd-opl3]     0
+snd-timer         1    [snd-opl3]      0
+snd               8    [snd-pcm1-oss snd-sb16 snd-sb-dsp snd-pcm1 snd-pcm snd-mixer snd-mpu401-uart snd-midi snd-opl3 snd-synth snd-timer]    0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+If something went wrong during the installation of the driver, you will
+still see a couple of "snd" devices, but there won't be sound support.
+<P>For example (Note: you should never issue this command as follows, the cs4236 driver needs options):
+<BLOCKQUOTE><CODE>
+<PRE>
+win3:~# modprobe snd-card-cs4236
+/lib/modules/2.0.35/misc/snd-card-cs4236.o: init_module: Device or resource busy
+snd-mixer: Device or resource busy
+win3:~# cat /proc/modules
+snd-cs4236        2           0
+snd-cs4231        3    [snd-cs4236]    0
+snd-timer         1    [snd-cs4231]    0
+snd-pcm1          4    [snd-cs4236 snd-cs4231] 0
+snd-mixer         3    [snd-cs4236 snd-cs4231] 0
+snd-pcm           3    [snd-cs4236 snd-cs4231 snd-pcm1]       0
+snd-mpu401-uart   1           0
+snd-midi          4    [snd-mpu401-uart]       0
+snd-opl3          1           0
+snd-synth         1    [snd-opl3]      0
+snd-timer         1    [snd-cs4231 snd-opl3]   0
+snd               8    [snd-cs4231 snd-timer snd-pcm1 snd-mixer snd-pcm]     0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You can check the existence of a soundcard by looking in /proc/asound/cards.
+For example:
+<BLOCKQUOTE><CODE>
+<PRE>
+bash$ cat /proc/asound/cards
+0 [card1          : SB16 - Sound Blaster 16
+                    Sound Blaster 16 at 0x220, irq 5, dma 1&amp;5
+</PRE>
+</CODE></BLOCKQUOTE>
+
+In the previous example (where I forgot the options) the output would have
+been:
+<BLOCKQUOTE><CODE>
+<PRE>
+win3:~# cat /proc/asound/cards
+--- no soundcards ---
+</PRE>
+</CODE></BLOCKQUOTE>
+
+A working CS4236 card would produce
+<BLOCKQUOTE><CODE>
+<PRE>
+0 [card1         ]: CS4236 - CS4237B
+                    CS4237B at 0x534, irq 7, dma 1&amp;0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+If you checked and doublechecked your settings and still see no sound card,
+take a look at the troubleshooting section.
+<P>The <CODE>/proc/asound/</CODE> virtual directory shows lots of other information
+about the driver. Please note that /proc/asound/ will only exist after you inserted 
+the first ALSA module. If there is no /proc/asound, it simply means that the "snd"
+module was not loaded properly. You can find installed cards in /proc/asound/cards, then
+find information about card0 in /proc/asound/0, /proc/asound/1 for card1
+etcetera.
+<P>If <CODE>cat /proc/asound/card1/pcm0</CODE> shows something like
+<BLOCKQUOTE><CODE>
+<PRE>
+      ES1370 DAC2/ADC
+      Playback isn't active.
+      Record isn't active.
+</PRE>
+</CODE></BLOCKQUOTE>
+ this means that your driver is ready to go, but
+is not doing anything right now. (So everything went well).
+<P>For users of a 2.0.x kernel there is a third method to find information about the sound devices, namely if you inserted
+the OSS compatible driver there is a /dev/sndstat device. The ALSA drivers kindly request
+that you
+not to rely on this information as it is only there for compatibility with the OSS drivers
+and better information can easily be obtained from /proc/asound/. In kernel 2.2.x ALSA uses
+the kernel soundcore and therefor cannot emulate /dev/sndstat, since it would interfere
+with the OSS drivers.
+<P>
+<H2><A NAME="ss6.2">6.2 The mixer</A>
+</H2>
+
+<P>Once the drivers for your sound card have been installed and your /proc
+filesystem tells you so, you can try to make a real sound. To do this, you
+need to set the mixer volumes to a reasonable value. You need the ``amixer''
+from the alsa-utils package for this. First of all,
+install the utility package, or at least put the "amixer" command in some
+reasonable place (like /usr/local/bin).
+<P>Version 0.3.2 and
+later have an interface that differs from the OSS drivers. If you type just ``amixer''
+you will see the mixer elements and their value. One of these elements
+could be ``Master volume'' for example, and could look like:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Group 'Master',0
+  Capabilities: volume
+  Channels: Front-Left Front-Right 
+  Limits: min = 0, max = 31
+  Front-Left: 31 [100%] [on] [---]
+  Front-Right: 26 [84%] [on] [---]
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Unfortunately, I do not know how to set left and right volumes independently. With amixer,
+you can change volumes with the ``amixer set'' command. For example, to change the Master
+volume, you would issue a
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+amixer set Master 15
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Please note that the names of the elements can be different for different types of sound cards. Also note
+that amixer is case dependent, so ``amixer set masteR 10'' will not work.
+For more information, please look in the amixer man page.
+<P>
+<P>If you have a 0.3.0-pre4 ALSA, then amixer works just like normal mixer programs.
+You can look at the mixer settings
+by typing ``amixer''. This command lists the ``mixer settings'', or as you would
+normally call it, the volume settings of the various parts of the soundcard. 
+The output from amixer can greatly differ from card
+to card. My Soundblaster 16 shows:
+<BLOCKQUOTE><CODE>
+<PRE>
+Master         0  % (-14.00dB) : 0  % (-14.00dB)
+Bass           0  % (-14.00dB) : 0  % (-14.00dB)
+Treble         0  % (-14.00dB) : 0  % (-14.00dB)
+Synth          0  % (-62.00dB) : 0  % (-62.00dB)
+PCM            0  % (-62.00dB) : 0  % (-62.00dB)
+Line-In        0  % (-62.00dB) : 0  % (-62.00dB) Mute
+MIC            0  % (-62.00dB) : 0  % (-62.00dB) Mute
+CD             0  % (-62.00dB) : 0  % (-62.00dB) Mute
+In-Gain        0  % (-18.00dB) : 0  % (-18.00dB)
+Out-Gain       0  % (-18.00dB) : 0  % (-18.00dB)
+PC Speaker     0  % (-18.00dB) : 0  % (-18.00dB)
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you only get a message like ``amixer: Specify command...'', then you are using
+the ALSA 3.2 utilities. I suggest you to upgrade to 0.4.1e or later, or to go back to
+0.3.0-pre4.
+<P>
+<H3>Mixer settings for playing</H3>
+
+<P>You have noticed the "Mute" entry for some devices. This means that this particular
+device will be zeroed out, whatever volume setting you use. Some cards 
+(the CS4237B in the example) even mute their master channel.
+So, for the CS4237B, I would have to type 
+<P><CODE>amixer set "Master d" unmute</CODE>
+<P>to even be able to produce any sound at all. The Soundblaster does not
+have muted output, but 
+<P><CODE>amixer set Master 100 unmute</CODE>
+<P>would set the
+volume to 100% - and unmute it if it would have been muted.
+You can use a number, a word like
+"mute" or "unmute", or both. Type 
+<P><CODE>amixer set "Master d" 100; amixer set PCM 100 unmute</CODE>
+<P>to set the CS4237B card to maximum master volume and unmute 
+PCM volume and set it to maximum.
+<P>If you use an older version of amixer, you need to leave out the ``set'' part of the command, so you would
+just type
+<P><CODE>amixer "master d" 100</CODE>
+<P>
+<H3>Mixer parts</H3>
+
+<P>The various mixer parts may confuse you if you have no knowledge of digital sound
+production. The sound-HOWTO may help a bit, but a very short introduction is here.
+<P>You will probably only need few mixer elements: one of them is the ``CD'' setting 
+(this is analog sound of your CD player, most CD players are connected
+with a 3 or 4 wire red/white/black cable).
+<P>The ``PCM'' setting is used for most applications. Programs like 
+mpg123, xmms, speakfreely, realplayer and most others use the PCM channel.
+<P>``MIC'' stands for
+microphone, ``line-in'' is an (optional) extra input at the back of your sound card.
+<P>The various ``gain'' parts offer extra amplification for various uses and are pretty
+self-explanatory. (Like: record-gain is extra amplification for the recording channel, which
+can be useful if you use a microphone).
+<P>
+<H3>Mixer settings for recording</H3>
+
+<P>You would set the CD channel to record by typing 
+<P><CODE>amixer set CD capture</CODE>
+<P>and stop the recording setting again by typing 
+<P><CODE>amixer set CD nocapture</CODE>.
+<P>Note that older amixer programs use ``amixer CD rec'' and ``amixer CD norec'' for this.
+<P>If you would like to record something from the microphone, you would probably
+use 
+<P><CODE>amixer set "Input Gain" 100; amixer set Mic 100 capture mute</CODE>.
+<P>(Using the
+microphone input unmuted will produce loud high-pitched sound if your mic
+picks up its own signal from the speakers again). Most microphones have 
+a ``gain'' setting to boost the microphone volume; you are most likely going
+to need it to pick up any sound from the microphone at all.
+<P>Again, older amixer programs use ``amixer "input gain" 100; amixer mic 100 rec mute''.
+<P>
+<H3>Other mixer settings</H3>
+
+<P>Unfortunately I have not been able to change the volume of the "3d
+center" and "3d space" settings with amixer 0.3.0-pre4. I haven't tried yet with 0.4.1e (this particular machine
+is still running 2.0.38). If anyone succeeds please
+let me know. I can use alsamixer for this job, but alsamixer was not ported to the 0.4.1e version yet.
+<P>The ALSA FAQ says that it is possible to restore mixer settings with
+<CODE>cat &lt;file> > /proc/asound/#/mixerC0D0</CODE>, where &lt;file> was obtained from
+/proc/asound/#/mixerC0D0. I have not been able to reproduce this as my system
+complains about non-existing devices. Then there is the ``alsactl'' program, which I don't use. I invite you (yes, you!)
+to write this section.
+<P>
+<H2><A NAME="ss6.3">6.3 The /dev/snd/ devices</A>
+</H2>
+
+<P>The alsa drivers have native sound-devices in the /dev/snd/ directory.
+If you have  one card you might see the following devices:
+<BLOCKQUOTE><CODE>
+<PRE>
+/dev/snd/pcmC0D0 - the raw audio device for the card
+/dev/snd/mixerC0D0 - the mixer for card 0
+/dev/snd/controlC0D0 - the control device for card 0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The first number means the number of the soundcard, the second number (if
+any) is the number of the device. A sound card with two PCM devices would
+have a pcmC0D0 and pcmC0D1 device.
+Please note: the ALSA devices have changed between the previous version. Older 
+ALSA drivers use /dev/snd/pcm00 (first number is the card, second number is the device).
+If this HOWTO uses the older notation, please drop me a line so I can correct it.
+<P>Now you are ready to put any soundfile you want into the PCM device
+of the first card. So try to cat any textfile (any file) to /dev/snd/pcmC0D0,
+like this: <CODE>cat &lt;filename> > /dev/snd/pcmC0D0</CODE>. The filename can
+be any file, as long as it has some length. If you have a soundfile lying
+around somewhere, you could try that. You could also get the file at 
+<A HREF="http://www.ldp.org/sounds/english.au">http://www.ldp.org/sounds/english.au</A>
+this is Linus Torvalds saying how to pronounce Linux.
+<P>The default setting of your sound device is 8000 Hz, 8 bit. That means that
+the "english.au" file mentioned above will produce speech,
+other test files will probably just produce noise. If you do not hear anything,
+check your speakers, try to run "amixer" again or consult a doctor.
+(Later on you can easily use the full 48 KHz, 16 bit features of your sound card, by using
+your favourite sound player like sox or mpg123).
+<P>If you loaded the ``snd-pcm1-oss'' module, you can also use the OSS-compatibility
+to access your sound card. The following mappings are made:
+<BLOCKQUOTE><CODE>
+<PRE>
+/dev/snd/pcmC0D0 -> /dev/audio0 (/dev/audio) -> minor 4
+/dev/snd/pcmC0D0 -> /dev/dsp0 (/dev/dsp) -> minor 3
+/dev/snd/pcmC0D1 -> /dev/adsp0 (/dev/adsp) -> minor 12
+/dev/snd/pcmC1D0 -> /dev/audio1 -> minor 4+16 = 20
+/dev/snd/pcmC1D0 -> /dev/dsp1 -> minor 3+16 = 19
+/dev/snd/pcmC1D1 -> /dev/adsp1 -> minor 12+16 = 28
+/dev/snd/pcmC2D0 -> /dev/audio2 -> minor 4+32 = 36
+/dev/snd/pcmC2D0 -> /dev/dsp2 -> minor 3+32 = 35
+/dev/snd/pcmC2D1 -> /dev/adsp2 -> minor 12+32 = 44
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You probaly want to use the ``snd-mixer-oss'' module as wel, so you can use the backwards compatible mixer.
+<P>
+<H2><A NAME="ss6.4">6.4 Additional information</A>
+</H2>
+
+<P>The INSTALL file in the ALSA driver directory mentions some tricks to tell
+the driver which settings to use. If you need these commands it will depend on the application you
+use to play sound. Regular sound playing applications, like mpg123, sox 
+(mostly called with the ``play'' command), or X11 applications like RealPlayer will probably
+do fine without these. I never used these anyway.
+<H3>/proc/asound/#/pcm#0</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+"Playback erase" - erase all additional informations about OSS applications
+"Playback &lt;app_name> &lt;fragments> &lt;fragment_size> [&lt;options>]"
+"Record erase" - erase all additional informations about OSS applications
+"Record &lt;app_name> &lt;fragments> &lt;fragment_size> [&lt;options>]"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><CODE>&lt;app_name></CODE> - name of application with (highter priority) or without path
+<P><CODE>&lt;fragments></CODE> - number of fragments or zero if auto
+<P><CODE>&lt;fragment_size></CODE> - size of fragment in bytes or zero if auto
+<P><CODE>&lt;options></CODE> - optional parameters
+<P><CODE>WR_ONLY</CODE> - if application tries open pcm device with O_RDWR driver rewrites this to O_WRONLY (playback) - good for Quake etc...
+<P>Examples:
+<BLOCKQUOTE><CODE>
+<PRE>
+echo "Playback x11amp 128 16384" > /proc/asound/0/pcm0o
+echo "Playback squake 0 0 WR_ONLY" > /proc/asound/0/pcm0o
+</PRE>
+</CODE></BLOCKQUOTE>
+<H3>/proc/asound/#card#/sb16</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+"Playback 8" -> driver will use always 8-bit DMA channel for playback.
+"Playback 16" -> driver will use always 16-bit DMA channel for playback.
+"Playback auto" (default) -> driver will use auto mode (first opened direction will use 16-bit DMA channel).
+"Record 8" -> driver will use always 8-bit DMA channel for record.
+"Record 16" -> driver will use always 16-bit DMA channel for record.
+"Record auto" (default) -> driver will use auto mode (first opened direction will use 16-bit DMA channel).
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Example: <CODE>echo "Record 16" > /proc/asound/0/sb16</CODE>
+<P>For further reference, please consult the INSTALL file.
+<HR>
+<A HREF="Alsa-sound-7.html">Next</A>
+<A HREF="Alsa-sound-5.html">Previous</A>
+<A HREF="Alsa-sound.html#toc6">Contents</A>
+</BODY>
+</HTML>

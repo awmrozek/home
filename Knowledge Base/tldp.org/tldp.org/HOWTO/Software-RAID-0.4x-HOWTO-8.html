@@ -1,0 +1,661 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Software-RAID HOWTO: Performance, Tools &amp; General Bone-headed Questions</TITLE>
+ <LINK HREF="Software-RAID-0.4x-HOWTO-9.html" REL=next>
+ <LINK HREF="Software-RAID-0.4x-HOWTO-7.html" REL=previous>
+ <LINK HREF="Software-RAID-0.4x-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-RAID-0.4x-HOWTO-9.html">Next</A>
+<A HREF="Software-RAID-0.4x-HOWTO-7.html">Previous</A>
+<A HREF="Software-RAID-0.4x-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8. Performance, Tools &amp; General Bone-headed Questions</A></H2>
+
+<P>
+<OL>
+<LI><B>Q</B>:
+I've created a RAID-0 device on <CODE>/dev/sda2</CODE> and 
+<CODE>/dev/sda3</CODE>. The device is a lot slower than a 
+single partition. Isn't md a pile of junk?
+<BLOCKQUOTE>
+<B>A</B>:
+To have a RAID-0 device running a full speed, you must 
+have partitions from different disks.  Besides, putting 
+the two halves of the mirror on the same disk fails to 
+give you any protection whatsoever against disk failure.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+What's the use of having RAID-linear when RAID-0 will do the 
+same thing, but provide higher performance?
+<BLOCKQUOTE>
+<B>A</B>:
+It's not obvious that RAID-0 will always provide better 
+performance; in fact, in some cases, it could make things 
+worse.
+The ext2fs file system scatters files all over a partition,
+and it attempts to keep all of the blocks of a file
+contiguous, basically in an attempt to prevent fragmentation.  
+Thus, ext2fs behaves "as if" there were a (variable-sized) 
+stripe per file.  If there are several disks concatenated
+into a single RAID-linear, this will result files being
+statistically distributed on each of the disks.  Thus,
+at least for ext2fs, RAID-linear will behave a lot like
+RAID-0 with large stripe sizes.  Conversely, RAID-0 
+with small stripe sizes can cause excessive disk activity
+leading to severely degraded performance if several large files
+are accessed simultaneously.  
+<P>In many cases, RAID-0 can be an obvious win. For example,
+imagine a large database file.  Since ext2fs attempts to
+cluster together all of the blocks of a file, chances 
+are good that it will end up on only one drive if RAID-linear
+is used, but will get chopped into lots of stripes if RAID-0 is
+used.  Now imagine a number of (kernel) threads all trying
+to random access to this database.  Under RAID-linear, all
+accesses would go to one disk, which would not be as efficient
+as the parallel accesses that RAID-0 entails.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+How does RAID-0 handle a situation where the different stripe 
+partitions are different sizes?  Are the stripes uniformly
+distributed?
+
+<BLOCKQUOTE>
+<B>A</B>:
+To understand this, lets look at an example with three
+partitions; one that is 50MB, one 90MB and one 125MB.
+
+Lets call D0 the 50MB disk, D1 the 90MB disk and D2 the 125MB
+disk.  When you start the device, the driver calculates 'strip
+zones'.  In this case, it finds 3 zones, defined like this:
+
+<PRE>
+            Z0 : (D0/D1/D2) 3 x 50 = 150MB  total in this zone
+            Z1 : (D1/D2)  2 x 40 = 80MB total in this zone
+            Z2 : (D2) 125-50-40 = 35MB total in this zone.
+            
+</PRE>
+
+
+You can see that the total size of the zones is the size of the
+virtual device, but, depending on the zone, the striping is
+different.  Z2 is rather inefficient, since there's only one
+disk.
+
+Since <CODE>ext2fs</CODE> and most other Unix  
+file systems distribute files all over the disk, you
+have a  35/265 = 13% chance that a fill will end up
+on Z2, and not get any of the benefits of striping.
+           
+(DOS tries to fill a disk from beginning to end, and thus,
+the oldest files would end up on Z0.  However, this
+strategy leads to severe filesystem fragmentation,
+which is why no one besides DOS does it this way.)
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+I have some Brand X hard disks and a Brand Y controller.
+and am considering using <CODE>md</CODE>.
+Does it significantly increase the throughput?
+Is the performance really noticeable?
+
+<BLOCKQUOTE>
+<B>A</B>:
+The answer depends on the configuration that you use.
+<P>
+<DL>
+<DT><B>Linux MD RAID-0 and RAID-linear performance:</B><DD><P>If the system is heavily loaded with lots of I/O,
+statistically, some of it will go to one disk, and
+some to the others.  Thus, performance will improve 
+over a single large disk.   The actual improvement
+depends a lot on the actual data, stripe sizes, and
+other factors.   In a system with low I/O usage,
+the performance is equal to that of a single disk.
+<P>
+<P>
+<DT><B>Linux MD RAID-1 (mirroring) read performance:</B><DD><P>MD implements read balancing. That is, the  RAID-1
+code will alternate between each of the (two or more) 
+disks in the mirror, making alternate reads to each.
+In a low-I/O situation, this won't change performance
+at all: you will have to wait for one disk to complete 
+the read.
+But, with two disks in a high-I/O environment,
+this could as much as double the read performance,
+since reads can be issued to each of the disks in parallel.
+For N disks in the mirror, this could improve performance
+N-fold.
+<P>
+<DT><B>Linux MD RAID-1 (mirroring) write performance:</B><DD><P>Must wait for the write to occur to all of the disks
+in the mirror.  This is because a copy of the data
+must be written to each of the disks in the mirror.
+Thus, performance will be roughly equal to the write
+performance to a single disk.
+<P>
+<DT><B>Linux MD RAID-4/5 read performance:</B><DD><P>Statistically, a given block can be on any one of a number
+of disk drives, and thus RAID-4/5 read performance is
+a lot like that for RAID-0.  It will depend on the data, the
+stripe size, and the application.  It will not be as good
+as the read performance of a mirrored array.
+<P>
+<DT><B>Linux MD RAID-4/5 write performance:</B><DD><P>This will in general be considerably slower than that for
+a single disk.  This is because the parity must be written 
+out to one drive as well as the data to another.  However,
+in order to compute the new parity, the old parity and 
+the old data must be read first. The old data, new data and
+old parity must all be XOR'ed together to determine the new
+parity: this requires considerable CPU cycles in addition
+to the numerous disk accesses.
+</DL>
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+What RAID configuration should I use for optimal performance?
+<BLOCKQUOTE>
+<B>A</B>:
+Is the goal to maximize throughput, or to minimize latency?
+There is no easy answer, as there are many factors that
+affect performance:
+
+<UL>
+<LI>operating system  - will one process/thread, or many
+be performing disk access?</LI>
+<LI>application       - is it accessing data in a 
+sequential fashion, or random access?</LI>
+<LI>file system       - clusters files or spreads them out
+(the ext2fs clusters together the blocks of a file,
+and spreads out files)</LI>
+<LI>disk driver       - number of blocks to read ahead
+(this is a tunable parameter)</LI>
+<LI>CEC hardware      - one drive controller, or many?</LI>
+<LI>hd controller     - able to queue multiple requests or not?
+Does it provide a cache?</LI>
+<LI>hard drive        - buffer cache memory size -- is it big
+enough to handle the write sizes and rate you want?</LI>
+<LI>physical platters - blocks per cylinder -- accessing 
+blocks on different cylinders will lead to seeks.</LI>
+</UL>
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+What is the optimal RAID-5 configuration for performance?
+<BLOCKQUOTE>
+<B>A</B>:
+Since RAID-5 experiences an I/O load that is equally 
+distributed 
+across several drives, the best performance will be 
+obtained when the RAID set is balanced by using 
+identical drives, identical controllers,  and the
+same (low) number of drives on each controller.
+
+Note, however, that using identical components will
+raise the probability of multiple simultaneous failures,
+for example due to a sudden jolt or drop, overheating,
+or a power surge during an electrical storm. Mixing
+brands and models helps reduce this risk.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+What is the optimal block size for a RAID-4/5 array?
+
+<BLOCKQUOTE>
+<B>A</B>:
+When using the current (November 1997) RAID-4/5
+implementation, it is strongly recommended that
+the file system be created with <CODE>mke2fs -b 4096</CODE>
+instead of the default 1024 byte filesystem block size.
+
+<P>This is because the current RAID-5 implementation 
+allocates one 4K memory page per disk block; 
+if a disk block were just 1K in size, then 
+75% of the memory which RAID-5 is allocating for 
+pending I/O would not be used.  If the disk block 
+size matches the memory page size, then the 
+driver can (potentially) use all of the page. 
+Thus, for a filesystem with a 4096 block size as
+opposed to a 1024 byte block size, the RAID driver 
+will potentially queue 4 times as much 
+pending I/O to the low level drivers without 
+allocating additional memory.
+<P>
+<P><B>Note</B>: the above remarks do NOT apply to Software 
+RAID-0/1/linear driver.
+<P>
+<P><B>Note:</B> the statements about 4K memory page size apply to the 
+Intel x86 architecture.   The page size on Alpha, Sparc, and other 
+CPUS are different; I believe they're 8K on Alpha/Sparc (????).
+Adjust the above figures accordingly.
+<P>
+<P><B>Note:</B> if your file system has a lot of small
+files (files less than 10KBytes in size), a considerable
+fraction of the disk space might be wasted.  This is 
+because the file system allocates disk space in multiples 
+of the block size.  Allocating large blocks for small files 
+clearly results in a waste of disk space: thus, you may
+want to stick to small block sizes, get a larger effective
+storage capacity, and not worry about the "wasted" memory
+due to the block-size/page-size mismatch.
+<P>
+<P><B>Note:</B> most ''typical'' systems do not have that many
+small files.  That is, although there might be thousands
+of small files, this would lead to only some 10 to 100MB
+wasted space, which is probably an acceptable tradeoff for
+performance on a multi-gigabyte disk.
+<P>However, for news servers, there might be tens or hundreds
+of thousands of small files.  In such cases, the smaller
+block size, and thus the improved storage capacity, 
+may be more important than the more efficient I/O 
+scheduling.
+<P>
+<P><B>Note:</B> there exists an experimental file system for Linux
+which packs small files and file chunks onto a single block.
+It apparently has some very positive performance
+implications when the average file size is much smaller than
+the block size.
+<P>
+<P>Note: Future versions may implement schemes that obsolete
+the above discussion. However, this is difficult to
+implement, since dynamic run-time allocation can lead to
+dead-locks; the current implementation performs a static
+pre-allocation.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+How does the chunk size (stripe size) influence the speed of 
+my RAID-0, RAID-4 or RAID-5 device?
+
+<BLOCKQUOTE>
+<B>A</B>:
+The chunk size is the amount of data contiguous on the 
+virtual device that is also contiguous on the physical 
+device.  In this HOWTO, "chunk" and "stripe" refer to 
+the same thing: what is commonly called the "stripe" 
+in other RAID documentation is called the "chunk" 
+in the MD man pages.  Stripes or chunks apply only to
+RAID 0, 4 and 5, since stripes are not used in 
+mirroring (RAID-1) and simple concatenation (RAID-linear).
+The stripe size affects both read and write latency (delay),
+throughput (bandwidth), and contention between independent 
+operations (ability to simultaneously service overlapping I/O
+requests).
+<P>Assuming the use of the ext2fs file system, and the current
+kernel policies about read-ahead, large stripe sizes are almost 
+always better than small stripe sizes, and stripe sizes
+from about a fourth to a full disk cylinder in size
+may be best.  To understand this claim, let us consider the 
+effects of large stripes on small files, and small stripes
+on large files.  The stripe size does 
+not affect the read performance of small files:  For an
+array of N drives, the file has a 1/N probability of 
+being entirely within one stripe on any one of the drives. 
+Thus, both the read latency and bandwidth will be comparable
+to that of a single drive.  Assuming that the small files
+are statistically well distributed around the filesystem,
+(and, with the ext2fs file system, they should be), roughly
+N times more overlapping, concurrent reads should be possible
+without significant collision between them.  Conversely, if  
+very small stripes are used, and a large file is read sequentially, 
+then a read will issued to all of the disks in the array.
+For a the read of a single large file, the latency will almost 
+double, as the probability of a block being 3/4'ths of a 
+revolution or farther away will increase.  Note, however,
+the trade-off: the bandwidth could improve almost N-fold 
+for reading a single, large file, as N drives can be reading
+simultaneously (that is, if read-ahead is used so that all
+of the disks are kept active).  But there is another, 
+counter-acting trade-off:  if all of the drives are already busy
+reading one file, then attempting to read a second or third
+file at the same time will cause significant contention,
+ruining performance as the disk ladder algorithms lead to
+seeks all over the platter.  Thus,  large stripes will almost
+always lead to the best performance. The sole exception is
+the case where one is streaming a single, large file at a 
+time, and one requires the top possible bandwidth, and one 
+is also using a good read-ahead algorithm, in which case small
+stripes are desired.
+<P>
+<P>Note that this HOWTO previously recommended small stripe
+sizes for news spools or other systems with lots of small
+files. This was bad advice, and here's why:  news spools
+contain not only many small files, but also large summary
+files, as well as large directories.  If the summary file
+is larger than the stripe size, reading it will cause 
+many disks to be accessed, slowing things down as each
+disk performs a seek.  Similarly, the current ext2fs
+file system searches directories in a linear, sequential
+fashion.  Thus, to find a given file or inode, on average 
+half of the directory will be read. If this directory is 
+spread across several stripes (several disks), the 
+directory read (e.g. due to the ls command) could get 
+very slow. Thanks to Steven A. Reisman 
+&lt;
+<A HREF="mailto:sar@pressenter.com">sar@pressenter.com</A>&gt; for this correction.
+Steve also adds:
+<BLOCKQUOTE>
+I found that using a 256k stripe gives much better performance. 
+I suspect that the optimum size would be the size of a disk 
+cylinder (or maybe the size of the disk drive's sector cache).  
+However, disks nowadays have recording zones with different 
+sector counts (and sector caches vary among different disk 
+models).  There's no way to guarantee stripes won't cross a 
+cylinder boundary.
+</BLOCKQUOTE>
+<P>
+<P>
+<P>The tools accept the stripe size specified in KBytes.
+You'll want to specify a multiple of if the page size 
+for your CPU (4KB on the x86).  
+<P>
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+What is the correct stride factor to use when creating the 
+ext2fs file system on the RAID partition?  By stride, I mean
+the -R flag on the <CODE>mke2fs</CODE> command:
+<PRE>
+mke2fs -b 4096 -R stride=nnn  ... 
+        
+</PRE>
+
+What should the value of nnn be?
+<BLOCKQUOTE>
+<B>A</B>:
+The <CODE>-R stride</CODE> flag is used to tell the file system
+about the size of the RAID stripes.  Since only RAID-0,4 and 5
+use stripes, and RAID-1 (mirroring) and RAID-linear do not, 
+this flag is applicable only for RAID-0,4,5.
+
+Knowledge of the size of a stripe allows <CODE>mke2fs</CODE>
+to allocate the block and inode bitmaps so that they don't 
+all end up on the same physical drive.  An unknown contributor
+wrote:
+<BLOCKQUOTE>
+I noticed last spring that one drive in a pair always had a
+larger I/O count, and tracked it down to the these meta-data 
+blocks.  Ted added the <CODE>-R stride=</CODE> option in response 
+to my explanation and request for a workaround.
+</BLOCKQUOTE>
+
+For a 4KB block file system, with stripe size 256KB, one would 
+use <CODE>-R stride=64</CODE>.
+<P>If you don't trust the <CODE>-R</CODE> flag, you can get a similar
+effect in a different way.   Steven A. Reisman 
+&lt;
+<A HREF="mailto:sar@pressenter.com">sar@pressenter.com</A>&gt; writes:
+<BLOCKQUOTE>
+Another consideration is the filesystem used on the RAID-0 device.
+The ext2 filesystem allocates 8192 blocks per group.  Each group 
+has its own set of inodes.  If there are 2, 4 or 8 drives, these 
+inodes cluster on the first disk.  I've distributed the inodes 
+across all drives by telling mke2fs to allocate only 7932 blocks 
+per group.  
+</BLOCKQUOTE>
+
+Some mke2fs pages do not describe the <CODE>[-g blocks-per-group]</CODE>
+flag used in this operation.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+Where can I put the <CODE>md</CODE> commands in the startup scripts,
+so that everything will start automatically at boot time?
+
+<BLOCKQUOTE>
+<B>A</B>:
+Rod Wilkens
+&lt;
+<A HREF="mailto:rwilkens@border.net">rwilkens@border.net</A>&gt;
+writes:
+<BLOCKQUOTE>
+What I did is put ``<CODE>mdadd -ar</CODE>'' in
+the ``<CODE>/etc/rc.d/rc.sysinit</CODE>'' right after the kernel
+loads the modules, and before the ``<CODE>fsck</CODE>'' disk check.
+This way, you can put the ``<CODE>/dev/md?</CODE>'' device in the 
+``<CODE>/etc/fstab</CODE>''. Then I put the ``<CODE>mdstop -a</CODE>''
+right after the ``<CODE>umount -a</CODE>'' unmounting the disks,
+in the ``<CODE>/etc/rc.d/init.d/halt</CODE>'' file.
+</BLOCKQUOTE>
+
+For raid-5, you will want to look at the return code
+for <CODE>mdadd</CODE>, and if it failed, do a 
+<BLOCKQUOTE><CODE>
+<PRE>
+ckraid --fix /etc/raid5.conf
+            
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to repair any damage.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+I was wondering if it's possible to setup striping with more 
+than 2 devices in <CODE>md0</CODE>? This is for a news server,
+and I have 9 drives... Needless to say I need much more than two.
+Is this possible?
+
+<BLOCKQUOTE>
+<B>A</B>:
+Yes. (describe how to do this)
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+When is Software RAID superior to Hardware RAID?
+<BLOCKQUOTE>
+<B>A</B>:
+Normally, Hardware RAID is considered superior to Software 
+RAID, because hardware controllers often have a large cache,
+and can do a better job of scheduling operations in parallel.
+However, integrated Software RAID can (and does) gain certain 
+advantages from being close to the operating system.
+
+<P>For example, ... ummm. Opaque description of caching of 
+reconstructed blocks in buffer cache elided ...
+<P>
+<P>On a dual PPro SMP system, it has been reported that
+Software-RAID performance exceeds the performance of a
+well-known hardware-RAID board vendor by a factor of 
+2 to 5.
+<P>
+<P>Software RAID is also a very interesting option for
+high-availability redundant server systems.  In such
+a configuration, two CPU's are attached to one set
+or SCSI disks.  If one server crashes or fails to 
+respond, then the other server can <CODE>mdadd</CODE>,
+<CODE>mdrun</CODE> and <CODE>mount</CODE> the software RAID
+array, and take over operations.  This sort of dual-ended
+operation is not always possible with many hardware
+RAID controllers, because of the state configuration that
+the hardware controllers maintain.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+If I upgrade my version of raidtools, will it have trouble 
+manipulating older raid arrays?  In short, should I recreate my 
+RAID arrays when upgrading the raid utilities?
+
+<BLOCKQUOTE>
+<B>A</B>:
+No, not unless the major version number changes.
+An MD version x.y.z consists of three sub-versions:
+<PRE>
+     x:      Major version.
+     y:      Minor version.
+     z:      Patchlevel version.
+            
+</PRE>
+
+
+Version x1.y1.z1 of the RAID driver supports a RAID array with
+version x2.y2.z2 in case (x1 == x2) and (y1 >= y2).
+        
+Different patchlevel (z) versions for the same (x.y) version are
+designed to be mostly compatible.
+        
+<P>The minor version number is increased whenever the RAID array layout
+is changed in a way which is incompatible with older versions of the
+driver. New versions of the driver will maintain compatibility with
+older RAID arrays.
+<P>The major version number will be increased if it will no longer make
+sense to support old RAID arrays in the new kernel code.
+<P>
+<P>For RAID-1, it's not likely that the disk layout nor the
+superblock structure will change anytime soon.  Most all 
+Any optimization and new features (reconstruction, multithreaded 
+tools, hot-plug, etc.) doesn't affect the physical layout.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+The command <CODE>mdstop /dev/md0</CODE> says that the device is busy.
+
+<BLOCKQUOTE>
+<B>A</B>:
+There's a process that has a file open on <CODE>/dev/md0</CODE>, or
+<CODE>/dev/md0</CODE> is still mounted.  Terminate the process or 
+<CODE>umount /dev/md0</CODE>.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+Are there performance tools?
+<BLOCKQUOTE>
+<B>A</B>:
+There is also a new utility called <CODE>iotrace</CODE> in the 
+<CODE>linux/iotrace</CODE>
+directory. It reads <CODE>/proc/io-trace</CODE> and analyses/plots it's
+output.  If you feel your system's block IO performance is too 
+low, just look at the iotrace output.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+I was reading the RAID source, and saw the value
+<CODE>SPEED_LIMIT</CODE> defined as 1024K/sec.  What does this mean?
+Does this limit performance?
+
+<BLOCKQUOTE>
+<B>A</B>:
+<CODE>SPEED_LIMIT</CODE> is used to limit RAID reconstruction 
+speed during automatic reconstruction.  Basically, automatic
+reconstruction allows you to <CODE>e2fsck</CODE> and
+<CODE>mount</CODE> immediately after an unclean shutdown,
+without first running <CODE>ckraid</CODE>.  Automatic
+reconstruction is also used after a failed hard drive
+has been replaced.
+
+<P>In order to avoid overwhelming the system while
+reconstruction is occurring, the reconstruction thread
+monitors the reconstruction speed and slows it down if 
+its too fast.  The 1M/sec limit was arbitrarily chosen 
+as a reasonable rate which allows the reconstruction to
+finish reasonably rapidly, while creating only a light load
+on the system so that other processes are not interfered with.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+What about ''spindle synchronization'' or ''disk
+synchronization''?
+<BLOCKQUOTE>
+<B>A</B>:
+Spindle synchronization is used to keep multiple hard drives 
+spinning at exactly the same speed, so that their disk
+platters are always perfectly aligned.  This is used by some
+hardware controllers to better organize disk writes.   
+However, for software RAID, this information is not used,
+and spindle synchronization might even hurt performance.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+How can I set up swap spaces using raid 0?
+Wouldn't striped swap ares over 4+ drives be really fast?
+<BLOCKQUOTE>
+<B>A</B>:
+Leonard N. Zubkoff replies:
+It is really fast, but you don't need to use MD to get striped 
+swap.  The kernel automatically stripes across equal priority 
+swap spaces.  For example, the following entries from 
+<CODE>/etc/fstab</CODE> stripe swap space across five drives in
+three groups:
+
+<PRE>
+/dev/sdg1       swap    swap    pri=3
+/dev/sdk1       swap    swap    pri=3
+/dev/sdd1       swap    swap    pri=3
+/dev/sdh1       swap    swap    pri=3
+/dev/sdl1       swap    swap    pri=3
+/dev/sdg2       swap    swap    pri=2
+/dev/sdk2       swap    swap    pri=2
+/dev/sdd2       swap    swap    pri=2
+/dev/sdh2       swap    swap    pri=2
+/dev/sdl2       swap    swap    pri=2
+/dev/sdg3       swap    swap    pri=1
+/dev/sdk3       swap    swap    pri=1
+/dev/sdd3       swap    swap    pri=1
+/dev/sdh3       swap    swap    pri=1
+/dev/sdl3       swap    swap    pri=1
+</PRE>
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+I want to maximize performance.  Should I use multiple 
+controllers?
+<BLOCKQUOTE>
+<B>A</B>:
+In many cases, the answer is yes.  Using several 
+controllers to perform disk access in parallel will 
+improve performance.  However, the actual improvement
+depends on your actual configuration.  For example,
+it has been reported (Vaughan Pratt, January 98) that
+a single 4.3GB Cheetah attached to an Adaptec 2940UW 
+can achieve a rate of 14MB/sec (without using RAID).  
+Installing two disks on one controller, and using 
+a RAID-0 configuration results in a measured performance 
+of 27 MB/sec.  
+
+<P>Note that the 2940UW controller is an "Ultra-Wide"
+SCSI controller, capable of a theoretical burst rate
+of 40MB/sec, and so the above measurements are not 
+surprising.  However, a slower controller attached
+to two fast disks would be the bottleneck.  Note also,
+that most out-board SCSI enclosures (e.g. the kind
+with hot-pluggable trays) cannot be run at the 40MB/sec 
+rate, due to cabling and electrical noise problems.
+<P>
+<P>If you are designing a multiple controller system,
+remember that most disks and controllers typically
+run at 70-85% of their rated max speeds.
+<P>
+<P>Note also that using one controller per disk
+can reduce the likelihood of system outage
+due to a controller or cable failure (In theory --
+only if the device driver for the controller can
+gracefully handle a broken controller. Not all 
+SCSI device drivers seem to be able to handle such
+a situation without panicking or otherwise locking up). 
+</BLOCKQUOTE>
+</LI>
+</OL>
+<HR>
+<A HREF="Software-RAID-0.4x-HOWTO-9.html">Next</A>
+<A HREF="Software-RAID-0.4x-HOWTO-7.html">Previous</A>
+<A HREF="Software-RAID-0.4x-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

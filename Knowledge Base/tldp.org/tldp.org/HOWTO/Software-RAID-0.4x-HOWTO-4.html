@@ -1,0 +1,502 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Software-RAID HOWTO: Error Recovery</TITLE>
+ <LINK HREF="Software-RAID-0.4x-HOWTO-5.html" REL=next>
+ <LINK HREF="Software-RAID-0.4x-HOWTO-3.html" REL=previous>
+ <LINK HREF="Software-RAID-0.4x-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-RAID-0.4x-HOWTO-5.html">Next</A>
+<A HREF="Software-RAID-0.4x-HOWTO-3.html">Previous</A>
+<A HREF="Software-RAID-0.4x-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Error Recovery</A></H2>
+
+<P>
+<OL>
+<LI><B>Q</B>:
+I have a RAID-1 (mirroring) setup, and lost power
+while there was disk activity.  Now what do I do?
+
+<BLOCKQUOTE>
+<B>A</B>:
+The redundancy of RAID levels is designed to protect against a 
+<B>disk</B> failure, not against a <B>power</B> failure.
+
+There are several ways to recover from this situation. 
+        
+<UL>
+<LI>Method (1): Use the raid tools.  These can be used to sync
+the raid arrays.  They do not fix file-system damage; after
+the raid arrays are sync'ed, then the file-system still has
+to be fixed with fsck.  Raid arrays can be checked with 
+<CODE>ckraid /etc/raid1.conf</CODE> (for RAID-1, else, 
+<CODE>/etc/raid5.conf</CODE>, etc.)
+                
+Calling <CODE>ckraid /etc/raid1.conf --fix</CODE> will pick one of the 
+disks in the array (usually the first), and use that as the
+master copy, and copy its blocks to the others in the mirror.
+                
+To designate which of the disks should be used as the master, 
+you can use the <CODE>--force-source</CODE> flag: for example,
+<CODE>ckraid /etc/raid1.conf --fix --force-source /dev/hdc3</CODE>
+                
+The ckraid command can be safely run without the <CODE>--fix</CODE> 
+option 
+to verify the inactive RAID array without making any changes. 
+When you are comfortable with the proposed changes, supply 
+the <CODE>--fix</CODE>  option.
+           </LI>
+<LI>Method (2): Paranoid, time-consuming, not much better than the
+first way.  Lets assume a two-disk RAID-1 array, consisting of 
+partitions <CODE>/dev/hda3</CODE> and <CODE>/dev/hdc3</CODE>.  You can 
+try the following:
+<OL>
+<LI><CODE>fsck /dev/hda3</CODE></LI>
+<LI><CODE>fsck /dev/hdc3</CODE></LI>
+<LI>decide which of the two partitions had fewer errors,
+or were more easily recovered, or recovered the data
+that you wanted.  Pick one, either one, to be your new
+``master'' copy.  Say you picked <CODE>/dev/hdc3</CODE>. </LI>
+<LI><CODE>dd if=/dev/hdc3 of=/dev/hda3</CODE></LI>
+<LI><CODE>mkraid raid1.conf -f --only-superblock</CODE></LI>
+</OL>
+
+
+Instead of the last two steps, you can instead run 
+<CODE>ckraid /etc/raid1.conf --fix --force-source /dev/hdc3</CODE>
+which should be a bit faster.
+</LI>
+<LI>Method (3): Lazy man's version of above.  If you don't want to 
+wait for long fsck's to complete, it is perfectly fine to skip 
+the first three steps above, and move directly to the last 
+two steps.  
+Just be sure to run <CODE>fsck /dev/md0</CODE> after you are done.
+Method (3) is actually just method (1) in disguise.</LI>
+</UL>
+
+
+In any case, the above steps will only sync up the raid arrays.
+The file system probably needs fixing as well: for this, 
+fsck needs to be run on the active, unmounted md device.
+
+<P>With a three-disk RAID-1 array, there are more possibilities,
+such as using two disks to ''vote'' a majority answer.  Tools
+to automate this do not currently (September 97) exist.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+I have a RAID-4 or a RAID-5 (parity) setup, and lost power while 
+there was disk activity.  Now what do I do?
+
+<BLOCKQUOTE>
+<B>A</B>:
+The redundancy of RAID levels is designed to protect against a 
+<B>disk</B> failure, not against a <B>power</B> failure.
+
+Since the disks in a RAID-4 or RAID-5 array do not contain a file
+system that fsck can read, there are fewer repair options.  You
+cannot use fsck to do preliminary checking and/or repair; you must
+use ckraid first.
+        
+<P>The <CODE>ckraid</CODE> command can be safely run without the 
+<CODE>--fix</CODE> option 
+to verify the inactive RAID array without making any changes. 
+When you are comfortable with the proposed changes, supply 
+the <CODE>--fix</CODE> option.
+<P>
+<P>If you wish, you can try designating one of the disks as a ''failed
+disk''.  Do this with the <CODE>--suggest-failed-disk-mask</CODE> flag.  
+<P>Only one bit should be set in the flag: RAID-5 cannot recover two 
+failed disks.
+The mask is a binary bit mask: thus:
+<PRE>
+    0x1 == first disk
+    0x2 == second disk
+    0x4 == third disk
+    0x8 == fourth disk, etc.
+            
+</PRE>
+<P>Alternately, you can choose to modify the parity sectors, by using
+the <CODE>--suggest-fix-parity</CODE> flag.  This will recompute the 
+parity from the other sectors.
+<P>
+<P>The flags <CODE>--suggest-failed-dsk-mask</CODE> and 
+<CODE>--suggest-fix-parity</CODE>
+can be safely used for verification. No changes are made if the
+<CODE>--fix</CODE> flag is not specified.  Thus, you can experiment with
+different possible repair schemes.
+<P>
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+My RAID-1 device, <CODE>/dev/md0</CODE> consists of two hard drive
+partitions: <CODE>/dev/hda3</CODE> and <CODE>/dev/hdc3</CODE>.
+Recently, the disk with <CODE>/dev/hdc3</CODE> failed,
+and was replaced with a new disk.  My best friend,
+who doesn't understand RAID, said that the correct thing to do now
+is to ''<CODE>dd if=/dev/hda3 of=/dev/hdc3</CODE>''.
+I tried this, but things still don't work.
+
+<BLOCKQUOTE>
+<B>A</B>:
+You should keep your best friend away from you computer.  
+Fortunately, no serious damage has been done.
+You can recover from this by running:
+<BLOCKQUOTE><CODE>
+<PRE>
+mkraid raid1.conf -f --only-superblock
+            
+</PRE>
+</CODE></BLOCKQUOTE>
+
+By using <CODE>dd</CODE>, two identical copies of the partition
+were created. This is almost correct, except that the RAID-1
+kernel extension expects the RAID superblocks to be different.
+Thus, when you try to reactivate RAID, the software will notice
+the problem, and deactivate one of the two partitions.
+By re-creating the superblock, you should have a fully usable
+system.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+My version of <CODE>mkraid</CODE> doesn't have a 
+<CODE>--only-superblock</CODE> flag.  What do I do?
+<BLOCKQUOTE>
+<B>A</B>:
+The newer tools drop support for this flag, replacing it with
+the <CODE>--force-resync</CODE> flag.  It has been reported
+that the following sequence appears to work with the latest tools 
+and software:
+<BLOCKQUOTE><CODE>
+<PRE>
+  umount /web (where /dev/md0 was mounted on)
+  raidstop /dev/md0
+  mkraid /dev/md0 --force-resync --really-force
+  raidstart /dev/md0
+            
+</PRE>
+</CODE></BLOCKQUOTE>
+
+After doing this, a <CODE>cat /proc/mdstat</CODE> should report
+<CODE>resync in progress</CODE>, and one should be able to 
+<CODE>mount /dev/md0</CODE> at this point.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+My RAID-1 device, <CODE>/dev/md0</CODE> consists of two hard drive
+partitions: <CODE>/dev/hda3</CODE> and <CODE>/dev/hdc3</CODE>.
+My best (girl?)friend, who doesn't understand RAID,
+ran <CODE>fsck</CODE> on <CODE>/dev/hda3</CODE> while I wasn't looking,
+and now the RAID won't work. What should I do?
+
+<BLOCKQUOTE>
+<B>A</B>:
+You should re-examine your concept of ``best friend''.
+In general, <CODE>fsck</CODE> should never be run on the individual
+partitions that compose a RAID array.
+Assuming that neither of the partitions are/were heavily damaged,
+no data loss has occurred, and the RAID-1 device can be recovered
+as follows:
+<OL>
+<LI>make a backup of the file system on <CODE>/dev/hda3</CODE></LI>
+<LI><CODE>dd if=/dev/hda3 of=/dev/hdc3</CODE></LI>
+<LI><CODE>mkraid raid1.conf -f --only-superblock</CODE></LI>
+</OL>
+
+This should leave you with a working disk mirror.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+Why does the above work as a recovery procedure?
+<BLOCKQUOTE>
+<B>A</B>:
+Because each of the component partitions in a RAID-1 mirror 
+is a perfectly valid copy of the file system.  In a pinch,
+mirroring can be disabled, and one of the partitions
+can be mounted and safely run as an ordinary, non-RAID
+file system.  When you are ready to restart using RAID-1,
+then unmount the partition, and follow the above 
+instructions to restore the mirror.   Note that the above 
+works ONLY for RAID-1, and not for any of the other levels.
+
+<P>It may make you feel more comfortable to reverse the direction 
+of the copy above: copy <B>from</B> the disk that was untouched
+<B>to</B> the one that was.  Just be sure to fsck the final md.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+I am confused by the above questions, but am not yet bailing out.
+Is it safe to run <CODE>fsck /dev/md0</CODE> ?
+
+<BLOCKQUOTE>
+<B>A</B>:
+Yes, it is safe to run <CODE>fsck</CODE> on the <CODE>md</CODE> devices. 
+In fact, this is the <B>only</B> safe place to run <CODE>fsck</CODE>.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+If a disk is slowly failing, will it be obvious which one it is?
+I am concerned that it won't be, and this confusion could lead to 
+some dangerous decisions by a sysadmin.
+
+<BLOCKQUOTE>
+<B>A</B>:
+Once a disk fails, an error code will be returned from
+the low level driver to the RAID driver.
+The RAID driver will mark it as ``bad'' in the RAID superblocks
+of the ``good'' disks (so we will later know which mirrors are
+good and which aren't), and continue RAID operation
+on the remaining operational mirrors.
+
+<P>This, of course, assumes that the disk and the low level driver
+can detect a read/write error, and will not silently corrupt data,
+for example. This is true of current drives
+(error detection schemes are being used internally),
+and is the basis of RAID operation.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+What about hot-repair?
+
+<BLOCKQUOTE>
+<B>A</B>:
+Work is underway to complete ``hot reconstruction''.
+With this feature, one can add several ``spare'' disks to
+the RAID set (be it level 1 or 4/5), and once a disk fails,
+it will be reconstructed on one of the spare disks in run time,
+without ever needing to shut down the array.
+
+<P>However, to use this feature, the spare disk must have
+been declared at boot time, or it must be hot-added,
+which requires the use of special cabinets and connectors
+that allow a disk to be added while the electrical power is
+on.  
+<P>
+<P>As of October 97, there is a beta version of MD that
+allows:
+<UL>
+<LI>RAID 1 and 5 reconstruction on spare drives</LI>
+<LI>RAID-5 parity reconstruction after an unclean
+shutdown</LI>
+<LI>spare disk to be hot-added to an already running
+RAID 1 or 4/5 array</LI>
+</UL>
+
+By default, automatic reconstruction is (Dec 97) currently
+disabled by default, due to the preliminary nature of this
+work.  It can be enabled by changing the value of 
+<CODE>SUPPORT_RECONSTRUCTION</CODE> in
+<CODE>include/linux/md.h</CODE>.  
+<P>
+<P>If spare drives were configured into the array when it
+was created and kernel-based reconstruction is enabled, 
+the spare drive will already contain a RAID superblock 
+(written by <CODE>mkraid</CODE>), and the kernel will 
+reconstruct its contents automatically (without needing
+the usual <CODE>mdstop</CODE>, replace drive, <CODE>ckraid</CODE>,
+<CODE>mdrun</CODE> steps).
+<P>
+<P>If you are not running automatic reconstruction, and have
+not configured a hot-spare disk, the procedure described by
+Gadi Oxman
+&lt;
+<A HREF="mailto:gadio@netvision.net.il">gadio@netvision.net.il</A>&gt;
+is recommended:
+<UL>
+<LI>Currently, once the first disk is removed, the RAID set will be
+running in degraded mode. To restore full operation mode,
+you need to:
+<UL>
+<LI>stop the array (<CODE>mdstop /dev/md0</CODE>)</LI>
+<LI>replace the failed drive</LI>
+<LI>run <CODE>ckraid raid.conf</CODE> to reconstruct its contents</LI>
+<LI>run the array again (<CODE>mdadd</CODE>, <CODE>mdrun</CODE>).</LI>
+</UL>
+
+At this point, the array will be running with all the drives,
+and again protects against a failure of a single drive.</LI>
+</UL>
+<P>Currently, it is not possible to assign single hot-spare disk
+to several arrays.   Each array requires it's own hot-spare.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+I would like to have an audible alarm for
+``you schmuck, one disk in the mirror is down'',
+so that the novice sysadmin knows that there is a problem.
+
+<BLOCKQUOTE>
+<B>A</B>:
+The kernel is logging the event with a
+``<CODE>KERN_ALERT</CODE>'' priority in syslog.
+There are several software packages that will monitor the
+syslog files, and beep the PC speaker, call a pager, send e-mail,
+etc. automatically.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+How do I run RAID-5 in degraded mode
+(with one disk failed, and not yet replaced)?
+
+<BLOCKQUOTE>
+<B>A</B>:
+Gadi Oxman
+&lt;
+<A HREF="mailto:gadio@netvision.net.il">gadio@netvision.net.il</A>&gt;
+writes:
+Normally, to run a RAID-5 set of n drives you have to:
+<BLOCKQUOTE><CODE>
+<PRE>
+mdadd /dev/md0 /dev/disk1 ... /dev/disk(n)
+mdrun -p5 /dev/md0
+              
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Even if one of the disks has failed,
+you still have to <CODE>mdadd</CODE> it as you would in a normal setup.
+(?? try using /dev/null in place of the failed disk ???
+watch out)
+Then,
+
+The array will be active in degraded mode with (n - 1) drives.
+If ``<CODE>mdrun</CODE>'' fails, the kernel has noticed an error
+(for example, several faulty drives, or an unclean shutdown).
+Use ``<CODE>dmesg</CODE>'' to display the kernel error messages from
+``<CODE>mdrun</CODE>''.
+If the raid-5 set is corrupted due to a power loss,
+rather than a disk crash, one can try to recover by
+creating a new RAID superblock:
+<BLOCKQUOTE><CODE>
+<PRE>
+mkraid -f --only-superblock raid5.conf
+            
+</PRE>
+</CODE></BLOCKQUOTE>
+
+A RAID array doesn't provide protection against a power failure or 
+a kernel crash, and can't guarantee correct recovery.
+Rebuilding the superblock will simply cause the system to ignore
+the condition by marking all the drives as ``OK'',
+as if nothing happened.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+How does RAID-5 work when a disk fails?
+
+<BLOCKQUOTE>
+<B>A</B>:
+The typical operating scenario is as follows:
+<UL>
+<LI>A RAID-5 array is active.
+</LI>
+<LI>One drive fails while the array is active.
+</LI>
+<LI>The drive firmware and the low-level Linux disk/controller
+drivers detect the failure and report an error code to the
+MD driver.
+</LI>
+<LI>The MD driver continues to provide an error-free
+<CODE>/dev/md0</CODE>
+device to the higher levels of the kernel (with a performance
+degradation) by using the remaining operational drives.
+</LI>
+<LI>The sysadmin can <CODE>umount /dev/md0</CODE> and 
+<CODE>mdstop /dev/md0</CODE> as usual.
+</LI>
+<LI>If the failed drive is not replaced, the sysadmin can still 
+start the array in degraded mode as usual, by running 
+<CODE>mdadd</CODE> and <CODE>mdrun</CODE>.</LI>
+</UL>
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+<BLOCKQUOTE>
+<B>A</B>:
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+Why is there no question 13?
+
+<BLOCKQUOTE>
+<B>A</B>:
+If you are concerned about RAID, High Availability, and UPS,
+then its probably a good idea to be superstitious as well.
+It can't hurt, can it? 
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+I just replaced a failed disk in a RAID-5 array.  After
+rebuilding the array, <CODE>fsck</CODE> is reporting many, many
+errors.  Is this normal?
+
+<BLOCKQUOTE>
+<B>A</B>:
+No. And, unless you ran fsck in "verify only; do not update"
+mode, its quite possible that you have corrupted your data.
+Unfortunately, a not-uncommon scenario is one of
+accidentally changing the disk order in a RAID-5 array,
+after replacing a hard drive.  Although the RAID superblock
+stores the proper order, not all tools use this information.
+In particular, the current version of <CODE>ckraid</CODE>
+will use the information specified with the <CODE>-f</CODE>
+flag (typically, the file <CODE>/etc/raid5.conf</CODE>)
+instead of the data in the superblock.  If the specified 
+order is incorrect, then the replaced disk will be
+reconstructed incorrectly.   The symptom of this
+kind of mistake seems to be heavy &amp; numerous <CODE>fsck</CODE>
+errors.
+
+<P>And, in case you are wondering, <B>yes</B>, someone lost 
+<B>all</B> of their data by making this mistake.   Making
+a tape backup of <B>all</B> data before reconfiguring a 
+RAID array is <B>strongly recommended</B>.
+</BLOCKQUOTE>
+
+</LI>
+<LI><B>Q</B>:
+The QuickStart says that <CODE>mdstop</CODE> is just to make sure that the
+disks are sync'ed. Is this REALLY necessary? Isn't unmounting the
+file systems enough?
+
+<BLOCKQUOTE>
+<B>A</B>:
+The command <CODE>mdstop /dev/md0</CODE> will:
+<UL>
+<LI>mark it ''clean''. This allows us to detect unclean shutdowns, for
+example due to a power failure or a kernel crash.
+</LI>
+<LI>sync the array. This is less important after unmounting a
+filesystem, but is important if the <CODE>/dev/md0</CODE> is 
+accessed directly rather than through a filesystem (for 
+example, by <CODE>e2fsck</CODE>).</LI>
+</UL>
+</BLOCKQUOTE>
+
+
+</LI>
+</OL>
+ 
+<HR>
+<A HREF="Software-RAID-0.4x-HOWTO-5.html">Next</A>
+<A HREF="Software-RAID-0.4x-HOWTO-3.html">Previous</A>
+<A HREF="Software-RAID-0.4x-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

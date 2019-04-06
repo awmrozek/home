@@ -1,0 +1,171 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux IPX-HOWTO: Configuring PPP for IPX support.</TITLE>
+ <LINK HREF="IPX-HOWTO-15.html" REL=next>
+ <LINK HREF="IPX-HOWTO-13.html" REL=previous>
+ <LINK HREF="IPX-HOWTO.html#toc14" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="IPX-HOWTO-15.html">Next</A>
+<A HREF="IPX-HOWTO-13.html">Previous</A>
+<A HREF="IPX-HOWTO.html#toc14">Contents</A>
+<HR>
+<H2><A NAME="s14">14. Configuring PPP for IPX support.</A></H2>
+
+<P>New versions of the <EM>pppd</EM> PPP daemon for Linux have support that
+allows you to carry IPX packets across a PPP serial link. You need at least
+version <CODE>ppp-2.2.0d</CODE> of the daemon. See the
+<A HREF="PPP-HOWTO.html">PPP-HOWTO</A>
+for details on where to find it. When you compile <EM>pppd</EM> you must
+ensure you enable the IPX support by adding the following two lines:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+IPX_CHANGE = 1
+USE_MS_DNS = 1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>to: <CODE>/usr/src/linux/pppd-2.2.0f/pppd/Makefile.linux</CODE>.
+<P>The <CODE>IPX_CHANGE</CODE> is what configures the IPX support into PPP.
+The <CODE>USE_MS_DNS</CODE> define allows Microsoft Windows95 machines to do
+Name Lookups.
+<P>The real trick to getting it to work in knowing how to configure it.
+<P>There are many ways of doing this, but I'm only going to describe the two that
+I've received any information on. I've tried neither yet, so consider this
+section experimental, and if you get something to work, please let me know.
+<P>
+<H2><A NAME="ss14.1">14.1 Configuring an IPX/PPP server.</A>
+</H2>
+
+<P>The first thing you need to do is configure your Linux machine as an IP/PPP
+server. Don't panic! This isn't difficult. Again, follow the instructions in
+the 
+<A HREF="PPP-HOWTO.html">PPP-HOWTO</A> and you should be pretty
+much ok. When you have this done there are a couple of simple  modifications
+you need to make to get IPX working over the same configuration.
+<P>
+<H3>First steps.</H3>
+
+<P>One of the first steps you must take is to configure your linux machine as an
+IPX router as described in the appropriate section earlier in this document.
+You won't need to use the <EM>ipx_route</EM> command for the <CODE>ppp</CODE> interface
+because <EM>pppd</EM> will configure these for you as it does for IP. When you
+have the <EM>ipxd</EM> daemon running it will automatically detect any new IPX
+interfaces and propogates routes for them. In this way your dialup hosts will
+be seen by other machines automatically when they connect.
+<P>
+<P>
+<H3>Design.</H3>
+
+<P>When you are running as a server it will normally be your responsibility
+to assign network address to each of the PPP links when they are established.
+This is an important point, each PPP link will be an IPX network and will have
+a unique IPX network address. This means that you must decide how you will
+allocate addresses and what what they will be. A simple convention is to
+allocate one IPX network address to each serial device that will support
+IPX/PPP. You could allocate IPX network addresses based on the login id
+of the connecting user, but I don't see any particularly good reason to do
+so.
+<P>I will assume that this is what you have done, and that there are two serial
+devices (modems) that we will use. The addresses I've assigned in this
+contrived example are:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+device IPX Network Address
+------ -------------------
+ttyS0  0xABCDEF00
+ttyS1  0xABCDEF01
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Configure <EM>pppd</EM>.</H3>
+
+<P>Configure your <CODE>/etc/ppp/options.ttyS0</CODE> file as follows:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ipx-network 0xABCDEF00
+ipx-node 2:0
+ipxcp-accept-remote
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>and your <CODE>/etc/ppp/options.ttyS1</CODE> file as:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ipx-network 0xABCDEF01
+ipx-node 3:0
+ipxcp-accept-remote    
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>These will ask <EM>pppd</EM> to allocate the appropriate IPX network addresses
+to the link when the link is established, set the local node number to
+<CODE>2</CODE> or <CODE>3</CODE> and will let the remote node overwrite what the
+remote node number with what it thinks it is. Note that each of the addresses
+are hexadecimal numbers and that <CODE>0x</CODE> is required at the start of the
+network address, but not required at the start of the node address.
+<P>There are other places this information could be configured. If you have only
+one dialin modem then an entry could go into the <CODE>/etc/ppp/options</CODE>
+file. Alternatively this information can be passed on the command line to
+<EM>pppd</EM>.
+<P>
+<H3>Test the server configuration.</H3>
+
+<P>To test the configuration you will need to have a client configuration that
+is known to work. When the caller dials in, logs in and <EM>pppd</EM> starts
+it will assign the network address, advise the client of the servers node
+number and negotiate the clients node number. When this has completed, and
+after <EM>ipxd</EM> has detected the new interface the client should be able
+to establish IPX connections to remote hosts.
+<P>
+<H2><A NAME="ss14.2">14.2 Configuring an IPX/PPP client.</A>
+</H2>
+
+<P>In a client configuration, whether or not you configure your Linux machine
+as an IPX router depends on whether you have a local LAN that you wish to
+act as an IPX router for. If you are a standalone machine connecting to an
+IPX/PPP dialin server then you won't need to run <EM>ipxd</EM>, but if you
+have a LAN and wish all of the machines on the LAN to make use of the
+IPX/PPP route then you must configure and run <EM>ipxd</EM> as described.
+This configuration is much simpler because you do not have multiple serial
+devices to configure.
+<P>
+<H3>Configuring <EM>pppd</EM></H3>
+
+<P>The simplest configuration is one that allows the server to supply all of
+the IPX network configuration information. This configuration would be
+compatible with the server configuration described above.
+<P>Again you need to add some options to your <CODE>/etc/ppp/options</CODE> file,
+they are:
+<BLOCKQUOTE><CODE>
+<PRE>
+ipxcp-accept-network
+ipxcp-accept-remote
+ipxcp-accept-local
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>These options tell <EM>pppd</EM> to act completely passively and accept
+all of the configuration details from the server. You could supply default
+values here for servers that don't supply details by adding
+<CODE>ipx-network</CODE> and <CODE>ipx-node</CODE> entries similar to the server
+configuration.
+<P>
+<H3>Testing the IPX/PPP client.</H3>
+
+<P>To test the client you will need a known working server to dial into. After
+you have dialled in and pppd has run you should see the IPX details configured
+on your <CODE>ppp0</CODE> device when you run the <EM>ifconfig</EM> command and
+you should be able to use <EM>ncpmount</EM>.
+<P>I'm not sure whether you will have to manually add IPX routes so that you
+can reach distant fileserver or not. This seems likely. If anyone running
+this configuration could tell me I'd be grateful.
+<P>
+<HR>
+<A HREF="IPX-HOWTO-15.html">Next</A>
+<A HREF="IPX-HOWTO-13.html">Previous</A>
+<A HREF="IPX-HOWTO.html#toc14">Contents</A>
+</BODY>
+</HTML>

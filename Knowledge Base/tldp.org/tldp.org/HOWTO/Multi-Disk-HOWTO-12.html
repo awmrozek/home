@@ -1,0 +1,471 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>HOWTO: Multi Disk System Tuning: Implementation</TITLE>
+ <LINK HREF="Multi-Disk-HOWTO-13.html" REL=next>
+ <LINK HREF="Multi-Disk-HOWTO-11.html" REL=previous>
+ <LINK HREF="Multi-Disk-HOWTO.html#toc12" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Multi-Disk-HOWTO-13.html">Next</A>
+<A HREF="Multi-Disk-HOWTO-11.html">Previous</A>
+<A HREF="Multi-Disk-HOWTO.html#toc12">Contents</A>
+<HR>
+<H2><A NAME="s12">12. Implementation</A></H2>
+
+<P>
+<!--
+disk!implementation
+-->
+
+Having done the layout you should now have a detailed description on
+what goes where. Most likely this will be on paper but hopefully
+someone will make a more automated system that can deal with
+everything from the design, through partitioning to formatting and
+installation. This is the route one will have to take to realise the
+design.
+<P>Modern distributions come with installation tools that will guide you
+through partitioning and formatting and also set up <CODE>/etc/fstab</CODE>
+for you automatically. For later modifications, however, you will need
+to understand the underlying mechanisms.
+<P>
+<P>
+<H2><A NAME="ss12.1">12.1 Checklist</A>
+</H2>
+
+<P>
+<!--
+disk!implementation!checklist
+-->
+
+Before starting make sure you have the following:
+<UL>
+<LI>Written notes of what goes where, your design</LI>
+<LI>A functioning, tested rescue disk</LI>
+<LI>A fresh backup of your precious data</LI>
+<LI>At least two formatted, tested and empty floppies</LI>
+<LI>Read and understood the man page for fdisk or equivalent</LI>
+<LI>Patience, concentration and elbow grease</LI>
+</UL>
+<P>
+<P>
+<H2><A NAME="ss12.2">12.2 Drives and Partitions</A>
+</H2>
+
+<P>
+<!--
+disk!implementation!drives
+-->
+
+<!--
+disk!implementation!partitions
+-->
+
+When you start DOS or the like you will find all partitions labeled
+<CODE>C:</CODE> and onwards, with no differentiation on IDE, SCSI, network or
+whatever type of media you have. In the world of Linux this is rather
+different. During booting you will see partitions described like this:
+<HR>
+<PRE>
+Dec  6 23:45:18 demos kernel: Partition check:
+Dec  6 23:45:18 demos kernel:  sda: sda1
+Dec  6 23:45:18 demos kernel:  hda: hda1 hda2
+</PRE>
+<HR>
+<P>SCSI drives are labelled <CODE>sda</CODE>, <CODE>sdb</CODE>, <CODE>sdc</CODE> etc, and
+(E)IDE drives are labelled <CODE>hda</CODE>, <CODE>hdb</CODE>, <CODE>hdc</CODE> etc. 
+There are also standard names for all devices, full information can be
+found in 
+<CODE>/dev/MAKEDEV</CODE> and <CODE>/usr/src/linux/Documentation/devices.txt</CODE>.
+<P>Partitions are labelled numerically for each drive <CODE>hda1</CODE>, <CODE>hda2</CODE>
+and so on.  On SCSI drives there can be 15 partitions per
+drive, on EIDE drives there can be 63 partitions per drive. Both
+limits exceed what is currently useful for most disks.
+<P>These are then mounted according to the file <CODE>/etc/fstab</CODE> before
+they appear as a part of the file system.
+<P>
+<P>
+<H2><A NAME="ss12.3">12.3 Partitioning</A>
+</H2>
+
+<P>
+<!--
+disk!implementation!partitioning
+-->
+
+<!--
+disk!fdisk
+-->
+
+<!--
+disk!cfdisk
+-->
+
+<!--
+disk!sfdisk
+-->
+
+<!--
+disk!Disk Druid
+-->
+<P><I>It feels so good / It's a marginal risk / when I clear off / windows with fdisk! </I>
+(the Dustbunny in an 
+<A HREF="http://www.userfriendly.org/cartoons/archives/99feb/19990221.html">issue</A>
+of
+<A HREF="http://www.userfriendly.org/">User Friendly</A>
+in the song "Refund this")
+<P>First you have to partition each drive into a number of separate partitions.
+Under Linux there are two main methods, <CODE>fdisk</CODE> and the more screen
+oriented <CODE>cfdisk</CODE>. These are complex programs, read the manual <EM>very</EM>
+carefully. For the experts there is now also <CODE>sfdisk</CODE>.
+<P>
+<P>Partitions come in 3 flavours, <CODE>primary</CODE>, <CODE>extended</CODE> and <CODE>logical</CODE>.
+You have to use <CODE>primary</CODE> partitions for booting, but there is a maximum
+of 4 primary partitions. If you want more you have to define an <CODE>extended</CODE>
+partition within which you define your <CODE>logical</CODE> partitions.
+<P>Each partition has an identifier number which tells the operating system
+what it is, for Linux the types <CODE>swap(82)</CODE> and <CODE>ext2fs(83)</CODE> are
+the ones you
+will need to know.
+If you want to use RAID with autostart you have to check the documentation
+for the appropriate type number for the RAID partition.
+<P>There is a readme file that comes with <CODE>fdisk</CODE> that gives more in-depth
+information on partitioning.
+<P>Someone has just made a <EM>Partitioning HOWTO</EM> which contains excellent,
+in depth information on the nitty-gritty of partitioning. Rather than
+repeating it here and bloating this document further, I will instead refer
+you to it instead.
+<P>Redhat has written a screen oriented utility called <EM>Disk Druid</EM> which
+is supposed to be a user friendly alternative
+to <CODE>fdisk</CODE> and <CODE>cfdisk</CODE> and also
+automates a few other things. Unfortunately this product is not quite
+mature so if you use it and cannot get it to work you are well advised
+to try <CODE>fdisk</CODE> or <CODE>cfdisk</CODE>.
+<P>Not to be outdone, Mandrakesoft has made an even more graphic alternative
+called
+<A HREF="http://www.linux-mandrake.com/diskdrake/">Diskdrake</A>
+that also offers numerous features.
+<P>Also the GNU project offers a partitioning tool called
+<A HREF="http://www.gnu.org/software/parted/">GNU Parted</A><P>
+<P>The 
+<A HREF="http://www.users.intercom.com/~ranish/part/">Ranish Partition Manager</A>
+is another free alternative,
+while
+<A HREF="http://www.powerquest.com">Partition Magic</A>
+is a popular commercial alternative which also offers some
+support for resizing <CODE>ext2fs</CODE> partitions.
+<P>Note that Windows will complain if it finds
+more than one primary partition on a drive.
+Also it appears to assign drive letters
+to primary partitions as it finds disks
+before starting over from the first disk to
+assign subsequent drive names to logical partitions.
+<P>If you want DOS/Windows on your system you should make that partition
+first, a primary one to boot to, made with the DOS <CODE>fdisk</CODE> program.
+Then if you want NT you put that one in.
+Finally, for Linux, you create those partitions with the Linux <CODE>fdisk</CODE>
+program or equivalents. Linux is flexible enough to boot from both
+primary as well as logical partitions.
+<P>In depth information on DOS <CODE>fdisk</CODE> can be found at
+<A HREF="http://www.fdisk.com/fdisk/">Fdisk.com</A>
+and
+<A HREF="http://members.aol.com/axcel216/secrets.htm">MS-DOS 5.00 - 7.10 Undocumented, Secret + Hidden Features</A>
+which details even more bugs and pitfalls.
+<P>
+<H2><A NAME="repartitioning"></A> <A NAME="ss12.4">12.4 Repartitioning </A>
+</H2>
+
+<P>
+<!--
+disk!implementation!repartitioning
+-->
+
+<!--
+disk!ShowFat
+-->
+
+<!--
+disk!fips
+-->
+
+<!--
+disk!Partition Magic
+-->
+
+<!--
+disk!Partition Resizer
+-->
+
+Sometimes it is necessary to change the sizes of existing partitions
+while keeping the contents intact. One way is of course to back up
+everything, recreate new partitions and then restore the old contents,
+and while this gives your back up system a good test it is also
+rather time consuming.
+<P>Partition resizing is a simpler alternative where a file system is
+first shrunk to desired volume and then the partition table is
+updated to reflect the new end of partition position. This process
+is therefore very file system sensitive.
+<P>Repartitioning requires there to be free space at the end of
+the file space so to ensure you are able to shrink the size
+you should first defragment your drive and empty any wastebaskets.
+<P>Using 
+<A HREF="http://www.igd.fhg.de/~aschaefe/fips/">fips</A>
+you can resize a <CODE>fat</CODE> partition,
+and the latest version 1.6 of <CODE>fips</CODE> or <CODE>fips 2.0</CODE>
+are also able to resize <CODE>fat32</CODE> partition.
+Note that these programs actually run under DOS.
+<P>Resizing other file systems are much more complicated but one
+popular commercial system
+<A HREF="http://www.powerquest.com">Partition Magic</A>
+is able to resize more file system types, including <CODE>ext2fs</CODE>
+using the <CODE>resize2fs</CODE> program. Make sure you get the latest
+updates to this program as recent versions had problems with
+large disks.
+<P>
+<P>In order to get the most out of <CODE>fips</CODE> you should
+first delete unnecessary files, empty wastebaskets etc.
+before defragmenting your drive.
+This way you can allocate more space to other partitions.
+If the program complains there are still files at the end
+of your drive it is probably hidden files generated by
+Microsoft Mirror or Norton Image.
+These are probably called <CODE>image.idx</CODE> and <CODE>image.dat</CODE> and
+contain backups of some system files.
+<P>There are reports that in some Windows defragmentation programs
+you should make sure the box "allow Windows to move files around"
+is <EM>not</EM> checked, otherwise you will end up with some files
+in the last cylinder of the partition which will prevent FIPS
+from reclaiming space.
+<P>If you still have unmovable files at the end of your DOS partition
+you should get the DOS program
+<A HREF="http://www8.pair.com/dmurdoch/programs/showfat.htm">showfat</A>
+version 3.0 or higher.
+This shows you what files are where so you can deal with them
+directly.
+<P>A freeware alternative is
+<A HREF="http://members.nbci.com/Zeleps/">Partition Resizer</A>
+which can shrink, grow and move partitions.
+<P>Some versions of DOS / Windows have a hidden flag for <CODE>defrag</CODE>, "<CODE>/P</CODE> that
+causes <CODE>defrag</CODE> to move even hidden files. Use at own risk.
+<P>
+<P>Repartitioning is as dangerous process as any other partitioning
+so you are advised to have a fresh backup handy.
+<P>
+<P>
+<H2><A NAME="microsoft-partition-bug"></A> <A NAME="ss12.5">12.5 Microsoft Partition Bug </A>
+</H2>
+
+<P>
+<!--
+disk!implementation!Microsoft Partition Bug
+-->
+
+<!--
+disk!Microsoft!nasty bug
+-->
+
+In Microsoft products all the way up to Win 98 there is a tricky bug
+that can cause you a bit of trouble:
+if you have several primary <CODE>fat</CODE> partitions
+and the last extended partition is not a <CODE>fat</CODE> partition
+the Microsoft system will try to mount the last partition as if
+it were a FAT partition in place of the last primary FAT partition.
+<P>There is more
+<A HREF="http://www.v-com.com/">information</A>
+available on the net on this.
+<P>To avoid this you can place a small logical <CODE>fat</CODE> partition
+at the very end of your disk.
+<P>More information on multi OS installations are available at
+<A HREF="http://www.v-com.com/">V Communications</A> but they keep rearranging the
+links continuously so no direct links can be offered here.
+<P>
+<P>Since some hardware comes with setup software that is available
+under DOS only this could come in handy anyway. Notable examples
+are RAID controllers from DPT and a number of networking cards.
+<P>
+<H2><A NAME="ss12.6">12.6 Multiple Devices (<CODE>md</CODE>)</A>
+</H2>
+
+<P>
+<!--
+disk!implementation!multiple devices
+-->
+
+<!--
+disk!implementation!devices, multiple
+-->
+
+Being in a state of flux you should make sure to read the latest
+documentation on this kernel feature. It is not yet stable, beware.
+<P>Briefly explained it works by adding partitions together into new
+devices <CODE>md0</CODE>, <CODE>md1</CODE> etc. using <CODE>mdadd</CODE> before you activate
+them using <CODE>mdrun</CODE>. This process can be automated using the file
+<CODE>/etc/mdtab</CODE>.
+<P>The latest <CODE>md</CODE> system uses a  
+<A HREF="file:///etc/raidtab">/etc/raidtab</A>
+and
+a different syntax. Make sure your RAID-tools package matches
+the <CODE>md</CODE> version as the internal protocol has changed.
+<P>Then you then treat these like any other partition on a drive. Proceed
+with formatting etc. as described below using these new devices.
+<P>There is now also a HOWTO in development for RAID using <CODE>md</CODE> you
+should read.
+<P>
+<P>
+<H2><A NAME="ss12.7">12.7 Formatting</A>
+</H2>
+
+<P>
+<!--
+disk!implementation!formatting
+-->
+
+Next comes partition formatting, putting down the data structures that will
+describe the files and where they are located. If this is the first time it
+is recommended you use formatting with verify. Strictly speaking it should
+not be necessary but this exercises the I/O hard enough that it can uncover
+potential problems, such as incorrect termination, before you store your
+precious data. Look up the command <CODE>mkfs</CODE> for more details.
+<P>Linux can support a great number of file systems, rather than repeating
+the details you can read the man page for <CODE>fs</CODE> which describes them in
+some details. Note that your kernel has to have the drivers compiled in
+or made as modules in order to be able to use these features. When the time
+comes for kernel compiling you should read carefully through the file system
+feature list. If you use <CODE>make menuconfig</CODE> you can get online help for
+each file system type.
+<P>Note that some rescue disk systems require <CODE>minix</CODE>, <CODE>msdos</CODE> and <CODE>ext2fs</CODE>
+to be compiled into the kernel.
+<P>Also swap partitions have to be prepared, and for this you use <CODE>mkswap</CODE>.
+<P>Some important notes on formatting with DOS and Windows can be found in
+<A HREF="http://members.aol.com/axcel216/secrets.htm">MS-DOS 5.00 - 7.10 Undocumented, Secret + Hidden Features</A>.
+<P>Note that this formatting is high level formatting, that writes the file
+system to the disk, as opposed to low level formatting that lays down
+tracks and sectors. The latter is hardly ever needed these days.
+<P>
+<H2><A NAME="ss12.8">12.8 Mounting</A>
+</H2>
+
+<P>
+<!--
+disk!implementation!mounting
+-->
+
+Data on a partition is not available to the file system until it is mounted
+on a mount point. This can be done manually using <CODE>mount</CODE> or automatically
+during booting by adding appropriate lines to <CODE>/etc/fstab</CODE>. Read the
+manual for <CODE>mount</CODE> and pay close attention to the tabulation.
+<P>
+<P>
+<H2><A NAME="ss12.9">12.9 <CODE>fstab</CODE></A>
+</H2>
+
+<P>
+<!--
+disk!implementation!fstab
+-->
+
+<!--
+disk!fstab
+-->
+
+During the booting process the system mounts all partitions
+as described in the <CODE>fstab</CODE> file which can look something
+like this:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+
+# &lt;file system>   &lt;mount point>   &lt;type>  &lt;options>   &lt;dump>  &lt;pass>
+/dev/hda2          /               ext2    defaults    0       1
+None               none            swap    sw          0       0
+proc               /proc           proc    defaults    0       0
+/dev/hda1          /dosc           vfat    defaults    0       1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This file is somewhat sensitive to the formatting used so it
+is best and also most convenient to edit it using one of the
+editing tools made for this purpose,
+such as
+<A HREF="http://www.bit.net.au/~bhepple/fstool/">on the netfstool</A>, a Tcl/Tk-based file system mounter,
+and
+<A HREF="http://kfstab.purespace.de/kfstab/">kfstab</A>, an editing tool for KDE.
+<P>Briefly, the fields are partition name, where to mount the partition,
+type of file system, mount options, when to dump for backup
+and when to do <CODE>fsck</CODE>.
+<P>Linux offers the possibility of parallel file checking (<CODE>fsck</CODE>)
+but to be efficient it is important not to <CODE>fsck</CODE> more than one
+partition on a drive at a time.
+<P>
+<P>
+<H2><A NAME="ss12.10">12.10 Mount options</A>
+</H2>
+
+<P>
+<!--
+disk!mount
+-->
+
+Mounting, either by hand or using the <CODE>fstab</CODE>, allows for
+a number of options that offers extra protection. Below are some
+of the more useful options.
+<P>
+<DL>
+<DT><B>nodev</B><DD><P>Do  not interpret character or block special
+devices on the file system.
+<P>
+<DT><B>noexec</B><DD><P>This disallows execution of any binaries on
+the mounted file system. Useful in spool areas.
+<P>
+<DT><B>nosuid</B><DD><P>This disallows set-user-identifier or
+set-group-identifier on the mounted file system.
+Useful in home directories.
+</DL>
+<P>
+<P>For more information and cautions refer to the man page
+for <CODE>mount</CODE> and <CODE>fstab</CODE>.
+<P>
+<P>
+<H2><A NAME="ss12.11">12.11 Recommendations</A>
+</H2>
+
+<P>Having constructed and implemented your clever scheme
+you are well advised to make a complete record of it all, on paper.
+After all having all the necessary information on disk is no use
+if the machine is down.
+<P>Partition tables can be damaged or lost, in which case it is
+excruciatingly important that you enter the exact same numbers
+into <CODE>fdisk</CODE> so you can rescue your system.
+You can use the program <CODE>printpar</CODE> to make a clear record
+of the tables. Also write down the SCSI numbers or IDE names
+for each disk so you can put the system together again in the
+right order.
+<P>There is also a small script in appendix
+<A HREF="Multi-Disk-HOWTO-33.html#disk-documenter">Appendix M: Disk System Documenter</A>
+which will generate a summary of your disk configurations.
+<P>For checking your hard disks you can use the Disk Advisor boot disk
+available
+<A HREF="http://www.ontrack.com/">on the net</A>.
+The disk builder required Windows to run. This system is useful to
+diagnose failed disks.
+<P>You are strongly recommended to make a rescue disk and <EM>test</EM> it.
+Most distributions make on available and is often part of the
+installation disks. For some, such as the one for Redhat 6.1 the way
+to invoke the disk as a rescue disk is to type <EM>linux rescue</EM>
+at the boot prompt.
+<P>There are also specialised rescue disk distributions available
+on the net.
+<P>When need for it comes you will need to know where your root and boot
+partitions reside which you need to write down and keep safe.
+<P>Note: the difference between a boot disk and a rescue disk is that
+a boot disk will fail if it cannot mount the file system, typically
+on your hard disk. A rescue disk is self contained and will work
+even if there are no hard disks.
+<P>
+<P>
+<HR>
+<A HREF="Multi-Disk-HOWTO-13.html">Next</A>
+<A HREF="Multi-Disk-HOWTO-11.html">Previous</A>
+<A HREF="Multi-Disk-HOWTO.html#toc12">Contents</A>
+</BODY>
+</HTML>

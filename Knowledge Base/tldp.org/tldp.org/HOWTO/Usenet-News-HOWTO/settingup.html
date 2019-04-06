@@ -1,0 +1,1793 @@
+<HTML
+><HEAD
+><TITLE
+>Setting up CNews + NNTPd</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Usenet News HOWTO "
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Usenet news software"
+HREF="x248.html"><LINK
+REL="NEXT"
+TITLE="Setting up INN"
+HREF="x687.html"></HEAD
+><BODY
+CLASS="SECTION"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Usenet News HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x248.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x687.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECTION"
+><H1
+CLASS="SECTION"
+><A
+NAME="SETTINGUP">4. Setting up CNews + NNTPd</H1
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="AEN314">4.1. Getting the sources and stuff</H2
+><DIV
+CLASS="SECTION"
+><H3
+CLASS="SECTION"
+><A
+NAME="AEN316">4.1.1. The sources</H3
+><P
+>C-News software can be obtained from
+<TT
+CLASS="LITERAL"
+>ftp://ftp.uu.net/networking/news/transport/cnews/cnews.tar.Z</TT
+>
+and will need to be uncompressed using the BSD
+<TT
+CLASS="LITERAL"
+>uncompress</TT
+> utility or a compatible program. The
+tarball is about 650 KBytes in size. It has its own highly intelligent
+configuration and installation processes, which are very well
+documented. The version that is available is Cleanup Release revision G,
+on which our own version is based.</P
+><P
+>NNTPd (the NNTP Reference Implementation) is available from
+<TT
+CLASS="LITERAL"
+>ftp://ftp.uu.net/networking/news/nntp/nntp.1.5.12.1.tar.Z</TT
+>.
+It has no automatic scripts and processes to configure itself. After
+fetching the sources, you will have to follow a set of directions given
+in the documentation and configure some C header files. These
+configuration settings must be done keeping in mind what you have
+specified when you build the C-News sources, because NNTPd and C-News
+must work together. Therefore, some key file formats, directory paths,
+<EM
+>etc.</EM
+>, will have to be specified identically in both
+software systems.</P
+><P
+>The third software system we use is Nestor. This too is to be
+found in the same place where the NNTPd software is kept, at
+<TT
+CLASS="LITERAL"
+>ftp://ftp.uu.net/networking/news/nntp/nestor.tar.Z</TT
+>.
+This software compiles to one binary program, which must be run
+periodically to process the logs of <TT
+CLASS="LITERAL"
+>nntpd</TT
+>, the NNTP
+server which is part of NNTPd, and report usage statistics to the
+administrator. We have integrated Nestor into our source base.</P
+><P
+>The fourth piece of the system, without which no Usenet server
+administrator dares venture out into the wild world of public Internet
+newsfeeds, is <TT
+CLASS="LITERAL"
+>pgpverify</TT
+>.</P
+><P
+>We have been working with C-News and NNTPd for many years now, and
+have fixed a few bugs in both packages. We have also integrated the four
+software systems listed above, and added a few features here and there to
+make things work more smoothly. We offer our entire source base to
+anyone for free download from
+<TT
+CLASS="LITERAL"
+>http://www.starcomsoftware.com/proj/usenet/src/news.tar.gz</TT
+>.
+There are no licensing restrictions on our sources; they are as freely
+redistributable as the original components we started with.</P
+><P
+>When you download our software distribution, you will extract it
+to find a directory tree with the following subdirectories and files:</P
+><P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>c-news</TT
+>: the source tree of the CR.G
+    software release, with our additions like
+    <TT
+CLASS="LITERAL"
+>pgpverify</TT
+> integration, our scripts like
+    <TT
+CLASS="LITERAL"
+>mail2news</TT
+>, and pre-created configuration
+    files.
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>nntp-1.5.12.1</TT
+>: the source tree of the
+    original NNTPd release, with header files pre-configured to fit in
+    with our configuration of C-News, and our addition of bits and
+    pieces like Nestor, the log analysis program.
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>howto</TT
+>: this document, and its SGML
+    sources and Makefile.
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>build.sh</TT
+>: a shellscript you can run
+    to compile the entire combined source tree and install binaries in the
+    right places, if you are lucky and all goes well.
+    </P
+></LI
+></UL
+><P
+>Needless to say, we believe that our source tree is a better
+place to start with than the original components, specially if you
+are installing a Usenet server on a Linux box and for the first time.
+We will be available on email to provide technical assistance should
+you run into trouble.</P
+></DIV
+><DIV
+CLASS="SECTION"
+><H3
+CLASS="SECTION"
+><A
+NAME="AEN348">4.1.2. The key configuration files</H3
+><P
+>Once you get the sources, you will need some key configuration
+files to seed your C-News system. These configuration files are
+actually database tables, and are changing frequently, whenever
+newsgroups are created, modified or deleted. These files specify
+the list of active newsgroups in the ``public'' Usenet. You can,
+and should, add your organisation's internal newsgroups to this
+list when you set up your own server, but you will need to know
+the list of public standard newsgroups to begin with. This list
+can be obtained from the same FTP server by downloading the files
+<TT
+CLASS="LITERAL"
+>active.gz</TT
+> and <TT
+CLASS="LITERAL"
+>newsgroups.gz</TT
+> from
+<TT
+CLASS="LITERAL"
+>ftp://ftp.uu.net/networking/news/config/</TT
+>. You
+can create your own <TT
+CLASS="LITERAL"
+>active</TT
+> and
+<TT
+CLASS="LITERAL"
+>newsgroups</TT
+> files by retaining a subset of the entries
+in these two files. Both these are ASCII text files.</P
+><P
+>Getting the sources from our server will not obviate the need to
+get the latest versions of these files from
+<TT
+CLASS="LITERAL"
+>ftp.uu.net</TT
+>. We do not (yet) maintain an up-to-date
+copy of these files on our server, and we will add no value to the
+original by just mirroring them.</P
+></DIV
+></DIV
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="AEN358">4.2. Compiling and installing</H2
+><P
+>    For installing, first make sure you have an entry for a user called 
+    <TT
+CLASS="LITERAL"
+>news</TT
+> in your <TT
+CLASS="LITERAL"
+>/etc/password</TT
+> file. This
+    is setting the news-database owner to <TT
+CLASS="LITERAL"
+>news</TT
+>. Now download
+    the source from us and untar it in the home directory of news. This creates
+    two main directories <EM
+>viz.</EM
+> <TT
+CLASS="LITERAL"
+>c-news</TT
+>
+    and <TT
+CLASS="LITERAL"
+>nntp</TT
+>. 
+    To install and compile, run the script <TT
+CLASS="LITERAL"
+>build.sh</TT
+> as root
+    in the directory that contains the script. It is important that the script 
+    run as <TT
+CLASS="LITERAL"
+>root</TT
+> as it sets ownerships, installs and 
+    compiles the source as user <TT
+CLASS="LITERAL"
+>news</TT
+>. This
+    is a one-step process that puts in place both the C-News and the
+    NNTP software, setting correct permissions and paths.
+    Following
+    is a brief description of what build.sh does:</P
+><P
+></P
+><UL
+><LI
+><P
+> 
+    Checks for the <TT
+CLASS="LITERAL"
+>OS</TT
+> platform and exits if
+    it is not <TT
+CLASS="LITERAL"
+>Linux</TT
+>.</P
+></LI
+><LI
+><P
+> 
+    Again, exits if you are not running as
+    <TT
+CLASS="LITERAL"
+>root</TT
+>.</P
+></LI
+><LI
+><P
+>    Looks for and exits if cannot find the above two directories.</P
+></LI
+><LI
+><P
+> 
+    Compiles <TT
+CLASS="LITERAL"
+>C-News</TT
+> and performs regression tests if the 
+    compilation was successfull.  Sends out a warning to read the error file 
+    <TT
+CLASS="LITERAL"
+>make.out.r</TT
+> and to fix 'em.
+    Compilation erros are written to a file called <TT
+CLASS="LITERAL"
+>make.out</TT
+>. &#13;</P
+></LI
+><LI
+><P
+> 
+    Performs the above operation in the <TT
+CLASS="LITERAL"
+>nntp</TT
+> directory, too. </P
+></LI
+><LI
+><P
+> 
+    Checks for the presence of the three key directories:
+    <TT
+CLASS="LITERAL"
+>$NEWSARTS - (/var/spool/news)</TT
+> that houses the artciles, 
+    <TT
+CLASS="LITERAL"
+>$NEWSCTL -(/var/lib/news)</TT
+> that contain
+    configuration, log and status files and <TT
+CLASS="LITERAL"
+>$NEWSBIN - 
+    (/usr/lib/newsbin)</TT
+> that contain binaries and
+    executables for
+    the working of the Usenet News system. Tries to create them if non-existent
+    and exits if it results in failure.</P
+></LI
+><LI
+><P
+> 
+    Changes the ownership of these directories to <TT
+CLASS="LITERAL"
+>news.news</TT
+>.
+    This is important since the entire Usenet News System runs as user <TT
+CLASS="LITERAL"
+>news.</TT
+> It
+    will not function properly as any other user. </P
+></LI
+><LI
+><P
+> 
+    Then starts the installation process of C News. It runs
+    <TT
+CLASS="LITERAL"
+>make install </TT
+>to install binaries at the right locations; 
+    <TT
+CLASS="LITERAL"
+>make setup </TT
+>to set the correct paths and umask, create 
+    directories for newsgroups, determine who will receive reports; 
+    <TT
+CLASS="LITERAL"
+>make ui</TT
+> to set up inews and injnews and 
+    <TT
+CLASS="LITERAL"
+>make readpostcheck </TT
+>to use readnews, postnews and 
+    checknews scripts provided by C News. The errors, if any are to be found in
+    the respective <TT
+CLASS="LITERAL"
+>make.out</TT
+> files. e.g. make.setup will write
+    errors to <TT
+CLASS="LITERAL"
+>make.out.setup</TT
+></P
+></LI
+><LI
+><P
+> 
+    <TT
+CLASS="LITERAL"
+>Newsspool</TT
+>,  which queues incoming
+    batches in <TT
+CLASS="LITERAL"
+>$NEWSARTS/in.coming</TT
+> directory should run as
+    set-userid and set-groupid. This is done.</P
+></LI
+><LI
+><P
+> 
+    A softlink is made to <TT
+CLASS="LITERAL"
+>/var/lib/news</TT
+> from 
+    <TT
+CLASS="LITERAL"
+>/usr/lib/news.</TT
+>	</P
+></LI
+><LI
+><P
+> 
+    The NNTP software is installed. </P
+></LI
+><LI
+><P
+> 
+    Sets up the manpages for C News and makes it world
+    readable. The NNTP manpages get installed when the software is installed.
+    Compiles the C News documentation <TT
+CLASS="LITERAL"
+>guide.ps</TT
+> and makes it 
+    readable and available in <TT
+CLASS="LITERAL"
+>/usr/doc/packages/news</TT
+> or
+    <TT
+CLASS="LITERAL"
+>/usr/doc/news</TT
+>.</P
+></LI
+><LI
+><P
+> 
+    Checks for the PGP binary and asks the administrator to get
+    it, if not found.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="CONFIGURESYSTEM">4.3. Configuring the system: What and how to configure files?</H2
+><P
+>Once installed, you have to now configure the system to accept feeds and 
+batch them for your neighbours. You will have to do the following:</P
+><P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>nntpd</TT
+>:  
+    Copy the compiled <TT
+CLASS="LITERAL"
+>nntpd</TT
+> into a directory where
+    executables are kept and activate it. It runs on port 119 as a daemon
+    through <TT
+CLASS="LITERAL"
+>inetd</TT
+> unless you have compiled it as stand-alone.
+    An entry in the <TT
+CLASS="LITERAL"
+>/etc/services</TT
+> file for nntp would look 
+    like this:
+    <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>nntp	119/tcp    \# Network News Transfer Protocol</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    An entry in the <TT
+CLASS="LITERAL"
+>inetd.conf </TT
+>file will be:
+    <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> nntp    stream    tcp    nowait   news    path-to-tcpd  path-to-nntpd </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    The last two fields in the <TT
+CLASS="LITERAL"
+>inetd.conf</TT
+> file are paths to 
+    binaries of the <TT
+CLASS="LITERAL"
+>tcp</TT
+> and the <TT
+CLASS="LITERAL"
+>nntp </TT
+> 
+    daemon respectively.</P
+></LI
+><LI
+><P
+><EM
+>Configuring control files:</EM
+>  
+    There are plenty of control files in <TT
+CLASS="LITERAL"
+>$NEWSCTL</TT
+> that will
+    need to be configured before you can
+    start using the news system.  The files mentioned here are also discussed
+    in the first section of the section titled 
+    <SPAN
+CLASS="QUOTE"
+>"<A
+HREF="component.html"
+>Components of a running system</A
+>&#62;"</SPAN
+>. These control files are 
+    dealt in detail in the following below.</P
+><P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>sys</TT
+>:
+	One line per system/NDN listing all the
+	newsgroup hierarchies each system subscribes to. Each line is prefixed
+	with the system name and the one beginning with
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ME:</PRE
+></FONT
+></TD
+></TR
+></TABLE
+> indicates what your
+	server is willing to receive. Following are typical entries that go into
+	this file: <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ME:comp,news,misc,netscape</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	This line indicates what newsgroups your server has subscribed to.
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>server/server.starcomsoftware.com:all,!general/all:f</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        This is a list of newsgroups your server will pass on to your NDN.
+	The newsgroups specified should be a comma separated list and the entire
+	line should contain no spaces. The <EM
+>f</EM
+> flag indicates
+	that the newsgroup name and the article number alongwith its size will 
+	make up one entry in the <TT
+CLASS="LITERAL"
+>togo</TT
+> file in the 
+	<TT
+CLASS="LITERAL"
+>$NEWSARTS/out.going</TT
+> directory.
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>explist</TT
+>: 
+	This file has entries indicating which articles expire and when and  
+	whether they have to be archived. The order in which the newsgroups are
+	listed is important. An example follows:
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>comp.lang.java.3d    x    60    /var/spool/news/Archive</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	This means that the articles of comp.lang.java expire after 60 days and
+	shall be archived in the directory mentioned in the fourth field. 
+	Archiving is an option. The second field indicates that this line 
+	applies to both moderated and unmoderted newsgroups.
+	<EM
+>m</EM
+> would 
+	specify moderated and <EM
+>u</EM
+> would specify unmoderated
+	groups. If you want to specify an extremely large no. as the expiry
+	period you can use the keyword <SPAN
+CLASS="QUOTE"
+>"never"</SPAN
+>. 
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>batchparms</TT
+>:
+	<TT
+CLASS="LITERAL"
+>sendbatches</TT
+> is a program that
+	administers batched transmission of news articles to other sites. To do
+	this it consults the <TT
+CLASS="LITERAL"
+>batchparms</TT
+> file. Each line in 
+	the file specifies the behaviour for each of your NDN mentioned in the
+	<TT
+CLASS="LITERAL"
+>sys</TT
+> file. There are five fields for each site to be
+	specified.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> server   u     100000    100    batcher | gzip -9 | viauux -d gunzip </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>	The first field is the site name which matches the entry in the 
+	<TT
+CLASS="LITERAL"
+>sys</TT
+> file and has a corresponding directory in 
+	<TT
+CLASS="LITERAL"
+>$NEWSARTS/out.going </TT
+>by that name. 
+    </P
+><P
+>	
+	The second field is the class of the site,<EM
+>u</EM
+> for 
+	UUCP and <EM
+>n </EM
+>for NNTP feeds. A <SPAN
+CLASS="QUOTE"
+>"!"</SPAN
+> in 
+	this field means that batching for this site has been disabled. 
+    </P
+><P
+>	The third field is the size of batches to be prepared in bytes.
+    </P
+><P
+>	
+	The fourth field is the maximum length of the output queue for 
+	transmission to that site.
+    </P
+><P
+>	The fifth field is the command line to be used to build, compress and
+	transmit batches to that site. The contents of the 
+	<TT
+CLASS="LITERAL"
+>togo </TT
+> file are made available on standard input.
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>controlperm</TT
+>:
+	This file controls how the news
+	system responds to control messages. Each line consists of 4-5 fields
+	separated by white space. Control messages has been discussed in 
+	<SPAN
+CLASS="QUOTE"
+>"<A
+HREF="x64.html#CONTROLMSG"
+>Section 2.4</A
+>&#62;"</SPAN
+>.
+	</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>comp,sci    tale@uunet.uu.net   nrc    pv   news.announce.newsgroups</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>	The first field is a newsgroup pattern to which the line applies.
+    </P
+><P
+>	The second field is either the keyword <SPAN
+CLASS="QUOTE"
+>"any"</SPAN
+> or an e-mail 
+	address. The latter specifies that the line applies to control messages
+	from only that author.
+    </P
+><P
+>	The third field is a set of opcode letters indicating what control
+	operations need to be performed on messages emanating from the e-mail
+	address mentioned in the second field. <EM
+>n</EM
+> stands for
+	creating a newgroup, <EM
+>r</EM
+> stands for deleting a 
+	newsgroup and <EM
+>c</EM
+> stands for checkgroup. 
+    </P
+><P
+>	The fourth field is a set of flag letters indicating how to respond to
+	a control message that meets all the applicability tests:
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>	     y 	Do it.
+	     n	Don't do it.
+	     v 	Report it and include the entire control
+	        message in the report.
+	     q 	Don't report it.
+	     p	Do it iff the control message carries a valid PGP signature. 
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	Exactly one of y, n or p must be present.
+    </P
+><P
+>	The fifth field, which is optional, will be used if the fourth field
+	contains a <EM
+>p</EM
+>. It must contain the PGP key ID of the
+	public key to be used for signature verification. 
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>mailpaths</TT
+>: 
+	This file describes how to reach
+	the moderators of various hierarchies of newsgroups by mail. Each line
+	consists of two fields: a news group pattern and an e-mail address. The
+	first line whose group pattern matches the newsgroup is used. As an
+	example:
+
+       <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>	   comp.lang.java.3d		somebody@mydomain.com
+	   all				%s@moderators.uu.net
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+	In the second example, the <TT
+CLASS="LITERAL"
+>%s</TT
+> gets replaced with the
+	groupname and all dots appearing in the newsgroup name are substituted 
+	with dashes.
+    </P
+></LI
+><LI
+><P
+><EM
+>Miscellaneous files:</EM
+>
+	The other files to be modified are:
+	<P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>mailname:</TT
+>
+	    Contains the Internet domain name of the
+	    news system.  Consider getting one if you don't have it.
+	</P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>organization:</TT
+> 
+	    Contains the default value for the <TT
+CLASS="LITERAL"
+>Organization:</TT
+>
+	    header for postings originating locally.
+	</P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>whoami:</TT
+>
+	    Contains the name of the news system. This is the site name used in
+	    the <TT
+CLASS="LITERAL"
+>Path:</TT
+> headers and hence should concur with
+	    the names your neighbours use in their <TT
+CLASS="LITERAL"
+>sys</TT
+> files.
+	</P
+></LI
+></UL
+>
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>active </TT
+>file:
+	This file specifies one line for each
+	newsgroup (not just the hierarchy) to be found on your news system. You
+	will have to get the most recent copy of the active file from 
+	<TT
+CLASS="LITERAL"
+>ftp://ftp.isc.org/usenet/CONFIG/active</TT
+> and prune it
+	to delete newsgroups that you have not subscribed to. Run the script 
+	<TT
+CLASS="LITERAL"
+>addgroup</TT
+> for each newsgroup in this file which will 
+	create relevant directories in the <TT
+CLASS="LITERAL"
+>$NEWSARTS</TT
+> area. 
+	The <TT
+CLASS="LITERAL"
+>addgroup</TT
+> script takes
+	two paramters: the newsgroup name being created and a flag. The flag can
+	be any one of the following:
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>	    y		local postings are allowed
+	    n 		no local postings, only remote ones
+	    m		postings to this group must be approved
+	                by the moderator
+	    j		articles in this group are only passed and not kept
+	    x		posting to this newsgroup is disallowed
+	    =foo.bar	articles are locally filed in
+	                "foo.bar" group
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+	An entry in this file looks like this:
+
+	 <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>comp.lang.java.3d	0000003716	01346	m </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+	The first field is the name of the newsgroup. The second field is the
+	highest article number that has been used in that newsgroup. The
+	third field is the lowest article number in the group. The fourth
+	field is a flag as explained above.
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>newsgroups </TT
+>file:
+	This contains a one-line description
+	of each newsgroup to be found in the active file. You will have to
+	get the most recent file from
+	<TT
+CLASS="LITERAL"
+>ftp://ftp.isc.org/usenet/CONFIG/newsgroups</TT
+> 
+	and prune it to remove unwanted information. As an example:
+
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>comp.lang.java.3d 	3D Graphics APIs for the Java language</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></LI
+><LI
+><P
+><EM
+>Aliases: </EM
+>
+	These aliases are required for trouble reporting. 
+	Once the system is in place and scripts are run, anomalies/problems
+	are reported to addresses in the <TT
+CLASS="LITERAL"
+>/etc/aliases</TT
+> file. 
+	These entries include email addresses for <TT
+CLASS="LITERAL"
+>newsmaster, 
+	newscrisis, news, usenet,  newsmap</TT
+>.
+	They should ideally point to an email address that will be 
+	accessed at regularly.  Arrange the emails for 
+	<TT
+CLASS="LITERAL"
+>newsmap</TT
+> to be discarded to minimize the effect of 
+	<TT
+CLASS="LITERAL"
+>sendsys bombing</TT
+> by practical jokers.
+    </P
+></LI
+><LI
+><P
+><EM
+>Cron jobs:</EM
+> 
+	Certain scripts like <TT
+CLASS="LITERAL"
+>newsrun</TT
+> that picks up incoming 
+	batches and maintenance scripts, should run through news-database 
+	owner's cron which is <TT
+CLASS="LITERAL"
+>news</TT
+>. The cron entries ideally
+	will be for the following: A more detailed report can be found in 
+	<SPAN
+CLASS="QUOTE"
+>"<A
+HREF="component.html#CRONJOBS"
+>Section 9.4</A
+>&#62;"</SPAN
+> 
+	<P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>newsrun: </TT
+>
+	    This script processes incoming batches of
+	    article.  Run this as frequently as you want them to get digested.
+	</P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>sendbatches:</TT
+>
+	    This script transmit batches to the
+	    NDNs. Set the frequency according to your requirements.
+	</P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>newsdaily:</TT
+>
+	    This should be run ideally once a day
+	    since it reports errors and anomalies in the news system.
+	</P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>newswatch:</TT
+>
+	    This looks for errors/anomalies at a more detailed level and hence
+	    should be run atleast once every hour
+	</P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>doexpire:</TT
+>
+	    This script expires old articles as
+	    determined by the explist file. Run this once a day.
+	</P
+></LI
+></OL
+>
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>newslog: </TT
+>
+	Make an entry in the system's <TT
+CLASS="LITERAL"
+>syslog.conf</TT
+>
+	file for logging messages spewed out by <TT
+CLASS="LITERAL"
+>nntpd</TT
+> in 
+	<TT
+CLASS="LITERAL"
+>newslog </TT
+>.  It should be located in 
+	<TT
+CLASS="LITERAL"
+>$NEWSCTL</TT
+>. The entry will look like this:
+
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>news.debug		-/var/lib/news/newslog</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></LI
+><LI
+><P
+><TT
+CLASS="LITERAL"
+>Newsboot: </TT
+>
+	Have this run (as <TT
+CLASS="LITERAL"
+>news</TT
+> the
+	news-database owner) when the system boots to clear out debris left
+	around by crashes.
+    </P
+></LI
+><LI
+><P
+>Add a Usenet mailer in sendmail: 
+	The <TT
+CLASS="LITERAL"
+>mail2news</TT
+> program provided as 
+	part of the source code is a handy tool to send an e-mail to a newsgroup
+	which gets digested as an article. You will have to add the following 
+	ruleset and mailer definition in your <TT
+CLASS="LITERAL"
+>sendmail.cf </TT
+>
+	file:</P
+><P
+></P
+><UL
+><LI
+><P
+>Under SParse1, add the following:
+	    <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>	    R$+ . USENET &#60; @ $=w . &#62;      $#usenet     $: $1
+	    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	</P
+></LI
+><LI
+><P
+>Under mailer definitions, define the mailer Usenet as:
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>	    MUsenet 	 P=/usr/lib/newsbin/mail2news/m2nmailer, F=lsDFMmn, 
+		S=10, R=0, M=2000000, T=X-Usenet/X-Usenet/X-Unix, A=m2nmailer $u
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	</P
+></LI
+></UL
+><P
+>In order to send a mail to a newsgroup you will now have to suffix
+	the newsgroup name with usenet <EM
+>i.e.</EM
+> your 
+	<TT
+CLASS="LITERAL"
+>To:</TT
+>  header will look like this:
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>To: misc.test.usenet@yourdomain.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	The mailer definition of usenet will intercept this mail and post it to
+	the respective newsgroup, in this case, <TT
+CLASS="LITERAL"
+>misc.test</TT
+>
+	</P
+></LI
+></UL
+><P
+>This, more or less, completes the configuration part.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="AEN590">4.4. Testing the system</H2
+><P
+>To locally test the system, follow the steps given below:</P
+><P
+></P
+><UL
+><LI
+><P
+>post an article: 
+    Create a local newsgroup
+    <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>    cnewsdo addgroup mysite.test y
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    and using <TT
+CLASS="LITERAL"
+>postnews </TT
+>post an article to it.</P
+></LI
+><LI
+><P
+>Has it arrived in <TT
+CLASS="LITERAL"
+>$NEWSARTS/in.coming</TT
+>?:
+    The article should show up in the directory mentioned. Note the nomenclature
+    of the article.</P
+></LI
+><LI
+><P
+>When newsrun runs: 
+    When newsrun runs from <TT
+CLASS="LITERAL"
+>cron </TT
+>, the article disappears from
+    <TT
+CLASS="LITERAL"
+>in.coming</TT
+> directory and appears in 
+    <TT
+CLASS="LITERAL"
+>$NEWSARTS/mysite/test</TT
+>. Look how
+    the <TT
+CLASS="LITERAL"
+>newsgroup, active, log and history </TT
+>(not the errorlog)
+    files and <TT
+CLASS="LITERAL"
+>.overview </TT
+>file in
+    <TT
+CLASS="LITERAL"
+>$NEWSARTS/mysite/test</TT
+> reflect the digestion of the file
+    into the news system.</P
+></LI
+><LI
+><P
+>reading the article: 
+    Try to read the article through <TT
+CLASS="LITERAL"
+>readnews</TT
+> or any 
+    news client. If you are able to, then you have set most everything right.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="AEN612">4.5. <TT
+CLASS="LITERAL"
+>pgpverify</TT
+> and <TT
+CLASS="LITERAL"
+>controlperms</TT
+></H2
+><P
+>    As mentioned in <SPAN
+CLASS="QUOTE"
+>"<A
+HREF="x64.html#CONTROLMSG"
+>Section 2.4</A
+>&#62;"</SPAN
+>, it becomes 
+    necessary to authenticate control messages to protect yourself from being 
+    attacked by pranksters. For this, you will have to configure the
+    <TT
+CLASS="LITERAL"
+>$NEWSCTL/controlperm </TT
+>file to declare whose control
+    messages you are willing to honour and for what newsgroups alongwith their
+    public key ID. The <TT
+CLASS="LITERAL"
+>controlperm</TT
+> manpage shall give you 
+    details on the format.</P
+><P
+>    This will work only in association with <TT
+CLASS="LITERAL"
+> pgpverify </TT
+> which
+    verifies the Usenet control messages that have been signed using the 
+    <TT
+CLASS="LITERAL"
+>signcontrol</TT
+> process. The script can be found at
+    <TT
+CLASS="LITERAL"
+>ftp://ftp.isc.org/pub/pgpcontrol/pgpverify</TT
+>. 
+    <TT
+CLASS="LITERAL"
+> pgpverify </TT
+>internally uses the PGP binary which
+    will have to be made available in the default executables directory. If you
+    wish to send control messages for your local news system, you will have to
+    digitally sign them using the above mentioned <TT
+CLASS="LITERAL"
+>signcontrol</TT
+>
+    program which is available at
+    <TT
+CLASS="LITERAL"
+>ftp://ftp.isc.org/pub/pgpcontrol/signcontrol</TT
+>. You will
+    also have to configure the <TT
+CLASS="LITERAL"
+>signcontrol</TT
+> program accordingly.</P
+></DIV
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="AEN629">4.6. Feeding off an upstream neighbour</H2
+><P
+>    For external feeds, commercial customers will have to buy them
+    from a regular News Provider like <TT
+CLASS="LITERAL"
+>dejanews.com</TT
+>
+    or <TT
+CLASS="LITERAL"
+>newsfeeds.com</TT
+>. You will have to specify
+    to them what hierarchies you want and decide on the mode of
+    transmission, <EM
+>i.e.</EM
+> UUCP or NNTP, based on
+    your requirements. Once that is done, you will have to ask them to
+    initiate feeds, and check <TT
+CLASS="LITERAL"
+>$NEWSARTS/in.coming</TT
+>
+    directory to see if feeds are coming in.</P
+><P
+>    If your organisation belongs to the academic community or is
+    otherwise lucky enough to have an NDN server somewhere which is
+    willing to provide you a free newsfeed, then the payment issue goes
+    out of the picture, but the rest of the technical requirements
+    remain the same.</P
+><P
+>    One problem with incoming NNTP feeds is that it is far easier to use
+    (relatively) efficient NNTP inflows if you have a server with a
+    permanent Internet connection and a fixed IP address. If you are a
+    small office with a dialup Internet connection, this may not be
+    possible. In that case, the only way to get incoming newsfeeds by
+    NNTP may be by using a highly inefficient pull feed.</P
+></DIV
+><DIV
+CLASS="SECTION"
+><H2
+CLASS="SECTION"
+><A
+NAME="AEN638">4.7. Configuring outgoing feeds</H2
+><P
+>    If you are a leaf node, you will only have to send feeds back to your
+    news provider for your postings in public newsgroups to propagate
+    to the outside world. To enable this, you need one line in the
+    <TT
+CLASS="LITERAL"
+>sys</TT
+> and <TT
+CLASS="LITERAL"
+>batchparms</TT
+> files
+    and one directory in <TT
+CLASS="LITERAL"
+>$NEWSARTS/out.going</TT
+>. If
+    you are willing to transmit articles to your neighbouring
+    sites, you will have to configure <TT
+CLASS="LITERAL"
+>sys</TT
+> and
+    <TT
+CLASS="LITERAL"
+>batchparms</TT
+> with more entries. The number of directories
+    in <TT
+CLASS="LITERAL"
+>$NEWSARTS/out.going</TT
+> shall increase, too. Refer
+    to first two sections of the chapter titled 
+    <SPAN
+CLASS="QUOTE"
+>"<A
+HREF="component.html"
+>Components of a running system</A
+>&#62;"</SPAN
+>for a better understanding of
+    outgoing feeds. Again, you will have to determine how you wish to
+    transmit the feed: UUCP or NNTP.</P
+><DIV
+CLASS="SECTION"
+><H3
+CLASS="SECTION"
+><A
+NAME="AEN649">4.7.1. By UUCP</H3
+><P
+>For outgoing feeds by UUCP, we recommend that you start with
+    Taylor UUCP. In fact, this is the UUCP version which forms part
+    of the GNU Project and is the default UUCP on Linux
+    systems.</P
+><P
+>A full treatment of UUCP configuration is beyond the scope of
+    this document. However, the basic steps will be as follows. First,
+    you will have to define a <SPAN
+CLASS="QUOTE"
+>"system"</SPAN
+> in your Usenet server for the
+    NDN (next door neighbour) host. This definition will include various
+    parameters, including the manner in which your server will call the
+    remote server, the protocol it will use, <EM
+>etc.</EM
+>
+    Then an identical process will have to be followed on the NDN
+    server's UUCP configuration, for your server, so that
+    <EM
+>that</EM
+> server can recognize
+    <EM
+>your</EM
+> Usenet server.</P
+><P
+>Finally, you will need to set up appropriate
+    <TT
+CLASS="LITERAL"
+>cron</TT
+> jobs for the user <TT
+CLASS="LITERAL"
+>uucp</TT
+>
+    to run <TT
+CLASS="LITERAL"
+>uucico</TT
+> periodically. Taylor UUCP comes with
+    a script called <TT
+CLASS="LITERAL"
+>uusched</TT
+> which may be modified to
+    your requirements; this script calls <TT
+CLASS="LITERAL"
+>uucico</TT
+>. One
+    <TT
+CLASS="LITERAL"
+>uucico</TT
+> connection will both upload and download
+    news batches. Smaller sites can run <TT
+CLASS="LITERAL"
+>uusched</TT
+> even
+    once or twice a day.</P
+><P
+>Later versions of this document will include the
+    <TT
+CLASS="LITERAL"
+>uusched</TT
+> scripts that we use in Starcom. We use
+    UUCP over TCP/IP, and we run the <TT
+CLASS="LITERAL"
+>uucico</TT
+>
+    connection through an SSH tunnel, to prevent transmission of
+    UUCP passwords in plain text over the Internet, and our SSH tunnel
+    is established using public-key cryptography, without passwords
+    being used anywhere.</P
+></DIV
+><DIV
+CLASS="SECTION"
+><H3
+CLASS="SECTION"
+><A
+NAME="AEN668">4.7.2. By NNTP</H3
+><P
+>For NNTP feeds, you will have to decide whether your server
+    will be the connection initiator or connection recipient. If you are
+    the connection initiator, you can send outgoing NNTP feeds more
+    easily. If you are the connection recipient, then outgoing feeds
+    will have to be pulled out of your server using the NNTP
+    <TT
+CLASS="LITERAL"
+>NEWNEWS</TT
+> command, which will place heavy loads on
+    your server. This is not recommended.</P
+><P
+>Connecting to your NDN server for pushing out outgoing feeds
+    will require the use of the <TT
+CLASS="LITERAL"
+>nntpsend.sh</TT
+> script,
+    which is part of the NNTPd source tree. This script will perform
+    some housekeeping, and internally call the
+    <TT
+CLASS="LITERAL"
+>nntpxmit</TT
+> binary to actually send the queued set
+    of articles out. You may have to provide authentication information
+    like usernames and passwords to <TT
+CLASS="LITERAL"
+>nntpxmit</TT
+> to allow
+    it to connect to your NDN server, in case that server insists on
+    checking the identity of incoming connections. (You can't be too
+    careful in today's world.) <TT
+CLASS="LITERAL"
+>nntpsend.sh</TT
+> will clean
+    up after an <TT
+CLASS="LITERAL"
+>nntpxmit</TT
+> connection finishes, and
+    will requeue any unsent articles for the next session. Thus, even if
+    there is a network problem, typically nothing is lost and all
+    pending articles are transmitted next time.</P
+><P
+>Thus, pushing feeds out <EM
+>via</EM
+> may mean
+    setting up <TT
+CLASS="LITERAL"
+>nntpsend.sh</TT
+> properly, and then
+    invoking it periodically from <TT
+CLASS="LITERAL"
+>cron</TT
+>. If your
+    Usenet server connects to the Internet only intermittently, then the
+    process which sets up the Internet connection should be extended or
+    modified to fire <TT
+CLASS="LITERAL"
+>nntpsend.sh</TT
+> whenever the Internet
+    link is established. For instance, if you are using the Linux
+    <TT
+CLASS="LITERAL"
+>pppd</TT
+>, you can add statements to the
+    <TT
+CLASS="LITERAL"
+>/etc/ppp/ip-up</TT
+> script to change user to
+    <TT
+CLASS="LITERAL"
+>news</TT
+> and run <TT
+CLASS="LITERAL"
+>nntpsend.sh</TT
+></P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x248.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x687.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Usenet news software</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Setting up INN</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

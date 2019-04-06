@@ -1,0 +1,1208 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Ethernet-Howto: Frequently Asked Questions</TITLE>
+ <LINK HREF="Ethernet-HOWTO-3.html" REL=next>
+ <LINK HREF="Ethernet-HOWTO-1.html" REL=previous>
+ <LINK HREF="Ethernet-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ethernet-HOWTO-3.html">Next</A>
+<A HREF="Ethernet-HOWTO-1.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="faq"></A> <A NAME="s2">2. Frequently Asked Questions</A></H2>
+
+<P>
+<P>Here are some of the more frequently asked questions about using
+Linux with an Ethernet connection. Some of the more specific
+questions are sorted on a `per manufacturer basis'.
+Chances are the question you want an answer for has already
+been asked (and answered!) by someone else, so even if you
+don't find your answer here, you probably can find what you
+want from a news archive such as
+<A HREF="http://www.dejanews.com">Dejanews</A>.
+<P>
+<P>
+<H2><A NAME="what-driver"></A> <A NAME="ss2.1">2.1 How do I tell Linux what driver to use?</A>
+</H2>
+
+<P>
+<P>With most Linux distributions, the drivers exist as loadable
+modules, which are small binary files that are merged with
+the operating system at run time. A module gives the
+operating system (kernel) the information on how to control
+that particular ethernet card.  The name of each module is
+listed in the heading of the section for each card in this
+document.  Once you know the name of the module, you have to
+add it to the file <CODE>/etc/modules.conf</CODE> so Linux will
+know what module to load for your card. The syntax is typically
+as follows.
+<P>
+<PRE>
+        alias eth0 module_name
+        options module_name option1=value1 option2=value2 ...
+</PRE>
+<P>The options line is typically only needed for older ISA hardware.
+For multiple card systems, additional lines with <CODE>eth1</CODE>,
+<CODE>eth2</CODE> and so on are usually required.
+<P>The module files typically live in the directory 
+<CODE>/lib/modules/</CODE> which is further subdivided by kernel
+version (use <CODE>uname -r</CODE>) and subsystem (in this case
+<CODE>net</CODE>).  These are put there by the distribution
+builder, or by the individual user when they run
+<CODE>make modules_install</CODE> after building their own
+kernel and modules (see the kernel howto for more details
+on building your own stuff).
+<P>If you build your own kernel, you have the option of having
+all the drivers merged with the kernel right then and there,
+rather than existing as separate files.  When this is done,
+the drivers will detect the hardware at boot up.  Options
+to the drivers are supplied by the kernel command line prior
+to boot (see BootPrompt Howto for more details).  The user
+chooses what drivers are used during the <CODE>make config</CODE>
+step of building the kernel (again see the kernel howto).
+<P>
+<P>
+<H2><A NAME="what-card"></A> <A NAME="ss2.2">2.2 What card should I buy for Linux?</A>
+</H2>
+
+<P>
+<P>The answer to this question depends heavily on exactly what
+you intend on doing with your net connection, and how much
+traffic it will see.
+<P>If you only expect a single user to be doing the occasional
+ftp session or WWW connection, then even an old ISA card
+will probably keep you happy (assuming 10Mbps, not 100). 
+<P>If you intend to set up a server, and you require the CPU
+overhead of moving data over the network to be kept
+to a minimum, you probably want to look at one of the
+PCI cards that uses a chip with bus-mastering capapbility.
+In addition, some cards now can actually do some of the
+processing overhead of data checksums right on the card,
+giving the CPU even more of a break.  For more details
+please see:
+<P>
+<A HREF="http://www.uow.edu.au/~andrewm/zerocopy.html">Hardware Checksum/Zerocopy Page</A><P>If you fall somewhere in the middle of the above, then any
+one of the low cost PCI cards with a stable
+driver will do the job for you.
+<P>
+<H2><A NAME="alfa"></A> <A NAME="ss2.3">2.3 Alpha Drivers -- Getting and Using them</A>
+</H2>
+
+<P>
+<P>I heard that there is an updated or preliminary/alpha driver
+available for my card. Where can I get it?
+<P>The newest of the `new' drivers can be found on Donald's
+WWW site: <CODE>www.scyld.com</CODE>  - things
+change here quite frequently, so just look around for it.
+Alternatively, it may be easier to use a WWW browser on:
+<P>
+<A HREF="http://www.scyld.com/network/">Don's Linux Network Home Page</A><P>to locate the driver that you are looking for. (Watch out for
+WWW browsers that silently munge the source by replacing
+TABs with spaces and so on - use ftp, or at least an FTP URL
+for downloading if unsure.)
+<P>Now, if it really is an alpha, or pre-alpha driver, then please
+treat it as such. In other words, don't complain because you
+can't figure out what to do with it. If you can't figure out
+how to install it, then you probably shouldn't be testing it.
+Also, if it brings your machine down, don't complain. Instead,
+send us a well documented bug report, or even better, a patch!
+<P>Note that some of the `useable' experimental/alpha drivers have
+been included in the standard kernel source tree. When running
+<CODE>make config</CODE> one of the first things you will be asked
+is whether to ``Prompt for development and/or incomplete
+code/drivers''.  You will have to answer `Y' here to get
+asked about including any alpha/experiemntal drivers.
+<P>
+<H2><A NAME="two-card"></A> <A NAME="ss2.4">2.4 Using More than one Ethernet Card per Machine</A>
+</H2>
+
+<P>
+<P>What needs to be done so that Linux can run two or more ethernet 
+cards?
+<P>The answer to this question depends on whether the driver(s)
+is/are being used as a loadable module or are compiled directly
+into the kernel.  Most linux distributions use modular drivers now.
+This saves distributing lots of kernels, each with a different driver
+set built in. Instead a single basic kernel is used and the
+individual drivers that are need for a particular user's system are
+loaded once the system has booted far enough to access
+the driver module files (usually stored in <CODE>/lib/modules/</CODE>).
+<P>In the case of PCI cards, the PCI drivers/modules should detect 
+all of the installed cards that it supports automatically.  The
+user should not supply any I/O base or IRQ information, unless
+specifically instructed to do so by the individual driver
+documentation in order to support some non-standard machine.
+<P>Some earlier kernels had a limit of 16 ethercards that could
+be detected at boot, and some ISA modules have a limit of four
+cards per loaded module. You can always load another copy of the
+same module under a different name to support another four cards
+if this is a limitation, or recompile the module with support
+for as many as you require.
+<P>
+<H3>With the Driver as a Module</H3>
+
+<P>For ISA cards, probing for a card is not a safe operation, and
+hence you typically need to supply the I/O base address of the
+card so the module knows where to look. This information is
+stored in the file <CODE>/etc/modules.conf</CODE>.
+<P>As an example, consider a user that has two ISA NE2000 cards,
+one at <CODE>0x300</CODE> and one at <CODE>0x240</CODE> and what lines they
+would have in their <CODE>/etc/modules.conf</CODE> file:
+<P>
+<PRE>
+        alias eth0 ne
+        alias eth1 ne
+        options ne io=0x240,0x300
+</PRE>
+<P>What this does: This says that if the administrator (or the
+kernel) does a <CODE>modprobe eth0</CODE> or a <CODE>modprobe eth1</CODE> then
+the <CODE>ne.o</CODE> driver should be loaded for either <CODE>eth0</CODE> or
+<CODE>eth1</CODE>.  Furthermore, when the <CODE>ne.o</CODE> module is loaded, it
+should be loaded with the options <CODE>io=0x240,0x300</CODE> so that the
+driver knows where to look for the cards. Note that the <CODE>0x</CODE>
+is important - things like <CODE>300h</CODE> as commonly used in the DOS
+world won't work.  Switching the order of the <CODE>0x240</CODE> and
+the <CODE>0x300</CODE> will switch which physical card ends up as
+<CODE>eth0</CODE> and <CODE>eth1</CODE>.
+<P>Most of the ISA module drivers can take multiple comma separated
+I/O values like this example to handle multiple cards.  However,
+some (older?) drivers, such as the 3c501.o module are currently
+only able to handle
+one card per module load. In this case you can load the module
+twice to get both cards detected. The <CODE>/etc/modules.conf</CODE>
+file in this case would look like:
+<P>
+<PRE>
+        alias eth0 3c501
+        alias eth1 3c501
+        options eth0 -o 3c501-0 io=0x280 irq=5
+        options eth1 -o 3c501-1 io=0x300 irq=7
+</PRE>
+<P>In this example the <CODE>-o</CODE> option has been used to give each
+instance of the module a unique name, since you can't have two
+modules loaded with the same name.  The <CODE>irq=</CODE> option has
+also been used to to specify the hardware IRQ setting of the card.
+(This method can also be used with modules that accept comma
+separated I/O values, but it is less efficient since the module
+ends up being loaded twice when it doesn't really need to be.)
+<P>As a final example, consider a user with one 3c503 card
+at <CODE>0x350</CODE> and one SMC Elite16 (wd8013) card at <CODE>0x280</CODE>.
+They would have:
+<P>
+<PRE>
+        alias eth0 wd
+        alias eth1 3c503
+        options wd io=0x280
+        options 3c503 io=0x350
+</PRE>
+<P>For PCI cards, you typically only need the <CODE>alias</CODE> lines to
+correlate the <CODE>ethN</CODE> interfaces with the appropriate driver
+name, since the I/O base of a PCI card can be safely detected.
+<P>The available modules are typically stored in
+<CODE>/lib/modules/`uname -r`/net</CODE> where the
+<CODE>uname -r</CODE> command gives the kernel version (e.g. 2.0.34).
+You can look in there to see which one matches your card.
+Once you have the correct settings in your <CODE>modules.conf</CODE>
+file, you can test things out with:
+<P>
+<PRE>
+        modprobe eth0
+        modprobe eth1
+           ...
+        modprobe ethN-1
+</PRE>
+<P>where `N' is the number of ethernet interfaces you have.
+Note that the interface name (<CODE>ethX</CODE>) assigned to the driver
+by the kernel is independent of the name used on the alias line.
+For further details on this, see:
+<A HREF="Ethernet-HOWTO-8.html#modules">Using the Ethernet Drivers as Modules</A><P>
+<P>
+<H3>With the Driver Compiled into the Kernel</H3>
+
+<P>Since some ISA card probes can hang the machine, kernels
+up to and including 2.4 only autoprobe for 
+<EM>one</EM> ISA ethercard by default. As there aren't
+any distribution kernels with lots of ISA drivers built
+in anymore, this restriction is no longer in 2.6 and newer.
+<P>As of 2.2 and newer kernels, the boot probes have been
+sorted into safe and unsafe, so that all safe (e.g. PCI and
+EISA) probes will find all related cards automatically. Systems
+with more than one ethernet card with at least one of them
+being an ISA card will still need to do one of the following.)
+<P>There are two ways that you can enable auto-probing for
+the second (and third, and...) card. The easiest
+method is to pass boot-time arguments to the kernel,
+which is usually done by LILO. Probing for the
+second card can be achieved by using a boot-time argument
+as simple as <CODE>ether=0,0,eth1</CODE>. In this
+case <CODE>eth0</CODE> and <CODE>eth1</CODE> will be assigned in the order
+that the cards are found at boot.  Say if you want
+the card at <CODE>0x300</CODE> to be <CODE>eth0</CODE> and
+the card at <CODE>0x280</CODE> to be <CODE>eth1</CODE> then you could use
+<P>
+<BLOCKQUOTE><CODE>
+LILO: linux ether=5,0x300,eth0 ether=15,0x280,eth1
+</CODE></BLOCKQUOTE>
+<P>The <CODE>ether=</CODE> command accepts more than the IRQ + I/O
++ name shown above. Please have a look at
+<A HREF="Ethernet-HOWTO-8.html#lilo">Passing Ethernet Arguments...</A>
+for the full syntax, card specific parameters, and LILO tips.
+<P>The second way (not recommended) is to edit the file
+<CODE>Space.c</CODE> and replace the <CODE>0xffe0</CODE> entry for the
+I/O address with a zero. The <CODE>0xffe0</CODE> entry tells it
+not to probe for that device -- replacing it with a zero
+will enable autoprobing for that device.
+<P>
+<H2><A NAME="ss2.5">2.5 The <CODE>ether=</CODE> thing didn't do anything for me. Why?</A>
+</H2>
+
+<P>
+<P>As described above, the <CODE>ether=</CODE> command <EM>only</EM> works
+for drivers that are compiled into the kernel. Now most
+distributions use the drivers in a modular form, and so
+the <CODE>ether=</CODE> command is rarely used anymore. (Some older
+documentation has yet to be updated to reflect this change.)
+If you want to apply options for a modular ethernet driver
+you <EM>must</EM> make changes to the <CODE>/etc/modules.conf</CODE>
+file.
+<P>If you <EM>are</EM> using a compiled in driver, and have added
+an <CODE>ether=</CODE> to your LILO configuration file, note
+that it won't take effect until you re-run <CODE>lilo</CODE>
+to process the updated configuration file.
+<P>
+<P>
+<H2><A NAME="ne2k-probs"></A> <A NAME="ss2.6">2.6 Problems with NE1000 / NE2000 cards (and clones)</A>
+</H2>
+
+<P>
+<P><B>Problem:</B>
+PCI NE2000 clone card is not detected at boot with v2.0.x.
+<P><B>Reason:</B>
+The <CODE>ne.c</CODE> driver up to v2.0.30 only knows about the PCI
+ID number of RealTek 8029 based clone cards. Since then,
+several others have also released PCI NE2000 clone
+cards, with different PCI ID numbers, and hence the
+driver doesn't detect them.
+<P><B>Solution:</B>
+The easiest solution is to upgrade to a v2.0.31 (or newer)
+version of the
+linux kernel. It knows the ID numbers of about five different
+NE2000-PCI chips, and will detect them automatically at boot or
+at module loading time. If you upgrade to 2.0.34 (or newer)
+there is a PCI-only specific NE2000 driver that is slightly
+smaller and more efficient than the original ISA/PCI driver.
+<P><B>Problem:</B>
+PCI NE2000 clone card is reported as an ne1000 (8 bit card!)
+at boot or when I load the ne.o module for v2.0.x, and hence
+doesn't work.
+<P><B>Reason:</B>
+Some PCI clones don't implement byte wide access (and hence are
+not truly 100% NE2000 compatible). This causes the probe
+to think they are NE1000 cards.
+<P><B>Solution:</B>
+You need to upgrade to v2.0.31 (or newer) as described above.
+The driver(s) now check for this hardware bug.
+<P><B>Problem:</B>
+PCI NE2000 card gets terrible performance, even when reducing the
+window size as described in the Performance Tips section.
+<P><B>Reason:</B>
+The spec sheets for the original 8390 chip,  desgined and sold  
+over ten years ago, noted that a dummy read from the chip was
+required before each write operation for maximum reliablity.
+The driver has the facility to do this but it has been disabled
+by default since the v1.2 kernel days.  One user has reported that
+re-enabling this `mis-feature' helped their performance with a
+cheap PCI NE2000 clone card.
+<P><B>Solution:</B>
+Since it has only been reported as a solution by one person, don't
+get your hopes up. Re-enabling the read before write fix is done
+by simply editing the driver file in <CODE>linux/drivers/net/</CODE>,
+uncommenting the line containing <CODE>NE_RW_BUGFIX</CODE> and then
+rebuilding the kernel or module as appropriate. Please send an
+e-mail describing the performance difference and type of card/chip
+you have if this helps you. (The same can be done for the
+<CODE>ne2k-pci.c</CODE> driver as well).
+<P><B>Problem:</B>
+The <CODE>ne2k-pci.c</CODE> driver reports error messages like
+<CODE>timeout waiting for Tx RDC</CODE> with a PCI NE2000 card and doesn't
+work right.
+<P><B>Reason:</B>
+Your card and/or the card to PCI bus link can't handle the long
+word I/O optimization used in this driver.
+<P><B>Solution:</B>
+Firstly, check the settings available in the BIOS/CMOS setup
+to see if any related to PCI bus timing are too aggressive for
+reliable operation. Otherwise using the ISA/PCI <CODE>ne.c</CODE>
+driver (or removing the <CODE>#define USE_LONGIO</CODE> from
+<CODE>ne2k-pci.c</CODE>) should let you use the card.
+<P><B>Probem:</B>
+ISA Plug and Play NE2000 (such as RealTek 8019) is not detected.
+<P><B>Reason:</B>
+The original NE2000 specification (and hence the linux NE2000 driver
+in older kernels) did not have support for Plug and Play.
+<P><B>Solution:</B>
+Either use a 2.4 or newer kernel that has a NE2000 driver with PnP,
+or use the DOS configuration disk that came with the card to disable
+PnP, and to set the card to a specified I/O address and IRQ. Add
+a line to <CODE>/etc/modules.conf</CODE>  like <CODE>options ne io=0xNNN</CODE>
+where <CODE>0xNNN</CODE> is the hex I/O address you set the card to. (This
+assumes you are using a modular driver; if not then use an
+<CODE>ether=0,0xNNN,eth0</CODE> argument at boot).  You may also have to 
+enter the BIOS/CMOS setup and mark the IRQ as Legacy-ISA instead of
+PnP. 
+<P><B>Problem:</B>
+NE*000 driver reports `not found (no reset ack)' during boot
+probe.
+<P><B>Reason:</B>
+This is related to the above change. After the initial
+verification that an 8390 is at the probed I/O address, the
+reset is performed. When the card has completed the reset,
+it is supposed to acknowedge that the reset has completed.
+Your card doesn't, and so the driver assumes that no NE card
+is present.
+<P><B>Solution:</B>
+You can tell the driver that you have a bad card by using
+an otherwise unused <CODE>mem_end</CODE> hexidecimal value of <CODE>0xbad</CODE> at
+boot time. You <EM>have</EM> to also supply a non-zero I/O base
+for the card when using the <CODE>0xbad</CODE> override. For example,
+a card that is at <CODE>0x340</CODE> that doesn't ack the reset
+would use something like:
+<P>
+<BLOCKQUOTE><CODE>
+LILO: linux ether=0,0x340,0,0xbad,eth0
+</CODE></BLOCKQUOTE>
+<P>
+<P>This will allow the card detection to continue, even if your
+card doesn't ACK the reset. If you are using the driver as
+a module, then you can supply the option <CODE>bad=0xbad</CODE> just
+like you supply the I/O address. 
+<P><B>Problem:</B>
+NE*000 card hangs machine at first network access.
+<P><B>Reason:</B>
+This problem has been reported for kernels as old as 1.1.57
+to the present. It appears confined to a few software configurable
+clone cards. It appears that they expect to be initialized in
+some special way.
+<P><B>Solution:</B>
+Several people have reported that running the supplied DOS
+software config program and/or the supplied DOS driver prior
+to warm booting (i.e. loadlin or the `three-finger-salute')
+into linux allowed the card to work. This would indicate
+that these cards need to be initialized in a particular
+fashion, slightly different than what the present Linux
+driver does.
+<P><B>Problem:</B>
+NE*000 ethercard at <CODE>0x360</CODE> doesn't get detected.
+<P><B>Reason:</B>
+Your NE2000 card is <CODE>0x20</CODE> wide in
+I/O space, which makes it hit the parallel port at <CODE>0x378</CODE>.
+Other devices that could be there are the second floppy
+controller (if equipped) at <CODE>0x370</CODE> and the secondary
+IDE controller at <CODE>0x376--0x377</CODE>.
+If the port(s) are already registered by another driver, the
+kernel will not let the probe happen.
+<P><B>Solution:</B>
+Either move your card to an address like <CODE>0x280, 0x340, 0x320</CODE>
+or compile without parallel printer support.
+<P><B>Problem:</B>
+Network `goes away' every time I print something (NE2000)
+<P><B>Reason:</B>
+Same problem as above, but you have an older kernel that
+doesn't check for overlapping I/O regions. Use the
+same fix as above, and get a new kernel while you are at it.
+<P><B>Problem:</B>
+NE*000 ethercard probe at 0xNNN: 00 00 C5 ... not found.
+(invalid signature yy zz)
+<P><B>Reason:</B>
+First off, do you have a NE1000 or NE2000 card at the addr. 0xNNN?
+And if so, does the hardware address reported look like a valid
+one? If so, then you have a poor NE*000 clone. All NE*000 clones
+are supposed to have the value <CODE>0x57</CODE> in bytes 14 and 15 of the
+SA PROM on the card. Yours doesn't -- it has `yy zz' instead.
+<P><B>Solution:</B>
+There are two ways to get around this. The easiest is to
+use an <CODE>0xbad</CODE> mem_end value as described above for the
+`no reset ack' problem. This will bypass the signature check,
+as long as a non-zero I/O base is also given. This way no
+recompilation of the kernel is required.
+<P>The second method (for hackers) involves changing the driver
+itself, and then recompiling your kernel (or module).
+The driver (/usr/src/linux/drivers/net/ne.c) has a "Hall of Shame"
+list at about line 42. This list is used to detect poor clones.
+For example, the DFI cards use `DFI' in the first 3 bytes of the
+PROM, instead of using <CODE>0x57</CODE> in bytes 14 and 15, like they are
+supposed to.
+<P><B>Problem:</B>
+The machine hangs during boot right after the `8390...'  or
+`WD....' message. Removing the NE2000 fixes the problem.
+<P><B>Solution:</B>
+Change your NE2000 base address to something like <CODE>0x340</CODE>.
+Alternatively, you
+can use the ``reserve='' boot argument in conjunction with
+the ``ether='' argument to protect the card from other
+device driver probes.
+<P><B>Reason:</B>
+Your NE2000 clone isn't a good enough clone. An active
+NE2000 is a bottomless pit that will trap any driver
+autoprobing in its space.
+Changing the NE2000 to a less-popular
+address will move it out of the way of other autoprobes,
+allowing your machine to boot.
+<P>
+<P><B>Problem:</B>
+The machine hangs during the SCSI probe at boot.
+<P><B>Reason:</B>
+It's the same problem as above, change the
+ethercard's address, or use the reserve/ether boot arguments.
+<P><B>Problem:</B>
+The machine hangs during the soundcard probe at boot.
+<P><B>Reason:</B>
+No, that's really during the silent SCSI probe, and it's
+the same problem as above.
+<P><B>Problem:</B>
+NE2000 not detected at boot - no boot messages at all
+<P><B>Solution:</B>
+There is no `magic solution' as there can be a number of
+reasons why it wasn't detected. The following list should
+help you walk through the possible problems.
+<P>1) Build a new kernel with only the device drivers that you need.
+Verify that you are indeed booting the fresh kernel. Forgetting to
+run lilo, etc. can result in booting the old one. (Look closely at
+the build time/date reported at boot.) Sounds obvious, but we have
+all done it before. Make sure the driver is in fact included in
+the new kernel, by checking the <CODE>System.map</CODE> file for names
+like <CODE>ne_probe</CODE>.
+<P>2) Look at the boot messages carefully. Does it ever even mention
+doing a ne2k probe such
+as `NE*000 probe at 0xNNN: not found (blah blah)'
+or does it just fail silently. There is a big difference.
+Use <CODE>dmesg|more</CODE>
+to review the boot messages after logging in, or hit Shift-PgUp
+to scroll the screen up after the boot has completed and the login
+prompt appears.
+<P>3) After booting, do a <CODE>cat /proc/ioports</CODE> and verify
+that the full iospace that the card will require is vacant. If
+you are at <CODE>0x300</CODE> then the ne2k driver will ask
+for <CODE>0x300-0x31f</CODE>. If any other device driver has registered
+even one port anywhere in that range, the probe will not
+take place at that address and will silently continue to the next
+of the probed addresses. A common case is having the lp driver
+reserve <CODE>0x378</CODE> or the second IDE channel reserve <CODE>0x376</CODE>
+which stops the ne driver from probing <CODE>0x360-0x380</CODE>.
+<P>4) Same as above for <CODE>cat /proc/interrupts</CODE>. Make sure no
+other device has registered the interrupt that you set
+the ethercard for. In this case, the probe will happen, and the
+ether driver will complain loudly at boot about not being able to
+get the desired IRQ line.
+<P>5) If you are still stumped by the silent failure of the driver, then
+edit it and add some printk() to the probe. For example, with the ne2k
+you could add/remove lines (marked with a `+' or `-') in
+<CODE>linux/drivers/net/ne.c</CODE> like:
+<P>
+<HR>
+<PRE>
+    int reg0 = inb_p(ioaddr);
+
++    printk("NE2k probe - now checking %x\n",ioaddr);
+-    if (reg0 == 0xFF)
++    if (reg0 == 0xFF) {
++       printk("NE2k probe - got 0xFF (vacant I/O port)\n");
+        return ENODEV;
++    }
+</PRE>
+<HR>
+<P>Then it will output messages for each port address that it checks,
+and you will see if your card's address is being probed or not.
+<P>6) You can also get the ne2k diagnostic from Don's ftp site (mentioned
+in the howto as well) and see if it is able to detect your card after
+you have booted into linux. Use the `<CODE>-p 0xNNN</CODE>' option to tell it
+where to look for the card. (The default is <CODE>0x300</CODE> and it doesn't
+go looking elsewhere, unlike the boot-time probe.)
+The output from when it finds a card will look something like:
+<P>
+<HR>
+<PRE>
+Checking the ethercard at 0x300.
+  Register 0x0d (0x30d) is 00
+  Passed initial NE2000 probe, value 00.
+8390 registers: 0a 00 00 00 63 00 00 00 01 00 30 01 00 00 00 00
+SA PROM  0: 00 00 00 00 c0 c0 b0 b0 05 05 65 65 05 05 20 20
+SA PROM 0x10: 00 00 07 07 0d 0d 01 01 14 14 02 02 57 57 57 57
+
+        NE2000 found at 0x300, using start page 0x40 and end page 0x80.
+</PRE>
+<HR>
+<P>Your register values and PROM values will probably be different.
+Note that all the PROM values are doubled for a 16 bit card, and
+that the ethernet address (00:00:c0:b0:05:65) appears in the
+first row, and the double <CODE>0x57</CODE> signature appears at the
+end of the PROM.
+<P>The output from when there is no card installed at <CODE>0x300</CODE>
+will look something like this:
+<P>
+<HR>
+<PRE>
+Checking the ethercard at 0x300.
+  Register 0x0d (0x30d) is ff
+  Failed initial NE2000 probe, value ff.
+8390 registers: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+SA PROM        0: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+SA PROM 0x10: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+
+ Invalid signature found, wordlength 2.
+</PRE>
+<HR>
+<P>The <CODE>0xff</CODE> values  arise because that is the value that
+is returned when one reads a vacant I/O port. If you happen
+to have some other hardware in the region that is probed, you
+may see some non <CODE>0xff</CODE> values as well.
+<P>7) Try warm booting into linux from a DOS boot floppy (via loadlin)
+after running the supplied DOS driver or config program. It may be doing
+some extra (i.e. non-standard) "magic" to initialize the card.
+<P>8) Try Russ Nelson's ne2000.com packet driver to see if even it can
+see your card -- if not, then things do not look good. Example:
+<P>
+<BLOCKQUOTE><CODE>
+A:> ne2000 0x60 10 0x300
+</CODE></BLOCKQUOTE>
+<P>The arguments are software interrupt vector, hardware IRQ,
+and  I/O base.  You can get it from any msdos archive in
+pktdrv11.zip -- The current version may be newer than 11.
+<P>
+<P>
+<P>
+<H2><A NAME="8013-probs"></A> <A NAME="ss2.7">2.7 Problems with SMC Ultra/EtherEZ and WD80*3 cards</A>
+</H2>
+
+<P>
+<P><B>Problem:</B>
+You get messages such as the following:
+<P>
+<PRE>
+        eth0: bogus packet size: 65531, status=0xff, nxpg=0xff
+</PRE>
+<P><B>Reason:</B>
+There is a shared memory problem.
+<P><B>Solution:</B>
+The most common reason for this is PCI machines that are
+not configured to map in ISA memory devices. Hence you
+end up reading the PC's RAM (all <CODE>0xff</CODE> values) instead of
+the RAM on the card that contains the data from the
+received packet.
+<P>Other typical problems that are easy to fix are board conflicts,
+having cache or `shadow ROM' enabled for that region, or
+running your ISA bus faster than 8Mhz. There are also a
+surprising number of memory failures on ethernet cards,
+so run a diagnostic program if you have one for your
+ethercard.
+<P><B>Problem:</B>
+SMC EtherEZ doesn't work in non-shared memory (PIO) mode.
+<P><B>Reason:</B>
+Older versions of the Ultra driver only supported the card
+in the shared memory mode of operation.
+<P><B>Solution:</B>
+The driver in kernel version 2.0 and above also supports the
+programmed I/O mode of operation. Upgrade to v2.0 or newer.
+<P><B>Problem:</B>
+Old wd8003 and/or jumper-settable wd8013 always get the IRQ wrong.
+<P><B>Reason:</B>
+The old wd8003 cards and jumper-settable wd8013 clones don't
+have the EEPROM that the driver can read the IRQ setting from.
+If the driver can't read the IRQ, then it tries to auto-IRQ
+to find out what it is. And if auto-IRQ returns zero, then
+the driver just assigns IRQ 5 for an 8 bit card or IRQ 10 for
+a 16 bit card.
+<P><B>Solution:</B>
+Avoid the auto-IRQ code, and tell the kernel what the IRQ
+that you have jumpered the card to in your module configuration
+file (or via a boot time argument for in-kernel drivers).
+<P><B>Problem:</B>
+SMC Ultra card is detected as wd8013, but the IRQ and shared
+memory base is wrong.
+<P><B>Reason:</B>
+The Ultra card looks a lot like a wd8013, and if the Ultra
+driver is not present in the kernel, the wd driver may
+mistake the ultra as a wd8013. The ultra probe comes before the
+wd probe, so this usually shouldn't happen. The ultra stores
+the IRQ and mem base in the EEPROM differently than a wd8013,
+hence the bogus values reported.
+<P><B>Solution:</B>
+Recompile with only the drivers you need in the kernel. If you
+have a mix of wd and ultra cards in one machine, and are using
+modules, then load the ultra module first.
+<P>
+<H2><A NAME="3com-probs"></A> <A NAME="ss2.8">2.8 Problems with 3Com cards</A>
+</H2>
+
+<P><B>Problem:</B>
+The 3c503 picks IRQ N, but this is needed for some
+other device which needs IRQ N. (eg. CD ROM driver, modem, etc.)
+Can this be fixed without compiling this into the kernel?
+<P><B>Solution:</B>
+The 3c503 driver probes for a free IRQ line in the order
+{5, 9/2, 3, 4}, and it should pick a line which isn't being
+used. The driver chooses when
+the card is <CODE>ifconfig</CODE>'ed into operation.
+<P>If you are using a modular driver, you can use module
+parameters to set various things, including the IRQ value.
+<P>The following selects IRQ9, base
+location <CODE>0x300</CODE>, &lt;ignored value&gt;, and if_port #1 (the
+external transceiver).
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+io=0x300 irq=9 xcvr=1
+</CODE></BLOCKQUOTE>
+<P>Alternately, if the driver is compiled into the kernel,
+you can set the same values at boot by passing
+parameters via LILO.
+<P>
+<BLOCKQUOTE><CODE>
+LILO: linux ether=9,0x300,0,1,eth0
+</CODE></BLOCKQUOTE>
+<P>The following selects IRQ3, probes for the base location,
+&lt;ignored value&gt;, and the default if_port #0 (the internal
+transceiver)
+<P>
+<BLOCKQUOTE><CODE>
+LILO: linux ether=3,0,0,0,eth0
+</CODE></BLOCKQUOTE>
+<P><B>Problem:</B>
+3c503: configured interrupt X invalid, will use autoIRQ.
+<P><B>Reason:</B>
+The 3c503 card can only use one of IRQ{5, 2/9, 3, 4}
+(These are the only lines that are connected to the card.)
+If you pass in an IRQ value that is not in the above
+set, you will get the above message.
+Usually, specifying an interrupt value for the 3c503 is
+not necessary. The 3c503 will autoIRQ when it gets
+ifconfig'ed, and pick one of IRQ{5, 2/9, 3, 4}.
+<P><B>Solution:</B>
+Use one of the valid IRQs listed above, or enable
+autoIRQ by not specifying the IRQ line at all.
+<P><B>Problem:</B>
+The supplied 3c503 drivers don't use the AUI (thicknet) port.
+How does one choose it over the default thinnet port?
+<P><B>Solution:</B>
+The 3c503 AUI port can be selected at boot-time for in-kernel
+drivers, and at module insertion for modular drivers.
+The selection is overloaded onto the low bit of
+the currently-unused dev-&gt;rmem_start variable, so a boot-time
+parameter of:
+<P>
+<BLOCKQUOTE><CODE>
+LILO: linux ether=0,0,0,1,eth0
+</CODE></BLOCKQUOTE>
+<P>should work for in-kernel drivers.
+<P>To specify the AUI port when loading as a module, just append
+<CODE>xcvr=1</CODE> to the module options line along with
+your I/O and IRQ values.
+<P>
+<P>
+<H2><A NAME="ss2.9">2.9 FAQs Not Specific to Any Card.</A>
+</H2>
+
+<P>
+<P>
+<H3>Linux and ISA Plug and Play Ethernet Cards</H3>
+
+<P>
+<P>For best results (and minimum aggravation) it is recommended
+that you use the (usually DOS) program that came with your
+card to disable the ISA-PnP mechanism and set it to a fixed
+I/O address and IRQ.  Make sure the I/O address you use is
+probed by the driver at boot, or if using modules then supply
+the address as an <CODE>io=</CODE> option in <CODE>/etc/modules.conf</CODE>.
+You may also have to enter the BIOS/CMOS setup and mark the IRQ 
+as Legacy-ISA instead of ISA-PnP (if your computer has this option). 
+<P>Note that you typically don't need DOS installed to run a
+DOS based configuration program. You can usually just boot
+a DOS floppy disk and run them from the supplied floppy disk.
+You can also download OpenDOS and FreeDOS for free.
+<P>If you require ISA-PnP enabled for compatibility with some other
+operating system then what you will have to do depends
+on what kernel version you are using. For 2.2.x and older
+kernels, you will have to use the isapnptools
+package with linux to configure the card(s) each time at boot.
+You will still have to make sure the I/O address chosen for the
+card is probed by the driver or supplied as an <CODE>io=</CODE> option.
+For 2.4.x and newer kernels, there is ISA-PnP support available
+built right into the kernel (if selected at build time) and
+if your particular driver makes use of this support, then your
+card will be configured to an available I/O address and IRQ
+all without any user supplied option values.  You do <EM>not</EM>
+want to be trying to use the user-space isapnptools and the
+in kernel ISA-PnP support at the same time.
+<P>Some systems have an `enable PnP OS' (or similar named) 
+option in the BIOS/CMOS  setup menu which does not really
+have anything to do with ISA-PnP hardware.
+See below for more details on this option.
+<P>
+<H3>PCI machine detects card but driver fails probe (PnP OS).</H3>
+
+<P>
+<P>Some PCI BIOSes may not enable all PCI cards at power-up,
+especially if the BIOS option `PnP OS' is enabled. This
+mis-feature is to support the current release of Windows which
+still uses some real-mode drivers. Either disable this option,
+or try and upgrade to a newer driver which has the code to
+enable a disabled card.
+<P>Note that kernel version 2.4.x has better support to deal
+with this option - in particular you should be able to 
+enable this option, and the kernel/drivers should be able
+to set up and/or enable the cards on its own.
+<P>
+<H3>All cards detected but two fail to work in PCI machine</H3>
+
+<P>
+<P>Version 1 of the PCI spec allowed for some slots to be
+bus master and some slots to be slave (non-bus master) slots.
+To avoid the problems associated with people putting BM
+cards into slave slots, the v2 of the PCI spec said that all
+slots should be BM capable.  Hovever most PCI chipsets only
+have four BM pins, and so if you have a five slot board,
+chances are that two slots share one of the BM pins! This allows
+the board to meet the requirements of the v2 spec (but not
+the intent).  So if you have a bunch of cards, and two of
+them fail to work, they may be in slots that share a BM pin.
+<P>
+<H3>I have <CODE>/etc/conf.modules</CODE> and not <CODE>/etc/modules.conf</CODE>.</H3>
+
+<P>
+<P>Older distributions will have <CODE>conf.modules</CODE> and not
+<CODE>modules.conf</CODE> which is the more sensible name of
+the two.  Newer module utility programs expect the new name,
+so keep that in mind if you upgrade an older system.
+<P>
+<H3>Ethercard is Not Detected at Boot.</H3>
+
+<P>
+<P>The usual reason for this is that people are using a kernel
+that does not have support for their particular card built
+in. For a modular kernel, it usually means that the required
+module has not been requested for loading.
+<P>If you are using a modular based kernel, such as those installed
+by most of the linux distributions, then try and use the
+configuration utility for the distribution to select the module
+for your card. For ISA cards, it is a good idea to determine
+the I/O address of the card and add it as an
+option (e.g. <CODE>io=0x340</CODE>) if the configuration utility asks
+for any options. If there is no configuration utility, then
+you will have to add the correct module name (and options)
+to <CODE>/etc/modules.conf</CODE> -- see <CODE>man modprobe</CODE> for
+more details.
+<P>The next main cause is having another device using part
+of the I/O space that your card needs. Most cards are
+16 or 32 bytes wide in I/O space. If your card is set
+at <CODE>0x300</CODE> and 32 bytes wide, then the driver will ask
+for <CODE>0x300-0x31f</CODE>. If any other device driver has registered
+even one port anywhere in that range, the probe will not
+take place at that address and  the driver will silently
+continue to the next of the probed addresses. So, after
+booting, do a <CODE>cat /proc/ioports</CODE> and verify that the
+full I/O space that the card will require is vacant.
+<P>Another problem is having your card jumpered to an I/O
+address that isn't probed by default.  The list of 
+probed addresses for each driver is easily found just
+after the text comments in the driver source.
+Even if the I/O setting of your card is
+not in the list of probed addresses, you can supply
+it at boot (for in-kernel drivers) with
+the <CODE>ether=</CODE> command as described in
+<A HREF="Ethernet-HOWTO-8.html#lilo">Passing Ethernet Arguments...</A>
+Modular drivers can make use of the <CODE>io=</CODE> option 
+in <CODE>/etc/modules.conf</CODE> to
+specify an address that isn't probed by default.
+<P>
+<P>
+<H3>Driver reports <CODE>unresolved symbol ei_open</CODE> and won't load.</H3>
+
+<P>
+<P>You are using one of the many ethernet cards that have
+an 8390 chip (or clone) on board.  For such cards, the
+driver comes in two parts - the part which you unsuccessfully
+tried to load (e.g. <CODE>ne2k-pci.o, ne.o, wd.o, smc-ultra.o</CODE>
+etc.) and the 8390 part.  These drivers have <EM>(+8390)</EM>
+listed right beside their module name in the vendor
+specific information listing.
+(
+<A HREF="Ethernet-HOWTO-4.html#card-intro">Vendor Specific...</A>)
+<P>You have to make sure that the
+<CODE>8390.o</CODE> module gets loaded <EM>before</EM> loading the
+second half of the driver so that the second half of the
+driver can find the functions in <CODE>8390.o</CODE> that it needs.
+<P>Possible causes: (1)Forgetting to run depmod after installing
+a new kernel and modules, so that module dependencies like
+this are handled automatically. (2)Using <CODE>insmod</CODE> instead
+of <CODE>modprobe</CODE>, as insmod doesn't check for any module
+ordering constraints. (3)The module <CODE>8390.o</CODE> is not
+in the directory beside the other half of the driver where
+it should be.
+<P>
+<H3><CODE>ifconfig</CODE> reports the wrong I/O address for the card.</H3>
+
+<P>
+<P>No it doesn't. You are just interpreting it incorrectly.
+This is <EM>not</EM> a bug, and the numbers reported are correct. It just
+happens that some 8390 based cards (wd80x3, smc-ultra, etc) have the
+actual 8390 chip living at an offset from the first assigned I/O port.
+This is the value stored in
+<CODE>dev->base_addr</CODE>, and is what <CODE>ifconfig</CODE> reports. If you
+want to see the full range of ports that your card uses, then try
+<CODE>cat /proc/ioports</CODE> which will give the numbers you expect.
+<P>
+<H3>Shared Memory ISA cards in PCI Machine do not work (<CODE>0xffff</CODE>)</H3>
+
+<P>
+<P>This will usually show up as reads of lots of <CODE>0xffff</CODE> values.
+No shared memory cards of any type will work in a PCI machine
+unless you have the PCI ROM BIOS/CMOS SETUP configuration set
+properly. You have to set it to allow shared memory access
+from the ISA bus for the memory region that your card is trying
+to use. If you can't figure out which settings are applicable
+then ask your supplier or local computer guru. For AMI BIOS,
+there is usually a "Plug and Play" section where there will
+be an ``ISA Shared Memory Size'' and ``ISA Shared Memory Base''
+settings. For cards like the wd8013 and SMC Ultra, change the
+size from the default of `Disabled' to 16kB, and change the base
+to the shared memory address of your card.
+<P>
+<P>
+<H3>Card seems to send data but never receives anything.</H3>
+
+<P>
+<P>Do a <CODE>cat /proc/interrupts</CODE>.
+A running total of the number of interrupt events your
+card generates will be in the list given from the above.
+If it is zero and/or doesn't increase when you try to use
+the card then there is probably a physical interrupt 
+conflict with another device installed in the computer
+(regardless of whether or not the other device has a 
+driver installed/available).
+Change the IRQ of one of the two devices to a free IRQ.
+<P>
+<P>
+<H3>Asynchronous Transfer Mode (ATM) Support</H3>
+
+<P>
+<P>Werner Almesberger has been working on ATM support
+for linux.
+He has been working with the Efficient Networks ENI155p
+board (
+<A HREF="http://www.efficient.com/">Efficient Networks</A>)
+and the Zeitnet ZN1221 board
+(
+<A HREF="http://www.zeitnet.com/">Zeitnet</A>).
+<P>Werner says that the driver for the ENI155p is rather
+stable, while the driver for the ZN1221 is presently
+unfinished.
+<P>Check the latest/updated status at the following URL:
+<P>
+<A HREF="http://lrcwww.epfl.ch/linux-atm/">Linux ATM Support</A><P>
+<H3>Gigabit Ethernet Support</H3>
+
+<P>
+<P>Is there any gigabit ethernet support for Linux?
+<P>Yes, there are currently several. One of the prominent
+Linux network developers rated the performance of the
+cards with linux drivers as follows: 1) Intel E1000,
+2) Tigon2/Acenic, 3) SysKonnect sk-98xx, 4) Tigon3/bcm57xx.
+This was as of March 2002 and subject to change of course.
+<P>
+<H3>FDDI Support</H3>
+
+<P>Is there FDDI support for Linux?
+<P>Yes. Larry Stefani has written
+a driver for v2.0 with Digital's DEFEA (FDDI EISA)
+and DEFPA (FDDI PCI) cards.
+This was included into the v2.0.24 kernel.  Currently
+no other cards are supported though.
+<P>
+<H3>Full Duplex Support</H3>
+
+<P>
+<P>Will Full Duplex give me 20MBps? Does Linux support it?
+<P>Cameron Spitzer writes the following about full duplex 10Base-T
+cards: ``If you connect it to a full duplex switched hub,
+and your system is fast enough and not doing much else, it can
+keep the link busy in both directions.
+There is no such thing as full duplex 10BASE-2 or 10BASE-5
+(thin and thick coax).
+Full Duplex works by disabling collision detection in the adapter.
+That's why you can't do it with coax; the LAN won't run that way.
+10BASE-T (RJ45 interface) uses separate wires for send and receive,
+so it's possible to run both ways at the same time.  The switching
+hub takes care of the collision problem.  The signalling rate
+is 10 Mbps.''
+<P>So as you can see, you still will only be able to receive or
+transmit at 10Mbps, and hence don't expect a 2x performance
+increase. As to whether it is supported or not, that depends
+on the card and possibly the driver. Some cards may do
+auto-negotiation, some may need driver support, and some may
+need the user to select an option in a card's EEPROM configuration.
+Only the serious/heavy user would notice the difference between
+the two modes anyway.
+<P>
+<H3>Ethernet Cards for Linux on SMP Machines</H3>
+
+<P>
+<P>If you spent the extra money on a multi processor (MP) computer then
+buy a good ethernet card as well. For v2.0 kernels it wasn't really
+an issue, but it definitely is for v2.2. Most of the older
+non-intelligent (e.g. ISA bus PIO and shared memory design) cards
+were never designed with any consideration for use on a MP machine.
+The executive summary is to buy an intelligent modern design
+card and make sure the driver has been written (or updated) to
+handle MP operation.  (The key words here are `modern design'  - the
+PCI-NE2000's are just a 10+ year old design on a modern bus.)
+Looking for the text <CODE>spin_lock</CODE> in the driver source is a good
+indication that the driver has been written to deal with MP operation.
+The full details of why you should buy a good card for MP use (and
+what happens if you dont) follow.
+<P>In v2.0 kernels, only one processor was allowed `in kernel'  
+(i.e. changing kernel data and/or running device drivers) at any
+given time. So from the point of view of the card (and the associated
+driver) nothing was different from uni processor (UP) operation and
+things just continued to work. (This was the easiest way to get a
+working MP version of Linux - one big lock around the whole kernel
+only allows one processor in at a time. This way you know that you
+won't have two processors trying to change the same thing at the
+same time!)
+<P>The downside to only allowing one processor in
+the kernel at a time was that you only got MP performance
+if the running programs were self contained and calculation intensive.
+If the programs did a lot of input/output (I/O) such as reading or
+writing data to disk or over a network, then all but one of the
+processors would be stalled waiting on their I/O requests to be
+completed while the one processor running in kernel frantically
+tries to run all the device drivers to fill the I/O requests. The
+kernel becomes the bottleneck and since there is only one processor
+running in the kernel, the performance of a MP machine in the heavy
+I/O, single-lock case quickly degrades close to that of a single 
+processor machine.
+<P>Since this is clearly less than ideal (esp. for file/WWW servers,
+routers, etc.) the v2.2 kernels have finer grained locking - meaning
+that more than one processor can be in the kernel at a time. Instead
+of one big lock around the whole kernel, there are a lot of smaller
+locks protecting critical data from being manipulated by more than
+one processor at a time - e.g. one processor can be running the
+driver for the network card, while another processor
+is running the driver for the disk drive at the same time.
+<P>Okay, with that all in mind here are the snags:  The finer locking
+means that you can have one processor trying to send data
+out through an ethernet driver while another processor tries to
+access the same driver/card to do something else (such as get the
+card statistics for <CODE>cat /proc/net/dev</CODE>). Oops - your card
+stats just got sent out over the wire, while you got data for
+your stats instead. Yes, the card got confused by being asked
+to do two (or more!) things at once, and chances are it crashed
+your machine in the process.
+<P>So, the driver that worked for UP is
+no longer good enough - it needs to be updated with locks  that
+control access to the underlying card so that the three tasks of
+receive, transmit and manipulation
+of configuration data are serialized to
+the degree required by the card for stable operation. The scary
+part here is that a driver not yet updated with locks for stable
+MP operation will probably appear to be working in a MP machine
+under light network load, but will crash the machine or at least
+exhibit strange behaviour when two (or more!) processors try to
+do more than one of these three tasks at the same time.
+<P>The updated MP aware ethernet driver will (at a
+minimum) require a lock
+around the driver that limits access at the entry points
+from the kernel into the driver to `one at a time please'.
+With this in place, things will be serialized so that the
+underlying hardware should be treated just as if it was being
+used in a UP machine, and so it should be stable. The downside
+is that the one lock around the whole ethernet driver has
+the same negative performance implications that having one big
+lock around the whole kernel had (but on a smaller scale) - i.e.
+you can only have one processor dealing with the card
+at a time.
+[Technical Note: The performance impact may also include
+increased interrupt latencies if the locks that need to be
+added are of the <CODE>irqsave</CODE> type and they are held
+for a long time.]
+<P>Possible improvements on this situation can be made in two
+ways. You can try to minimize the time between when the lock is
+taken and when it is released, and/or you can implement finer
+grained locking within the driver (e.g. a lock around the whole
+driver would be overkill if a lock or two protecting against
+simultaneous access to a couple of sensitive registers/settings
+on the card would suffice).
+<P>However, for older non-intelligent
+cards that were never designed with MP use in mind, neither of
+these improvements may be feasible. Worse yet is that the
+non-intelligent cards typically require the processor to move
+the data between the card and the computer memory, so in a
+worst case scenario the lock will be held the whole time that
+it takes to move each 1.5kB data packet over an ISA bus.
+<P>The more modern intelligent cards typically move network data
+directly to and from the computer memory without any help from
+a processor.  This is a big win, since the lock is then only
+held for the short time it takes the processor to tell the card
+where in memory to get/store the next network data packet. More
+modern card designs are less apt to require a single big
+lock around the whole driver as well.
+<P>
+<P>
+<P>
+<H3>Ethernet Cards for Linux on Alpha/AXP PCI Boards</H3>
+
+<P>
+<P>As of v2.0, only the 3c509, depca, de4x5, pcnet32, and all the
+8390 drivers (wd, smc-ultra, ne, 3c503, etc.) have
+been made `architecture independent' so as to work on the
+DEC Alpha CPU based systems.  Other updated PCI drivers from
+Donald's WWW page may also work as these have been written
+with architecture independence in mind.
+<P>Note that the changes that are required to make a driver
+architecture independent aren't that complicated.
+You only need to do the following:
+<P>-multiply all <CODE>jiffies</CODE> related values by HZ/100 to account
+for the different HZ value that the Alpha uses.
+(i.e <CODE>timeout=2;</CODE> becomes <CODE>timeout=2*HZ/100;</CODE>)
+<P>-replace any I/O memory (640k to 1MB) pointer dereferences with
+the appropriate readb() writeb() readl() writel() calls, as
+shown in this example.
+<P>
+<HR>
+<PRE>
+-       int *mem_base = (int *)dev->mem_start;
+-       mem_base[0] = 0xba5eba5e;
++       unsigned long mem_base = dev->mem_start;
++       writel(0xba5eba5e, mem_base);
+</PRE>
+<HR>
+<P>-replace all memcpy() calls that have I/O memory as source or
+target destinations with the appropriate one of
+<CODE>memcpy_fromio()</CODE> or <CODE>memcpy_toio()</CODE>.
+<P>Details on handling memory accesses in an architecture
+independent fashion are documented in the file
+<CODE>linux/Documentation/IO-mapping.txt</CODE> that comes
+with recent kernels.
+<P>
+<H3>Ethernet for Linux on SUN/Sparc Hardware.</H3>
+
+<P>For the most up to date information on Sparc stuff, try the
+following URL:
+<P>
+<A HREF="http://www.geog.ubc.ca/sparc">Linux Sparc</A><P>Note that some Sparc ethernet hardware gets its MAC address
+from the host computer, and hence you can end up with multiple
+interfaces all with the same MAC address.  If you need to
+put more than one interface on the same net then use the
+<CODE>hw</CODE> option to <CODE>ifconfig</CODE> to assign unique MAC address.
+<P>Issues regarding porting PCI drivers to the Sparc platform
+are similar to those mentioned above for the AXP platform.
+In addition there may be some endian issues, as the Sparc
+is big endian, and the AXP and ix86 are little endian.
+<P>
+<H3>Ethernet for Linux on Other Hardware.</H3>
+
+<P>There are several other hardware platforms that Linux can
+run on, such as Atari/Amiga (m68k). As in the Sparc case
+it is best to check with the home site of each Linux
+port to that platform to see what is currently supported.
+(Links to such sites are welcome here - send them in!)
+<P>
+<H3>Linking 10 or 100 BaseT without a Hub</H3>
+
+<P>Can I link 10/100BaseT (RJ45) based systems together without a hub?
+<P>You can link 2 machines, but no more than that, without
+extra devices/gizmos, by using a crossover cable.  Some newer
+fancy autonegotiaton cards may not work on a crossover cable though.
+And no, you can't hack together a hub just by
+crossing a few wires and stuff. It's pretty much impossible
+to do the collision signal right without duplicating a hub.
+<P>
+<H3>SIOCSIFxxx: No such device</H3>
+
+<P>I get a bunch of `SIOCSIFxxx: No such device' messages at
+boot, followed by a `SIOCADDRT: Network is unreachable'
+What is wrong?
+<P>Your ethernet device was not detected at boot/module insertion
+time, and when
+<CODE>ifconfig</CODE> and <CODE>route</CODE> are run, they have no device
+to work with. Use <CODE>dmesg | more</CODE> to review the
+boot messages and see if there are any messages about
+detecting an ethernet card.
+<P>
+<H3>SIOCSFFLAGS: Try again</H3>
+
+<P>I get `SIOCSFFLAGS: Try again' when I run `ifconfig' -- Huh?
+<P>Some other device has taken the IRQ that your ethercard
+is trying to use, and so the ethercard can't use the IRQ.
+You don't necessairly need to reboot to resolve this, as
+some devices only grab the IRQs when they need them and
+then release them when they are done. Examples are some
+sound cards, serial ports, floppy disk driver, etc. You
+can type <CODE>cat /proc/interrupts</CODE> to see which interrupts
+are presently <EM>in use</EM>. Most of the
+Linux ethercard drivers only grab the IRQ when they are
+opened for use via `ifconfig'. If you can get the other
+device to `let go' of the required IRQ line, then you
+should be able to `Try again' with ifconfig.
+<P>
+<H3>Using `ifconfig' and Link UNSPEC with HW-addr of 00:00:00:00:00:00</H3>
+
+<P>When I run ifconfig with no arguments, it reports that
+LINK is UNSPEC (instead of 10Mbs Ethernet) and it
+also says that my hardware address is all zeros.
+<P>This is because people are running a newer version of
+the `ifconfig' program than their kernel version. This
+new version of ifconfig is not able to report these properties
+when used in conjunction with an older kernel. You can either
+upgrade your kernel, `downgrade' ifconfig, or simply ignore
+it. The kernel knows your hardware address, so it really
+doesn't matter if ifconfig can't read it.
+<P>You may also get strange information if the <CODE>ifconfig</CODE>
+program you are using is a lot older than the kernel you are
+using.
+<P>
+<H3>Huge Number of RX and TX Errors</H3>
+
+<P>When I run ifconfig with no arguments, it reports that I
+have a huge error count in both rec'd and transmitted
+packets. It all seems to work ok -- What is wrong?
+<P>Look again. It says <CODE>RX packets</CODE> <EM>big number</EM> <B>PAUSE</B>
+<CODE>errors 0</CODE> <B>PAUSE</B> <CODE>dropped 0</CODE> <B>PAUSE</B> <CODE>overrun 0</CODE>.
+And the same for the <CODE>TX</CODE> column.
+Hence the big numbers you are seeing are the total number of
+packets that your machine has rec'd and transmitted.
+If you still find it confusing, try typing
+<CODE>cat /proc/net/dev</CODE> instead.
+<P>
+<H3>Entries in <CODE>/dev/</CODE> for Ethercards</H3>
+
+<P>I have /dev/eth0 as a link to /dev/xxx. Is this right?
+<P>Contrary to what you have heard, the files in /dev/* are not used.
+You can delete any <CODE>/dev/wd0, /dev/ne0</CODE> and similar entries.
+<P>
+<H3>Access to the raw Ethernet Device</H3>
+
+<P>How do I get access to the raw ethernet device in linux,
+without going through TCP/IP and friends?
+<P>
+<HR>
+<PRE>
+        int s=socket(AF_INET,SOCK_PACKET,htons(ETH_P_ALL));
+</PRE>
+<HR>
+<P>This gives you a socket receiving every protocol type.
+Do <CODE>recvfrom()</CODE> calls to it and it will fill the sockaddr
+with device type in sa_family and the device name in the
+sa_data array. I don't know who originally invented
+SOCK_PACKET for Linux (its been in for ages) but its superb stuff.
+You can use it to send stuff raw too via <CODE>sendto()</CODE> calls.
+You have to have root access to do either of course.
+<P>
+<HR>
+<A HREF="Ethernet-HOWTO-3.html">Next</A>
+<A HREF="Ethernet-HOWTO-1.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

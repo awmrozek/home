@@ -1,0 +1,212 @@
+<HTML
+><HEAD
+><TITLE
+>Random Early Detection (RED)</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Advanced &#38; less common queueing disciplines"
+HREF="lartc.adv-qdisc.html"><LINK
+REL="PREVIOUS"
+TITLE="Ingress qdisc"
+HREF="lartc.adv-qdisc.ingress.html"><LINK
+REL="NEXT"
+TITLE="Generic Random Early Detection"
+HREF="lartc.adv-qdisc.gred.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-qdisc.ingress.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 14. Advanced &#38; less common queueing disciplines</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-qdisc.gred.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.ADV-QDISC.RED"
+></A
+>14.5. Random Early Detection (RED)</H1
+><P
+>This section is meant as an introduction to backbone routing, which often
+involves &#60;100 megabit bandwidths, which requires a different approach than
+your ADSL modem at home.</P
+><P
+>The normal behaviour of router queues on the Internet is called tail-drop.
+Tail-drop works by queueing up to a certain amount, then dropping all traffic
+that 'spills over'. This is very unfair, and also leads to retransmit 
+synchronization. When retransmit synchronization occurs, the sudden burst
+of drops from a router that has reached its fill will cause a delayed burst
+of retransmits, which will over fill the congested router again. </P
+><P
+>In order to cope with transient congestion on links, backbone routers will
+often implement large queues. Unfortunately, while these queues are good for
+throughput, they can substantially increase latency and cause TCP
+connections to behave very burstily during congestion.</P
+><P
+>These issues with tail-drop are becoming increasingly troublesome on the
+Internet because the use of network unfriendly applications is increasing.
+The Linux kernel offers us RED, short for Random Early Detect, also called
+Random Early Drop, as that is how it works.</P
+><P
+>RED isn't a cure-all for this, applications which inappropriately fail to 
+implement exponential backoff still get an unfair share of the bandwidth,
+however, with RED they do not cause as much harm to the throughput and
+latency of other connections.</P
+><P
+>RED statistically drops packets from flows before it reaches its hard
+limit. This causes a congested backbone link to slow more gracefully, and
+prevents retransmit synchronization. This also helps TCP find its 'fair'
+speed faster by allowing some packets to get dropped sooner keeping queue
+sizes low and latency under control. The probability of a packet being
+dropped from a particular connection is proportional to its bandwidth usage
+rather than the number of packets it transmits. </P
+><P
+>RED is a good queue for backbones, where you can't afford the 
+complexity of per-session state tracking needed by fairness queueing.</P
+><P
+>In order to use RED, you must decide on three parameters: Min, Max, and
+burst. Min sets the minimum queue size in bytes before dropping will begin,
+Max is a soft maximum that the algorithm will attempt to stay under, and
+burst sets the maximum number of packets that can 'burst through'.</P
+><P
+>You should set the min by calculating that highest acceptable base queueing 
+latency you wish, and multiply it by your bandwidth. For instance, on my 
+64kbit/s ISDN link, I might want a base queueing latency of 200ms so I set
+min to 1600 bytes. Setting min too small will degrade throughput and too
+large will degrade latency. Setting a small min is not a replacement for
+reducing the MTU on a slow link to improve interactive response.</P
+><P
+>You should make max at least twice min to prevent synchronization. On slow
+links with small Min's it might be wise to make max perhaps four or
+more times large then min.</P
+><P
+>Burst controls how the RED algorithm responds to bursts. Burst must be set
+larger then min/avpkt. Experimentally, I've found (min+min+max)/(3*avpkt) to
+work ok.</P
+><P
+>Additionally, you need to set limit and avpkt. Limit is a safety value, after
+there are limit bytes in the queue, RED 'turns into' tail-drop. I typical set
+limit to eight times max. Avpkt should be your average packet size. 1000
+works OK on high speed Internet links with a 1500byte MTU. </P
+><P
+>Read <A
+HREF="http://www.aciri.org/floyd/papers/red/red.html"
+TARGET="_top"
+>the paper on RED queueing</A
+> by Sally Floyd and Van Jacobson for technical
+information.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.adv-qdisc.ingress.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.adv-qdisc.gred.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Ingress qdisc</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.adv-qdisc.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Generic Random Early Detection</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

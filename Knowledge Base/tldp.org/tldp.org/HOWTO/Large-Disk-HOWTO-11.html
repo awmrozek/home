@@ -1,0 +1,294 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Large Disk HOWTO: Clipped disks</TITLE>
+ <LINK HREF="Large-Disk-HOWTO-12.html" REL=next>
+ <LINK HREF="Large-Disk-HOWTO-10.html" REL=previous>
+ <LINK HREF="Large-Disk-HOWTO.html#toc11" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Large-Disk-HOWTO-12.html">Next</A>
+<A HREF="Large-Disk-HOWTO-10.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc11">Contents</A>
+<HR>
+<H2><A NAME="s11">11. Clipped disks</A></H2>
+
+<P>
+<H2><A NAME="ss11.1">11.1 The Linux IDE 8 GiB limit</A>
+</H2>
+
+<P>The Linux IDE driver gets the geometry and capacity of a disk
+(and lots of other stuff) by using an
+<A HREF="Large-Disk-HOWTO-10.html#identify">ATA IDENTIFY</A> request.
+Linux kernels older than 2.0.34/2.1.90 would not believe the returned value
+of lba_capacity if it was more than 10% larger than the capacity
+computed by C<CODE>*</CODE>H<CODE>*</CODE>S. However, by industry agreement
+large IDE disks (with more than 16514064 sectors)
+return C=16383, H=16, S=63, for a total of 16514064 sectors (7.8 GB)
+independent of their actual size, but give their actual size in
+lba_capacity.
+<P>Since versions 2.0.34/2.1.90, Linux kernels know about this
+and do the right thing. If you have an older Linux kernel and do
+not want to upgrade, and this kernel only sees 8 GiB of a much larger disk,
+then try changing the routine <CODE>lba_capacity_is_ok</CODE> in
+<CODE>/usr/src/linux/drivers/block/ide.c</CODE> into something like
+<BLOCKQUOTE><CODE>
+<PRE>
+static int lba_capacity_is_ok (struct hd_driveid *id) {
+        id->cyls = id->lba_capacity / (id->heads * id->sectors);
+        return 1;
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+
+For a more cautious patch, see 2.1.90.
+<P>
+<H2><A NAME="ss11.2">11.2 BIOS complications</A>
+</H2>
+
+<P>As just mentioned, large disks return the geometry
+C=16383, H=16, S=63 independent of the actual size,
+while the actual size is returned in the value of LBAcapacity.
+Some BIOSes do not recognize this, and translate this
+16383/16/63 into something with fewer cylinders and more heads,
+for example 1024/255/63 or 1027/255/63. So, the kernel must not
+only recognize the single geometry 16383/16/63, but also all
+BIOS-mangled versions of it.
+Since 2.2.2 this is done correctly (by taking the BIOS idea
+of H and S, and computing C = capacity/(H*S)).
+Usually this problem is solved by setting the disk to Normal
+in the BIOS setup (or, even better, to None, not mentioning
+it at all to the BIOS). If that is impossible because you have
+to boot from it or use it also with DOS/Windows, and upgrading
+to 2.2.2 or later is not an option, use kernel boot parameters.
+<P>If a BIOS reports 16320/16/63, then this is usually done
+in order to get 1024/255/63 after translation.
+<P>There is an additional problem here. If the disk was partitioned
+using a geometry translation, then the kernel may at boot time
+see this geometry used in the partition table, and report
+<CODE>hda: [PTBL] [1027/255/63]</CODE>. This is bad, because now the
+disk is only 8.4 GB. This was fixed in 2.3.21. Again, kernel
+boot parameters will help.
+<P>
+<H2><A NAME="jumpers"></A> <A NAME="ss11.3">11.3 Jumpers that select the number of heads</A>
+</H2>
+
+<P>Many disks have jumpers that allow you to choose between
+a 15-head an a 16-head geometry. The default settings will give
+you a 16-head disk. Sometimes both geometries address the same
+number of sectors, sometimes the 15-head version is smaller.
+There may be a good reason for this setup: Petri Kaukasoina
+writes: `A 10.1 Gig IBM Deskstar 16 GP (model IBM-DTTA-351010) was
+jumpered for 16 heads as default but this old PC (with AMI BIOS)
+didn't boot and I had to jumper it for 15 heads. hdparm -i tells
+RawCHS=16383/15/63 and LBAsects=19807200. I use 20960/15/63 to
+get the full capacity.'
+For the jumper settings, see
+<A HREF="http://www.hitachigst.com/hdd/support/jumpers.htm">http://www.hitachigst.com/hdd/support/jumpers.htm</A>.
+<P>
+<H2><A NAME="ss11.4">11.4 Jumpers that clip total capacity</A>
+</H2>
+
+<P>Many disks have jumpers that allow you to make the disk
+appear smaller than it is. A silly thing to do, and probably
+no Linux user ever wants to use this, but some BIOSes crash
+on big disks. The usual solution is to keep the disk entirely
+out of the BIOS setup. But this may be feasible only if the
+disk is not your boot disk.
+<P>
+<H3>Clip to 2.1 GB</H3>
+
+<P>The first serious limit was the 4096 cylinder limit (that is,
+with 16 heads and 63 sectors/track, 2.11 GB).
+For example, a Fujitsu MPB3032ATU 3.24 GB disk has default geometry
+6704/15/63, but can be jumpered to appear as 4092/16/63,
+and then reports LBAcapacity 4124736 sectors, so that the operating
+system cannot guess that it is larger in reality.
+In such a case (with a BIOS that crashes if it hears how big the disk is
+in reality, so that the jumper is required) one needs boot parameters
+to tell Linux about the size of the disk.
+<P>That is unfortunate. Most disks can be jumpered so as to appear as a 2 GB disk
+and then report a clipped geometry like 4092/16/63 or 4096/16/63, but still
+report full LBAcapacity. Such disks will work well, and use full capacity
+under Linux, regardless of jumper settings.
+<P>
+<H3><A NAME="jumperbig"></A> Clip to 33 GB</H3>
+
+<P>A more recent limit is 
+<A HREF="Large-Disk-HOWTO-12.html#verylarge">the 33.8 GB limit</A>.
+Linux kernels older than 2.2.14 / 2.3.21 need a patch to be able to cope with
+IDE disks larger than this.
+<P>With an old BIOS and a disk larger than 33.8 GB, the BIOS may hang,
+and in such cases booting may be impossible, even when the disk
+is removed from the CMOS settings.
+<P>Therefore, large IBM and Maxtor and Seagate disks come with a jumper
+that make the disk appear as a 33.8 GB disk.
+For example, the IBM Deskstar 37.5 GB (DPTA-353750) with 73261440 sectors
+(corresponding to 72680/16/63, or 4560/255/63) can be jumpered to appear
+as a 33.8 GB disk, and then reports geometry 16383/16/63 like any big disk,
+but LBAcapacity 66055248 (corresponding to 65531/16/63, or 4111/255/63).
+Similar things hold for recent large Maxtor disks.
+<P>Below some more details that used
+to be relevant but probably can be ignored now.
+<P>
+<H3>Maxtor</H3>
+
+<P>With the jumper present, both the geometry (16383/16/63) and the size
+(66055248) are conventional and give no information about the actual size.
+Moreover, attempts to access sector 66055248 and above yield I/O errors.
+However, on Maxtor drives the actual size can be found and made accessible
+using the READ NATIVE MAX ADDRESS and SET MAX ADDRESS commands.
+Presumably this is what MaxBlast/EZ-Drive does.
+There is a small Linux utility
+<A HREF="http://www.win.tue.nl/~aeb/linux/setmax.c">setmax.c</A>
+that does the same. Only very few disks need it - almost always
+CONFIG_IDEDISK_STROKE does the trick. 
+<P>For drives larger than 137 GB also READ NATIVE MAX ADDRESS returns
+a conventional value, namely 0xfffffff, corresponding to 137 GB.
+Here READ NATIVE MAX ADDRESS EXT and SET MAX ADDRESS EXT (using
+48-bit addressing) are required. The <CODE>setmax</CODE> utility does not yet
+know about this. A very small patch makes 2.5.3 handle this situation.
+<P>Early large Maxtor disks
+have an additional detail: the J46 jumper for these 34-40 GB disks
+changes the geometry from 16383/16/63 to 4092/16/63 and does not
+change the reported LBAcapacity.
+This means that also with jumper present the BIOS (old Award 4.5*)
+will hang at boot time. For this case Maxtor provides a utility
+<A HREF="http://www.maxtor.com/technology/technotes/20012.html">JUMPON.EXE</A> that upgrades the firmware to make J46 behave as
+described above.
+<P>On recent Maxtor drives the call <CODE>setmax -d 0 /dev/hdX</CODE> will
+give you max capacity again. However, on slightly older drives a
+firmware bug does not allow you to use <CODE>-d 0</CODE>, and
+<CODE>setmax -d 255 /dev/hdX</CODE> returns you to almost full capacity.
+For Maxtor D540X-4K, see below.
+<P>
+<H3>IBM</H3>
+
+<P>For IBM things are worse: the jumper really clips capacity
+and there is no software way to get it back. The solution is
+not to use the jumper but use <CODE>setmax -m 66055248 /dev/hdX</CODE>
+to software-clip the disk. "How?" you say - "I cannot boot!".
+IBM gives the tip: <I>If a system with Award BIOS hangs during drive
+detection: Reboot the system and hold the F4 key to bypass autodetection
+of the drive(s).</I> If this doesn't help, find a different computer,
+connect the drive to it, and run <CODE>setmax</CODE> there. After doing this
+you go back to the first machine and are in the same situation as
+with jumpered Maxtor disks: booting works, and after getting past
+the BIOS either a patched kernel or a <CODE>setmax -d 0</CODE>
+gets you full capacity.
+<P>Thomas Charbonnel reports on a different approach:
+"I had a 80 GB IBM IC35L080AVVA07-0 drive and installed IBM's
+Disk Manager. Installed my boot loader on the drive's MBR.
+Everything worked fine. Note that the IDE drive must become
+the boot drive so that one can install only one 34+ GB drive
+using this approach."
+<P>
+<H3>Seagate</H3>
+
+<P>Seagate disks have a jumper that will clip the reported number
+of cylinders to 4092 on drives smaller than 33.8 GB, while it
+will limit the reported LBA capacity (Identify words 60/61) to
+33.8 GB on larger disks.
+<P>For models ST-340810A, ST-360020A, ST-380020A:
+The ATA Read Native Max and Set Max commands may be used to reset
+the true full capacity.
+<P>For models ST-340016A, ST-340823A, ST-340824A, ST-360021A, ST-380021A:
+The ATA Set Features F1 sub-command will cause Identify Data words
+60-61 to report the true full capacity. 
+<P>
+<H3>Maxtor D540X-4K</H3>
+
+<P>The Maxtor Diamond Max drives 4K080H4, 4K060H3, 4K040H2 (aka D540X-4K)
+are identical to the drives 4D080H4, 4D060H3, 4D040H2 (aka D540X-4D),
+except that the jumper settings differ. A Maxtor FAQ specifies the
+Master/Slave/CableSelect settings for them, but the capacity clip jumper
+for the "4K" drives seems to be undocumented. Nils Ohlmeier reports that
+he experimentally finds that it is the J42 jumper ("reserved for
+factory use") closest to the power connector.
+(The "4D" drives use the J46 jumper, like all other Maxtor drives.)
+<P>However, it may be that this undocumented jumper acts like the IBM jumper:
+the machine boots correctly, but the disk has been clipped to 33 GB
+and <CODE>setmax -d 0</CODE> does not help to get full capacity back.
+And the IBM solution works: do not use any disk-clipping jumpers, but
+first put the disk in a machine with non-broken BIOS, soft-clip it
+with <CODE>setmax -m 66055248 /dev/hdX</CODE>, then put it back in the
+first machine, and after booting run <CODE>setmax -d 0 /dev/hdX</CODE>
+to get full capacity again.
+<P>In the meantime, some docs and pictures have appeared on the Maxtor site,
+confirming part of the above. Compare
+<P>
+<FIGURE>
+<EPS FILE="absent">
+<IMG SRC="http://service.maxtor.com/rightnow/images/ministyleA.gif">
+</FIGURE>
+
+<FIGURE>
+<EPS FILE="absent">
+<IMG SRC="http://service.maxtor.com/rightnow/images/ministyleB.gif">
+</FIGURE>
+
+<FIGURE>
+<EPS FILE="absent">
+<IMG SRC="http://service.maxtor.com/rightnow/images/ministylec.gif">
+</FIGURE>
+<P>
+<H3>Western Digital</H3>
+
+<P>Some info, including the settings for capacity-clipping jumpers, is given on
+<A HREF="http://support.wdc.com/techinfo/general/jumpers.asp">the Western Digital site</A>. I do not know what precisely
+these jumpers do.
+<P>
+<H2><A NAME="ss11.5">11.5 READ NATIVE MAX ADDRESS / SET MAX ADDRESS</A>
+</H2>
+
+<P>If an IDE/ATA disk has support for the Host Protected Area (HPA) feature set,
+then it is possible to set the LBA capacity to any value below
+the actual capacity. Access past the assigned point usually leads
+to I/O errors. Since classical software finds out about the disk size
+by looking at the LBA capacity field of the Identify information,
+such software will not suspect that the disk actually is larger.
+<P>The actual total size of the disk is read using the
+READ NATIVE MAX ADDRESS command.
+This "soft disk size" is set using the SET MAX ADDRESS command.
+It comes in two flavours: if the "volatile" bit is set, the
+command will have effect until the next reboot or hardware reset;
+otherwise the effect is permanent.
+It is possible to protect settings with a password.
+(For details, see the ATA standard.)
+<P>This clipped size has (at least) two applications:
+on the one hand it is possible to fake a smaller disk,
+so that the BIOS will not have problems, and have Linux,
+or (for DOS/Windows) a disk manager restore total size;
+on the other hand one can have a vendor area at the end,
+inaccessible to the ordinary user.
+<P>For many of the disks discussed above, setting a jumper has
+precisely this effect: LBA capacity is diminished while
+the native max capacity remains the same, and the SET MAX ADDRESS
+will restore full capacity.
+<P>
+<H2><A NAME="ss11.6">11.6 CONFIG_IDEDISK_STROKE</A>
+</H2>
+
+<P>The CONFIG_IDEDISK_STROKE option of Linux 2.4.19/2.5.3 and later,
+will tell Linux to read the native max capacity and do a
+SET MAX ADDRESS to get access to full capacity.
+This configuration option lives under the heading
+"Auto-Geometry Resizing support" in the
+"IDE, ATA and ATAPI block devices" kernel configuration section.
+<P>The configuration option went away in 2.6.7
+and was replaced by a (per-disk) boot parameter,
+so that one can say "hda=stroke".
+<P>With this "stroke" option jumpered disks will in many cases
+be handled correctly, i.e., be seen with full capacity
+(in spite of the jumper). And the same holds when the disk
+got a Host Protected Area in some other (non-jumper) way.
+<P>This is the preferred way to handle disks that need a jumper
+because of a broken BIOS.
+<P>
+<HR>
+<A HREF="Large-Disk-HOWTO-12.html">Next</A>
+<A HREF="Large-Disk-HOWTO-10.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc11">Contents</A>
+</BODY>
+</HTML>

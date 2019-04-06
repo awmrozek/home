@@ -1,0 +1,175 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE> From DOS/Windows to Linux HOWTO : Floppies, Hard Disks, and the Like </TITLE>
+ <LINK HREF="DOS-Win-to-Linux-HOWTO-7.html" REL=next>
+ <LINK HREF="DOS-Win-to-Linux-HOWTO-5.html" REL=previous>
+ <LINK HREF="DOS-Win-to-Linux-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="DOS-Win-to-Linux-HOWTO-7.html">Next</A>
+<A HREF="DOS-Win-to-Linux-HOWTO-5.html">Previous</A>
+<A HREF="DOS-Win-to-Linux-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="Floppies"></A> <A NAME="s6">6. Floppies, Hard Disks, and the Like </A></H2>
+
+<P>
+<P>There are two ways to manage devices under Linux: the DOS way and the UNIX
+way. Take your pick.
+<P>
+<P>
+<H2><A NAME="ss6.1">6.1 Managing Devices the DOS Way</A>
+</H2>
+
+<P>
+<P>Most Linux distributions include the Mtools suite, a set of commands that
+are perfectly equivalent to their DOS counterpart, but start with an `m':
+i.e., <CODE>mformat</CODE>, <CODE>mdir</CODE>, <CODE>mdel</CODE>, <CODE>mmd</CODE>, and so
+on. They can even preserve long file names, but not file permissions. If you
+configure Mtools editing a file called /etc/mtools.conf (a
+sample is provided in the distribution), you can also access the DOS/Win
+partition, the CD--ROM, and the Zip drive. To format a fresh disk though,
+the <CODE>mformat</CODE> command won't do. As root, you'll have to issue this
+command beforehand: <CODE>fdformat /dev/fd0H1440</CODE>.
+<P>You can't access files on the floppy with a command like, say, <CODE>less
+a:file.txt</CODE>! This is the disadvantage of the DOS way of accessing disks.
+<P>
+<P>
+<H2><A NAME="ss6.2">6.2 Managing Devices the UNIX Way</A>
+</H2>
+
+<P>
+<P>UNIX has a different way to handle devices. There are no separate volumes
+like A: or C:; a disk, be it a floppy or whatever, becomes part of the local
+file system through an operation called ``mounting''. When you're done using
+the disk, before extracting it you must ``unmount'' it.
+<P>Physically formatting a disk is one thing, making a file system on it is
+another. The DOS command <CODE>FORMAT A:</CODE> does both things, but under
+Linux there are separate commands. To format a floppy, see above; to create
+a file system:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# mkfs -t ext2 -c /dev/fd0H1440
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You can use <CODE>dos</CODE>, <CODE>vfat</CODE> (recommended) or other formats
+instead of <CODE>ext2</CODE>. Once the disk is prepared, mount it with the
+command
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# mount -t ext2 /dev/fd0 /mnt
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>specifying the right file system if you don't use <CODE>ext2</CODE>. Now you can
+address the files in the floppy using <CODE>/mnt</CODE> instead of A: or B:.
+Examples:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+DOS                                     Linux
+---------------------------------------------------------------------
+
+C:\GUIDO>DIR A:                         $ ls /mnt
+C:\GUIDO>COPY A:*.*                     $ cp /mnt/* .
+C:\GUIDO>COPY *.ZIP A:                  $ cp *.zip /mnt
+C:\GUIDO>EDIT A:FILE.TXT                $ jstar /mnt/file.txt
+C:\GUIDO>A:                             $ cd /mnt
+A:> _                                   /mnt/$ _
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>When you've finished, before extracting the disk you <EM>must</EM> unmount
+it with the command
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# umount /mnt
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Obviously, you have to <CODE>fdformat</CODE> and <CODE>mkfs</CODE> only unformatted
+disks, not previously used ones. If you want to use the drive B:, refer to
+<CODE>fd1H1440</CODE> and <CODE>fd1</CODE> instead of <CODE>fd0H1440</CODE> and
+<CODE>fd0</CODE> in the examples above.
+<P>Needless to say, what applies to floppies also applies to other devices; for
+instance, you may want to mount another hard disk or a CD--ROM drive. Here's
+how to mount the CD--ROM:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# mount -t iso9660 /dev/cdrom /mnt
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This was the ``official'' way to mount your disks, but there's a trick in
+store. Since it's a bit of a nuisance having to be root to mount a floppy or
+a CD--ROM, every user can be allowed to mount them this way:
+<P>
+<UL>
+<LI> as root, do the following:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+# mkdir /mnt/floppy ; mkdir /mnt/cdrom
+# chmod 777 /mnt/floppy /mnt/cd*
+# # make sure that the CD-ROM device is right
+# chmod 666 /dev/hdb ; chmod 666 /dev/fd*
+</PRE>
+</CODE></BLOCKQUOTE>
+
+</LI>
+<LI> add in /etc/fstab the following lines:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+/dev/cdrom      /mnt/cdrom  iso9660 ro,user,noauto          0       0
+/dev/fd0        /mnt/floppy vfat    user,noauto             0       0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+</LI>
+</UL>
+<P>Now, to mount a DOS floppy and a CD--ROM:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ mount /mnt/floppy
+$ mount /mnt/cdrom
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>/mnt/floppy and /mnt/cdrom
+can now be accessed by every user. Remember that allowing everyone to mount
+disks this way is a gaping security hole, if you care.
+<P>Two useful commands are <CODE>df</CODE>, which gives information on the mounted
+file systems, and <CODE>du dirname</CODE> which reports the disk space consumed
+by the directory.
+<P>
+<P>
+<H2><A NAME="Backing Up"></A> <A NAME="ss6.3">6.3 Backing Up </A>
+</H2>
+
+<P>
+<P>There are several packages to help you, but the very least you can do for a
+multi-volume backup is (as root):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# tar -M -cvf /dev/fd0H1440 dir_to_backup/
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Make sure to have a formatted floppy in the drive, and several more ready.
+To restore your stuff, insert the first floppy in the drive and do:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# tar -M -xpvf /dev/fd0H1440
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<HR>
+<A HREF="DOS-Win-to-Linux-HOWTO-7.html">Next</A>
+<A HREF="DOS-Win-to-Linux-HOWTO-5.html">Previous</A>
+<A HREF="DOS-Win-to-Linux-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,789 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux 2.4.x Initialization for IA-32 HOWTO: Linux architecture-independent initialization</TITLE>
+ <LINK HREF="Linux-Init-HOWTO-6.html" REL=next>
+ <LINK HREF="Linux-Init-HOWTO-4.html" REL=previous>
+ <LINK HREF="Linux-Init-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Linux-Init-HOWTO-6.html">Next</A>
+<A HREF="Linux-Init-HOWTO-4.html">Previous</A>
+<A HREF="Linux-Init-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Linux architecture-independent initialization</A></H2>
+
+<P>
+<P>(from "linux/init/main.c")
+<P>"linux/init/main.c" begins execution with the start_kernel() function,
+which is called from "linux/arch/i386/kernel/head.S".
+start_kernel() never returns to its caller.  It ends by calling the
+cpu_idle() function.
+<P>
+<H2><A NAME="ss5.1">5.1 start_kernel:</A>
+</H2>
+
+<P>
+<P>Interrupts are still disabled.  Do necessary setups, then enable them.
+<P>Lock the kernel (BKL: big kernel lock).
+<P>Print the linux_banner string (this string resides in "linux/init/version.c")
+using printk().  NOTE:  printk() doesn't actually print this to the console
+yet; it just buffers the string until a console device registers itself with
+the kernel, then the kernel passes the buffered console log contents to the
+registered console device(s).  There can be multiple registered console
+devices.
+<P>********** printk() can be called very early because it doesn't actually
+print to anywhere.  It just logs the message to "log_buf",
+which is allocated statically in "linux/kernel/printk.c".
+The messages that are saved in "log_buf" are passed to registered
+console devices as they register. **********
+<P>
+<H3>More architecture-specific init</H3>
+
+<P>
+<P>Call setup_arch(&amp;command_line):
+<P>This performs architecture-specific initializations
+(details below).
+Then back to architecture-independent initialization....
+<P>The remainder of start_kernel() is done as follows for all
+processor architecures, although several of these function
+calls are to architecture-specific setup/init functions.
+<P>
+<H3>Continue architecture-independent init</H3>
+
+<P>Print the kernel command line.
+<P>
+<H3>Parsing command line options</H3>
+
+<P>
+<P>parse_options(command_line):
+Parse the kernel options on the command line.
+This is a simple kernel command line parsing function.  It parses the
+command line and fills in the arguments and environment to init (thread)
+as appropriate.  Any command-line option is taken to be an environment
+variable if it contains the character '='.
+It also checks for options meant for the kernel by calling
+checksetup(), which checks the command line for kernel parameters,
+these being specified by declaring them using "__setup", as in:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+__setup("debug", debug_kernel);
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>This declaration causes the debug_kernel() function to be
+called when the string "debug" is scanned.
+See "linux/Documentation/kernel-parameters.txt" for the list of
+kernel parameters.
+<P>These options are not given to init -- they are for internal kernel
+use only.  The default argument list for the init thread is
+{"init", NULL}, with a maximum of 8 command-line arguments.
+The default environment list for the init thread is
+{"HOME=/", "TERM=linux", NULL}, with a maximum of 8
+command-line environment variable settings.
+In case LILO is going to boot us with default command line,
+it prepends "auto" before the whole cmdline which makes
+the shell think it should execute a script with such name.
+So we ignore all arguments entered _before_ init=... [MJ]
+<P>
+<H3>trap_init</H3>
+
+<P>
+<P>(in linux/arch/i386/kernel/traps.c)
+<P>Install exception handlers for basic processor exceptions,
+i.e., not hardware device interrupt handlers.
+<P>Install the handler for the system call software interrupt.
+<P>Install handlers for lcall7 (for iBCS) and lcall27 (for
+Solaris/x86 binaries).
+<P>Call cpu_init() to do:
+<UL>
+<LI> initialize per-CPU state</LI>
+<LI> reload the GDT and IDT</LI>
+<LI> mask off the eflags NT (Nested Task) bit</LI>
+<LI> set up and load the per-CPU TSS and LDT</LI>
+<LI> clear 6 debug registers (0, 1, 2, 3, 6, and 7)</LI>
+<LI> stts(): set the 0x08 bit (TS: Task Switched) in CR0 to enable
+lazy register saves on context switches</LI>
+</UL>
+<P>
+<H3>init_IRQ</H3>
+
+<P>
+<P>(in linux/arch/i386/kernel/i8259.c)
+<P>Call init_ISA_irqs() to initialize the two 8259A interrupt controllers
+and install default interrupt handlers for the ISA IRQs.
+<P>Set an interrupt gate for all unused interrupt vectors.
+<P>For CONFIG_SMP configurations, set up IRQ 0 early, since it's
+used before the IO APIC is set up.
+<P>For CONFIG_SMP, install the interrupt handler for CPU-to-CPU
+IPIs that are used for the "reschedule helper."
+<P>For CONFIG_SMP, install the interrupt handler for the IPI that is
+used to invalidate TLBs.
+<P>For CONFIG_SMP, install the interrupt handler for the IPI that is
+used for generic function calls.
+<P>For CONFIG_X86_LOCAL_APIC configurations, install the interrupt
+handler for the self-generated local APIC timer IPI.
+<P>For CONFIG_X86_LOCAL_APIC configurations, install interrupt handlers
+for spurious and error interrupts.
+<P>Set the system's clock chip to generate a timer tick interrupt
+every HZ Hz.
+<P>If the system has an external FPU, set up IRQ 13 to handle
+floating point exceptions.
+<P>
+<H3>sched_init</H3>
+
+<P>
+<P>(in linux/kernel/sched.c)
+<P>
+<UL>
+<LI> Set the init_task's processor ID.</LI>
+<LI> Clear the pidhash table. TBD: Why? isn't it in BSS?</LI>
+<LI> call init_timervecs()</LI>
+<LI> call init_bh() to init "bottom half" queues for timer_bh,
+tqueue_bh, and immediate_bh.</LI>
+</UL>
+<P>
+<H3>time_init</H3>
+
+<P>
+<P>(in linux/arch/i386/kernel/time.c)
+<P>Initialize the system's current time of day (xtime) from CMOS.
+<P>Install the irq0 timer tick interrupt handler.
+<P>
+<H3>softirq_init</H3>
+
+<P>
+<P>(in linux/kernel/softirq.c)
+<P>
+<H3>console_init</H3>
+
+<P>
+<P>(in linux/drivers/char/tty_io.c)
+<P>HACK ALERT! This is early. We're enabling the console before
+we've done PCI setups etc., and console_init() must be aware of
+this.  But we do want output early, in case something goes wrong.
+<P>
+<H3>init_modules</H3>
+
+<P>
+<P>(in linux/kernel/module.c)
+<P>For CONFIG_MODULES configurations, call init_modules().
+This initializes the size (or number of symbols) of the kernel
+symbol table.
+<P>
+<H3>Profiling setup</H3>
+
+<P>
+<P>if profiling ("profile=#" on the kernel command line):
+calculate the kernel text (code) profile "segment" size;
+calculate the profile buffer size in pages (round up);
+allocate the profile buffer: prof_buffer = alloc_bootmem(size);
+<P>
+<H3>kmem_cache_init</H3>
+
+<P>
+<P>(in linux/mm/slab.c)
+<P>
+<H3>sti</H3>
+
+<P>
+<P><B>********** Interrupts are now enabled. **********</B> <BR>
+This allows "calibrate_delay()" (below) to work.
+<P>
+<H3>calibrate_delay</H3>
+
+<P>
+<P>Calculate the "loops_per_jiffy" delay loop value and print
+it in BogoMIPS.
+<P>
+<H3>INITRD setup</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#ifdef CONFIG_BLK_DEV_INITRD
+
+        if (initrd_start &amp;&amp; !initrd_below_start_ok &amp;&amp;
+                        initrd_start &lt; (min_low_pfn &lt;&lt; PAGE_SHIFT)) {
+                printk("initrd overwritten (initrd_start &lt; (min_low_pfn &lt;&lt; PAGE_SHIFT)) - disabling it.\n");
+                initrd_start = 0;       // mark initrd as disabled
+        }
+
+#endif /* CONFIG_BLK_DEV_INITRD */
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>mem_init</H3>
+
+<P>
+<P>(in linux/arch/i386/mm/init.c)
+<P>
+<UL>
+<LI> Clear the empty_zero_page.</LI>
+<LI> Call free_all_bootmem() and add that released memory to
+totalram_pages.</LI>
+<LI> Count the number of reserved RAM pages.</LI>
+<LI> Print the system memory sizes (free/total), kernel code size, reserved
+memory size, kernel data size, kernel "init" size, and the highmem
+size.</LI>
+<LI> For CONFIG_SMP, call zap_low_mappings().</LI>
+</UL>
+<P>********** get_free_pages() can be used after mem_init(). **********
+<P>
+<H3>kmem_cache_sizes_init</H3>
+
+<P>
+<P>(in linux/mm/slab.c)
+<P>Set up remaining internal and general caches.  Called after the
+"get_free_page()" functions have been enabled and before smp_init().
+<P>********** kmalloc() can be used after kmem_cache_sizes_init(). **********
+<P>
+<H3>proc_root_init</H3>
+
+<P>
+<P>(in linux/fs/proc/root.c)
+<P>For CONFIG_PROC_FS configurations:
+<UL>
+<LI> call proc_misc_init()</LI>
+<LI> mkdir /proc/net</LI>
+<LI> for CONFIG_SYSVIPC, mkdir /proc/sysvipc</LI>
+<LI> for CONFIG_SYSCTL, mkdir /proc/sys</LI>
+<LI> mkdir /proc/fs</LI>
+<LI> mkdir /proc/driver</LI>
+<LI> call proc_tty_init()</LI>
+<LI> mkdir /proc/bus</LI>
+</UL>
+<P>
+<H3>mempages = num_physpages;</H3>
+
+<P>
+<P>
+<H3>fork_init(mempages)</H3>
+
+<P>
+<P>(in linux/kernel/fork.c)
+<P>The default maximum number of threads is set to a safe value:
+the thread structures can take up at most half of memory.
+<P>
+<H3>proc_caches_init()</H3>
+
+<P>
+<P>(in linux/kernel/fork.c)
+<P>Call kmem_cache_create() to create slab caches for signal_act (signal
+action), files_cache (files_struct), fs_cache (fs_struct), vm_area_struct,
+and mm_struct.
+<P>
+<H3>vfs_caches_init(mempages)</H3>
+
+<P>
+<P>(in linux/fs/dcache.c)
+<P>Call kmem_cache_create() to create slab caches for buffer_head,
+names_cache, filp, and for CONFIG_QUOTA, dquot.
+<P>Call dcache_init() to create the dentry_cache and dentry_hashtable.
+<P>
+<H3>buffer_init(mempages)</H3>
+
+<P>
+<P>(in linux/fs/buffer.c)
+<P>Allocate the buffer cache hash table and init the free list. <BR>
+Use get_free_pages() for the hash table to decrease TLB misses;
+use SLAB cache for buffer heads. <BR>
+Setup the hash chains, free lists, and LRU lists.
+<P>
+<H3>page_cache_init(mempages)</H3>
+
+<P>
+<P>(in linux/mm/filemap.c)
+<P>Allocate and clear the page-cache hash table.
+<P>
+<H3>kiobuf_setup()</H3>
+
+<P>
+<P>(in linux/fs/iobuf.c)
+<P>Call kmem_cache_create() to create the kernel iobuf cache.
+<P>
+<H3>signals_init()</H3>
+
+<P>
+<P>(in linux/kernel/signal.c)
+<P>Call kmem_cache_create() to create the "sigqueue" SLAB cache.
+<P>
+<H3>bdev_init()</H3>
+
+<P>
+<P>(in linux/fs/block_dev.c)
+<P>Initialize the bdev_hashtable list heads.
+<P>Call kmem_cache_create() to create the "bdev_cache" SLAB cache.
+<P>
+<H3>inode_init(mempages)</H3>
+
+<P>
+<P>(in linux/fs/inode.c)
+<P>
+<UL>
+<LI> Allocate memory for the inode_hashtable.</LI>
+<LI> Intialize the inode_hashtable list heads.</LI>
+<LI> Call kmem_cache_create() to create the inode SLAB cache.</LI>
+</UL>
+<P>
+<H3>ipc_init()</H3>
+
+<P>
+<P>(in linux/ipc/util.c)
+<P>For CONFIG_SYSVIPC configurations, call ipc_init().
+<P>The various System V IPC resources (semaphores, messages, and shared
+memory) are initialized.
+<P>
+<H3>dquot_init_hash()</H3>
+
+<P>
+<P>(in linux/fs/dquot.c)
+<P>For CONFIG_QUOTA configurations, call dquot_init_hash().
+<P>
+<UL>
+<LI> Clear dquot_hash.  TBD: Why? Is it in BSS? Yes.</LI>
+<LI> Clear dqstats.     TBD: Why? Is it in BSS? Yes.</LI>
+</UL>
+<P>
+<H3>check_bugs()</H3>
+
+<P>
+<P>(in linux/include/asm-i386/bugs.h)
+<P>
+<UL>
+<LI> identify_cpu()</LI>
+<LI> For non-CONFIG_SMP configurations, print_cpu_info()</LI>
+<LI> check_config()</LI>
+<LI> check_fpu()</LI>
+<LI> check_hlt()</LI>
+<LI> check_popad()</LI>
+<LI> Update system_utsname.machine{byte 1} with boot_cpu_data.x86</LI>
+</UL>
+<P>
+<H3>Start other SMP processors (as applicable) </H3>
+
+<P>
+<P>smp_init() works in one of three ways, depending upon the kernel
+configuration.
+<P>For a uniprocessor (UP) system without an IO APIC
+(CONFIG_X86_IO_APIC is not defined), smp_init() is empty -- it
+has nothing to do.
+<P>For a UP system with (an) IO APIC for interrupt
+routing, it calls IO_APIC_init_uniprocessor().
+<P>For an SMP system, its main job is to call the architecture-specific
+function "smp_boot_cpus()", which does the following.
+<P>
+<UL>
+<LI> For CONFIG_MTRR kernels, calls mtrr_init_boot_cpu(), which must be
+done before the other processors are booted.</LI>
+<LI> Stores and prints the BSP CPU information.</LI>
+<LI> Saves the BSP APIC ID and BSP logical CPU ID (latter is 0).</LI>
+<LI> If an MP BIOS interrupt routing table was not found, revert to
+using only one CPU and exit.</LI>
+<LI> Verify existence of a local APIC for the BSP.</LI>
+<LI> If the "maxcpus" boot option was used to limit the number of CPUs
+actually used to 1 (not SMP), then ignore the MP BIOS interrupt
+routing table.</LI>
+<LI> Switch the system from PIC mode to symmetric I/O interrupt mode.</LI>
+<LI> Setup the BSP's local APIC.</LI>
+<LI> Use the CPU present map to boot the APs serially.  Wait for each
+AP to finish booting before starting the next one.</LI>
+<LI> If using (an) IO APIC {which is True unless the "noapic" boot option
+was used}, setup the IO APIC(s).</LI>
+</UL>
+<P>
+<H3>Start init thread</H3>
+
+<P>
+<P>We count on the initial thread going OK.
+<P>Like idlers, init is an unlocked kernel thread,
+which will make syscalls (and thus be locked).
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+kernel_thread(init, NULL, CLONE_FS | CLONE_FILES | CLONE_SIGNAL);
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>{details below}
+<P>
+<H3>unlock_kernel()</H3>
+
+<P>
+<P>Release the BKL.
+<P>
+<H3>current->need_resched = 1;</H3>
+
+<P>
+<P>
+<H3>cpu_idle()</H3>
+
+<P>
+<P>This function remains as process number 0.  Its purpose is
+to use up idle CPU cycles.  If the kernel is configured for
+APM support or ACPI support, cpu_idle() invokes the supported
+power-saving features of these specifications.  Otherwise it
+nominally executes a "hlt" instruction.
+<P>{end of start_kernel()}
+<P>
+<H2><A NAME="ss5.2">5.2 setup_arch</A>
+</H2>
+
+<P>
+<P>(in "linux/arch/i386/kernel/setup.c")
+<P>
+<H3>Copy and convert system parameter data</H3>
+
+<P>
+<P>Copy and convert parameter data passed from 16-bit
+real mode to the 32-bit startup code.
+<P>
+<H3>For RAMdisk-enabled configs (CONFIG_BLK_DEV_RAM)</H3>
+
+<P>
+<P>Initialize rd_image_start, rd_prompt, and rd_doload from the
+real-mode parameter data.
+<P>
+<H3>setup_memory_region</H3>
+
+<P>
+<P>Use the BIOS-supplied memory map to setup memory regions.
+<P>
+<H3>Set memory limits</H3>
+
+<P>
+<P>Set values for the start of kernel code, end of kernel code,
+end of kernel data, and "_end" (end of kernel code = the "brk"
+address).
+<P>Set values for code_resource start and end and data_resource
+start and end.
+<P>
+<H3>parse_mem_cmdline</H3>
+
+<P>
+<P>Parse any "mem=" parameters on the kernel command line and
+remember them.
+<P>
+<H3>Setup Page Frames</H3>
+
+<P>
+<P>Use the BIOS-supplied memory map to setup page frames.
+<P>Register available low RAM pages with the bootmem allocator.
+<P>Reserve physical page 0: "it's a special BIOS page on many boxes,
+enabling clean reboots, SMP operation, laptop functions."
+<P>
+<H3>Handle SMP and IO APIC Configurations</H3>
+
+<P>
+<P>For CONFIG_SMP, reserve the page immediately above page 0 for
+stack and trampoline usage, then call smp_alloc_memory()
+to allocate low memory for AP processor(s) real mode trampoline code.
+<P>For CONFIG_X86_IO_APIC configurations, call find_smp_config()
+to find and reserve any boot-time SMP configuration information
+memory, such as MP (Multi Processor) table data from the BIOS.
+<P>
+<H3>paging_init()</H3>
+
+<P>
+<P>paging_init() sets up the page tables - note that the first 8 MB
+are already mapped by head.S.
+<P>This routine also unmaps the page at virtual kernel address 0, so
+that we can trap those pesky NULL-reference errors in the kernel.
+<P>
+<H3>Save the boot-time SMP configuration</H3>
+
+<P>
+<P>For CONFIG_X86_IO_APIC configurations, call get_smp_config()
+to read and save the MP table IO APIC interrupt routing
+configuration data.
+<P>For CONFIG_X86_LOCAL_APIC configurations, call init_apic_mappings().
+<P>
+<H3>Reserve INITRD memory</H3>
+
+<P>
+<P>For CONFIG_BLK_DEV_INITRD configurations, if there is enough
+memory for the initial RamDisk, call reserve_bootmem() to
+reserve RAM for the initial RamDisk.
+<P>
+<H3>Scan for option ROMs</H3>
+
+<P>
+<P>Call probe_roms() and reserve their memory space resource(s)
+if found and valid.  This is done for the standard video BIOS
+ROM image, any option ROMs found, and for the system board
+extension ROM (space).
+<P>
+<H3>Reserve system resources</H3>
+
+<P>
+<P>Call request_resource() to reserve video RAM memory.
+<P>Call request_resource() to reserve all standard PC I/O system board
+resources.
+<P>{end of setup_arch()}
+<P>
+<H2><A NAME="ss5.3">5.3 init thread</A>
+</H2>
+
+<P>
+<P>The init thread begins at the init() function in
+"linux/init/main.c".  This is always expected to be process
+number 1.
+<P>init() first locks the kernel and then calls do_basic_setup()
+to perform lots of bus and/or device initialization
+{more detail below}.  After do_basic_setup(), most kernel
+initialization has been completed.  init() then frees
+any memory that was specified as being for initialization
+only [marked with "__init", "__initdata", "__init_call",
+or "__initsetup"] and unlocks the kernel (BKL).
+<P>init() next opens /dev/console and duplicates that file
+descriptor two times to create stdin, stdout,
+and stderr files for init and all of its children.
+<P>Finally init() tries to execute the command specified
+on the kernel parameters command line if there was one,
+or an init program or script if it can find one in
+{/sbin/init, /etc/init, /bin/init}, and lastly
+/bin/sh.  If init() cannot execute any of these,
+it panics ("No init found.  Try passing init= option to kernel.")
+<P>
+<H2><A NAME="ss5.4">5.4 do_basic_setup {part of the init thread}</A>
+</H2>
+
+<P>
+<P>The machine is now initialized.  None of the devices
+have been touched yet, but the CPU subsystem is up and
+running, and memory and process management works.
+<P>
+<H3>Be the reaper of orphaned children</H3>
+
+<P>
+<P>The init process handles all orphaned tasks.
+<P>
+<H3>MTRRs</H3>
+
+<P>
+<P>// SMP init is completed before this. <BR>
+For CONFIG_MTRR, call mtrr_init() [in linux/arch/i386/kernel/mtrr.c].
+<P>
+<H3>SYSCTLs</H3>
+
+<P>
+<P>For CONFIG_SYSCTL configurations, call sysctl_init()
+[in linux/kernel/sysctl.c].
+<P>
+<H3>Init Many Devices</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/*
+ * Ok, at this point all CPU's should be initialized, so
+ * we can start looking into devices..
+ */
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>PCI</H3>
+
+<P>
+<P>For CONFIG_PCI configurations, call pci_init()
+[in linux/drivers/pci/pci.c].
+<P>
+<H3>Micro Channel</H3>
+
+<P>
+<P>For CONFIG_MCA configurations, call mca_init()
+[in linux/arch/i386/kernel/mca.c].
+<P>
+<H3>ISA PnP</H3>
+
+<P>
+<P>For CONFIG_ISAPNP configurations, call isapnp_init()
+[in linux/drivers/pnp/isapnp.c].
+<P>
+<H3>Networking Init</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        /* Networking initialization needs a process context */
+        sock_init();
+</PRE>
+</CODE></BLOCKQUOTE>
+
+[in linux/net/socket.c]
+<P>
+<H3>Initial RamDisk</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#ifdef CONFIG_BLK_DEV_INITRD
+
+        real_root_dev = ROOT_DEV;
+        real_root_mountflags = root_mountflags;
+        if (initrd_start &amp;&amp; mount_initrd)
+                root_mountflags &amp;= ~MS_RDONLY;      // change to read/write
+        else
+                mount_initrd =0;
+
+#endif /* CONFIG_BLK_DEV_INITRD */
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Start the kernel "context" thread (keventd)</H3>
+
+<P>
+<P>[in linux/kernel/context.c]
+<P>
+<H3>Initcalls</H3>
+
+<P>
+<P>Call all functions marked as "__initcall": <BR>
+<BLOCKQUOTE><CODE>
+<PRE>
+        do_initcalls();
+</PRE>
+</CODE></BLOCKQUOTE>
+
+[in linux/init/main.c]
+<P>This initializes many functions and some subsystems --- in no specific or
+guaranteed order unless fixed in their Makefiles --- if they were built
+into the kernel, such as:
+<P>
+<UL>
+<LI> APM: apm_init() {in linux/arch/i386/kernel/apm.c}</LI>
+<LI> cpuid: cpuid_init() {in linux/arch/i386/kernel/cpuid.c}</LI>
+<LI> DMI: dmi_scan_machine() {in linux/arch/i386/kernel/dmi_scan.c}</LI>
+<LI> microcode: microcode_init() {in linux/arch/i386/kernel/microcode.c}</LI>
+<LI> MSR: msr_init() {in linux/arch/i386/kernel/msr.c}</LI>
+<LI> partitions: partition_setup() {in linux/fs/partitions/check.s}</LI>
+<LI> file systems, pipes, buffer and cache management, various binary
+format loaders, NLS character sets:
+too numerous to list {in linux/fs/*}</LI>
+<LI> user cache (for limits): uid_cache_init() {in linux/kernel/user.c}</LI>
+<LI> kmem_cpu_cache: kmem_cpucache_init() {in linux/mm/slab.c}</LI>
+<LI> shmem: init_shmem_fs() {in linux/mm/shmem.c}</LI>
+<LI> kswapd: kswapd_init() {in linux/mm/vmscan.c}</LI>
+<LI> networking, TCP/IP, IPv6, sockets, 802.2, SNAP, LLC,
+X.25, AX.25, IPX, kHTTPd, ATM LAN emulation (LANE),
+IP chains/forwarding, NAT/masquerading, packet matching/filtering/logging,
+firewalling, DECnet, bridging,
+and other networking protocols too numerous to list {in linux/net/*}</LI>
+<LI> drivers, some of which are not exactly device drivers, but
+help out with bus/device enumeration and initialization, such as:</LI>
+<LI> ACPI: acpi_init() {in linux/drivers/acpi/*}</LI>
+<LI> PCI: pci_proc_init() {in linux/drivers/pci/*}</LI>
+<LI> PCMCIA controllers {in linux/drivers/pcmcia/*}</LI>
+<LI> and...</LI>
+<LI> atm drivers {in linux/drivers/atm/*}</LI>
+<LI> block drivers {in linux/drivers/block/*}</LI>
+<LI> CD-ROM drivers {in linux/drivers/cdrom/*}</LI>
+<LI> character drivers {in linux/drivers/char/*}</LI>
+<LI> I2O drivers {in linux/drivers/i2o/*}</LI>
+<LI> IDE drivers {in linux/drivers/ide/*}</LI>
+<LI> input drivers (keyboard/mouse/joystick) {in linux/drivers/input/*}</LI>
+<LI> ISDN drivers {in linux/drivers/isdn/*}</LI>
+<LI> md, LVM, and RAID drivers {in linux/drivers/md/*}</LI>
+<LI> radio drivers {in linux/drivers/media/radio/*}</LI>
+<LI> video drivers {in linux/drivers/media/video/*}</LI>
+<LI> MTD drivers {in linux/drivers/mtd/*}</LI>
+<LI> network drivers, including PLIP, PPP, dummy, Ethernet, bonding,
+Arcnet, hamradio, PCMCIA, Token Ring, and WAN</LI>
+<LI> SCSI logical and physical drivers {in linux/drivers/scsi/*}</LI>
+<LI> sound drivers {in linux/drivers/sound/*}</LI>
+<LI> telephony drivers {in linux/drivers/telephony/*}</LI>
+<LI> USB host controllers and device drivers {in linux/drivers/usb/*}</LI>
+<LI> video frame buffer drivers {in linux/drivers/video/*}</LI>
+</UL>
+<P>
+<H3>Filesystems</H3>
+
+<P>
+<P>Call filesystem_setup():
+<UL>
+<LI> init_devfs_fs();  /*  Header file may make this empty  */</LI>
+<LI> For CONFIG_NFS_FS configurations, call init_nfs_fs().</LI>
+<LI> For CONFIG_DEVPTS_FS configurations, call init_devpts_fs().</LI>
+</UL>
+
+[in linux/fs/filesystems.c]
+<P>
+<H3>IRDA</H3>
+
+<P>
+<P>For CONFIG_IRDA configurations, call irda_device_init(). <BR>
+/* Must be done after protocol initialization */ <BR>
+[in linux/net/irda/irda_device.c]
+<P>
+<H3>PCMCIA</H3>
+
+<P>
+<P>/* Do this last */ <BR>
+For CONFIG_PCMCIA configurations, call init_pcmcia_ds(). <BR>
+[in linux/drivers/pcmcia/ds.c]
+<P>
+<H3>Mount the root filesystem</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        mount_root();
+</PRE>
+</CODE></BLOCKQUOTE>
+
+[in linux/fs/super.c]
+<P>
+<H3>Mount the dev (device) filesystem</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        mount_devfs_fs ();
+</PRE>
+</CODE></BLOCKQUOTE>
+
+[in linux/fs/devfs/base.c]
+<P>
+<H3>Switch to the Initial RamDisk</H3>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#ifdef CONFIG_BLK_DEV_INITRD
+
+        if (mount_initrd &amp;&amp; MAJOR(ROOT_DEV) == RAMDISK_MAJOR &amp;&amp; MINOR(ROOT_DEV) == 0) {
+                // Start the linuxrc thread.
+                pid = kernel_thread(do_linuxrc, "/linuxrc", SIGCHLD);
+                if (pid > 0)
+                        while (pid != wait(&amp;i));
+                if (MAJOR(real_root_dev) != RAMDISK_MAJOR
+                     || MINOR(real_root_dev) != 0) {
+                        error = change_root(real_root_dev,"/initrd");
+                        if (error)
+                                printk(KERN_ERR "Change root to /initrd: "
+                                    "error %d\n",error);
+                }
+        }
+
+#endif /* CONFIG_BLK_DEV_INITRD */
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>See "linux/Documentation/initrd.txt" for more information on
+initial RAM disks.
+<P>{end of do_basic_setup()}
+<P>
+<HR>
+<A HREF="Linux-Init-HOWTO-6.html">Next</A>
+<A HREF="Linux-Init-HOWTO-4.html">Previous</A>
+<A HREF="Linux-Init-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

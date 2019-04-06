@@ -1,0 +1,274 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Toolbary</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apitool2.html">&lt;&lt; Toolbary, cz.2</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apitree.html">TreeView &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+Więcej możliwości
+</H1>
+
+<P>
+Niezaprzeczalnie toolbary to fajna sprawa. Ale w większych aplikacjach (jak np. Visual C++), gdzie do dyspozycji jest kilkadziesiąt czy nawet kilkaset poleceń menu, wstawienie ich wszystkich do toolbaru jest fizycznie niemożliwe - w końcu na ekranie musi zostać jeszcze trochę miejsca na pozostałe elementy aplikacji ;-). Z drugiej strony ograniczanie użytkownika do kilku najczęściej stosowanych poleceń kłóci się z polityką maksymalnej przyjazności interfejsu, zresztą programiści może i są inteligentni, ale na pewno żaden z nich nie jest jasnowidzem i nie potrafi na 100% stwierdzić, czy każdy użytkownik będzie korzystał z danego przycisku na toolbarze czy też nie.
+</P>
+<P>
+Z powyższych powodów (a także kilku innych) każdy cywilizowany toolbar powinien dać się dowolnie modyfikować. Użytkownik musi mieć możliwość dodawania i usuwania przycisków, grupowania ich według własnego uznania, wstawiania separatorów, przenoszenia poszczególnych grup przycisków w inne miejsce (także poza obszar toolbaru, jako osobne okienko), a nawet definiowania własnych przycisków, których przeznaczenie nie zostało przewidziane przez programistów albo przewidziane tylko częściowo. Wszystkich tych cudów (może za wyjątkiem ostatniego) za moment się nauczymy. Brzmi to może dość kosmicznie, ale jest całkiem proste w implementacji - większość akcji wykonuje za nas automatycznie biblioteka Comctl32.dll.
+</P>
+<h2>
+Rebar
+</H2>
+<P>
+Pod względem wizualnym najwięcej nowości oferuje nam specjalny rodzaj kontrolki, zwany <SPAN CLASS=Wazne>rebarem</SPAN>. Jest to rodzaj <SPAN CLASS=Wazne>kontenera</SPAN> - można na nim umieszczać inne kontrolki (mniej więcej tak, jak to robiliśmy z ComboBoxem w poprzedniej części kursu). Kontrolki te mogą być samodzielnymi toolbarami lub też czymkolwiek innym, przy czym każda kontrolka musi występować na oddzielnej bandzie (należy ten termin kojarzyć raczej z obręczą, niż szajką zbirów ;-) ). Zresztą zobacz, jak to jest zrobione np. w Dev-C++ - kilka band zawiera toolbary, a w jednej są dwa ComboBoxy (co prawdopodobnie uzyskano w ten sposób, że banda zawiera toolbar, a ten z kolei ComboBoxy).
+</P>
+<P ALIGN=center>
+<img src="..\gfx\rebar_a.gif" alt="Rebar z programu ACDSee">
+</P>
+<P>
+No to od czego zaczynamy? Pewnie od stworzenia rebaru. Mamy do dyspozycji klasę <SPAN CLASS=T>REBARCLASSNAME</SPAN>... Mamy? Nie mamy. Ale możemy mieć, jeśli ją zarejestrujemy. W tym celu zamieniamy wywołanie naszej funkcji <SPAN CLASS=T>InitCommonControls</SPAN> na jej rozszerzoną wersję - <SPAN CLASS=T>InitCommonControlsEx</SPAN> (znaną wśród programistów z poczuciem humoru jako InitCommonControlSex ;-)). Różni się ona od "zwykłej" wersji tym, że korzysta dodatkowo z pewnej struktury (już widzę, jak podskakujecie z radości ;-)). Struktura ta to <SPAN CLASS=T>INITCOMMONCONTROLSEX</SPAN> i omawiać jej nie będziemy, a przynajmniej nie tutaj. Jedyna interesujące nas w tym momencie zastosowanie jest następujące:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+INITCOMMONCONTROLSEX icex;<BR>
+<BR>
+icex.dwSize = <SPAN CLASS=K>sizeof</SPAN>(INITCOMMONCONTROLSEX);<BR>
+icex.dwICC = ICC_COOL_CLASSES|ICC_BAR_CLASSES;<BR>
+InitCommonControlsEx(&icex);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W ten sposób zapewniliśmy sobie dostęp do "fajnych klas", w tym do rebaru. Teraz możemy spokojnie przystąpić sobie do jego tworzenia:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+hRebar = CreateWindowEx(WS_EX_TOOLWINDOW, REBARCLASSNAME, NULL, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_BORDER | WS_CLIPCHILDREN | RBS_VARHEIGHT | RBS_BANDBORDERS,
+<SPAN CLASS=L>0, 0, 0, 0</SPAN>,
+hwndOwner,
+NULL,
+hThisInstance,
+NULL);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Coś tam sobie namodziliśmy w programie, ino efektów nie widać... I w sumie nic dziwnego - nie dodaliśmy przecież żadnych band. Dopiero kiedy to zrobimy, efekty naszych starań staną się widoczne. Do dodawania band, a także kilku innych zastosowań przydatna jest... o radości, kolejna nowa struktura. Tym razem nazywa się toto <SPAN CLASS=T>REBARBANDINFO</SPAN>. 
+</P>
+<P>
+Ustalamy, że chcemy sobie wyczarować dwie bandy - jedną z toolbarem, jedną na przykład z ComboBoxem. Struktura <SPAN CLASS=T>REBARBANDINFO</SPAN> jest dość obszerna, więc warto na początek zastanowić się, które z pól tej struktury będą użyte przez obie bandy, a które trzeba będzie ustawiać oddzielnie. Na pewno obydwie wymagają ustawienia pola <SPAN CLASS=T>cbSize</SPAN> (analogicznie jak w przypadku większości struktur w WinAPI) i <SPAN CLASS=T>fMask</SPAN> (też analogicznie). Nie zaszkodzi też zaliczyć do tej grupy pola <SPAN CLASS=T>dwStyle</SPAN>, bowiem styl obu band powinien być taki sam. Deklarujemy więc zmienną i ustawiamy wspólne pola:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+REBARBANDINFO rbbi;<BR>
+rbbi.cbSize = <SPAN CLASS=K>sizeof</SPAN>(REBARBANDINFO);<BR>
+rbbi.fMask = RBBIM_TEXT | RBBIM_BACKGROUND | RBBIM_STYLE | RBBIM_CHILD |
+              RBBIM_CHILDSIZE | RBBIM_SIZE;<BR>
+rbbi.fStyle = RBBS_CHILDEDGE | RBBS_FIXEDBMP | RBBS_GRIPPERALWAYS;<BR>
+rbbi.hbmBack = LoadBitmap(hThisInstance, MAKEINTRESOURCE(IDB_BACKGRND));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Warto zwrócić uwagę, że wczytaliśmy tu sobie z pliku zasobów bitmapkę - możemy bowiem ustawić bitmapę tła dla kazdej bandy, co poprawia jej walory wizualne ;-) (jak na rysunku powyżej).
+</P>
+<P>
+Teraz tworzymy kontrolki do poszczególnych band. Najpierw toolbar - procedurę jego tworzenia już znamy - wypełniamy strukturę z przyciskami i wywołujemy <SPAN CLASS=T>CreateToolbarEx</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+TBBUTTON tbb[<SPAN CLASS=L>3</SPAN>];<BR>
+<BR>
+ZeroMemory(tbb, <SPAN CLASS=K>sizeof</SPAN>(tbb));<BR>
+<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>3</SPAN>; ++i)<BR>
+{<BR>
+&nbsp;tbb[i].idCommand = i;<BR>
+&nbsp;tbb[i].fsState = TBSTATE_ENABLED;<BR>
+&nbsp;tbb[i].fsStyle = TBSTYLE_BUTTON;<BR>
+}<BR>
+tbb[<SPAN CLASS=L>0</SPAN>].iBitmap = STD_FILENEW;<BR>
+tbb[<SPAN CLASS=L>1</SPAN>].iBitmap = STD_FILEOPEN;<BR>
+tbb[<SPAN CLASS=L>2</SPAN>].iBitmap = STD_FILESAVE;<BR>
+<BR>
+hToolbar = CreateToolbarEx(hRebar, WS_CHILD | WS_VISIBLE | CCS_NOPARENTALIGN |
+  CCS_NORESIZE | CCS_NODIVIDER |  TBSTYLE_FLAT, 
+  <SPAN CLASS=L>500, 3</SPAN>, HINST_COMMCTRL, IDB_STD_SMALL_COLOR, tbb, <SPAN CLASS=L>3,16,16,16,16</SPAN>, <SPAN CLASS=K>sizeof</SPAN>(TBBUTTON));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz wypełniamy te pola struktury <SPAN CLASS=T>REBARBANDINFO</SPAN>, które będą wykorzystane tylko do toolbaru, a później będą oddzielnie wypełnione dla ComboBoxa. Następnie dodajemy gotową bandę do rebaru, korzystając z odpowiedniego komunikatu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+rbbi.lpText     = <SPAN CLASS=L>""</SPAN>;<BR>
+rbbi.hwndChild  = hToolbar;<BR>
+rbbi.cxMinChild = <SPAN CLASS=L>100</SPAN>;<BR>
+rbbi.cyMinChild = <SPAN CLASS=L>22</SPAN>;<BR>
+rbbi.cx         = <SPAN CLASS=L>100</SPAN>;<BR>
+<BR>
+SendMessage(hRebar, RB_INSERTBAND, (WPARAM)<SPAN CLASS=L>-1</SPAN>, (LPARAM)&rbbi);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz kolej na ComboBox - używamy oczywiście funkcji <SPAN CLASS=T>CreateWindowEx</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+hCombo = CreateWindowEx(<SPAN CLASS=L>0, "COMBOBOX"</SPAN>, NULL,
+ WS_CHILD | WS_BORDER | WS_VISIBLE |
+ WS_CLIPCHILDREN | WS_CLIPSIBLINGS | CBS_DROPDOWN,
+<SPAN CLASS=L> 0, 0, 70, 200,</SPAN>
+ hRebar, (HMENU)IDC_COMBOBOX, hThisInstance, <SPAN CLASS=L>0</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Będziemy potrzebowali zmiennej do zapamiętania wymiarów ComboBoxa - przydadzą się one za chwilę do określenia wymiarów całej bandy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+RECT rc;<BR>
+GetWindowRect(hCombo, &rc);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wypełniamy strukturę informacjami o naszej drugiej bandzie, po czym dodajemy ją do rebaru:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+rbbi.lpText     = <SPAN CLASS=L>"ComboBox"</SPAN>;<BR>
+rbbi.hwndChild  = hCombo;<BR>
+rbbi.cxMinChild = rc.right - rc.left;<BR>
+rbbi.cyMinChild = rc.bottom - rc.top;<BR>
+rbbi.cx         = <SPAN CLASS=L>200</SPAN>;<BR>
+<BR>
+SendMessage(hRebar, RB_INSERTBAND, (WPARAM)<SPAN CLASS=L>-1</SPAN>, (LPARAM)&rbbi);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+To wszystko, możemy się już delektować widokiem, który będzie przypominał coś z tego screena. Zmieniłem tutaj kolor tła na ciemnoszary, żeby rebar był lepiej widoczny:
+</P>
+
+<P align=center>
+<img src="..\gfx\rebar.gif" alt="A oto i rebar własnej roboty">
+</P>
+
+<P>
+Powyższy przykład pomija oczywiście całe mnóstwo "nikomu niepotrzebnych" informacji o rebarze, ale gdybym zaczął opisywać wszystkie możliwości tej kontrolki, to wyszłoby z dziesięć dodatkowych odcinków tego kursu, a przecież do wszystkiego możesz sobie w miarę potrzeb dojść sam, wspierając się tym, co już się dowiedziałeś w tej części kursu oraz MSDN.
+</P>
+
+<h2>
+Dostosowywanie toolbaru
+</h2>
+
+<P>
+Rebar, nawet tak prosty jak ten przedstawiony powyżej, daje nam już pewne możliwości dopasowania go do naszych wyśrubowanych potrzeb. Możemy sobie zmieniać szerokość poszczególnych band, zamieniać je miejscami, a nawe umieścić każdą bandę w osobnym wierszu. Ale to dziabkę za mało. Potrzebna jeszcze możliwość manipulowania rozmieszczeniem przycisków w obrębie każdej bandy.
+</P>
+<P>
+Zadanie jest całkiem proste. Na poczatek wystarczy ustawić toolbarowi styl <SPAN CLASS=T>CCS_ADJUSTABLE</SPAN>. Wtedy zacznie od wysyłać do swego okna rodzicielskiego rozmaite ciekawe powiadomienia w momencie, gdy użytkownik kliknie na ten toolbar dwukrotnie. Te powiadomienia mają służyć do pobrania od programisty informacji, jak dokładnie użytkownik może zmodyfikować toolbar (tj. jakie przyciski może dodać, jakie usunąć, jakie przesunąć na inną pozycję itp.). Jeśli odpowiemy przynajmniej na obowiązkowe powiadomienia, wyświetlony będzie dialog dostosowywania toolbaru:
+</P>
+<P align=center>
+<img src="..\gfx\customiz.gif" alt="Tak wygląda dialog dostosowywania...">
+<P>
+Nie będziemy się bawili w przydługie wstępy, od razu na sam początek zobaczymy, w jaki sposób uzyskać "na skróty" możliwość modyfikowania paska w fazie run-time:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_NOTIFY:<BR>
+{<BR>
+&nbsp;LPNMHDR lpn = (LPNMHDR)lParam;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN> (lpn->code)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> TBN_QUERYINSERT:<BR>
+&nbsp;&nbsp;{ <SPAN CLASS=K>return</SPAN> TRUE; }<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> TBN_QUERYDELETE:<BR>
+&nbsp;&nbsp;{ <SPAN CLASS=K>return</SPAN> TRUE; }<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> TBN_GETBUTTONINFO:<BR>
+&nbsp;&nbsp;{ <SPAN CLASS=K>return</SPAN> FALSE; }<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>default: break</SPAN>;<BR>
+&nbsp;}<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, te "obowiązkowe" powiadomienia (jeśli na nie nie odpowiemy, to dialog dostosowywania się w ogóle nie ukaże) to <SPAN CLASS=T>TBN_QUERYINSERT, TBN_QUERYDELETE</SPAN> i <SPAN CLASS=T>TBN_GETBUTTONINFO</SPAN>, a odpowiadanie na nie polega po prostu na zwróceniu odpowiedniej wartości. Teraz pora na szczegóły. Po wspomnianym już dwukrotnym kliknięciu na toolbar wysyłane są następujące powiadomienia:
+</P>
+
+<UL>
+<LI>powiadomienie <SPAN CLASS=T>TBN_BEGINADJUST</SPAN>
+<LI>powiadomienie <SPAN CLASS=T>TBN_INITCUSTOMIZE</SPAN>
+<LI>seria powiadomień <SPAN CLASS=T>TBN_QUERYINSERT</SPAN>
+<LI>seria powiadomień <SPAN CLASS=T>TBN_QUERYDELETE</SPAN>
+<LI>seria powiadomień <SPAN CLASS=T>TBN_GETBUTTONINFO</SPAN>
+</UL>
+
+<P>
+<SPAN CLASS=T>TBN_BEGINADJUST</SPAN> po prostu zawiadamia aplikację, że użytkownik chce dostosowywać toolbar i tego powiadomienia obsługiwać nie musimy. Podobnie jest z <SPAN CLASS=T>TBN_INITCUSTOMIZE</SPAN>, które służy praktycznie tylko do ukrywania przycisku Pomoc, jeśli programista ma taką chęć (wówczas musi zwrócić <SPAN CLASS=T>TBNRF_HIDEHELP</SPAN>).
+</P>
+<P>
+Na następne wymienione powiadomienia odpowiedzieć już trzeba. <SPAN CLASS=T>TBN_QUERYINSERT</SPAN> wysyłane jest dla każdego przycisku na toolbarze osobno i jeśli odpowiemy na nie <SPAN CLASS=T>FALSE</SPAN>, to zablokujemy możliwość wstawienia innego przycisku po lewej stronie od tego, dla którego aktualnie wysyłane jest powiadomienie (a jak to z kolei sprawdzić, już wiemy - struktura <SPAN CLASS=T>NMHDR</SPAN> będzie bardzo pomocna ;-)). Przynajmniej na jedno powiadomienie <SPAN CLASS=T>TBN_QUERYINSERT</SPAN> musimy odpowiedzieć <SPAN CLASS=T>TRUE</SPAN>, inaczej dialog się nie wyświetli. W powyższym przykładzie odpowiadamy <SPAN CLASS=T>TRUE</SPAN> na wszystkie powiadomienia tego rodzaju (nie sprawdzamy nawet, od którego przycisku pochodzą), dając tym samym możliwość wstawiania dodatkowych przycisków gdzie popadnie ;-).
+</P>
+<P>
+Powiadomienia <SPAN CLASS=T>TBN_QUERYDELETE</SPAN> również wysyłane są dla każdego przycisku z osobna i dzięki nim możemy poinformować system, które przyciski użytkownik może sobie usunąć z toolbaru, a które pozostają na nim dożywotnio. W przykładzie powyżej użytkownik może usunąć wszystkie przyciski (a niech się cieszy, bestyja ;-)).
+</P>
+<P>
+Wreszcie - <SPAN CLASS=T>TBN_GETBUTTONINFO</SPAN> służy do tego, byśmy mogli wypełnić listę dostępnych przycisków do dodania na toolbar (lista ta jest wyświetlana po lewej stronie dialogu dostosowywania). Wypełnianie polega na wypełnieniu struktury <SPAN CLASS=T>NMTOOLBAR</SPAN> (do której wskaźnik otrzymujemy wraz z powiadomieniem <SPAN CLASS=T>TBN_GETBUTTONINFO</SPAN>) oraz zwróceniu <SPAN CLASS=T>TRUE</SPAN>. Operację taką należy powtórzyć dla każdego przycisku, który chcemy dodać na tę listę. Na koniec powinniśmy zaś zwrócić <SPAN CLASS=T>FALSE</SPAN>, co przerwie wysyłanie powiadomień <SPAN CLASS=T>TBN_GETBUTTONINFO</SPAN>. Powyżej zrobiliśmy to na samym początku, toteż na liście dostępnych przycisków do dodania mamy tylko domyśly separator (za to możemy ich sobie na toolbar wstawić od groma ;-)).
+</P>
+<P>
+Nie będę tu się rozpisywał na temat wypełniania <SPAN CLASS=T>NMTOOLBAR</SPAN>, gdyż nie zawiera ona w zasadzie nic, o czym do tej pory byśmy nie mówili, więc jest to praktycznie tylko kwestia wypróbowania tego na własną rękę. Poza tym nie mam pomysłu, jakie by tu jeszcze przyciski dodać do toolbaru w naszym przykładzie ;-).
+</P>
+<P>
+Podczas gdy użytkownik wyczynia z toolbarem cuda za pośrednictwem wspomnianego dialogu, jego niecne czyny oczywiście nie przechodzą niezauważone. Za każdym razem, gdy drań coś miesza, wysyłane są odpowiednie donosy, tak że w razie czego możemy zapobiec dalszym szkodom, a nawet ukarać łobuza ;-). Gdy wstawiany jest przycisk, system wysyła <SPAN CLASS=T>TBN_QUERYINSERT</SPAN> i możemy zwrócić <SPAN CLASS=T>FALSE</SPAN> - wtedy przycisk nie zostanie wstawiony i mroczne plany użytkownika spełzną na niczym. Gdy użytkownik usuwa przycisk, wysyłane jest powiadomienie <SPAN CLASS=T>TBN_DELETINGBUTTON</SPAN>. Jeśli użytkownik zmienia cokolwiek, przychodzi powiadomienie <SPAN CLASS=T>TBN_TOLBARCHANGE</SPAN> (takie uogólnienie dwóch poprzednich, obejmujące dodatkowo przeniesienie przycisku). Wreszcie <SPAN CLASS=T>TBN_CUSTHELP</SPAN> oznacza wciśnięcie przez usera przycisku Pomoc, a <SPAN CLASS=T>TBN_RESET</SPAN> - wciśnięcie przycisku Resetuj.
+</P>
+<P>
+Na samym końcu, gdy użytkownikowi zabawa się już znudzi albo sumienie go ruszy, że za dużo napsuł, zamyka on dialog dostosowywania i wówczas dostajemy powiadomienie <SPAN CLASS=T>TBN_ENDADJUST</SPAN> (ufff...).
+</P>
+<P>
+To, o czym tutaj napisałem, nie wyczerpuje oczywiście tematu nawet w połowie, ale jakieś tam wytyczne już mamy, reszta to już tylko praktyka...
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apitool2.html">&lt;&lt; Toolbary, cz.2</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apitree.html">TreeView &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>

@@ -1,0 +1,279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root over nfs clients &amp; server Howto.  : Added bonus: booting from cdrom</TITLE>
+ <LINK HREF="Diskless-root-NFS-HOWTO-6.html" REL=next>
+ <LINK HREF="Diskless-root-NFS-HOWTO-4.html" REL=previous>
+ <LINK HREF="Diskless-root-NFS-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Diskless-root-NFS-HOWTO-6.html">Next</A>
+<A HREF="Diskless-root-NFS-HOWTO-4.html">Previous</A>
+<A HREF="Diskless-root-NFS-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Added bonus: booting from cdrom</A> </H2>
+
+<P>Much of the above also goes for booting from cdrom. Since I wanted to document
+howto boot from cdrom anyway, I document it in here to avoid typing a lott
+of the same twice.
+<P>Why would one want to boot a machine from cd-rom? Booting from cdrom is
+interesting everywhere where one wants to run a very specific application,
+like a kiosk, a library database program or an intenet cafe, and one doesn't
+have a network or a server to use a root over nfs setup.
+<H2><A NAME="ss5.1">5.1 Basic Principle</A>
+ </H2>
+
+<P>The basic principle is wants again simple, boot with a cdrom as root. To
+make this possible we'll use the rockridge extension to put a unix like filesystem
+on a cd and the Eltorito extension to make cd's bootable.
+<H3>Things can't be that simple </H3>
+
+<P>Ofcourse this setup also has a few problems. most are the same as above:
+<P>
+<OL>
+<LI>We'll need write access to: /dev, /var &amp; /tmp.
+<UL>
+<LI>We'll just use the same solutions as with root over nfs (see above):
+<UL>
+<LI>For /dev we'll use Devfs</LI>
+<LI>For /var and /tmp we'll use a shared ramdisk of 1mb. It's shared to use
+the space as effeciently as possible. /tmp is replaced by a symlink to /var/tmp
+to make the sharing possible.</LI>
+<LI>Populating the ramdisk with tarballs or template dirs, works equally well.
+But with template dirs it's much easier to make changes, thus we'll use template
+dirs.</LI>
+</UL>
+</LI>
+</UL>
+</LI>
+<LI>Some apps need write access to /home.
+<UL>
+<LI>Put the homedir of the user's who will be running the application in /var,
+and populate it wiht the rest of /var every boot.</LI>
+</UL>
+</LI>
+<LI>/etc/mtab needs to be writable:
+<UL>
+<LI>Create a link to /proc/mounts and create an empty file mounts in /proc,
+see above.</LI>
+</UL>
+</LI>
+</OL>
+<H2><A NAME="ss5.2">5.2 Creating a test setup.</A>
+ </H2>
+
+<P>Now that we know what we want todo and how, it's time to create a test
+setup:
+<P>
+<OL>
+<LI>For starters just take one of the machines which you want to use and put
+in a big disk and a cd-burner.</LI>
+<LI>Install your linux of choice on this machine, and leave a 650mb partition
+free for the test setup. This install will be used to make the iso-image and
+to burn the cd's from, so install the nescesarry tools. It will also be used
+to restore any booboo's which leave the test setup unbootable.</LI>
+<LI>On the 650 mb partition install your linux of choice with the setup you
+want to have on the cd, this will be the test setup</LI>
+<LI>Boot the test setup.</LI>
+<LI>Compile a kernel as described in Section 3.1, follow all the steps, the
+changes need for devfs are still needed! At step 3 of Section 3.1 put in the
+following:
+<UL>
+<LI>isofs compiled in </LI>
+<LI>devfs compiled in</LI>
+<LI>cdrom support compiled in</LI>
+<LI>everything else you need either compiled in or as module.</LI>
+</UL>
+</LI>
+<LI>Configure the test setup:
+<UL>
+<LI>Create the user which we'll be running the application.</LI>
+<LI>Put it's homedir in /var. </LI>
+<LI>Install the application if needed.</LI>
+<LI>Configure the application if needed.</LI>
+<LI>Configure the user so that the application is automagicly run after login.</LI>
+<LI>Configure linux so that it automaigcly logs in the user.</LI>
+<LI>Configure anything else which needs configuring.</LI>
+</UL>
+</LI>
+<LI>Test that the test setup automagicly boots into the apllication and everything
+works.</LI>
+<LI>Boot the main install and mount the 650 mb partition on /test of the main
+install.</LI>
+<LI>Put the following in a file called /test/etc/rc.d/rc.iso, this file we'll
+be sourced at the begining of rc.sysinit to create /var
+<HR>
+<PRE>
+#/var
+echo Creating /var ...
+mke2fs -q -i 1024 /dev/ram1 1024
+mount /dev/ram1 /var -o defaults,rw
+cp -a /lib/var /
+
+#restore devfs settings, needs proc
+mount -t proc /proc /proc
+/etc/rc.d/rc.devfs restore /etc/sysconfig
+umount /proc
+  
+</PRE>
+<HR>
+</LI>
+<LI>Edit /test/etc/rc.sysinit comment the lines we're the root is remounted
+rw and add the following 2 lines directly afer setting the PATH:
+<HR>
+<PRE>
+#to boot from cdrom
+. /etc/rc.d/rc.iso
+  
+</PRE>
+<HR>
+</LI>
+<LI>Copying the following to a script and executing it, this wil create a template
+for /var and make /tmp and /etc/mtab links.
+<HR>
+<PRE>
+#!/bin/sh
+echo tmp
+rm -fR /test/tmp
+ln -s var/tmp /test/tmp
+
+###
+echo mtab
+touch /test/proc/mounts
+rm /test/etc/mtab
+ln -s /proc/mounts /test/etc/mtab
+
+###
+echo var
+mv /test/var/lib /test/lib/var-lib
+mv /test/var /test/lib
+mkdir /test/var
+ln -s /lib/var-lib /test/lib/var/lib
+rm -fR /test/lib/var/catman
+rm -fR /test/lib/var/log/httpd
+rm -f /test/lib/var/log/samba/*
+for i in `find /test/lib/var/log -type f`; do cat /dev/null &gt; $i; done
+rm `find /test/lib/var/lock -type f`
+rm `find /test/lib/var/run -type f`
+
+  
+</PRE>
+<HR>
+</LI>
+<LI>Remove the creation of /etc/issue* from /test/etc/rc.local it will only
+fail.</LI>
+<LI>Now boot the test partition again, it will be read only just like a cdrom.
+If something doesn't work reboot to the working partition fix it, try again
+etc. Or you could remount / rw ,fix it then reboot straight into to test partition
+again. To remount / rw type:
+<BLOCKQUOTE>
+mount -o remount,rw /
+</BLOCKQUOTE>
+</LI>
+</OL>
+<H2><A NAME="ss5.3">5.3 Creating the cd</A>
+ </H2>
+
+<H3>Creating a boot image </H3>
+
+<P>First of all boot into the workign partition. To create a bootable cd we'll
+need an image of a bootable floppy. Just dd-ing a zimage doesn't work since
+the loader at the beginning of the zimage doesn't seem to like the fake floppydrive
+a bootable cd creates. So we'll use syslinux instead.
+<P>
+<OL>
+<LI>Get boot.img from a redhat cd</LI>
+<LI>Mount boot.img somewhere through loopback by typing:
+<BLOCKQUOTE>
+mount boot.img somewhere -o loop -t vfat
+</BLOCKQUOTE>
+</LI>
+<LI>Remove everything from boot.img except for:
+<UL>
+<LI>ldlinux.sys</LI>
+<LI>syslinux.cfg</LI>
+</UL>
+</LI>
+<LI>Cp the kernel-image from the test partition to boot.img.</LI>
+<LI>Edit syslinux.cfg so that it contains the following, ofcourse replace zImage
+by the appropiote image name:
+<HR>
+<PRE>
+default linux 
+
+label linux
+kernel zImage
+append root=/dev/&lt;insert your cdrom device here&gt;
+  
+</PRE>
+<HR>
+</LI>
+<LI>Umount boot.img:
+<BLOCKQUOTE>
+umount somewhere
+</BLOCKQUOTE>
+</LI>
+<LI>If your /etc/mtab is a link to /proc/mounts umount won't automagicly free
+/dev/loop0 so free it by typing:
+<BLOCKQUOTE>
+losetup -d /dev/loop0
+</BLOCKQUOTE>
+</LI>
+</OL>
+<H3>Creating the iso image </H3>
+
+<P>Now that we have the boot image and an install that can boot from a readonly
+mount it's time to create an iso image of the cd: 
+<P>
+<OL>
+<LI>Copy boot.img to /test</LI>
+<LI>Cd to the directory where you want to store the image make sure it's on
+a partition with enough free space.</LI>
+<LI>Now generate the image by typing:
+<BLOCKQUOTE>
+mkisofs -R -b boot.img -c boot.catalog -o boot.iso /test
+</BLOCKQUOTE>
+</LI>
+</OL>
+<H3>Verifying the iso image </H3>
+
+<P>
+<OL>
+<LI>Mounting the image throug the loopbackdevice by typing:
+<BLOCKQUOTE>
+mount boot.iso somewhere -o loop -t iso9660
+</BLOCKQUOTE>
+</LI>
+<LI>Now verify that the contents is ok.</LI>
+<LI>Umount boot.iso:
+<BLOCKQUOTE>
+umount somewhere
+</BLOCKQUOTE>
+</LI>
+<LI>If your /etc/mtab is a link to /proc/mounts umount won't automagicly free
+/dev/loop0 so free it by typing:
+<BLOCKQUOTE>
+losetup -d /dev/loop0
+</BLOCKQUOTE>
+</LI>
+</OL>
+<H3>Writing the actual cd </H3>
+
+<P>Assuming that you've got cdrecord installed and configured for your cd-writer
+type:
+<P>
+<BLOCKQUOTE>
+cdrecord -v speed=&lt;desired writing speed&gt; dev=&lt;path to your writers
+generic scsi device&gt; boot.iso
+</BLOCKQUOTE>
+<H2><A NAME="ss5.4">5.4 Boot the cd and test it</A>
+ </H2>
+
+<P>Well the title of this paragraph says it all ;)
+<HR>
+<A HREF="Diskless-root-NFS-HOWTO-6.html">Next</A>
+<A HREF="Diskless-root-NFS-HOWTO-4.html">Previous</A>
+<A HREF="Diskless-root-NFS-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

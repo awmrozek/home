@@ -1,0 +1,296 @@
+<HTML
+><HEAD
+><TITLE
+>Ioctl()s</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Errors reported in errno"
+HREF="errors.html"><LINK
+REL="NEXT"
+TITLE="SG_IO"
+HREF="sg_io.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="errors.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="sg_io.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="IOCTL">Chapter 8. Ioctl()s</H1
+><DIV
+CLASS="TOC"
+><DL
+><DT
+><B
+>Table of Contents</B
+></DT
+><DT
+>8.1. <A
+HREF="sg_io.html"
+>SG_IO</A
+></DT
+><DT
+>8.2. <A
+HREF="g_access.html"
+>SG_GET_ACCESS_COUNT</A
+></DT
+><DT
+>8.3. <A
+HREF="gs_commandq.html"
+>SG_SET_COMMAND_Q (and _GET_)</A
+></DT
+><DT
+>8.4. <A
+HREF="s_debug.html"
+>SG_SET_DEBUG</A
+></DT
+><DT
+>8.5. <A
+HREF="e_host.html"
+>SG_EMULATED_HOST</A
+></DT
+><DT
+>8.6. <A
+HREF="gs_orphan.html"
+>SG_SET_KEEP_ORPHAN (and _GET_)</A
+></DT
+><DT
+>8.7. <A
+HREF="s_lowdma.html"
+>SG_SET_FORCE_LOW_DMA</A
+></DT
+><DT
+>8.8. <A
+HREF="g_lowdma.html"
+>SG_GET_LOW_DMA</A
+></DT
+><DT
+>8.9. <A
+HREF="n_cmd_len.html"
+>SG_NEXT_CMD_LEN</A
+></DT
+><DT
+>8.10. <A
+HREF="g_numw.html"
+>SG_GET_NUM_WAITING</A
+></DT
+><DT
+>8.11. <A
+HREF="s_packid.html"
+>SG_SET_FORCE_PACK_ID</A
+></DT
+><DT
+>8.12. <A
+HREF="g_packid.html"
+>SG_GET_PACK_ID</A
+></DT
+><DT
+>8.13. <A
+HREF="g_rq_tab.html"
+>SG_GET_REQUEST_TABLE</A
+></DT
+><DT
+>8.14. <A
+HREF="gs_rs_size.html"
+>SG_SET_RESERVED_SIZE (and _GET_ )</A
+></DT
+><DT
+>8.15. <A
+HREF="scsi_reset.html"
+>SG_SCSI_RESET</A
+></DT
+><DT
+>8.16. <A
+HREF="g_scsi_id.html"
+>SG_GET_SCSI_ID</A
+></DT
+><DT
+>8.17. <A
+HREF="g_sg_tabsz.html"
+>SG_GET_SG_TABLESIZE</A
+></DT
+><DT
+>8.18. <A
+HREF="g_to.html"
+>SG_GET_TIMEOUT</A
+></DT
+><DT
+>8.19. <A
+HREF="s_to.html"
+>SG_SET_TIMEOUT</A
+></DT
+><DT
+>8.20. <A
+HREF="s_xform.html"
+>SG_SET_TRANSFORM</A
+></DT
+><DT
+>8.21. <A
+HREF="g_xform.html"
+>SG_GET_TRANSFORM</A
+></DT
+><DT
+>8.22. <A
+HREF="ioctl_removed.html"
+>Sg ioctls removed in version 3</A
+></DT
+><DT
+>8.23. <A
+HREF="scsi_g_idlun.html"
+>SCSI_IOCTL_GET_IDLUN</A
+></DT
+><DT
+>8.24. <A
+HREF="scsi_g_pci.html"
+>SCSI_IOCTL_GET_PCI</A
+></DT
+><DT
+>8.25. <A
+HREF="scsi_p_host.html"
+>SCSI_IOCTL_PROBE_HOST</A
+></DT
+><DT
+>8.26. <A
+HREF="scsi_snd_cmd.html"
+>SCSI_IOCTL_SEND_COMMAND</A
+></DT
+></DL
+></DIV
+><P
+>The Linux SCSI upper level drivers, including sg, have a "trickle down"
+ioctl() architecture. This means that ioctl()s whose request value (i.e.
+the second argument) is not understood by the upper level driver, are
+passed down to the SCSI mid-level. Those ioctl()s that are not understood
+by the mid level driver are passed down to the lower level (adapter)
+driver. If none of the 3 levels understands the ioctl() request value
+then -1 is returned and EINVAL is placed in errno. By convention the
+beginning of the request value's symbolic name indicates which level
+will respond to the ioctl(). For example, request values starting with
+"SG_" are processed by the sg driver while those starting with "SCSI_"
+are processed by the mid level.</P
+><P
+>Most of the sg ioctl()s read or write information via a pointer given
+as the third argument to the ioctl() call and return 0 on success. A few
+of the older ioctl()s that get a value from the driver return that value
+as the result of the ioctl() call (e.g. ioctl(SG_GET_TIMEOUT) ).</P
+><P
+>All sg driver ioctl()s are listed below. They all start with "SG_". They
+are followed by several interesting SCSI mid level ioctl()s which start
+with "SCSI_IOCTL_". The sg ioctl()s are roughly in alphabetical order
+(with _SET_, _GET_ and _FORCE_ ignored). Since ioctl(SG_IO) is a
+complete SCSI command request/response sequence then it is listed first.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="errors.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="sg_io.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Errors reported in errno</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>SG_IO</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

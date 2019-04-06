@@ -1,0 +1,343 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Animacja w DirectDraw</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="ddraw01.html">&lt;&lt;Obiekt główny i powierzchnie</A> &nbsp;
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="ddraw03.html">Bezpośredni dostęp... &gt;&gt;</A>
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+Animacja w DirectDraw
+</H1>
+
+<P>
+Wyświetlanie nieruchomych obrazków, czym zajmowaliśmy się w poprzedniej części tego kursu, to nie jest powód, dla którego stworzono DirectX ;-). Do takiej zabawy w zupełności wystarczy "gołe" WinAPI. Być może jednak zauważyłeś, że animacja już tam nieco kuleje, i to nawet przy takiej malutkiej piłeczce, a co dopiero kiedy musielibyśmy poruszać obiektem o rozmiarach całego ekranu? No właśnie, zgroza. I po to jest DirectX. Warto by wreszcie wykorzystać jego możliwości...
+</P>
+<P>
+Kulkom damy już spokój. Dla odmiany zrobimy sobie napis, wirujący na kolorowym tle. Napis robimy sobie sami, umieszczając kolejne klatki w jednym pliku, obok siebie:
+</P>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/ddanim.gif" ALT="Kolejne klatki animacji w jednej bitmapie">
+</P>
+
+<P>
+Animując naszą piłeczkę mieliśmy bardzo proste zadanie: była tylko jedna bitmapa, którą wystarczyło wyświetlać w różnych miejscach ekranu, żeby stworzyć wrażenie ruchu. Tym razem wyświetlamy ciągle w tym samym miejscu, ale musimy też odmalowywać tło po każdej klatce, no i za każdym razem rysujemy inny fragment bitmapy.
+</P>
+<P>
+Żeby wiedzieć, którą z tych klatek w danym momencie rysujemy, potrzeba nam oczywiście zmiennej. Dobrze też będzie mieć strukturę <SPAN CLASS=T>RECT</SPAN> która wskaże konkretnie, który fragment całej bitmapy będziemy wyświetlać. Nazwijmy tę strukturę <SPAN CLASS=Wazne>kadrem</SPAN>, ponieważ taką właśnie pełni rolę. Tym razem wszystkie klatki będziemy wyświetlać zawsze w tym samym miejscu, ale dla porządku deklarujemy sobie drugą strukturę <SPAN CLASS=T>RECT</SPAN>, która będzie pokazywała miejsce na ekranie, gdzie wyląduje każda kolejna klatka.
+</P>
+<P>
+Teraz kwestia odmierzania czasu. W kursie WinAPI użyliśmy w tym celu timera tworzonego funkcją <SPAN CLASS=T>SetTimer</SPAN>, a o upływającym czasie sygnalizował nam komunikat <SPAN CLASS=T>WM_TIMER</SPAN>. Wspomniałem też, że to kiepskie rozwiązanie. Generalnie dokładne mierzenie upływu czasu w systemie wielowątkowym, jakim jest Windows, to bardzo skomplikowane zagadnienie; rozwiązanie zadowalające profesjonalnych twórców gier to ustawienie timera w osobnym wątku, jednak tego na razie nie będziemy robić, bo co tu gadać, proste to nie jest. Wykorzystamy za to inny, też nienajgorszy sposób.
+</P>
+<P>
+Mowa o funkcji <SPAN CLASS=T>GetTickCount</SPAN>. Zwraca ona liczbę milisekund, które upłynęły od chwili uruchomienia Windowsa (a więc przy okazji dowiedzieliśmy się, jak sprawdzić, ile brat siedzi przy kompie ;-)). Nie ma żadnych argumentów i jest typu <SPAN CLASS=T>DWORD</SPAN>. Dlatego będziemy potrzebowali dwóch zmiennych tego właśnie typu, żeby aktualny czas zapamiętać do naszych niecnych celów. Przyda się też kilka stałych oraz zmienne do zapamiętania wymiarów pojedynczej klatki. Ogólnie nasze podstawowe deklaracje będą wyglądały tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>const</SPAN> WORD MaxKlatek = <SPAN CLASS=L>9</SPAN>;<BR>
+<SPAN CLASS=K>const</SPAN> WORD CEL_X = <SPAN CLASS=L>75</SPAN>, CEL_Y = <SPAN CLASS=L>10</SPAN>;<BR>
+DWORD StaryCzas = <SPAN CLASS=L>0</SPAN>, NowyCzas;<BR>
+WORD Klatka = <SPAN CLASS=L>0</SPAN>, Szer, Wys;<BR>
+RECT Kadr, Cel, Tlo;<BR>
+<BR>
+LPDIRECTDRAW lpDD = NULL;<BR>
+LPDIRECTDRAWSURFACE lpEkran = NULL;<BR>
+LPDIRECTDRAWSURFACE lpBufor = NULL;<BR>
+LPDIRECTDRAWSURFACE lpObrazek = NULL;<BR>
+LPDIRECTDRAWSURFACE lpTlo = NULL;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Powyższe zmienne powinny być globalne, czyli umieszczone na zewnątrz <SPAN CLASS=T>WinMain</SPAN>. Mamy tu aż cztery powierzchnie: <SPAN CLASS=T>lpEkran</SPAN> będzie powierzchnią główną, do <SPAN CLASS=T>lpObrazek</SPAN> załadujemy bitmapę z klatkami animacji, a do <SPAN CLASS=T>lpTlo</SPAN>... tło :-). Teraz będzie nam potrzebny główny obiekt <SPAN CLASS=T>DirectDraw</SPAN>, zwarty i gotowy do pracy ;-).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(DirectDrawCreate(NULL, &lpDD, NULL) != DD_OK)<BR>
+{<BR>
+&nbsp;MessageBox(hwnd,<SPAN CLASS=L>"Błąd przy tworzeniu obiektu DD","Fatalnie!"</SPAN>,MB_ICONSTOP);<BR>
+&nbsp;<SPAN CLASS=C>//lpDD->Release();</SPAN><BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> FALSE;<BR>
+}<BR>
+lpDD->SetCooperativeLevel(hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);<BR>
+lpDD->SetDisplayMode(<SPAN CLASS=L>800, 600, 16</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Ustawiłem tutaj tryb 16-bitowy, ponieważ moja karta nie obsługuje innych :D. Jeśli chcesz albo jeśli musisz, zmień <SPAN CLASS=L>16</SPAN> na <SPAN CLASS=L>32</SPAN> (albo na cokolwiek innego, ale wtedy będziesz się sam później męczył z kluczowaniem kolorów :-P).
+</P>
+<P>
+Mamy gotowy obiekt DD, wypadałoby zawczasu zadbać również o jego prawidłowe zwolnienie. Najlepiej stwórzmy sobie w tym celu osobną funkcję, która przy okazji będzie nam zwalniała wszystkie powierzchnie - o ile istnieją. Wywołanie tej funkcji wstawimy sobie później w miejsce wykomentowanej instrukcji <SPAN CLASS=T>lpDD->Release()</SPAN> (powyżej).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> Sprzatanie()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(lpEkran != NULL) { lpEkran->Release(); lpEkran = NULL; }<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(lpObrazek != NULL) { lpObrazek->Release(); lpObrazek = NULL; }<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(lpTlo != NULL) { lpTlo->Release(); lpTlo = NULL; }<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(lpDD != NULL) { lpDD->Release(); lpDD = NULL; }<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Od tej pory wywołujemy <SPAN CLASS=T>Sprzatanie</SPAN>, kiedy tylko coś związanego z DD nam się nie powiedzie, np. nie uda się utworzyć powierzchni. Oprócz tego oczywiście musimy posprzątać przy zakończeniu programu, a więc najlepiej wstawić <SPAN CLASS=T>Sprzatanie</SPAN> w obsłudze komunikatu <SPAN CLASS=T>WM_DESTROY</SPAN>.
+</P>
+<P>
+Nasze bitmapy (tło i "właściwą" animację) należałoby teraz gdzieś wczytać. To oczywiście pikuś dla ciebie, ponieważ przeczytałeś bardzo uważnie kurs WinAPI ;-). Tak samo uważnie prześledziłeś poprzednią część kursu DirectDraw i potrafisz przenieść grafikę ze zwykłego kontekstu <SPAN CLASS=T>HDC</SPAN> na powierzchnię DD. Teraz mamy aż dwie bitmapy do wczytania, więc żeby nie produkować nadmiernych ilości kodu, napiszemy sobie poręczną funkcyjkę, której będzie wystarczyło podać nazwę pliku BMP, a ona zwróci nam wskaźnik do gotowej powierzchni:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LPDIRECTDRAWSURFACE WyczarujPowierzchnie(LPCSTR NazwaPliku)<BR>
+{<BR>
+&nbsp;LPDIRECTDRAWSURFACE temp = NULL;<BR>
+&nbsp;HBITMAP hbmBitmapa, hbmOld;<BR>
+&nbsp;BITMAP bmp;<BR>
+&nbsp;HDC hdc, hdcTmp;<BR>
+<BR>
+&nbsp;hbmBitmapa = (HBITMAP)LoadImage(NULL, NazwaPliku, IMAGE_BITMAP, <SPAN CLASS=L>0, 0</SPAN>, LR_LOADFROMFILE);<BR>
+&nbsp;GetObject(hbmBitmapa, <SPAN CLASS=K>sizeof</SPAN>(bmp), &bmp);<BR>
+<BR>
+&nbsp;hdcTemp = CreateCompatibleDC(NULL);<BR>
+&nbsp;hbmOld = (HBITMAP)SelectObject(hdcTemp, hbmBitmapa);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//Tworzenie powierzchni</SPAN><BR>
+&nbsp;DDSURFACEDESC ddsd;<BR>
+&nbsp;ddsd.dwSize = sizeof(ddsd);<BR>
+&nbsp;ddsd.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;<BR>
+&nbsp;ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;<BR>
+&nbsp;ddsd.dwWidth = bmp.bmWidth;<BR>
+&nbsp;ddsd.dwHeight = bmp.bmHeight;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(lpDD->CreateSurface(&ddsd, &temp, NULL) == DD_OK)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//Kopiowanie z kontekstu na powierzchnię</SPAN><BR>
+&nbsp;&nbsp;temp->GetDC(&hdc);<BR>
+&nbsp;&nbsp;BitBlt(hdc, <SPAN CLASS=L>0, 0</SPAN>, bmp.bmWidth, bmp.bmHeight, hdcTemp, <SPAN CLASS=L>0, 0</SPAN>, SRCCOPY);<BR>
+&nbsp;&nbsp;temp->ReleaseDC(hdc);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//Tego już nie potrzebujemy</SPAN><BR>
+&nbsp;SelectObject(hdcTemp, hbmOld);<BR>
+&nbsp;DeleteDC(hdcTemp);<BR>
+&nbsp;DeleteObject(hbmBitmapa);<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> temp;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy naszą funkcję, która jest na tyle przydatna, że dzięki niej stworzymy sobie dwie powierzchnie w dwóch linijkach, i na tyle głupia, że nie będzie się zastanawiała, czy tworzona powierzchnia to zwykła bitmapa, czy klatki animacji. Tak więc nie pobierzemy już sobie informacji o wymiarach bitmap z pliku. Wstawiamy więc "na chama" gotowe wartości do naszych prostokątów, a wcześniej korzystamy z tego, cośmy tak pracowicie przed chwilą wklepywali i tworzymy dwie pomocnicze powierzchnie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//Utworzenie powierzchni</SPAN><BR>
+lpTlo = WyczarujPowierzchnie(<SPAN CLASS=L>"back.bmp"</SPAN>);<BR>
+lpObrazek = WyczarujPowierzchnie(<SPAN CLASS=L>"obrazek.bmp"</SPAN>);<BR>
+<SPAN CLASS=K>if</SPAN>(lpTlo == NULL || lpObrazek == NULL)<BR>
+{<BR>
+&nbsp;MessageBox(hwnd,<SPAN CLASS=L>"Nici z utworzenia powierzchni","O żesz!"</SPAN>,MB_ICONSTOP);<BR>
+&nbsp;Sprzatanie()<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> FALSE;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=C>//Uzupełniamy dane o prostokątach</SPAN><BR>
+SetRect(&Tlo, <SPAN CLASS=L>0, 0, 300, 150</SPAN>);<BR>
+Szer = <SPAN CLASS=L>150</SPAN>;<BR>
+Wys  = <SPAN CLASS=L>135</SPAN>;<BR>
+SetRect(&Kadr, <SPAN CLASS=L>0, 0</SPAN>, Szer, Wys);<BR>
+SetRect(&Cel, CEL_X, CEL_Y, CEL_X + Szer, CEL_Y + Wys);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Z powierzchniami, które będą przechowywać nasze bitmapy, się uporaliśmy. Teraz pora się zająć mechanizmem animacji. Skoro korzystamy z <SPAN CLASS=T>GetTickCount</SPAN>, to pętla komunikatów w obecnej postaci nie przyda nam się w samym procesie animacji, a wręcz będzie przeszkadzać. Dlatego czeka ją mały remont:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>while</SPAN>(msg.message != WM_QUIT)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(PeekMessage(&msg,NULL,<SPAN CLASS=L>0,0</SPAN>,PM_REMOVE))<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;TranslateMessage(&msg);<BR>
+&nbsp;&nbsp;DispatchMessage(&msg);<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//Rysowanie klatek będzie tutaj...</SPAN><BR>
+&nbsp;}<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Warunek pętli został podobny - wychodzimy z niej, kiedy user zamknie okno (będziemy działać w trybie pełnoekranowym, więc będzie się to dało zrobić praktycznie tylko wciskając Alt+F4). Zmieniła się zaś funkcja, którą używamy do pobierania komunikatu z kolejki. <SPAN CLASS=T>PeekMessage</SPAN> (w odróżnieniu od <SPAN CLASS=T>GetMessage</SPAN>) pobiera komunikaty "w locie", nie zatrzymując się, jeśli kolejka jest pusta. Dzięki temu w momencie, kiedy nie są akurat obsługiwane jakieś Bardzo Ważne Komunikaty (czyli w powyższym bloku <SPAN CLASS=K>else</SPAN>), możemy sobie spokojnie rysować obrazki. Dodatkowo parametr <SPAN CLASS=T>PM_REMOVE</SPAN> określa, że każdy pobrany komunikat będzie jednocześnie usuwany z kolejki, no bo na co ma tam czekać jak głupi? ;-)
+</P>
+<P>
+Zastanówmy się, co wpisać w ten blok <SPAN CLASS=K>else</SPAN>. Przede wszystkim musimy tam cały czas sprawdzać, czy już czas :-). Na kolejną klatkę, oczywiście. Załóżmy, że czas będzie na nią co <SPAN CLASS=L>100</SPAN> milisekund. Mechanizm zmiany klatek jest bardzo prosty:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+NowyCzas = GetTickCount();<BR>
+<SPAN CLASS=K>if</SPAN>(StaryCzas + <SPAN CLASS=L>100</SPAN> &lt;= NowyCzas)<BR>
+{<BR>
+&nbsp;Renderuj();<BR>
+&nbsp;<SPAN CLASS=C>//Nowa klatko, pora na ciebie!</SPAN><BR>
+&nbsp;++Klatka;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(Klatka &gt;= MaxKlatek) Klatka = <SPAN CLASS=L>0</SPAN>;<BR>
+&nbsp;StaryCzas = NowyCzas;<BR>
+&nbsp;<SPAN CLASS=C>//<-- Tutaj będziemy kadrować bitmapę...</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Ponieważ kolejne klatki znajdują się w pliku obok siebie i mają dokładnie te same wymiary, kadrowanie to czynność banalna:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Kadr.left = Klatka * Szer;<BR>
+Kadr.right = Kadr.left + Szer;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W pionie kadru oczywiśnie nie musimy ruszać, ponieważ klatki mamy w bitmapce ułożone poziomo.
+</P>
+<P>
+Pora na najważniejszy etap: utworzenie powierzchni ekranu. Moglibyśmy to zrobić analogicznie, jak w poprzedniej części kursu, jednak taka powierzchnia jest raczej mało przydatna do animacji, ponieważ nie daje możliwości podwójnego buforowania. Musielibyśmy utworzyć osobno jakiś bufor, w nim wykonywać wszystkie operacje graficzne, a następnie kopiować jego zawartość na powierzchnię ekranu; można i tak, ale to mało efektywny sposób. Znacznie lepiej będzie skorzystać ze specjalnego mechanizmu udostępnionego w DirectDraw: tworzenia <SPAN CLASS=Wazne>łańcucha powierzchni</SPAN>.
+</P>
+<P>
+Łańcuch taki może się składać z dowolnej liczby powierzchni, z których jedna jest główna i pełni rolę powierzchni ekranu. Tylko jedna powierzchnia w łańcuchu może być w danym momencie główną, a więc widoczną na ekranie. Specjalną instrukcją można jednak zmienić aktualną główną powierzchnię na następną w łańcuchu. Kolejność ustalamy przy tworzeniu łańcucha. Oczywiście jeśli mamy w tym łańcuchu tylko dwie powierzchnie (a tak właśnie będzie w poniższym przykładzie), to może być tylko jedna kolejność. Oto jak zrobić takie cudo:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DDSURFACEDESC ddsd;<BR>
+ddsd.dwSize = <SPAN CLASS=K>sizeof</SPAN>(ddsd);<BR>
+ddsd.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;<BR>
+ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_COMPLEX | DDSCAPS_FLIP;<BR>
+ddsd.dwBackBufferCount = <SPAN CLASS=L>1</SPAN>;<BR>
+<SPAN CLASS=K>if</SPAN>(lpDD->CreateSurface(&ddsd,&lpEkran,NULL) != DD_OK)<BR>
+{<BR>
+&nbsp;MessageBox(hwnd,<SPAN CLASS=L>"Buforów niestety nie będzie...","Co za pech!"</SPAN>,MB_ICONSTOP);<BR>
+&nbsp;Sprzatanie()<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> FALSE;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Więc co my tu mamy? Jak pewnie wiesz, pole <SPAN CLASS=T>dwFlags</SPAN> określa, które z pozostałych pól struktury <SPAN CLASS=T>ddsd</SPAN> są prawidłowe. Tym sposobem aktywowaliśmy sobie pole <SPAN CLASS=T>dwBackBufferCount</SPAN>, które określa, ile tylnych buforów potrzebujemy do łańcucha. Nasz łańcuch ma się składać z dwóch buforów, jeden jest powierzchnią główną, więc pozostaje dokładnie <SPAN CLASS=L>1</SPAN>, co też wpisujemy we wspomniane pole. Z kolei pole <SPAN CLASS=T>ddsCaps.dwCaps</SPAN> określa nam dodatkowe właściwości naszej powierzchni. Stałą <SPAN CLASS=T>DDSCAPS_PRIMARYSURFACE</SPAN> już znamy, nowości to: <SPAN CLASS=T>DDSCAPS_COMPLEX</SPAN> (oznacza, że tworzymy łańcuch powierzchni) oraz <SPAN CLASS=T>DDSCAPS_FLIP</SPAN> (oznacza, że powierzchnie w łańcuchu można ze sobą zamieniać).
+</P>
+<P>
+Mamy więc nasz łańcuch, tylko jak po nim rysować? Na razie dysponujemy tylko wskaźnikiem <SPAN CLASS=T>lpEkran</SPAN>, a więc możemy tylko wyświetlać obrazki bezpośrednio na ekranie. A chcieliśmy mieć podwójne buforowanie, czyli potrzebny nam będzie jeszcze wskaźnik na tylny bufor, czyli ten chwilowo schowany w łańcuchu :-). Żeby wydłubać z łańcucha odpowiedni wskaźnik, skorzystamy z usług oferowanych przez funkcję <SPAN CLASS=T>GetAttachedSurface</SPAN>. Przyda nam się też (kolejny raz) struktura <SPAN CLASS=T>ddsd</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+ddsd.ddsCaps.dwCaps = DDSCAPS_BACKBUFFER;<BR>
+lpEkran->GetAttachedSurface(&ddsd.ddsCaps, &lpBufor);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Funkcja <SPAN CLASS=T>GetAttachedSurface</SPAN> sprawdza pole <SPAN CLASS=T>ddsCaps.dwCaps</SPAN> i w zależności od tego, co jest tam wpisane, zwraca wskaźnik do odpowiedniej powierzchni z łańcucha.
+</P>
+<P>
+Trzeba by się teraz zająć przezroczystością klatek. Gdybyśmy wykorzystywali tylko windowsowy GUI, byłoby z tym sporo roboty, bo musielibyśmy najpierw sporządzić maskę. W DirectX tego nie ma, ale za to jest problem z kolorami. Będzie nam potrzebna funkcja, która przekonwertuje podane wartości RGB na format obsługiwany przez DirectX. Co gorsza, kolor 16-bitowy jest zupełnie różny od 32-bitowego, więc w zależności od tego, jaki tryb sobie ustawiłeś przy tworzeniu obiektu głównego DD, powinieneś wybrać jedną z poniższych funkcji:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+WORD Kolor16(BYTE r, BYTE g, BYTE b)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> ((r &gt;&gt; <SPAN CLASS=L>3</SPAN>) &lt;&lt; <SPAN CLASS=L>11</SPAN>) | ((g &gt;&gt; <SPAN CLASS=L>2</SPAN>) &lt;&lt; <SPAN CLASS=L>5</SPAN>) | (b &gt;&gt; <SPAN CLASS=L>3</SPAN>);<BR>
+}<BR>
+<BR>
+DWORD Kolor32(BYTE r, BYTE g, BYTE b)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0xFF000000</SPAN> | (r &lt;&lt; <SPAN CLASS=L>16</SPAN>) | (g &lt;&lt; <SPAN CLASS=L>8</SPAN>) | b;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wygląda może groźnie, ale to tylko prosta zabawa w przestawianie bitów. Dziwne liczby w funkcji <SPAN CLASS=T>Kolor16</SPAN> biorą się stąd, że w kolorze 16-bitowym mamy po <SPAN CLASS=L>5</SPAN> bitów przeznaczonych na składnik czerwony i niebieski, zaś <SPAN CLASS=L>6</SPAN> bitów na składnik zielony. Z kolei funkcja <SPAN CLASS=T>Kolor32</SPAN> w powyższej postaci nie daje nam możliwości ustawienia wartości składnika alfa (ustawia go zawsze na maksa, czyli <SPAN CLASS=L>255</SPAN>). Po prostu na razie nie jest on nam potrzebny. No dobra, pogadaliśmy o kolorkach, a teraz do rzeczy, czyli do kluczowania:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DDCOLORKEY ddck;<BR>
+ddck.dwColorSpaceLowValue = ddck.dwColorSpaceHighValue = Kolor16(<SPAN CLASS=L>255,0,255</SPAN>);<BR>
+lpObrazek->SetColorKey(DDCKEY_SRCBLT,&ddck);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Aby dany zakres kolorów danej powierzchni nie był wyświetlany, należy po prostu wywołać funkcję <SPAN CLASS=T>SetColorKey</SPAN>, wpisując uprzednio odpowiednie kolory do pól: <SPAN CLASS=T>dwColorSpaceLowValue</SPAN> (dolna granica zakresu kolorów) i <SPAN CLASS=T>dwColorSpaceHighValue</SPAN> (górna granica) struktury typu <SPAN CLASS=T>DDCOLORKEY</SPAN>. My chcemy wyeliminować tylko jeden kolor, a mianowicie różowy, dlatego dolna granica może być równa górnej. 
+</P>
+<P>
+Mamy, co chcieliśmy, pozostaje już tylko napisać serce programu - funkcję <SPAN CLASS=T>Renderuj</SPAN>. To już doprawdy najprostsza część całego zadania:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> Renderuj()<BR>
+{<BR>
+&nbsp;lpBufor->Blt(&Tlo,lpTlo,&Tlo,DDBLT_WAIT,NULL);<BR>
+&nbsp;lpBufor->Blt(&Cel,lpObrazek,&Kadr,DDBLT_KEYSRC | DDBLT_WAIT,NULL);<BR>
+&nbsp;lpEkran->Flip(NULL,DDFLIP_WAIT);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pierwsza instrukcja maluje tło. Zauważ, że za każdym razem kopiujemy je w całości, chociaż animacja zamazuje tylko fragment tła. Animacji to zbytnio nie spowalnia... Skorygowanie tego drobiazgu pozostawiam tobie. Druga instrukcja rysuje aktualną klatkę. Tutaj powinieneś zwrócić uwagę na nową flagę - <SPAN CLASS=T>DDBLT_KEYSRC</SPAN>. Jak się zapewne domyślasz, służy ona do powiadomienia funkcji <SPAN CLASS=T>Blt</SPAN>, że ta ma skorzystać z kluczowania kolorów. Wreszcie, na końcu mamy nową metodę - <SPAN CLASS=T>Flip</SPAN>. Używamy jej do zamienienia ze sobą buforów wchodzących w skład łańcucha - w naszym przypadku przedniego z tylnym. Dzięki tej operacji obrazek, pracowicie rysowany w tylnym buforze ma szanse ujrzeć światło dzienne ;-).
+</P>
+<P>
+To wszystko na razie. Jeśli szukasz jakichś przykładów do tej części kursu i szukasz ich w dziale Download, to słusznie czynisz :-).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="ddraw01.html">&lt;&lt;Obiekt główny i powierzchnie</A> &nbsp;
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="ddraw03.html">Bezpośredni dostęp... &gt;&gt;</A>
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

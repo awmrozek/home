@@ -1,0 +1,349 @@
+<HTML
+><HEAD
+><TITLE
+>Configuring Web-cyradm</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Postfix-Cyrus-Web-cyradm-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Configuring Cyrus IMAP"
+HREF="cyrus-config.html"><LINK
+REL="NEXT"
+TITLE="Testing the setup"
+HREF="test.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Postfix-Cyrus-Web-cyradm-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="cyrus-config.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="test.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="WEB-CYRADM-CONFIG"
+></A
+>8. Configuring Web-cyradm</H1
+><P
+>First copy the distribution's config file, and create the logfile. The logfile must be owned by the user
+that runs the webserver. This is usually the user »nobody« or »wwwrun«.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>cd /usr/local/apache/htdocs/web-cyradm/config
+
+cp conf.php.dist conf.php
+
+touch /var/log/web-cyradm-login.log
+chown nobody /var/log/web-cyradm-login.log</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN645"
+></A
+>8.1. Cyrus setup</H2
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#The Cyrus login stuff
+$CYRUS = array(
+        'HOST'  =&#62; 'localhost',
+        'PORT'  =&#62; 143,
+        'ADMIN' =&#62; 'cyrus',
+        'PASS'  =&#62; 'secret'
+);</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This should be self-explanatory. Please note there is no support for SSL connections at the moment, 
+this is especially important for users that would like to have web-cyradm on a different server
+from the server running cyrus-imapd ..</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN649"
+></A
+>8.2. Database setup</H2
+><P
+>	Since version 0.5.2 web-cyradm uses PEAR as a database abstraction layer. This adds more flexibility. 
+	MySQL and PostgreSQL are currently supported. Please note that a patch is required for PostgreSQL 
+	because Postfix does not support PostgreSQL natively. I strongly suggest that you use MySQL.
+        I know MySQL has some restrictions on transactions and stuff, but it is supported in the distributed Postfix code.
+	</P
+><P
+>The entries should be self explanatory</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>$DB = array(
+        'TYPE'  =&#62; 'mysql',
+        'USER'  =&#62; 'mail',
+        'PASS'  =&#62; 'secret',
+        'PROTO' =&#62; 'unix',      // set to "tcp" for TCP/IP
+        'HOST'  =&#62; 'localhost',
+        'NAME'  =&#62; 'mail'
+);</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN654"
+></A
+>8.3. Default Quota</H2
+><P
+>	The default quota to be used is set in the variable <TT
+CLASS="VARNAME"
+>DEFAULT_QUOTA=20000</TT
+> and is used when 
+	creating a new domain</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN658"
+></A
+>8.4. Crypted passwords</H2
+><P
+>Web-cyradm supports the storage of encrypted passwords. I strongly suggest the use of encryption.
+	There are three methods supported at the moment: Unix-compatible (crypt), md5 and MySQL.
+	The Unix-compatible encryption allows you to import encrypted passwords from an 
+	existing <TT
+CLASS="FILENAME"
+>/etc/shadow</TT
+>. This is the preferred option.
+	</P
+><P
+>	Unfortunately, MySQL uses a proprietary encryption method which is only available
+	when using MySQL. I'm currently thinking about dropping support for MySQL crypt, because it only
+	works with MySQL and makes a migration to another database impossible. As soon as there is a method available
+	to re-engineer the MySQL crypt on PHP there will be a solution (Help needed in programming, legal constraints?)
+	</P
+><P
+>Check the variable <TT
+CLASS="VARNAME"
+>$CRYPT</TT
+> in the file <TT
+CLASS="FILENAME"
+>config.inc.php</TT
+>. 
+	Value »plain« means no encryption, »crypt« means Shadow compatible encryption, 
+	mysql means MySQL encryption.</P
+><DIV
+CLASS="CAUTION"
+><P
+></P
+><TABLE
+CLASS="CAUTION"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/caution.gif"
+HSPACE="5"
+ALT="Caution"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>Choose encryption method carefully</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>	Since the supported encryption methods are all one-way encryptions, there will be NO WAY to migrate from
+	one to another. Note also, that this is a global variable, it is used for all passwords,
+	including the password of the admin users. I STRONGLY suggest the use of Unix Shadow compatible encryption,
+	because it makes you independent of any software vendor.
+	</P
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN669"
+></A
+>8.5. Usernames</H2
+><P
+>	There are two username schemes supported which are defined in the variable »DOMAIN_AS_PREFIX«.
+	The default is to have a defined prefix ($DOMAIN_AS_PREFIX=0), i.e. »test« for the domain »expample.com«.
+	With this scheme, the first user gets the username test0001, the second test0002 and incrementing.
+	</P
+><P
+>The other one is to have usernames like »hans.mueller.example.com«. 
+	If that case set $DOMAIN_AS_PREFIX=1</P
+><P
+>At the moment you can not mix both schemas, evaluate carefully with scheme matches your needs best</P
+><P
+>If you choose to have $DOMAIN_AS_PREFIX=1, be sure you uncomment the 
+	option <TT
+CLASS="OPTION"
+>unixhierarchysep: yes</TT
+> like described in <A
+HREF="cyrus-config.html#ETC-IMAPD"
+>Section 7.1.2</A
+></P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="cyrus-config.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="test.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Configuring Cyrus IMAP</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Testing the setup</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

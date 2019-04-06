@@ -1,0 +1,660 @@
+<HTML
+><HEAD
+><TITLE
+>Ingres/Net</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="Ingres II HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Basic System and Database Administration"
+HREF="admin.html"><LINK
+REL="NEXT"
+TITLE="ICE (Internet Commerce Enabled)"
+HREF="ice.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Ingres II HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="admin.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="ice.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="NET"
+>7. Ingres/Net</A
+></H1
+><P
+>Ingres/Net is not part of the <SPAN
+CLASS="ACRONYM"
+>SDK</SPAN
+>.
+	You only get it with the full version of <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>.
+	It allows applications (<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> utilities and user
+	programs alike) to access <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> databases on
+	other installations (usually on different machines as well).
+	On the machine where the application runs, a client
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> installation must be set up.
+	We covered the installation of the client in subsection
+	<A
+HREF="install.html#CLIINST"
+>Client Installation</A
+>.
+	(Naturally, the client can also be a full <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>
+	installation.)
+	</P
+><P
+>In this section you will see how to set up Net on both the client
+	and server to provide remote access to the <SPAN
+CLASS="ACRONYM"
+>DBMS</SPAN
+> server.
+	For a complete description of Ingres/Net I suggest you consult the
+	<I
+CLASS="CITETITLE"
+>Ingres/Net User Guide</I
+>.
+	</P
+><P
+>Before starting with Net, however, we need some information on how
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> authenticates its users.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="USERAUTH"
+>7.1. User Authentication</A
+></H2
+><P
+>We saw earlier that only valid <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> users
+	can access an <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> installation.
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> keeps information on its users in the
+	<SPAN
+CLASS="DATABASE"
+>iidbdb</SPAN
+> database.
+	But how does <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> authenticate users?</P
+><P
+>In case of local access, the answer is simple:
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> asks the operating system who the user is.
+	</P
+><P
+>There is an exception to this rule: certain users may be granted
+	the privilige to <EM
+>impersonate</EM
+> other
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> users when starting an
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> utility or application.
+	That is why it is not necessary for every <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>
+	user to have an <SPAN
+CLASS="ACRONYM"
+>OS</SPAN
+> account.
+	This privilege, however, can only be granted as all-or-none: if you give
+	it to somebody, he/she will be able to impersonate
+	<EM
+>any</EM
+> other <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> user,
+	including the ingres account.
+	Therefore, never grant it to anyone.</P
+><P
+>Leaving the authentication of users to the operating system works
+	fine for local access.
+	But what about users who want to use the database from a remote machine?
+	They do not log in to the machine the database resides on (the
+	<EM
+>server</EM
+>), therefore the server's operating system will
+	not authenticate them (they may not even have an <SPAN
+CLASS="ACRONYM"
+>OS</SPAN
+>
+	account on the server machine).</P
+><P
+>There are two possible ways <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> can
+	authenticate these users.
+	We will cover them in the next two subsections.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="LOGACCT"
+>7.2. Login Account Passwords</A
+></H2
+><P
+>The first solution to the remote user authentication problem is to
+	require that the client provides a local (to the server machine) user name
+	and password.
+	Then the <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> server authenticates these
+	through standard <SPAN
+CLASS="ACRONYM"
+>OS</SPAN
+> facilities, just like the operating
+	system would do with real local accounts.</P
+><P
+>In this case, you do not have to set anything in Net on the server.
+	The only thing you will need is the <B
+CLASS="COMMAND"
+>ingvalidpw</B
+>
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> utility.
+	It will check (by using the <TT
+CLASS="FUNCTION"
+>getspnam</TT
+> and
+	<TT
+CLASS="FUNCTION"
+>crypt</TT
+> <SPAN
+CLASS="ACRONYM"
+>OS</SPAN
+> functions) if the user's
+	name and password are valid on the server machine.
+	On how to install <B
+CLASS="COMMAND"
+>ingvalidpw</B
+>, see subsection
+	<A
+HREF="net.html#INGVALID"
+>ingvalidpw</A
+>.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="INSTPASS"
+>7.3. Installation Passwords</A
+></H2
+><P
+>The other way of authenticating remote users is that the server
+	accepts their user <SPAN
+CLASS="ACRONYM"
+>ID</SPAN
+> <EM
+>on the client
+	machine</EM
+>.
+	In this case, the remote users do not have to be known to the
+	<SPAN
+CLASS="ACRONYM"
+>OS</SPAN
+> on the server.</P
+><P
+>How will the server validate clients in this case?
+	It is obvious that we need some kind of authentication: anybody can
+	create an ingres account on a client machine, then he/she could connect
+	to the installation as the ingres super-user.</P
+><P
+>This is where the <EM
+>installation password</EM
+> comes in:
+	you set an installation password on the server.
+	You then set this password on the client machines <EM
+>for those
+	accounts</EM
+> that you want to allow to access the server under their
+	name on the client.</P
+><P
+>The <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> server can then authenticate
+	the client by simply checking its installation password.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="INGVALID"
+>7.4. ingvalidpw</A
+></H2
+><P
+>As <B
+CLASS="COMMAND"
+>ingbuild</B
+> apparently does not bother installing
+	<B
+CLASS="COMMAND"
+>ingvalidpw</B
+>, you have to build it yourself.</P
+><P
+>Login as root, set the environment as that of ingres, then simply
+	type</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+># mkvalidpw
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This script builds and installs <B
+CLASS="COMMAND"
+>ingvalidpw</B
+>.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="CLISET"
+>7.5. Setting up the Client</A
+></H2
+><P
+>You will use the <B
+CLASS="COMMAND"
+>netutil</B
+> utility to set up Net
+	on the client side, and, in the case of installation passwords, also on the
+	server.
+	Let us see the client side first.
+	Log in as the account you want to grant access to, or ingres, if you want
+	to set up general access.
+	Then type:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ netutil
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You can see three tables on <B
+CLASS="COMMAND"
+>netutil</B
+>'s screen.
+	Let us see what fields each of them contains:</P
+><P
+></P
+><UL
+><LI
+><P
+>Virtual Node Name: this is the name by which you identify
+			the remote <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> installation,
+			similarly as you would define an <SPAN
+CLASS="ACRONYM"
+>ODBC</SPAN
+> data
+			source name.
+			The name is of local scope and has nothing to do either with the server
+			machine's name or the remote installation's code.</P
+></LI
+><LI
+><P
+>Login/Password Data: one or two entries of the following:</P
+><P
+></P
+><UL
+><LI
+><P
+>Type: can be <TT
+CLASS="CONSTANT"
+>Global</TT
+>, or
+					<TT
+CLASS="CONSTANT"
+>Private</TT
+>.
+					If <TT
+CLASS="CONSTANT"
+>Private</TT
+>, the entry will only
+					pertain to the current account.
+					If <TT
+CLASS="CONSTANT"
+>Global</TT
+>, it will be used for all
+					users on the client machine, except for those with a
+					<TT
+CLASS="CONSTANT"
+>Private</TT
+> entry.</P
+></LI
+><LI
+><P
+>Login: the user account on the server machine.
+					In case of an installation password, it should be
+					<TT
+CLASS="CONSTANT"
+>*</TT
+>.</P
+></LI
+><LI
+><P
+>Password: the password on the server machine (the
+					above user's password, or the installation password).</P
+></LI
+></UL
+></LI
+><LI
+><P
+>Connection Data: at least one entry of the following:</P
+><P
+></P
+><UL
+><LI
+><P
+>Type: can be <TT
+CLASS="CONSTANT"
+>Global</TT
+>, or
+					<TT
+CLASS="CONSTANT"
+>Private</TT
+>.
+					The same applies as in Login/Password Data.</P
+></LI
+><LI
+><P
+>Network Address: the server machine's address.</P
+></LI
+><LI
+><P
+>Protocol: the network protocol.
+					On Linux, it is probably <TT
+CLASS="CONSTANT"
+>tcp_ip</TT
+>.</P
+></LI
+><LI
+><P
+>Listen Address: listen address of the communication
+					server as set up by <B
+CLASS="COMMAND"
+>cbf</B
+>.
+					By default, it is the same as the installation code.</P
+></LI
+></UL
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SERVSET"
+>7.6. Setting up the Server</A
+></H2
+><P
+>If you want to use an installation password, you have to configure
+	Net on the server, too.
+	In <B
+CLASS="COMMAND"
+>netutil</B
+>, create a virtual node with the following
+	data:</P
+><P
+></P
+><UL
+><LI
+><P
+>Virtual Node Name: must be the machine's name.</P
+></LI
+><LI
+><P
+>Login/Password Data</P
+><P
+></P
+><UL
+><LI
+><P
+>Type: <TT
+CLASS="CONSTANT"
+>Global</TT
+>.</P
+></LI
+><LI
+><P
+>Login: <TT
+CLASS="CONSTANT"
+>*</TT
+>.</P
+></LI
+><LI
+><P
+>Password: enter the installation password.</P
+></LI
+></UL
+></LI
+><LI
+><P
+>Connection Data: you do not have to enter any data here.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="USINGN"
+>7.7. Using Net</A
+></H2
+><P
+>After you have configured Net with <B
+CLASS="COMMAND"
+>netutil</B
+> on the
+	client, and, if necessary, on the server, use <B
+CLASS="COMMAND"
+>netutil</B
+>'s
+	<SPAN
+CLASS="GUIMENUITEM"
+>Test</SPAN
+> menu option to see if the connection works.
+	If it does, you can access a remote database in the following manner
+	(let us suppose the name of the database is <SPAN
+CLASS="DATABASE"
+>test</SPAN
+>,
+	the virtual node name for the remote <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>
+	installation is ingserv1):</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ sql ingserv1::test
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="admin.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="ice.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Basic System and Database Administration</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>ICE (Internet Commerce Enabled)</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,143 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root RAID HOWTO cookbook: Configuring the Production RAID system.</TITLE>
+ <LINK HREF="Root-RAID-HOWTO-6.html" REL=next>
+ <LINK HREF="Root-RAID-HOWTO-4.html" REL=previous>
+ <LINK HREF="Root-RAID-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Root-RAID-HOWTO-6.html">Next</A>
+<A HREF="Root-RAID-HOWTO-4.html">Previous</A>
+<A HREF="Root-RAID-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Configuring the Production RAID system.</A></H2>
+
+<P>
+<H2><A NAME="ss5.1">5.1 System specs.</A>
+Two systems with identical motherboards were configured.</H2>
+
+<P>
+<PRE>
+                                  Raid-1          Raid-5
+Motherboard:    Iwill P55TU     dual ide        adaptec scsi
+Processor:      Intel P200
+Disks:                          2ea  7 gig      4 ea Segate 4.2 gig
+                                Maxtors         wide scsii
+</PRE>
+
+The disk drives are designated by linux as 'sda' through 'sdd' on the raid5
+system and 'hda' and 'hdc' on the raid1 system.
+<P>
+<H2><A NAME="ss5.2">5.2 Partitioning the hard drives.</A>
+</H2>
+
+<P>Since testing a large root mountable RAID array is difficult because
+of the ckraid re-boot problem, I re-partitioned my swap space to include a 
+smaller RAID partition for testing purposes, sda6,sdb6,sdc6,sdd6, and
+a small root and /usr/src partition pair for developing and testing
+the raid kernel and tools.
+You may find this helpful.
+<PRE>
+        &lt;bf/DEVELOPMENT SYSTEM - RAID5/
+   Device       System          Size    Purpose
+
+  /dev/sda1     dos boot        16 meg  boot partition
+* /dev/sda2     extended        130 meg (see below)
+  /dev/sda3     linux native    4 gig   primary raid5-1
+----------------------sda2------------------------------
+* /dev/sda5     linux swap      113 meg SWAP space
+* /dev/sda6     linux native    16 meg  test raid5-1
+========================================================
+  /dev/sdb1     dos boot        16 meg  boot partition duplicate
+* /dev/sdb2     extended        130 meg (see below)
+  /dev/sdb3     linux native    4 gig   primary raid5-2
+----------------------sdb2------------------------------
+* /dev/sdb5     linux swap      113 meg SWAP space
+* /dev/sdb6     linux native    16 meg  test raid5-2
+========================================================
+* /dev/sdc2     extended        146 meg (see below)
+  /dev/sdc3     linux native    4 gig   primary raid5-3
+----------------------sdc2------------------------------
+* /dev/sdc5     linux swap      130 meg development root partition
+* /dev/sdc6     linux native    16 meg  test raid5-3
+========================================================
+* /dev/sdd2     extended        146 meg (see below)
+  /dev/sdd3     linux native    4 gig   primary raid5-4
+----------------------sdd2------------------------------
+* /dev/sdd5     linux swap      130 meg development /usr/src
+* /dev/sdd6     linux native    16 meg  test raid5-4
+
+
+        &lt;bf/DEVELOPMENT SYSTEM - RAID1/
+   Device       System          Size    Purpose
+
+  /dev/hda1     dos             16meg   boot partition
+* /dev/hda2     extended        126m    (see below)
+  /dev/hda3     linux           126m    development root partition
+  /dev/hda4     linux           6+gig   raid1-1
+----------------------hda2------------------------------
+* /dev/hda5     linux            26m    test raid1-1
+* /dev/hda6     linux swap      100m
+========================================================
+
+  /dev/hdc1     is simply an exact copy of hda1 so the
+                partion can be made active if hda fails
+* /dev/hdc2     extended        126m    (see below)
+  /dev/hdc3     linux           126m    development /usr/src
+  /dev/hdc4     linux           6+gig   raid1-2
+----------------------hdc2------------------------------
+* /dev/hdc5     linux            26m    test raid1-2
+* /dev/hdc6     linux swap      100m
+</PRE>
+
+The sdx2 and hdx3 partitions were switched to 'swap' after developing
+this utility. I could have done it on another machine, however,
+the libraries and kernels are all about a year or more out of date
+on my other linux boxes and I preferred to build it on the target machine.
+<P>The partitioning scheme was chosen so that in the event that 
+any one of the drives fails catastrophically, the system will
+continue to run and be bootable with minimum effort and NO data loss.
+<UL>
+<LI>    If any single hard drive fails, the boot will abort, and
+the rescue system will run. Examination of the screen
+message or /dos<I>x</I>/raidboot/raidstat.ro will tell the operator
+the status of the failed array.</LI>
+<LI>    If sda1 (raid5) or hda1 (raid1) fails, the dos backup boot partition 
+must be made 'active' and the bios must recognize the new partition 
+as the boot device or it must be physically be moved to the <I>x</I>da position. 
+Alternatively, the system could be booted from a floppy disk using
+the initrd image on the remaining backup boot drive.
+The raid system can then be made active again by issuing:
+<PRE>
+         "/sbin/mkraid /etc/raid&lt;it/x/.conf -f --only-superblock"
+</PRE>
+
+to rebuild the remaining superblock(s).
+</LI>
+<LI>    Once this is done, then 
+
+<PRE>
+        mdadd -ar
+</PRE>
+
+</LI>
+<LI>    Examine the status of the array to verify that everything is OK
+then replace the good array reference with the current status
+until the failed disk can be repaired or replaced.
+
+<PRE>
+        cat /proc/mdstat | grep md0 > /dosx/raidboot/raidgood.ref
+
+        shutdown -r now
+</PRE>
+
+to do a clean reboot, and the system is up again.</LI>
+</UL>
+<HR>
+<A HREF="Root-RAID-HOWTO-6.html">Next</A>
+<A HREF="Root-RAID-HOWTO-4.html">Previous</A>
+<A HREF="Root-RAID-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

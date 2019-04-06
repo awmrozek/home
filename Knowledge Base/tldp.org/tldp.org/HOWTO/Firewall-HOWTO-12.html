@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Firewall and Proxy Server HOWTO: Advanced Configurations</TITLE>
+ <LINK HREF="Firewall-HOWTO-13.html" REL=next>
+ <LINK HREF="Firewall-HOWTO-11.html" REL=previous>
+ <LINK HREF="Firewall-HOWTO.html#toc12" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Firewall-HOWTO-13.html">Next</A>
+<A HREF="Firewall-HOWTO-11.html">Previous</A>
+<A HREF="Firewall-HOWTO.html#toc12">Contents</A>
+<HR>
+<H2><A NAME="s12">12. Advanced Configurations</A></H2>
+
+<P>There is one configuration I would like to go over before wrapping this document up.  The one I have just outlined will probably suffice for most people.  However, I think the next outline will show a more advanced configuration that can clear up some questions.  If you have questions beyond what I have just covered, or are just interested in the versatility of proxy servers and firewalls, read on.
+<P>
+<H2><A NAME="ss12.1">12.1 A large network with emphasis on security</A>
+</H2>
+
+<P>Say, for instance, you are the leader of millisha and you wish to network  your site.  You have 50 computers and a subnet of 32 (5 bits) IP numbers.  You need various levels of access within your network because you tell your followers different things. Therefore, you'll need to protect certain parts of the network from the rest.
+<P>The levels are:
+<P>
+<OL>
+<LI>The external level.  This is the level that gets shown to everybody. This is where you rant and rave to get new volunteers.
+</LI>
+<LI><B>Troop</B>  This is the level of people who have gotten beyond the external level.  Here is where you teach them about the evail government and how to make bombs.
+</LI>
+<LI><B>Mercenary</B>  Here is where the <EM>real</EM> plans are keep. In this level is stored all the information on how the 3rd world government is going to take over the world, your plans involving Newt Gingrich, Oklahoma City, lown care products and what really is stored in that hangers at area 51.</LI>
+</OL>
+<P>
+<H3>The Network Setup</H3>
+
+<P>The IP numbers are arranged as:
+<P>
+<P>
+<UL>
+<LI>1 number is 192.168.1.255, which is the broadcast address and is
+not usable.</LI>
+<LI>23 of the 32 IP addresses are allocated to 23 machines that will be
+accessible to the internet.</LI>
+<LI>1 extra IP goes to a Linux box on that network</LI>
+<LI>1 extra goes to a different Linux box on that network.</LI>
+<LI>2 IP #'s go to the router</LI>
+<LI>4 are left over, but given domain names paul, ringo, john, and
+george, just to confuse things a bit.</LI>
+<LI>The protected networks both have the addresses 192.168.1.xxx</LI>
+</UL>
+<P>Then, two separate networks are built, each in different rooms.  They are routed via infrared Ethernet so that they are completely invisible to the outside room.  Luckily, infrared ethernet works just like normal ethernet.
+<P>These networks are each connected to one of the Linux boxes with an extra IP address.
+<P>There is a file server connecting the two protected networks.  This is because the plans for taking over the world involves some of the higher Troops.  The file server holds the address 192.168.1.17 for the Troop network and 192.168.1.23 for the Mercenary network.  It has to have different IP addresses because it has to have different Ethernet cards.  IP Forwarding on it is turned off.
+<P>IP Forwarding on both Linux boxes is also turned off.  The router will not forward packets destined for 192.168.1.xxx unless explicitly told to do so, so the internet will not be able to get in.  The reason for turning off IP Forwarding here is so that packets from the Troop's network will not be able to reach the Mercenary network, and vica versa.
+<P>The NFS server can also be set to offer different files to the different networks.  This can come in handy, and a little trickery with symbolic links can make it so that the common files can be shared with all.  Using this setup and another ethernet card can offer this one file server for all three networks.
+<P>
+<H3>The Proxy Setup</H3>
+
+<P>Now, since all three levels want to be able to monitor the network for their own devious purposes, all three need to have net access.  The external network is connected directly into the internet, so we don't have to mess with proxy servers here.  The Mercenary and Troop networks are behind firewalls, so it is necessary to set up proxy servers here.
+<P>Both networks will be setup very similarly.  They both have the same IP addresses assigned to them.  I will throw in a couple of parameters, just to make things more interesting though.
+<P>
+<OL>
+<LI>No one can use the file server for internet access.  This exposes the file server to viruses and other nasty things, and it is rather important, so its off limits.
+</LI>
+<LI>We will not allow troop access to the World Wide Web.  They are in training, and this kind of information retrieval power might prove to be damaging.</LI>
+</OL>
+<P>So, the sockd.conf file on the Troop's Linux box will have this line:
+<P>
+<PRE>
+    deny 192.168.1.17 255.255.255.255
+</PRE>
+<P>and on the Mercenary machine:
+<P>
+<PRE>
+    deny 192.168.1.23 255.255.255.255
+</PRE>
+<P>And, the Troop's Linux box will have this line
+<P>
+<PRE>
+    deny 0.0.0.0 0.0.0.0 eq 80
+</PRE>
+<P>This says to deny access to all machines trying to access the port equal (eq) to 80, the http port.  This will still allow all other services, just deny Web access.
+<P>Then, both files will have:
+<P>
+<PRE>
+    permit 192.168.1.0 255.255.255.0
+</PRE>
+<P>to allow all the computers on the 192.168.1.xxx network to use this proxy server except for those that have already been denied (ie. The file server and Web access from the Troop network).
+<P>
+<P>The Troop's sockd.conf file will look like:
+<P>
+<PRE>
+    deny 192.168.1.17 255.255.255.255
+    deny 0.0.0.0 0.0.0.0 eq 80
+    permit 192.168.1.0 255.255.255.0
+</PRE>
+<P>and the Mercenary file will look like:
+<P>
+<PRE>
+    deny 192.168.1.23 255.255.255.255
+    permit 192.168.1.0 255.255.255.0
+</PRE>
+<P>This should configure everything correctly.  Each network is isolated accordingly, with the proper amount of interaction.  Everyone should be happy.  
+<P>
+<HR>
+<A HREF="Firewall-HOWTO-13.html">Next</A>
+<A HREF="Firewall-HOWTO-11.html">Previous</A>
+<A HREF="Firewall-HOWTO.html#toc12">Contents</A>
+</BODY>
+</HTML>

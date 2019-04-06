@@ -1,0 +1,470 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>( Logs ) - Now that I have IP Masquerading up, I'm getting all sorts of weird 
+notices and errors in the SYSLOG log files.  How do I read the IPTABLES/IPCHAINS/IPFWADM 
+firewall errors?</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Frequently Asked Questions"
+HREF="faq.html"><LINK
+REL="PREVIOUS"
+TITLE="( PORTFW - Locally ) - I can't reach my PORTFWed server from the INTERNAL lan"
+HREF="portfw-local.html"><LINK
+REL="NEXT"
+TITLE='( Log Reduction ) - My logs are filling up with packet hits due to the 
+new "stronger" rulesets.  How can I fix this? '
+HREF="reducing-masq-logs.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="portfw-local.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. Frequently Asked Questions</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="reducing-masq-logs.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="MASQ-LOGS"
+></A
+>7.20. ( Logs ) - Now that I have IP Masquerading up, I'm getting all sorts of weird 
+notices and errors in the SYSLOG log files.  How do I read the IPTABLES/IPCHAINS/IPFWADM 
+firewall errors?</H1
+><P
+>There is probably a few common things that you are going to see:
+
+<P
+></P
+><UL
+><LI
+><P
+><STRONG
+>MASQ: Failed TCP Checksum error:</STRONG
+>  You 
+might see this error when a packet coming from the Internet gets corrupt in 
+the data section of the packet but the rest of it "seems" ok.  When the Linux 
+box receives this packet, it will calculate the CRC of the packet and 
+determine that its corrupt.  On most machines running OSes like Microsoft 
+Windows, they just silently drop the packets but Linux IP MASQ reports it.  If 
+you get a LOT of them over your PPP link, first follow the FAQ entry above for 
+"(Performance) - Masq seems is slow".  </P
+><P
+>If the (Performance) FAQ tips don't help and you run PPP over dialup or PPPoE, 
+you might try adding the line "-vj" (disabled VanJacobson header compression) to 
+your /etc/ppp/options file and restart the PPPd connection.</P
+></LI
+><LI
+><P
+><STRONG
+>Firewall hits</STRONG
+>:  Because you are on the 
+Internet with a decent firewall, you will be surprised with the number of users 
+trying to penetrate your Linux box!  So what do all these firewall logs mean?  </P
+><P
+>More so, if they are filling your logs, see the next FAQ entry on thoughts 
+<EM
+>how to reduce</EM
+> all these log entries.</P
+></LI
+><LI
+><P
+>The following details are from the 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#TrinityOS"
+TARGET="_top"
+>TrinityOS - Section 10</A
+> 
+documentation I also wrote:</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>    With the use of various firewall rulesets, a given ruleset can either 
+    DENY (silently drop) or REJECT traffic (sends back a ICMP error).  If 
+    firewall logging is enabled, the errors will show up in the SYSLOG
+    "messages" file found at:
+
+        Redhat: 	/var/log
+        Slackware:	/var/adm
+
+    If you take a look at one of these firewall logs, you would see something 
+    like:
+
+    ---------------------------------------------------------------------
+    IPTABLES:
+    ---------
+    Feb 23 07:37:01 Roadrunner kernel: IPTABLES IN=eth0 OUT= 
+      MAC=00:50:da:2e:e5:fb:00:03:47:73:c9:d2:08:00 SRC=12.75.147.174 
+      DST=100.200.0.212 LEN=44 TOS=0x00 PREC=0x00 TTL=64 ID=39034 DF PROTO=TCP 
+      SPT=4313 DPT=23 WINDOW=32120 RES=0x00 SYN URGP=0
+
+ 
+    IPCHAINS:
+    ---------
+    Feb 23 07:37:01 Roadrunner kernel: input REJECT eth0 PROTO=6 
+      12.75.147.174:1633 100.200.0.212:23 L=44 S=0x00 I=54054 F=0x0040 T=64
+
+
+    IPFWADM:
+    --------
+    Feb 23 07:37:01 Roadrunner kernel: IP fw-in rej eth0 TCP 12.75.147.174:1633 
+      100.200.0.212:23 L=44 S=0x00 I=54054 F=0x0040 T=64
+
+    ---------------------------------------------------------------------
+
+There is a LOT of information in just this one line of SYSLOG.  Lets break
+out this example.  You should refer back to the original firewall hit as you 
+read this.  
+
+--------------
+
+    1. ===================================================================
+
+	- This packet firewall "hit" occurred on "Feb 23 07:37:01"
+
+    2. ===================================================================
+
+	- This packet was logged on the "RoadRunner" computer via the kernel
+
+    3. ===================================================================
+
+	- IPTABLES: the SYSLOG prepend string is "iptables" for information purposes
+
+    - IPCHAINS: the packet was stopped on the INPUT chain
+
+    - IPFWADM:  the packet was an IP packet
+
+    4. ===================================================================
+
+    - IPTABLES: the packet came IN on interface "eth0"
+
+    - IPCHAINS: the packet was REJECTED (vs. dropped or accepted)
+
+    - IPFWADM:  the packet was stopped on INPUT (vs. "fw-out" for OUT or 
+       "fw-fwd" for FORWARD)
+
+    5. ===================================================================
+
+    - IPTABLES: the packet had NO output interface
+
+    - IPCHAINS: the packet came in on the "eth0" interface
+
+    - IPFWADM:  the packet was REJECTED "rej" (vs. "deny" or "accept")
+
+    6. ===================================================================
+
+    - IPTABLES: this display's the MAC address of the source and destination
+                Ethetnet MAC address (only relivant for Ethernet networks)
+
+    - IPCHAINS: the packet was IP protocol 6 or TCP
+		        * If you don't know that protocol 6 is for TCP, look at 
+                  your /etc/protocols file to see what other protocol numbers
+                  are used for.
+
+    - IPFWADM:  the packet on the "eth0" interface 
+
+    7. ===================================================================
+
+    - IPTABLES: the packet's source IP address was 12.75.147.174
+
+	- IPCHAINS: the packet's source IP address was 12.75.147.174
+
+    - IPFWADM:  the packet was a "TCP" packet 
+
+    8. ===================================================================
+
+	- IPTABLES: the packet's destination IP address was 100.200.0.212
+
+    - IPCHAINS: the packet's source PORT was 1633 
+
+    - IPFWADM:  the packet's source IP address was 12.75.147.174
+
+    9. ===================================================================
+
+    - IPTABLES: the packet's length was 44 bytes
+
+	- IPCHAINS: the packet's destination IP address was 100.200.0.212
+
+    - IPFWADM:  the packet's source PORT was 1633
+
+    10. ===================================================================
+
+    - IPTABLES: the packet's TOS markings (type of service which basically
+                means class of service) was 0x00 or zero.
+
+    - IPCHAINS: the packet's destination PORT was 23 (telnet)
+		        * If you don't know that port 23 is for TELNETing, look at 
+                  your /etc/services file to see what other ports are used 
+                  for.
+
+    - IPFWADM:  the packet's destination IP address was 100.200.0.212 
+
+    11. ===================================================================
+
+    - IPTABLES: the packet's precedense markings (class of service) was 
+                0x00 or zero.
+
+    - IPCHAINS: the packet's length was 44 bytes
+
+    - IPFWADM:  the packet's destination PORT was 23 (telnet)
+		        * If you don't know that port 23 is for TELNETing, look at 
+                  your /etc/services file to see what other ports are used 
+                  for.
+
+    12. ==================================================================
+
+    - IPTABLES: the packet's TTL or Time to Live was 64 or 64 router hops
+		        * Every router hop over the Internet will subtract (1) from 
+                  this number.  Usually, packets will start with a number of 
+                  255 (depends on the operating system) and if that number 
+                  ever reaches (0), it means that realistically, the packet 
+                  was lost in a network loop and should be deleted. 
+
+    - IPCHAINS: the packet's TOS markings (type of service which basically
+                means class of service) was 0x00 or zero.
+		        * divide this by 4 to get the Type of Service (presidence) 
+
+    - IPFWADM:  the packet was 44 bytes long
+
+    13. ==================================================================
+
+	- IPTABLES: the packet had various TCP flags set such as SYN, SYN+ACK,
+                etc. (shown in HEX)
+
+    - IPCHAINS: the packet had various TCP flags set (shown in hex)
+
+    - IPFWADM:  the packet's TOS markings (type of service which basically
+                means class of service) was 0x00 or zero.
+
+    14. ==================================================================
+
+	- IPTABLES: the packet's "don't fragment" or DF bit was set from the 
+                source computer
+
+    - IPCHAINS: the packet had a fragmentation offset of 40 (shown in HEX)
+
+		        --Don't worry if you don't understand this.. 
+		        * A value that started with "0x2..." or "0x3..." means the 
+                  "More Fragments" bit was set so more fragmented packets 
+                  will be coming in to complete this one BIG packet.
+		        * A value which started with "0x4..." or "0x5..." means that 
+                  the "Don't Fragment" bit was set  
+		        * Any other values are the Fragment offset (divided by 8) to 
+                  be later used to recombine into the original LARGE packet
+
+	- IPFWADM:  the packet had various TCP flags set such as SYN, SYN+ACK,
+                etc. (shown in HEX)
+
+    15. ==================================================================
+
+	- IPTABLES: the packet was a TCP packet
+
+    - IPCHAINS: the packet's TTL or Time to Live was 64 or 64 router hops
+		        * Every router hop over the Internet will subtract (1) from 
+                  this number.  Usually, packets will start with a number of 
+                  255 (depends on the operating system) and if that number 
+                  ever reaches (0), it means that realistically, the packet 
+                  was lost in a network loop and should be deleted. 
+
+    - IPFWADM:  the packet had a fragmentation offset of 40 (shown in HEX)
+
+		        --Don't worry if you don't understand this.. 
+		        * A value that started with "0x2..." or "0x3..." means the 
+                  "More Fragments" bit was set so more fragmented packets 
+                  will be coming in to complete this one BIG packet.
+		        * A value which started with "0x4..." or "0x5..." means that 
+                  the "Don't Fragment" bit was set  
+		        * Any other values are the Fragment offset (divided by 8) to 
+                  be later used to recombine into the original LARGE packet
+
+    16. ==================================================================
+
+    - IPTABLES: the packet's soure PORT was 4313
+
+    - IPCHAINS: 
+
+    - IPFWADM:  the packet's TTL or Time to Live was 64 or 64 router hops
+		        * Every router hop over the Internet will subtract (1) from 
+                  this number.  Usually, packets will start with a number of 
+                  255 (depends on the operating system) and if that number 
+                  ever reaches (0), it means that realistically, the packet 
+                  was lost in a network loop and should be deleted. 
+
+    17. ==================================================================
+
+    - IPTABLES: the packet's destination PORT was 23 (telnet)
+		        * If you don't know that port 23 is for TELNETing, look at 
+                  your /etc/services file to see what other ports are used 
+                  for.
+
+    - IPCHAINS:
+
+    - IPFWADM: 
+
+    18. ==================================================================
+
+    - IPTABLES: the packet's TCP window (sliding or selective TCP ack)
+                was 32120 bytes
+
+    - IPCHAINS:
+
+    - IPFWADM:
+
+    19. ==================================================================
+
+    - IPTABLES: the packet's TCP reserved bits were 0x00 (HEX) - unused
+
+    - IPCHAINS:
+
+    - IPFWADM:
+
+    20. ==================================================================
+
+    - IPTABLES: the packet's TCP header SYN bit was set
+                * IPTABLES displays all the TCP header bits by name and not
+                  by a HEX dump
+
+    - IPCHAINS:
+
+    - IPFWADM:
+
+    21. ==================================================================
+
+    - IPTABLES: the packet's TCP header URGENT bit was set - rarely used
+
+    - IPCHAINS:
+
+    - IPFWADM:&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+> </P
+></LI
+></UL
+></P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="portfw-local.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="reducing-masq-logs.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>( PORTFW - Locally ) - I can't reach my PORTFWed server from the INTERNAL lan</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="faq.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>( Log Reduction ) - My logs are filling up with packet hits due to the 
+new "stronger" rulesets.  How can I fix this?</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

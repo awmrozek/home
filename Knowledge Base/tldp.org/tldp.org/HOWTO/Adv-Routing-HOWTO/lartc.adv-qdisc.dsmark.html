@@ -1,0 +1,676 @@
+<HTML
+><HEAD
+><TITLE
+>DSMARK</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Advanced &#38; less common queueing disciplines"
+HREF="lartc.adv-qdisc.html"><LINK
+REL="PREVIOUS"
+TITLE="Clark-Shenker-Zhang algorithm (CSZ)"
+HREF="lartc.adv-qdisc.csz.html"><LINK
+REL="NEXT"
+TITLE="Ingress qdisc"
+HREF="lartc.adv-qdisc.ingress.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-qdisc.csz.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 14. Advanced &#38; less common queueing disciplines</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-qdisc.ingress.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.ADV-QDISC.DSMARK"
+></A
+>14.3. DSMARK</H1
+><BLOCKQUOTE
+CLASS="ABSTRACT"
+><DIV
+CLASS="ABSTRACT"
+><A
+NAME="AEN1649"
+></A
+><P
+></P
+><P
+>      Esteve Camps
+      <P
+CLASS="ADDRESS"
+><TT
+CLASS="EMAIL"
+>&#60;<A
+HREF="mailto:marvin@grn.es"
+>marvin@grn.es</A
+>&#62;</TT
+></P
+>
+      This text is an extract from my thesis on
+      <I
+CLASS="CITETITLE"
+>QoS Support in Linux</I
+>, September 2000.
+    </P
+><P
+></P
+></DIV
+></BLOCKQUOTE
+><P
+>Source documents:</P
+><P
+></P
+><UL
+><LI
+><P
+>    <A
+HREF="ftp://icaftp.epfl.ch/pub/linux/diffserv/misc/dsid-01.txt.gz"
+TARGET="_top"
+>      Draft-almesberger-wajhak-diffserv-linux-01.txt</A
+>.
+  </P
+></LI
+><LI
+><P
+>Examples in iproute2 distribution.
+  </P
+></LI
+><LI
+><P
+>    <A
+HREF="http://www.qosforum.com/white-papers/qosprot_v3.pdf"
+TARGET="_top"
+>      White Paper-QoS protocols and architectures</A
+> and
+    <A
+HREF="http://www.qosforum.com/docs/faq"
+TARGET="_top"
+>      IP QoS Frequently Asked Questions</A
+> both by 
+    <I
+CLASS="CITETITLE"
+>Quality of Service Forum</I
+>.
+  </P
+></LI
+></UL
+><P
+>This chapter was written by Esteve Camps &#60;esteve@hades.udg.es&#62;.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1670"
+></A
+>14.3.1. Introduction</H2
+><P
+>First of all, first of all, it would be a great idea for you to read RFCs
+written about this (RFC2474, RFC2475, RFC2597 and RFC2598) at 
+<A
+HREF="http://www.ietf.org/html.charters/diffserv-charter.html"
+TARGET="_top"
+>  IETF DiffServ working Group web site</A
+> and
+<A
+HREF="http://diffserv.sf.net/"
+TARGET="_top"
+>  Werner Almesberger web site</A
+>
+(he wrote the code to support Differentiated Services on Linux).</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1675"
+></A
+>14.3.2. What is Dsmark related to?</H2
+><P
+>Dsmark is a queueing discipline that offers the capabilities needed in
+Differentiated Services (also called DiffServ or, simply, DS). DiffServ is
+one of two actual QoS architectures (the other one is called Integrated
+Services) that is based on a value carried by packets in the DS field of the
+IP header.</P
+><P
+>One of the first solutions in IP designed to offer some QoS level was
+the Type of Service field (TOS byte) in IP header. By changing that value,
+we could choose a high/low level of throughput, delay or reliability.
+But this didn't provide sufficient flexibility to the needs of new
+services (such as real-time applications, interactive applications and
+others). After this, new architectures appeared. One of these was DiffServ
+which kept TOS bits and renamed DS field.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1679"
+></A
+>14.3.3. Differentiated Services guidelines</H2
+><P
+>Differentiated Services is group-oriented. I mean, we don't know anything
+about flows (this will be the Integrated Services purpose); we know about
+flow aggregations and we will apply different behaviours depending on which
+aggregation a packet belongs to.</P
+><P
+>When a packet arrives to an edge node (entry node to a DiffServ domain)
+entering to a DiffServ Domain we'll have to policy, shape and/or mark those
+packets (marking refers to assigning a value to the DS field. It's just like the
+cows :-) ). This will be the mark/value that the internal/core nodes on our
+DiffServ Domain will look at to determine which behaviour or QoS level
+apply.</P
+><P
+>As you can deduce, Differentiated Services involves a domain on which
+all DS rules will have to be applied. In fact you can think I
+will classify all the packets entering my domain. Once they enter my
+domain they will be subjected to the rules that my classification dictates
+and every traversed node will apply that QoS level.</P
+><P
+>In fact, you can apply your own policies into your local domains, but some
+<EM
+>Service Level Agreements</EM
+> should be considered when connecting to
+other DS domains.</P
+><P
+>At this point, you maybe have a lot of questions. DiffServ is more than I've
+explained. In fact, you can understand that I can not resume more than 3
+RFCs in just 50 lines :-).</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1687"
+></A
+>14.3.4. Working with Dsmark</H2
+><P
+>As the DiffServ bibliography specifies, we differentiate boundary nodes and
+interior nodes. These are two important points in the traffic path. Both
+types perform a classification when the packets arrive. Its result may be
+used in different places along the DS process before the packet is released
+to the network. It's just because of this that the diffserv code supplies an
+structure called sk_buff, including a new field called skb-&#62;tc_index
+where we'll store the result of initial classification that may be used in
+several points in DS treatment.</P
+><P
+>The skb-&#62;tc_index value will be initially set by the DSMARK qdisc,
+retrieving it from the DS field in IP header of every received packet.
+Besides, cls_tcindex classifier will read all or part of skb-&#62;tcindex
+value and use it to select classes.</P
+><P
+>But, first of all, take a look at DSMARK qdisc command and its parameters:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>... dsmark indices INDICES [ default_index DEFAULT_INDEX ] [ set_tc_index ]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+What do these parameters mean?
+
+<P
+></P
+><UL
+><LI
+><P
+><EM
+>indices</EM
+>: size of table of (mask,value) pairs. Maximum value is 2^n, where n&#62;=0.</P
+></LI
+><LI
+><P
+><EM
+>Default_index</EM
+>: the default table entry index if classifier finds no match.</P
+></LI
+><LI
+><P
+><EM
+>Set_tc_index</EM
+>: instructs dsmark discipline to retrieve the DS field and store it onto skb-&#62;tc_index.</P
+></LI
+></UL
+>
+
+Let's see the DSMARK process.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1703"
+></A
+>14.3.5. How SCH_DSMARK works.</H2
+><P
+>This qdisc will apply the next steps:
+
+<P
+></P
+><UL
+><LI
+><P
+>If we have declared set_tc_index option in qdisc command, DS field is retrieved and stored onto
+skb-&#62;tc_index variable.</P
+></LI
+><LI
+><P
+>Classifier is invoked. The classifier will be executed and it will return a class ID that will be stored in
+skb-&#62;tc_index variable.If no filter matches are found, we consider the default_index option to be the
+classId to store. If neither set_tc_index nor default_index has been declared results may be
+unpredictable.</P
+></LI
+><LI
+><P
+>After been sent to internal qdiscs where you can reuse the result of the filter, the classid returned by
+the internal qdisc is stored into skb-&#62;tc_index. We will use this value in the future to index a mask-
+value table. The final result to assign to the packet will be that resulting from next operation:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>New_Ds_field = ( Old_DS_field &#38; mask ) | value</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#13;</P
+></LI
+><LI
+><P
+>Thus, new value will result from "anding" ds_field and mask values and next, this result "ORed" with
+value parameter. See next diagram to understand all this process:</P
+></LI
+></UL
+>
+
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>                         skb-&#62;ihp-&#62;tos
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - &#62;
+     |                                                       |     ^
+     | -- If you declare set_tc_index, we set DS             |     |  &#60;-----May change
+     |    value into skb-&#62;tc_index variable                  |     |O       DS field
+     |                                                      A|     |R
+   +-|-+      +------+    +---+-+    Internal   +-+     +---N|-----|----+
+   | | |      | tc   |---&#62;|   | |--&#62;  . . .  --&#62;| |     |   D|     |    |
+   | | |-----&#62;|index |---&#62;|   | |     Qdisc     | |----&#62;|    v     |    |
+   | | |      |filter|---&#62;| | | +---------------+ |   ----&#62;(mask,value) |
+--&#62;| O |      +------+    +-|-+--------------^----+  /  |  (.  ,  .)    |
+   | | |          ^         |                |       |  |  (.  ,  .)    |
+   | | +----------|---------|----------------|-------|--+  (.  ,  .)    |
+   | | sch_dsmark |         |                |       |                  |
+   +-|------------|---------|----------------|-------|------------------+
+     |            |         | &#60;- tc_index -&#62; |       |
+     |            |(read)   |    may change  |       |  &#60;--------------Index to the
+     |            |         |                |       |                    (mask,value)
+     v            |         v                v       |                    pairs table
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -&#62;
+                         skb-&#62;tc_index</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>How to do marking? Just change the mask and value of the class you want to remark. See next line of code:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>tc class change dev eth0 classid 1:1 dsmark mask 0x3 value 0xb8</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+This changes the (mask,value) pair in hash table, to remark packets belonging to class 1:1.You have to "change" this values
+because of default values that (mask,value) gets initially (see table below).</P
+><P
+>Now, we'll explain how TC_INDEX filter works and how fits into this. Besides, TCINDEX filter can be
+used in other configurations rather than those including DS services.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN1720"
+></A
+>14.3.6. TC_INDEX Filter</H2
+><P
+>This is the basic command to declare a TC_INDEX filter:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>... tcindex [ hash SIZE ] [ mask MASK ] [ shift SHIFT ]
+            [ pass_on | fall_through ]
+            [ classid CLASSID ] [ police POLICE_SPEC ]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Next, we show the example used to explain TC_INDEX operation mode. Pay attention to bolded words:
+
+
+tc qdisc add dev eth0 handle 1:0 root dsmark indices 64 <EM
+>set_tc_index</EM
+>
+
+tc filter add dev eth0 parent 1:0 protocol ip prio 1 tcindex <EM
+>mask 0xfc  shift 2</EM
+>
+
+tc qdisc add dev eth0 parent 1:0 handle 2:0 cbq bandwidth 10Mbit cell 8 avpkt 1000 mpu 64
+
+# EF traffic class
+
+tc class add dev eth0 parent 2:0 classid 2:1 cbq bandwidth 10Mbit rate 1500Kbit avpkt 1000 prio 1 bounded isolated allot 1514 weight 1 maxburst 10
+
+# Packet fifo qdisc for EF traffic
+
+tc qdisc add dev eth0 parent 2:1 pfifo limit 5
+
+tc filter add dev eth0 parent 2:0 protocol ip prio 1 <EM
+>handle 0x2e</EM
+> tcindex <EM
+>classid 2:1 pass_on</EM
+>
+
+
+
+(This code is not complete. It's just an extract from EFCBQ example included in iproute2 distribution).</P
+><P
+>First of all, suppose we receive a packet marked as EF .  If you read RFC2598, you'll see that DSCP
+recommended value for EF traffic is 101110. This means that DS field will be 10111000 (remember that
+less significant bits in TOS byte are not used in DS) or 0xb8 in hexadecimal codification.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>              TC INDEX
+              FILTER
+   +---+      +-------+    +---+-+    +------+                +-+    +-------+
+   |   |      |       |    |   | |    |FILTER|  +-+    +-+    | |    |       |
+   |   |-----&#62;| MASK  | -&#62; |   | | -&#62; |HANDLE|-&#62;| |    | | -&#62; | | -&#62; |       |
+   |   |  .   | =0xfc |    |   | |    |0x2E  |  | +----+ |    | |    |       |
+   |   |  .   |       |    |   | |    +------+  +--------+    | |    |       |
+   |   |  .   |       |    |   | |                            | |    |       |
+--&#62;|   |  .   | SHIFT |    |   | |                            | |    |       |--&#62;
+   |   |  .   | =2    |    |   | +----------------------------+ |    |       |
+   |   |      |       |    |   |       CBQ 2:0                  |    |       |
+   |   |      +-------+    +---+--------------------------------+    |       |
+   |   |                                                             |       |
+   |   +-------------------------------------------------------------+       |
+   |                          DSMARK 1:0                                     |
+   +-------------------------------------------------------------------------+&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The packet arrives, then, set with 0xb8 value at DS field. As we explained before, dsmark qdisc identified
+by 1:0 id in the example, retrieves DS field and store it in skb-&#62;tc_index variable.
+Next step in the example will correspond to the filter associated to this qdisc (second line in the example).
+This will perform next operations:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Value1 = skb-&#62;tc_index &#38; MASK
+Key = Value1 &#62;&#62; SHIFT</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>In the example, MASK=0xFC i SHIFT=2.
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Value1 = 10111000 &#38; 11111100 = 10111000
+Key = 10111000 &#62;&#62; 2 = 00101110 -&#62; 0x2E in hexadecimal</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The returned value will correspond to a qdisc internal filter handle (in the example, identifier 2:0). If a
+filter with this id exists, policing and metering conditions will be verified (in case that filter includes this)
+and the classid will be returned (in our example, classid 2:1) and stored in skb-&#62;tc_index variable.</P
+><P
+>But if any filter with that identifier is found, the result will depend on fall_through flag declaration. If so,
+value key is returned as classid. If not, an error is returned and process continues with the rest filters. Be
+careful if you use fall_through flag; this can be done if a simple relation exists between values
+
+of skb-&#62;tc_index variable and class id's.</P
+><P
+>The latest parameters to comment on are hash and pass_on. The first one
+relates to hash table size. Pass_on will be used to indicate that if no classid
+equal to the result of this filter is found, try next filter.
+The default action is fall_through (look at next table).</P
+><P
+>Finally, let's see which possible values can be set to all this TCINDEX parameters:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>TC Name                 Value           Default
+-----------------------------------------------------------------
+Hash                    1...0x10000     Implementation dependent
+Mask                    0...0xffff      0xffff
+Shift                   0...15          0
+Fall through / Pass_on  Flag            Fall_through
+Classid                 Major:minor     None
+Police                  .....           None</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This kind of filter is very powerful. It's necessary to explore all possibilities. Besides, this filter is not only used in DiffServ configurations.
+You can use it as any other kind of filter.</P
+><P
+>I recommend you to look at all DiffServ examples included in iproute2 distribution. I promise I will try to
+complement this text as soon as I can. Besides, all I have explained is the result of a lot of tests.
+I would thank you tell me if I'm wrong in any point.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.adv-qdisc.csz.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.adv-qdisc.ingress.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Clark-Shenker-Zhang algorithm (CSZ)</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.adv-qdisc.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Ingress qdisc</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

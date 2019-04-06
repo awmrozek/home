@@ -1,0 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>The Software-RAID HOWTO: Why RAID?</TITLE>
+ <LINK HREF="Software-RAID-HOWTO-3.html" REL=next>
+ <LINK HREF="Software-RAID-HOWTO-1.html" REL=previous>
+ <LINK HREF="Software-RAID-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-RAID-HOWTO-3.html">Next</A>
+<A HREF="Software-RAID-HOWTO-1.html">Previous</A>
+<A HREF="Software-RAID-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2.</A> <A HREF="Software-RAID-HOWTO.html#toc2">Why RAID?</A></H2>
+
+<P><B>This HOWTO is deprecated; the Linux RAID HOWTO is maintained as a wiki by the
+linux-raid community at 
+<A HREF="http://raid.wiki.kernel.org/">http://raid.wiki.kernel.org/</A></B></P>
+<P>There can be many good reasons for using RAID. A few are; the ability
+to combine several physical disks into one larger "virtual" device,
+performance improvements, and redundancy.</P>
+<P>It is, however, very important to understand that RAID is not a
+substitute for good backups. Some RAID levels will make your systems
+immune to data loss from single-disk failures, but RAID will not allow
+you to recover from an accidental <CODE>"rm -rf /"</CODE>. RAID will also
+not help you preserve your data if the server holding the RAID itself
+is lost in one way or the other (theft, flooding, earthquake, Martian
+invasion etc.)</P>
+<P>RAID will generally allow you to keep systems up and running, in case
+of common hardware problems (single disk failure). It is <B>not</B>
+in itself a complete data safety solution. This is very important to
+realize.</P>
+
+<H2><A NAME="ss2.1">2.1</A> <A HREF="Software-RAID-HOWTO.html#toc2.1">Device and filesystem support</A>
+</H2>
+
+<P>Linux RAID can work on most block devices. It doesn't matter whether
+you use IDE or SCSI devices, or a mixture. Some people have also used
+the Network Block Device (NBD) with more or less success.</P>
+<P>Since a Linux Software RAID device is itself a block device, the above
+implies that you can actually <EM>create a RAID of other RAID
+devices</EM>. This in turn makes it possible to support RAID-10
+(RAID-0 of multiple RAID-1 devices), simply by using the RAID-0 and
+RAID-1 functionality together. Other more exotic configurations, such
+a RAID-5 over RAID-5 "matrix" configurations are equally
+supported.</P>
+<P>The RAID layer has absolutely nothing to do with the filesystem
+layer. You can put any filesystem on a RAID device, just like any
+other block device.</P>
+
+
+<H2><A NAME="ss2.2">2.2</A> <A HREF="Software-RAID-HOWTO.html#toc2.2">Performance</A>
+</H2>
+
+<P>Often RAID is employed as a solution to performance problems. While
+RAID can indeed often be the solution you are looking for, it is not a
+silver bullet. There can be many reasons for performance problems, and
+RAID is only the solution to a few of them.</P>
+<P>See Chapter one for a mention of the performance characteristics of
+each level.</P>
+
+
+<H2><A NAME="ss2.3">2.3</A> <A HREF="Software-RAID-HOWTO.html#toc2.3">Swapping on RAID</A>
+</H2>
+
+<P>There's no reason to use RAID for swap performance reasons. The kernel
+itself can stripe swapping on several devices, if you just give them
+the same priority in the <CODE>/etc/fstab</CODE> file.</P>
+<P>A nice <CODE>/etc/fstab</CODE> looks like:
+<PRE>
+/dev/sda2       swap           swap    defaults,pri=1   0 0
+/dev/sdb2       swap           swap    defaults,pri=1   0 0
+/dev/sdc2       swap           swap    defaults,pri=1   0 0
+/dev/sdd2       swap           swap    defaults,pri=1   0 0
+/dev/sde2       swap           swap    defaults,pri=1   0 0
+/dev/sdf2       swap           swap    defaults,pri=1   0 0
+/dev/sdg2       swap           swap    defaults,pri=1   0 0
+</PRE>
+
+This setup lets the machine swap in parallel on seven SCSI devices. No
+need for RAID, since this has been a kernel feature for a long time.</P>
+<P>Another reason to use RAID for swap is high availability.  If you set
+up a system to boot on eg. a RAID-1 device, the system should be able
+to survive a disk crash. But if the system has been swapping on the
+now faulty device, you will for sure be going down.  Swapping on a
+RAID-1 device would solve this problem. </P>
+<P>There has been a lot of discussion about whether swap was stable on
+RAID devices. This is a continuing debate, because it depends highly
+on other aspects of the kernel as well.  As of this writing, it seems
+that swapping on RAID should be perfectly stable, you should however
+stress-test the system yourself until you are satisfied with the
+stability.</P>
+<P>You can set up RAID in a swap file on a filesystem on your RAID
+device, or you can set up a RAID device as a swap partition, as you
+see fit.  As usual, the RAID device is just a block device.</P>
+
+
+<H2><A NAME="ss2.4">2.4</A> <A HREF="Software-RAID-HOWTO.html#toc2.4">Why mdadm?</A>
+</H2>
+
+<P>The classic raidtools are the standard software RAID management
+tool for Linux, so using mdadm is not a must.</P>
+<P>However, if you find raidtools cumbersome or limited, mdadm (multiple
+devices admin) is an extremely useful tool for running RAID systems.
+It can be used as a replacement for the raidtools, or as a supplement. </P>
+<P>The mdadm tool, written by 
+<A HREF="http://www.cse.unsw.edu.au/~neilb/">Neil Brown</A>, a software engineer at the University of
+New South Wales and a kernel developer, is now at version 1.4.0 and
+has proved to be quite stable. There is much positive response on the
+Linux-raid mailing list and mdadm is likely to become widespread in the
+future.</P>
+<P>The main differences between mdadm and raidtools are:</P>
+<P>
+<UL>
+<LI>mdadm can diagnose, monitor and gather detailed information
+about your arrays</LI>
+<LI>mdadm is a single centralized program and not a collection of
+disperse programs, so there's a common syntax for every RAID management
+command</LI>
+<LI>mdadm can perform almost all of its functions without having
+a configuration file and does not use one by default</LI>
+<LI>Also, if a configuration file is needed, mdadm will help with 
+management of it's contents</LI>
+</UL>
+</P>
+
+
+<HR>
+<A HREF="Software-RAID-HOWTO-3.html">Next</A>
+<A HREF="Software-RAID-HOWTO-1.html">Previous</A>
+<A HREF="Software-RAID-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,472 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Greylisting</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Techniques"
+HREF="techniques.html"><LINK
+REL="PREVIOUS"
+TITLE="SMTP checks"
+HREF="smtpchecks.html"><LINK
+REL="NEXT"
+TITLE="Sender Authorization Schemes"
+HREF="senderauth.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="smtpchecks.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 2. Techniques</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="senderauth.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="greylisting"
+></A
+>2.4. Greylisting</H1
+><P
+>&#13;      The <EM
+>greylisting</EM
+> concept is presented by
+      Evan Harris in a whitepaper at:
+      <A
+HREF="http://projects.puremagic.com/greylisting/"
+TARGET="_top"
+>http://projects.puremagic.com/greylisting/</A
+>.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="greylisting-theory"
+></A
+>2.4.1. How it works</H2
+><P
+>&#13;	Like <A
+HREF="smtpdelays.html"
+>SMTP transaction delays</A
+>, greylisting is a simple but
+	highly effective mechanism to weed out messages that are being
+	delivered via <A
+HREF="gloss.html#ratware"
+><I
+CLASS="glossterm"
+>Ratware</I
+></A
+>.  The idea is to
+	establish whether a prior relationship exists between the
+	sender and the receiver of a message.  For most legitimate
+	mail it does, and the delivery proceeds normally.
+      </P
+><P
+>&#13;	On the other hand, if no prior relationship exists, the
+	delivery is temporariliy rejected (with a
+	<B
+CLASS="command"
+>451</B
+> SMTP response).  Legitimate MTAs will
+	treat this response accordingly, and retry the delivery in a
+	little while<A
+NAME="noretrysenders"
+HREF="#FTN.noretrysenders"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>.  In contrast, ratware will either make repeated
+	delivery attempts right away, and/or simply give up and move
+	on to the next target in its address list.
+      </P
+><P
+>&#13;	Three pieces of information from a delivery attempt, referred
+	to a as a <EM
+>triplet</EM
+> are used to uniquely
+	identify the relationship between a sender and a receiver:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	    The <A
+HREF="gloss.html#envfrom"
+><I
+CLASS="glossterm"
+>Envelope Sender</I
+></A
+>.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    The sending host's IP address.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    The <A
+HREF="gloss.html#envto"
+><I
+CLASS="glossterm"
+>Envelope Recipient</I
+></A
+>.
+	  </P
+></LI
+></UL
+><P
+>&#13;	If a delivery attempt was temporarily rejected, this triplet
+	is cached.  It remains greylisted for a given amount of time
+	(nominally 1 hour), after which it is whitelisted, and new
+	delivery attempts would succeed.  If no new delivery attempts
+	occur prior to a given timeout (nominally 4 hours), then the
+	triplet expires from the cache.
+      </P
+><P
+>&#13;	If a whitelisted triplet has not been seen for an extended
+	duration (at minimum one month, to account for monthly billing
+	statements and the like), it is expired.  This prevents
+	unlimited growth of the list.
+      </P
+><P
+>&#13;	These timeouts are taken from Evan Harris' original
+	greylisting whitepaper (or should we say, ahem,
+	<SPAN
+CLASS="QUOTE"
+>"greypaper"</SPAN
+>?)  Some people have found that a
+	larger timeout may be needed before greylisted triplets
+	expire, because certain ISPs (such as
+	<EM
+>earthlink.net</EM
+>) retry deliveries only
+	every 6 hours or similar.
+	<A
+NAME="AEN914"
+HREF="#FTN.AEN914"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="greylisting-multimx"
+></A
+>2.4.2. Greylisting in Multiple Mail Exchangers</H2
+><P
+>&#13;	If you operate more than one incoming mail exchangers, and
+	each exchanger maintains its own greylisting cache, then:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	    First-time deliveries from a given sender to one of your
+	    users may theoretically be delayed up to
+	    <TT
+CLASS="parameter"
+><I
+>N</I
+></TT
+> times the initial 1-hour delay,
+	    where <TT
+CLASS="parameter"
+><I
+>N</I
+></TT
+> is the number of mail
+	    exchangers.  This is because the message would likely be
+	    retried at a different server than the one that issued the
+	    <B
+CLASS="command"
+>451</B
+> response to the initial delivery.
+	    In the worst case, the sender host may not get around to
+	    retrying the delivery to the first exchanger for 4 hours,
+	    or until after the greylist triplet has expired, thereby
+	    causing the delivery attempt to be rejected over and over
+	    again, until the sender gives up (usually after 4 days or
+	    so).
+	  </P
+><P
+>&#13;	    In practice, this is unlikely.  If a delivery attempt
+	    temporarily fails, the sender host normally retries the
+	    delivery immediately, using a different MX.  Thus, after
+	    one hour, any of these MX hosts would accept the message.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    Even after a triplet has been whitelisted in one of your
+	    MXs, the next message with the same triplet will be
+	    greylisted if it is delivered to a different MX.
+	  </P
+></LI
+></UL
+><P
+>&#13;	For these reasons, you may want to implement a solution where
+	the database of greylist triplets is shared between your
+	incoming mail exchangers.  However, since the machine that
+	hosts this database would become a single point of failure,
+	you would have to take a sensible action if that machine is
+	down (e.g. accept all deliveries). Or you could use database
+	replication techniques and have the SMTP server fall back to
+	one of the replicating servers for lookups.
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="greylisting-results"
+></A
+>2.4.3. Results</H2
+><P
+>&#13;	In my own experience, <EM
+>greylisting</EM
+> gets
+	rid of about 90% of unique junk mail deliveries,
+	<EM
+>after</EM
+> most of the <A
+HREF="smtpchecks.html"
+>SMTP checks</A
+> previously described are applied!  If
+	you used greylisting as a first defense, it would likely catch
+	an even higher percentage of incoming junk mail.
+      </P
+><P
+>&#13;	Conversely, there are virtually zero <A
+HREF="gloss.html#falsepos"
+><I
+CLASS="glossterm"
+>False Positive</I
+></A
+>s
+	resulting from this technique.  All major <A
+HREF="gloss.html#mta"
+><I
+CLASS="glossterm"
+>Mail Transport Agent</I
+></A
+>s
+	perform delivery retries after a temporary failure, in a manner
+	that will eventually result in a successful delivery.
+      </P
+><P
+>&#13;	The downside to greylisting is a legitimate mail from people
+	who have not e-mailed a particular recipient in the past is
+	subject to a one-hour delay (or maybe several hours, if you
+	operate several MX hosts). 
+      </P
+><P
+>&#13;	See also <A
+HREF="qanda.html#qanda-adapt"
+><EM
+>What happens when
+	spammers adapt...</EM
+></A
+>.
+      </P
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.noretrysenders"
+HREF="greylisting.html#noretrysenders"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;	  Although rare, some <SPAN
+CLASS="QUOTE"
+>"legitimate"</SPAN
+> bulk mail
+	  senders, such as <TT
+CLASS="option"
+>groups.yahoo.com</TT
+>, will not
+	  retry temporarily failed deliveries.  Evan Harris has
+	  compiled a list of such senders, suitable for whitelisting
+	  purposes: 
+	  <A
+HREF="http://cvs.puremagic.com/viewcvs/greylisting/schema/whitelist_ip.txt?view=markup"
+TARGET="_top"
+>http://cvs.puremagic.com/viewcvs/greylisting/schema/whitelist_ip.txt?view=markup</A
+>.
+	</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN914"
+HREF="greylisting.html#AEN914"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;	    Large sites often use multiple servers to handle outgoing
+	    mail.  For instance, one server or pool of servers may be
+	    used for immediate delivery.  If the first delivery
+	    attempt fails, the mail is handed off to a fallback server
+	    which has been tuned for large queues.  Hence, from such
+	    sites, the first two delivery attempts will fail. 
+	  </P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="smtpchecks.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="senderauth.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>SMTP checks</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="techniques.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Sender Authorization Schemes</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

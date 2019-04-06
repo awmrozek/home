@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>From Power Up To Bash Prompt: Init</TITLE>
+ <LINK HREF="From-PowerUp-To-Bash-Prompt-HOWTO-7.html" REL=next>
+ <LINK HREF="From-PowerUp-To-Bash-Prompt-HOWTO-5.html" REL=previous>
+ <LINK HREF="From-PowerUp-To-Bash-Prompt-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-7.html">Next</A>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-5.html">Previous</A>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Init</A></H2>
+
+<P>I will only talk about the ``System V'' style of init that Linux systems mostly
+use. There are alternatives. In fact, you can put any program you like in
+<CODE>/sbin/init</CODE>, and the kernel will run it when it has finished loading.
+<P>
+<P>It is <CODE>init</CODE>'s job to get everthing running the way it should be. 
+It checks that
+the file systems are ok and mounts them. It starts up ``daemons'' to log system
+messages, do networking, serve web pages, listen to your mouse and so on. It
+also starts the getty processes that put the login prompts on your virtual
+terminals. 
+<P>
+<P>There is a whole complicated story about switching ``run-levels'', but I'm
+going to mostly skip that, and just talk about system start up.
+<P>
+<P>Init reads the file <CODE>/etc/inittab</CODE>, which tells it what to do.
+Typically, the first thing it is told to do is to run an initialisation script.
+The program that executes (or interprets) this script is <CODE>bash</CODE>,
+the same program that gives you a command prompt. 
+In Debian systems, the initialisation script is <CODE>/etc/init.d/rcS</CODE>, on Red Hat,
+<CODE>/etc/rc.d/rc.sysinit</CODE>. This is where the filesystems get checked and
+mounted, the clock set, swap space enabled, hostname gets set etc. 
+<P>
+<P>Next, another script is called to take us into the default run-level. This just
+means a set of subsystems to start up. There is a set of directories
+<CODE>/etc/rc.d/rc0.d</CODE>, 
+<CODE>/etc/rc.d/rc1.d</CODE>, ..., <CODE>/etc/rc.d/rc6.d</CODE> in Red Hat, or
+<CODE>/etc/rc0.d</CODE>,
+<CODE>/etc/rc1.d</CODE>, ..., <CODE>/etc/rc6.d</CODE> in Debian, which correspond to the
+run-levels. If we are going into runlevel 3 on a Debian system, then the script
+runs all the scripts in <CODE>/etc/rc3.d</CODE> that start with `S' (for start).
+These scripts are really just links to scripts in another directory usually
+called <CODE>init.d</CODE>. 
+<P>
+<P>So our run-level script was called by <CODE>init</CODE>, and it is looking in a directory for scripts starting with `S'. It might find <CODE>S10syslog</CODE> first. The numbers tell the run-level script which order to run them in. So in this case <CODE>S10syslog</CODE> gets run first, since there were no scripts starting with S00 ... S09. But <CODE>S10syslog</CODE> is really a link to <CODE>/etc/init.d/syslog</CODE> which is a script to start and stop the system logger. Because the link starts with an `S', the run-level script knows to execute the <CODE>syslog</CODE> script with a ``start'' parameter. There are corresponding links starting with `K' (for kill), which specify what to shut down and in what order when leaving the run-level.
+<P>
+<P>To change what subsystems start up by default, you must set up these links in
+the <CODE>rcN.d</CODE> directory, where N is the default runlevel set in your
+<CODE>inittab</CODE>.
+<P>
+<P>The last important thing that init does is to start some <CODE>getty</CODE>'s.
+These are ``respawned'' which means that if they stop, <CODE>init</CODE> just
+starts them again. Most distributions come with six virtual terminals. You may
+want less than this to save memory, or more so you can leave lots of 
+things running and
+quickly flick to them as you need them. You may also want to run a 
+<CODE>getty</CODE> for a
+text terminal or a dial in modem. In this case you will need to edit the
+<CODE>inittab</CODE> file.
+<P>
+<P>
+<H2><A NAME="ss6.1">6.1 Configuration</A>
+</H2>
+
+<P><CODE>/etc/inittab</CODE> is the top level configuration file for init.
+<P>
+<P>The <CODE>rcN.d</CODE> directories, where N = 0, 1, ..., 6 determine what
+subsystems are started.
+<P>
+<P>Somewhere in one of the scripts invoked by init, the <CODE>mount -a</CODE> command
+will be issued. This means mount all the file systems that are supposed to be
+mounted. The file <CODE>/etc/fstab</CODE> defines what is supposed to be mounted.
+If you want to change what gets mounted where when your system starts up, this 
+is the file you will need to edit. There is a man page for <CODE>fstab</CODE>.
+<P>
+<H2><A NAME="ss6.2">6.2 Exercises</A>
+</H2>
+
+<P>Find the <CODE>rcN.d</CODE> directory for the default run-level of your system and do a <CODE>ls -l</CODE> to see what the files are links to.
+<P>
+<P>Change the number of gettys that run on your system.
+<P>
+<P>Remove any subsystems that you don't need from your default run-level.
+<P>
+<P>See how little you can get away with starting.
+<P>
+<P>Set up a floppy disk with lilo, a kernel and a statically linked "hello world" program called <CODE>/sbin/init</CODE> and watch it boot up and say hello.
+<P>
+<P>Watch carefully as your system starts up, and take notes about what it tells you is happening. Or print a section of your system log <CODE>/var/log/messages</CODE> from start up time. Then starting at <CODE>inittab</CODE>, walk through all the scripts and see what code does what. You can also put extra start up messages in, such as
+<P>
+<PRE>
+        echo "Hello, I am rc.sysinit"
+</PRE>
+<P>This is a good exercise in learning Bash shell scripting too, some of the scripts are quite complicated. Have a good Bash reference handy.
+<P>
+<H2><A NAME="ss6.3">6.3 More Information</A>
+</H2>
+
+<P>
+<UL>
+<LI>There are man pages for the <CODE>inittab</CODE> and <CODE>fstab</CODE> files. 
+Type (eg) <CODE>man inittab</CODE> into a shell to see it.</LI>
+<LI>The Linux System Administrators Guide has a good 
+<A HREF="http://mirror.aarnet.edu.au/linux/LDP/LDP/">section</A> on init.</LI>
+<LI>  source code, see 
+<A HREF="http://www.netspace.net.au/~gok/power2bash">Building a Minimal Linux System from Source Code</A> 
+for urls</LI>
+</UL>
+<P>
+<P>
+<HR>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-7.html">Next</A>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-5.html">Previous</A>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

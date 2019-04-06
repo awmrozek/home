@@ -1,0 +1,454 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Grafika</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apifile.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="apibmp.html">Następna część kursu >></A>
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+3. GRAFIKA W WINAPI
+</H1>
+
+<H2>
+3.1 Konteksty, zasoby, uchwyty...
+</H2>
+
+<P>
+Co jak co, ale rysowanie w Windows przy pomocy WinAPI jest wyjątkowo przegięte. Porzuć wszelkie nadzieje na to, aby np. linię można było narysować jednym rozkazem, tak jak to jest np. w Visual Basicu, a także w większości bibliotek graficznych pod DOS-a. Takie są jednak wymogi nowoczesnych systemów operacyjnych... 
+</P>
+<P>
+Jednak jest też druga strona medalu. Pod takim DOS-em, żeby cokolwiek narysować, musieliśmy wiedzieć absolutnie wszystko o karcie graficznej, monitorze itp. W Windows nie musimy wiedzieć prawie nic! System robi to wszystko za nas. Nie ma się więc co zniechęcać, jedziemy z tym koksem.
+</P>
+<P>
+Wszelkie operacje graficzne w Windowsach są związane z tzw. <SPAN CLASS=Wazne>kontekstem urządzenia</SPAN> - po angielsku <SPAN CLASS=Wazne>Device Context</SPAN>, a w skrócie <SPAN CLASS=Wazne>DC</SPAN>. Cokolwiek byśmy chcieli narysować, musimy podać uchwyt do kontekstu urządzenia (<SPAN CLASS=Wazne>Handle to Device Context - HDC</SPAN>). Brzmi to trochę jak bełkot, więc odwołując się do intuicji: kontekst urządzenia to zazwyczaj po prostu okno, w którym rysujemy. Od tej pory będę nazywał kontekst urządzenia w skrócie: <SPAN CLASS=T>HDC</SPAN>.
+</P>
+<P>
+To była pierwsza ważna sprawa, a druga to tak zwane <SPAN CLASS=Wazne>zasoby systemu</SPAN> - coś takiego pewnie ci się już obiło o uszy, nieprawdaż? Pisząc jakikolwiek program dla Windows korzystamy z tychże zasobów i musimy uważać, aby ich nie wyczerpać, gdyż to prowadzi w linii prostej do zwisów, wysypek, błędów krytycznych i innych wesołych rzeczy. Dlatego też schemat robienia czegokolwiek w WinAPI wygląda tak: pobierz zasoby - zrób coś - oddaj zasoby. Robiliśmy tak już chociażby z naszym głównym okienkiem programu, natomiast przy rysowaniu jest to szczególnie ważne i wyjątkowo często się korzysta z tego schematu.
+</P>
+
+<H2>
+3.2 Rysujemy linię
+</H2>
+
+<H3>
+3.2.1 Pobieranie i zwalnianie kontekstu urządzenia
+</H3>
+
+<P>
+Nasze pierwsze, wielkie zadanie: narysować linię prostą o danym kolorze. Jak już wspomniałem, będzie nam potrzebny uchwyt do kontekstu urządzenia. Ponieważ naszą uroczą linijkę chcemy narysować w oknie, kontekstem urządzenia będzie właśnie to okienko. Dysponujemy uchwytem do tego okienka, jednak to jeszcze nie jest to - uchwyt do okienka jest typu <SPAN CLASS=T>HWND</SPAN>, natomiast do kontekstu urządzenia - typu <SPAN CLASS=T>HDC</SPAN>. Aby uzyskać <SPAN CLASS=T>HDC</SPAN> naszego okna, musimy skorzystać z funkcji <SPAN CLASS=T>GetDC</SPAN>:
+<P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdcOkno;<BR>
+hdcOkno = GetDC(hwnd);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Kiedy już skończymy rysowanie, będzie trzeba zwolnić <SPAN CLASS=T>HDC</SPAN> naszego okna. Jeśli tego bowiem nie zrobimy, żadna inna aplikacja nie będzie mogła nic na naszym okienku narysować. Oczywiście, w większości przypadków nie zechcemy, by jakaś tam obca aplikacja mazała nam po okienku, no ale etykieta programistyczna obowiązuje :-). Korzystamy więc z funkcji <SPAN CLASS=T>ReleaseDC</SPAN>, przyjmującej jako argumenty: uchwyt okna (<SPAN CLASS=T>HWND</SPAN>) oraz uchwyt kontekstu (<SPAN CLASS=T>HDC</SPAN>):
+<P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+ReleaseDC(hwnd, hdcOkno);<BR>
+</TD></TR>
+</TABLE>
+
+<H3>
+3.2.2 Ustawianie pozycji rysowania
+</H3>
+
+<P>
+W WinAPI zwykle nie podajesz funkcjom rysującym, skąd mają zacząć rysowanie - zaczynają je od domyślnego punktu, którym jest zazwyczaj ostatnio narysowany punkt. Taka sytuacja jest czasami bardzo wygodna, ale też czasami chcielibyśmy wiedzieć, skąd zaczynamy rysowanie :-). Trzeba więc przenieść ten domyślny punkt startowy na odpowiednie miejsce. Możesz to sobie wyobrazić jako wielki pędzel, który zawisł nad ekranem w punkcie, w którym skończyło się ostatnio malowanie :-). Żeby ponownie użyć tego pędzla, musimy go przesunąć tam, gdzie chcemy teraz rysować. Służy do tego funkcja PrzenieśPędzel, tfu, <SPAN CLASS=T>MoveToEx</SPAN> :-). Jako parametry podajemy: <SPAN CLASS=T>HDC</SPAN>, nowe współrzędne, adres bufora, w którym zapamiętane zostaną stare współrzędne (na wypadek, gdybyśmy kiedyś jeszcze mieli z nich skorzystać). Bufor ten musi być typu <SPAN CLASS=T>POINT</SPAN>. 
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+POINT stary_punkt;<BR>
+MoveToEx(hdcOkno, <SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>10</SPAN>, &stary_punkt);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Przenieśliśmy nasz pędzel na pozycję (<SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>10</SPAN>). Poprzednia pozycja pędzla została zapamiętana w zmiennej <SPAN CLASS=T>stary_punkt</SPAN>. Po skończonym rysowaniu możemy przenieść pędzel z powrotem na starą pozycję, ale nie będziemy się aż tak fatygować :-). 
+</P>
+
+<H3>
+3.2.3 Funkcja LineTo
+</H3>
+
+<P>
+Pora wreszcie narysować naszą linię. Zatrudnimy w tym celu funkcję <SPAN CLASS=T>LineTo</SPAN>, rysującą linię od domyślnej pozycji startowej do podanego punktu. Niestety, ktoś skopał robotę i ostatni piksel nie jest rysowany, więc zawsze musimy podawać większe współrzędne, niż wskazuje intuicja. Wiocha, ale cóż poradzić... :-/
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LineTo(hdcOkno, <SPAN CLASS=L>21</SPAN>, <SPAN CLASS=L>10</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+No i jest linia - rozciąga się od punktu (<SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>10</SPAN>) aż do punktu (<SPAN CLASS=L>20</SPAN>, <SPAN CLASS=L>10</SPAN>) :-). Pewnie się dziwisz, dlaczego podałem <SPAN CLASS=L>10</SPAN>, a nie <SPAN CLASS=L>11</SPAN> (a mówiłem wcześniej, że współrzędne mają być większe). No i tutaj właśnie wychodzi niekompetencja człowieka odpowiedzialnego za stworzenie funkcji <SPAN CLASS=T>LineTo</SPAN> :-P. Jak wspomniałem wyżej, ostatni piksel nie jest rysowany, więc gdybyśmy podali jako punkt końcowy (<SPAN CLASS=L>21</SPAN>, <SPAN CLASS=L>11</SPAN>), to nie zostałby narysowany punkt o współrzędnych (<SPAN CLASS=L>21</SPAN>, <SPAN CLASS=L>11</SPAN>), czyli rysowanie skończyłoby się na (<SPAN CLASS=L>20</SPAN>, <SPAN CLASS=L>11</SPAN>). Trochę pokręcone... Mówiłem, że wiocha :-P.
+</P>
+
+<H3>
+3.2.4 Tworzenie pióra
+</H3>
+
+<P>
+Jeśli nie jesteś akurat daltonistą, a twój monitor działa sprawnie i ma normalne ustawienia jasności i kontrastu, to pewnie zauważyłeś, że linia jest czarna :-). Co zrobić, aby była np. czerwona? Można poprzestawiać kabelki w monitorze, ale jeszcze lepiej po prostu powiedzieć Windowsowi, żeby rysował na czerwono, a nie na czarno. Możesz jednak zapomnieć o jakiejś prostej funkcji typu SetColor. Twórcy Windowsa wykombinowali sobie, żeby jedną funkcją ustawiać nie tylko kolor, ale i wzór pióra, którym rysujemy. Nie wzięli chyba pod uwagę, że cokolwiek rzadko korzysta się z innych wzorów, niż domyślny, ale to już szczegół :-/. Linie rysuje się piórem, dlatego musimy sobie takowe stworzyć - pióro to inaczej obiekt typu <SPAN CLASS=T>HPEN</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HPEN CzerwonePioro;<BR>
+CzerwonePioro = CreatePen(PS_SOLID, <SPAN CLASS=L>1</SPAN>, <SPAN CLASS=L>0x0000FF</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Funkcja <SPAN CLASS=T>CreatePen</SPAN>, czyli nasza podręczna fabryka piór, ma trzy argumenty. Pierwszy z nich to styl pióra. Zazwyczaj chcemy rysować linie proste, wtedy używamy (jak wyżej) <SPAN CLASS=T>PS_SOLID</SPAN>. Inne style pióra to np. <SPAN CLASS=T>PS_DOT</SPAN> (linia przerywana) lub <SPAN CLASS=T>PS_DASH</SPAN> (też przerywana, ale dłuższe kreski). Drugi parametr to grubość linii w pikselach. Wreszcie trzeci to kod koloru, jaki ma mieć nasz pędzel. Jest on podany w postaci szesnastkowej. Nie można by było w dziesiątkowej? Ano można by było, ale jeśli zrobimy to w hexach, łatwiej będzie rozszyfrować ten kolor, bowiem jest on w formacie <SPAN CLASS=Wazne>BBGGRR</SPAN>. Tak więc <SPAN CLASS=L>0x0000FF</SPAN> oznacza, że bierzemy <SPAN CLASS=L>FF</SPAN> (czyli <SPAN CLASS=L>255</SPAN>) czerwonego, <SPAN CLASS=L>0</SPAN> zielonego i <SPAN CLASS=L>0</SPAN> niebieskiego koloru - w ten sposób powstaje kolor czerwony. Możesz sprawdzić w Paincie :-). Na tej samej zasadzie możemy zrobić kolor zielony - <SPAN CLASS=L>0x00FF00</SPAN>, biały - <SPAN CLASS=L>0xFFFFFF</SPAN>, szary - <SPAN CLASS=L>0x808080</SPAN> itp.
+</P>
+
+<H3>
+3.2.5 Wybór pióra
+</H3>
+
+<P>
+Mamy już stworzony pędzel, ale to dopiero połowa sukcesu :-). Bo widzisz, jeśli artysta grafik ma w pudełku choćby i pięćdziesiąt piór, to i tak nic nie narysuje, dopóki nie weźmie jednego do ręki :-). Aby wziąć pióro w łapę, używamy funkcji <SPAN CLASS=T>SelectObject</SPAN>, służącej do przypisywania danemu kontekstowi danego obiektu GDI:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+SelectObject(hdcOkno, CzerwonePioro);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...i już od tej pory wszystko, co narysujemy na <SPAN CLASS=T>hdcOkno</SPAN>, będzie narysowane na czerwono :-). Oczywiście chodzi o te fragmenty rysunku, do których używa się pióra, czyli o wszelkie kontury. Ale to nie wszystko. Przecież żeby wziąć pióro, musimy mieć wolną rękę, natomiast windowsowy malarz zawsze trzyma jakieś pióro w łapie! Już sprawdziliśmy w praktyce, że wcześniej trzymał czarne, więc musimy je najpierw gdzieś wyrzucić :-). Tworzymy więc nowe pudełko na to "stare", czarne pióro:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HPEN Pudelko; <SPAN CLASS=C>// :-)</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Funkcja <SPAN CLASS=T>SelectObject</SPAN> zwraca nam obiekt danego typu, który wcześniej był przypisany do danego <SPAN CLASS=T>HDC</SPAN>. Na przykład jeśli użyjemy <SPAN CLASS=T>SelectObject</SPAN> do przypisania do okienka nowego, czerwonego pióra, funkcja zwróci uchwyt do starego (czarnego) pióra. Łapiemy więc stare pióro za ten uchwyt i wrzucamy do naszego pudełka :-).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Pudelko = (HPEN)SelectObject(hdcOkno, CzerwonePioro);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Musieliśmy tu dokonać konwersji do typu <SPAN CLASS=T>HPEN</SPAN>, ponieważ funkcja <SPAN CLASS=T>SelectObject</SPAN> operuje na różnych typach obiektów, nie tylko <SPAN CLASS=T>HPEN</SPAN>.
+</P>
+
+<H3>
+3.2.6 Niszczenie pióra
+</H3>
+
+<P>
+Po co malarzowi zużyte pióro? Tylko miejsce zajmuje w pracowni. A więc skoro skończyliśmy rysowanie, musimy zniszczyć stworzone pióra na amen :-). Wprawdzie windowsowe pióra nie zużywają się, ale zasoby systemowe - owszem, tak. Dlatego pod koniec procedury rysującej warto zrobić tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DeleteObject(CzerwonePioro);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście nie wolno nam niszczyć pióra, który jeszcze jest w ręce malarza, gdyż mogłoby to malarzowi wielce zaszkodzić :-). Pióro trzeba najpierw wyrzucić. Ponieważ zaś windowsowy malarz musi ciągle trzymać jakieś piórko w ręce, dajemy mu to czarne, które wcześniej wrzuciliśmy do pudełka:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+SelectObject(hdcOkno, Pudelko);<BR>
+DeleteObject(CzerwonePioro);<BR>
+</TD></TR>
+</TABLE>
+
+<H3>
+3.2.7 Kompletny schemat rysowania linii
+</H3>
+
+<P>
+No to zbierzmy wszystko do kupy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdcOkno = GetDC(hwnd);<BR>
+HPEN CzerwonePioro, Pudelko;<BR>
+POINT stary;<BR>
+CzerwonePioro = CreatePen(PS_SOLID, <SPAN CLASS=T>1</SPAN>, <SPAN CLASS=L>0x0000FF</SPAN>);<BR>
+Pudelko = (HPEN)SelectObject(hdcOkno, CzerwonePioro);<BR>
+MoveToEx(hdcOkno, <SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>10</SPAN>, &stary);<BR>
+LineTo(hDC, <SPAN CLASS=L>21</SPAN>, <SPAN CLASS=L>10</SPAN>);<BR>
+SelectObject(hdcOkno, Pudelko);<BR>
+DeleteObject(CzerwonePioro);<BR>
+ReleaseDC(hwnd, hdcOkno);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Uff, jest tego trochę... Tyle zachodu, żeby jedną krótką linię narysować! Ale za to jeśli teraz będziemy chcieli dorysować drugą linię, wystarczy dorzucić dodatkową instrukcję <SPAN CLASS=T>LineTo</SPAN>. Oczywiście, jeśli zamarzymy sobie, że druga linia ma być zielona, trzeba będzie stworzyć dodatkowe, zielone pióro:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdcOkno = GetDC(hwnd);<BR>
+HPEN PioroCzerw, PioroZiel, Pudelko;<BR>
+POINT stary;<BR>
+PioroCzerw = CreatePen(PS_SOLID, <SPAN CLASS=L>1</SPAN>, <SPAN CLASS=L>0x0000FF</SPAN>);<BR>
+PioroZiel = CreatePen(PS_SOLID, <SPAN CLASS=L>1</SPAN>, <SPAN CLASS=L>0x00FF00</SPAN>);<BR>
+Pudelko = (HPEN)SelectObject(hdcOkno, PioroCzerw);<BR>
+MoveToEx(hdcOkno, <SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>10</SPAN>, &stary);<BR>
+LineTo(hDC, <SPAN CLASS=L>21</SPAN>, <SPAN CLASS=L>10</SPAN>);<BR>
+SelectObject(hdcOkno, PioroZiel);<BR>
+LineTo(hDC, <SPAN CLASS=L>31</SPAN>, <SPAN CLASS=L>10</SPAN>);<BR>
+SelectObject(hdcOkno, Pudelko);<BR>
+DeleteObject(PioroCzerw);<BR>
+DeleteObject(PioroZiel);<BR>
+ReleaseDC(hwnd, hdcOkno);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Zauważ, że przypisanie zielonego pióra nie wymaga już "wyrzucania do pudełka" czerwonego. Nie miałoby to większego sensu, bowiem uchwyt do czerwonego pióra już przecież mamy. Tylko kiedy wybieramy piórko po raz pierwszy, musimy uzyskać uchwyt do domyślnego "starego" (czarnego) pióra, które używane było wcześniej, zanim nasza aplikacja została uruchomiona.
+</P>
+<P>
+Linia zielona zostanie narysowana od punktu, na którym skończyliśmy rysowanie czerwonej, do punktu (<SPAN CLASS=L>30</SPAN>,<SPAN CLASS=L>10</SPAN>). Jeśli chcemy zacząć rysowanie zielonej z innego punktu, musimy dopisać dodatkową instrukcję <SPAN CLASS=T>MoveToEx</SPAN>.
+</P>
+<P>
+Aha, jeszcze jedno. Powinno to być oczywiste, ale rysować możemy tylko po istniejącym i widzialnym oknie, a więc powyższy kod umieszczamy PO instrukcjach <SPAN CLASS=T>CreateWindowEx</SPAN> (tworzącej nasze okno) i <SPAN CLASS=T>ShowWindow</SPAN> (czyniącej je widzialnym). Nie próbuj też wstawiać tego kodu w inne funkcje, niż <SPAN CLASS=T>WinMain</SPAN> (bo nasz <SPAN CLASS=T>hwnd</SPAN> jest tam niewidoczny, chyba że stworzysz specjalną oddzielną zmienną typu <SPAN CLASS=T>HWND</SPAN>), a zwłaszcza nie próbuj dodawać kodu w takiej postaci do obsługi komunikatu <SPAN CLASS=T>WM_PAINT</SPAN> (dlaczego - o tym kiedy indziej).
+</P>
+
+<H3>
+3.2.8 Łatwiejsze definiowanie kolorów
+</H3>
+
+<P>
+Podawanie numerów kolorów w postaci szesnastkowej jest całkiem niezłym sposobem, jeśli umiemy w locie przeliczać liczby z systemu dziesiątkowego. Jeśli akurat nie umiemy, a nie mamy pod ręką odpowiedniego programiku (albo nam się nie chce go włączać), można jeszcze skorzystać z makra <SPAN CLASS=T>RGB</SPAN> do utworzenia żądanego koloru. <SPAN CLASS=T>RGB</SPAN> ma trzy argumenty, oznaczające ilość składnika czerwonego, zielonego i niebieskiego, jaki używamy do stworzenia naszego nowego koloru. I tak na przykład <SPAN CLASS=T>RGB(<SPAN CLASS=L>255</SPAN>,&nbsp;<SPAN CLASS=L>255</SPAN>,&nbsp;<SPAN CLASS=L>255</SPAN>)</SPAN> zwraca nam kolor biały, a <SPAN CLASS=T>RGB(<SPAN CLASS=L>0</SPAN>,&nbsp;<SPAN CLASS=L>0</SPAN>,&nbsp;<SPAN CLASS=L>0</SPAN>)</SPAN> - czarny. Zwracana wartość jest typu <SPAN CLASS=T>COLORREF</SPAN>. Oto przykład tworzenia zielonego pióra za pomocą <SPAN CLASS=T>RGB</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+PioroZiel = CreatePen(PS_SOLID, <SPAN CLASS=L>1</SPAN>, RGB(<SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>255</SPAN>, <SPAN CLASS=L>0</SPAN>));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy jeszcze dodatkowe trzy makra, dzięki którym z konkretnego koloru możemy "wyciągnąć", ile jest w nim czerwonego, zielonego i niebieskiego składnika. Są to odpowiednio: <SPAN CLASS=T>GetRValue</SPAN>, <SPAN CLASS=T>GetGValue</SPAN>, <SPAN CLASS=T>GetBValue</SPAN>.
+</P>
+
+<H2>
+3.3 Figury geometryczne
+</H2>
+
+<P>
+Dysponując funkcją rysującą linie, możemy sobie stworzyć np. prostokąt, jednak byłoby to ździebko niewygodne :-). Po co się męczyć, WinAPI ma cały zestaw funkcji do rysowania figur...
+</P>
+
+<H3>
+3.3.1 Prostokąty
+</H3>
+
+<P>
+Funkcja <SPAN CLASS=T>Rectangle</SPAN> służy do rysowania prostokątów, jak sama nazwa wskazuje :-). Ramka takiego prostokąta jest rysowana aktualnym piórem (podobnie jak linie w poprzednim rozdziale), a reszta - wypełniana za pomocą aktualnego pędzla (brush). Narysujemy sobie śliczny, zielony kwadracik z czerwoną, przerywaną ramką:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdcOkno = GetDC(hwnd);<BR>
+HBRUSH PedzelZiel, Pudelko;<BR>
+HPEN OlowekCzerw, Piornik;<BR>
+PedzelZiel = CreateSolidBrush(<SPAN CLASS=L>0x00FF00</SPAN>);<BR>
+OlowekCzerw = CreatePen(PS_DOT, <SPAN CLASS=L>1</SPAN>, <SPAN CLASS=L>0x0000FF</SPAN>);<BR>
+Pudelko = (HBRUSH)SelectObject(hdcOkno, PedzelZiel);<BR>
+Piornik = (HPEN)SelectObject(hdcOkno, OlowekCzerw);<BR>
+Rectangle(hdcOkno, <SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>100</SPAN>, <SPAN CLASS=L>100</SPAN>);<BR>
+SelectObject(hdcOkno, Pudelko);<BR>
+SelectObject(hdcOkno, Piornik);<BR>
+DeleteObject(OlowekCzerw);<BR>
+DeleteObject(PedzelZiel);<BR>
+ReleaseDC(hwnd, hdcOkno);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Ponieważ chcemy narysować kwadracik dokładnie wypełniony kolorem zielonym, użyliśmy funkcji <SPAN CLASS=T>CreateSolidBrush</SPAN>. Dzięki temu nasz pędzelek rysuje na całym podanym obszarze bez odrywania się od powierzchni :-). Gdybyśmy chcieli tym pędzelkiem wymalować kwadracik zakreskowany, skorzystamy z funkcji CreateHatchBrush, natomiast jeśli będziemy chcieli narysować prostokąt w ciapki, i to właśnie takie ciapki, jakie wcześniej sobie opracowaliśmy, użyjemy funkcji <SPAN CLASS=T>CreatePatternBrush</SPAN>, podając jej jako argument uchwyt do bitmapy z ciapkami :-). Na razie jednak chcemy zwykłe, pełne tło, więc piszemy <SPAN CLASS=T>CreateSolidBrush</SPAN>.
+</P>
+<P>
+Zauważ, że funkcja <SPAN CLASS=T>Rectangle</SPAN> pobiera również współrzędne punktu, od którego zaczynamy rysować nasz prostokąt, a więc nie rysujemy od ostatniej, domyślnej pozycji. Poza tym ta ostatnia pozycja po narysowaniu prostokąta nie zmienia się, więc przy rysowaniu prostokątów używanie <SPAN CLASS=T>MoveToEx</SPAN> jest bez sensu.
+<P>
+
+<H3>
+3.3.2 Koła i elipsy
+</H3>
+
+<P>
+Dzięki funkcji <SPAN CLASS=T>Ellipse</SPAN> możemy sobie, jak sama nazwa znów wskazuje, namalować elipsę. Rysowanie odbywa się (tak jak w przypadku prostokąta) przy użyciu aktualnie wybranego pióra (obwódka) i pędzla (wypełnianie wnętrza figury). Parametry funkcji to: uchwyt okna oraz kolejne cztery współrzędne prostokąta, opisanego na elipsie, którą chcemy narysować. Oczywiście, jeśli podane współrzędne będą opisywać kwadrat, narysowana elipsa będzie kołem, i o to nam zresztą najczęściej chodzi: 
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdcOkno = GetDC(hwnd);<BR>
+HBRUSH PedzelZiel, Pudelko;<BR>
+HPEN OlowekCzerw, Piornik;<BR>
+PedzelZiel = CreateSolidBrush(<SPAN CLASS=L>0x00FF00</SPAN>);<BR>
+OlowekCzerw = CreatePen(PS_DOT, <SPAN CLASS=L>1</SPAN>, <SPAN CLASS=L>0x0000FF</SPAN>);<BR>
+Pudelko = (HBRUSH)SelectObject(hdcOkno, PedzelZiel);<BR>
+Piornik = (HPEN)SelectObject(hdcOkno, OlowekCzerw);<BR>
+Ellipse(hdcOkno, <SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>10</SPAN>, <SPAN CLASS=L>100</SPAN>, <SPAN CLASS=L>100</SPAN>);<BR>
+SelectObject(hdcOkno, Pudelko);<BR>
+SelectObject(hdcOkno, Piornik);<BR>
+DeleteObject(OlowekCzerw);<BR>
+DeleteObject(PedzelZiel);<BR>
+ReleaseDC(hwnd, hdcOkno);<BR>
+</TD></TR>
+</TABLE>
+
+<P ALIGN=CENTER>
+<IMG SRC="..\gfx\apigfx1.gif" ALT="Fajne kółko?">
+</P>
+
+<H3>
+3.3.3 Wielokąty
+</H3>
+
+<P>
+Warto by jeszcze wiedzieć, jak się rysuje wielokąty. Jeśli zależy nam tylko na niewypełnionych wielokątach (same kontury), to możemy skorzystać z funkcji <SPAN CLASS=T>Polyline</SPAN>. Jeśli zaś użyjemy funkcji <SPAN CLASS=T>Polygon</SPAN>, to figura powstała przez połączenie podanych przez nas punktów zostanie dodatkowo wypełniona przy pomocy aktualnego pędzla. Obydwie te funkcje wymagają podania tablicy punktów (wierzchołków wielokąta). Musi to być talica o elementach typu <SPAN CLASS=T>POINT</SPAN>. Struktura <SPAN CLASS=T>POINT</SPAN> jest wyjątkowo prosta, ma tylko dwie składowe: <SPAN CLASS=T>x</SPAN> i <SPAN CLASS=T>y</SPAN>. Jako jeden z argumentów funkcji <SPAN CLASS=T>Polygon</SPAN> (i <SPAN CLASS=T>Polyline</SPAN>) podajemy też liczbę wierzchołków, które bierzemy pod uwagę (zazwyczaj jest to po prostu liczba elementów tablicy). Poniższy przykład pokazuje, jak narysować taką śmieszną gwiazdkę:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//Robimy tablicę współrzędnych wierzchołków</SPAN><BR>
+POINT Wierzch[<SPAN CLASS=L>5</SPAN>];<BR>
+Wierzch[<SPAN CLASS=L>0</SPAN>].x = <SPAN CLASS=L>50</SPAN>; Wierzch[<SPAN CLASS=L>0</SPAN>].y = <SPAN CLASS=L>0</SPAN>;<BR>
+Wierzch[<SPAN CLASS=L>1</SPAN>].x = <SPAN CLASS=L>25</SPAN>;  Wierzch[<SPAN CLASS=L>1</SPAN>].y = <SPAN CLASS=L>100</SPAN>;<BR>
+Wierzch[<SPAN CLASS=L>2</SPAN>].x = <SPAN CLASS=L>100</SPAN>; Wierzch[<SPAN CLASS=L>2</SPAN>].y = <SPAN CLASS=L>50</SPAN>;<BR>
+Wierzch[<SPAN CLASS=L>3</SPAN>].x = <SPAN CLASS=L>0</SPAN>; Wierzch[<SPAN CLASS=L>3</SPAN>].y = <SPAN CLASS=L>50</SPAN>;<BR>
+Wierzch[<SPAN CLASS=L>4</SPAN>].x = <SPAN CLASS=L>75</SPAN>; Wierzch[<SPAN CLASS=L>4</SPAN>].y = <SPAN CLASS=L>100</SPAN>;<BR>
+<BR>
+<SPAN CLASS=C>//Przygotowujemy wszystko do rysowania</SPAN><BR>
+HDC hdc = GetDC(hwnd);<BR>
+HBRUSH Pedzel, Pudelko;<BR>
+HPEN Pioro, Piornik;<BR>
+Pedzel = CreateSolidBrush(<SPAN CLASS=L>0x00FFFF</SPAN>);<BR>
+Pioro = CreatePen(PS_SOLID, <SPAN CLASS=L>1</SPAN>, <SPAN CLASS=L>0x000000</SPAN>);<BR>
+Pudelko = (HBRUSH)SelectObject(hdc, Pedzel);<BR>
+Piornik = (HPEN)SelectObject(hdc, Pioro);<BR>
+<BR>
+<SPAN CLASS=C>//Wywalamy naszą gwiazdę na ekran</SPAN><BR>
+Polygon(hdc, Wierzch, <SPAN CLASS=L>5</SPAN>);<BR>
+<BR>
+<SPAN CLASS=C>//...i sprzątamy po sobie</SPAN><BR>
+SelectObject(hdc, Pudelko);<BR>
+SelectObject(hdc, Piornik);<BR>
+DeleteObject(Pioro);<BR>
+DeleteObject(Pedzel);<BR>
+ReleaseDC(hwnd, hdc);<BR>
+</TD></TR>
+</TABLE>
+
+<P ALIGN=CENTER>
+<IMG SRC="..\gfx\apigfx2.gif" ALT="Dosyć niezgrabne, ale też fajne ;-)">
+</P>
+
+<P>
+Dobra, tyle funkcji rysujących figury starczy na początek. Pozostałe, jeśli będziesz ich potrzebował, możesz sobie znaleźć np. w MSDN. 
+</P>
+
+<H3>
+3.3.4 Pojedyncze punkty
+</H3>
+
+<P>
+Jeśli chcemy narysować coś bardziej skomplikowanego, niż tylko prosta figura, będziemy potrzebowali funkcji, ustawiającej kolor pojedynczego pixela. Nazywa się ona <SPAN CLASS=T>SetPixel</SPAN>, a jej parametry to: <SPAN CLASS=T>HDC</SPAN>, współrzędne <SPAN CLASS=T>x</SPAN> i <SPAN CLASS=T>y</SPAN>, kolor. Wykorzystując tę funkcję możemy sobie np. narysować graffiti przy pomocy spray'u ;-). Póki co jednak, warto by ten spray najpierw wypróbować, więc narysujemy sobie nim tylko zwykłe kółko. Aby kształt naszej nasprayowanej figury przypominał koło, wykorzystamy równanie koła, znane większości z was z matematyki:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;stdlib.h&gt;</SPAN><BR>
+<BR>
+HDC hdc = GetDC(hwnd);<BR>
+<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> y=<SPAN CLASS=L>0</SPAN>; y&lt;<SPAN CLASS=L>150</SPAN>; y++)<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> x=<SPAN CLASS=L>0</SPAN>; x&lt;<SPAN CLASS=L>150</SPAN>; x++)<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>((x-<SPAN CLASS=L>75</SPAN>)*(x-<SPAN CLASS=L>75</SPAN>)+(y-<SPAN CLASS=L>75</SPAN>)*(y-<SPAN CLASS=L>75</SPAN>)<<SPAN CLASS=L>75</SPAN>*<SPAN CLASS=L>75</SPAN> && rand()%<SPAN CLASS=L>2</SPAN>==<SPAN CLASS=L>1</SPAN>)<BR>
+&nbsp;&nbsp;&nbsp;SetPixel(hdc, x, y, <SPAN CLASS=L>0x000000FF</SPAN>);<BR>
+ReleaseDC(hwnd, hdc);<BR>
+</TD></TR>
+</TABLE>
+
+<P ALIGN=CENTER>
+<IMG SRC="..\gfx\apigfx3.gif" ALT="Graffiti w WinAPI ;-)">
+</P>
+
+<P>
+W przykładziku tym bierzemy sobie po kolei wszystkie punkty z kwadratu <SPAN CLASS=L>150</SPAN>x<SPAN CLASS=L>150</SPAN> pikseli, sprawdzamy czy dany punkt leży wewnątrz koła i z prawdopodobieństwem <SPAN CLASS=L>1:2</SPAN> (jeśli funkcja <SPAN CLASS=T>rand</SPAN> zwróci <SPAN CLASS=L>1</SPAN>) malujemy piksela na czerwono.
+</P>
+<P>
+Kolorowanie każdego z pikseli osobno daje nam wiele innych możliwości, np. taką:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdc = GetDC(hwnd);<BR>
+<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> y=<SPAN CLASS=L>0</SPAN>; y&lt;<SPAN CLASS=L>150</SPAN>; y++)<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> x=<SPAN CLASS=L>0</SPAN>; x&lt;<SPAN CLASS=L>150</SPAN>; x++)<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>((x-<SPAN CLASS=L>75</SPAN>)*(x-<SPAN CLASS=L>75</SPAN>)+(y-<SPAN CLASS=L>75</SPAN>)*(y-<SPAN CLASS=L>75</SPAN>)<<SPAN CLASS=L>75</SPAN>*<SPAN CLASS=L>75</SPAN>)<BR>
+&nbsp;&nbsp;&nbsp;SetPixel(hdc, x, y, RGB(x,<SPAN CLASS=L>0</SPAN>,<SPAN CLASS=L>200</SPAN>-x));<BR>
+ReleaseDC(hwnd, hdc);<BR>
+</TD></TR>
+</TABLE>
+
+<P ALIGN=CENTER>
+<IMG SRC="..\gfx\apigfx4.gif" ALT="Niczego sobie to kółeczko...">
+</P>
+
+<P>
+Uzyskaliśmy w ten sposób efekt przejścia od jednego koloru do drugiego. Gdybyśmy w makrze <SPAN CLASS=T>RGB</SPAN> podali zmienną <SPAN CLASS=T>y</SPAN> zamiast <SPAN CLASS=T>x</SPAN>, to uzyskalibyśmy takie samo przejście, tylko w pionie. Oczywiście efekt taki dla obszarów większych niż <SPAN CLASS=L>255</SPAN> pikseli trochę trudniej zaprogramować, a jeszcze trudniej jeśli chcemy uzyskać przejście między dwoma konkretnymi kolorami, dowolnie wybranymi z palety, ale wszystko jest do zrobienia jeśli się trochę pomyśli ;-).
+</P>
+<P>
+I to wszystko jeśli chodzi o rysowanie najprostszych kształtów...
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apifile.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="apibmp.html">Następna część kursu >></A>
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

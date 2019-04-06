@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Large Disk HOWTO: Disk geometry, partitions and `overlap'</TITLE>
+ <LINK HREF="Large-Disk-HOWTO-7.html" REL=next>
+ <LINK HREF="Large-Disk-HOWTO-5.html" REL=previous>
+ <LINK HREF="Large-Disk-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Large-Disk-HOWTO-7.html">Next</A>
+<A HREF="Large-Disk-HOWTO-5.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="overlap"></A> <A NAME="s6">6. Disk geometry, partitions and `overlap'</A></H2>
+
+<P>
+<!--
+disk!geometry
+-->
+
+<!--
+disk!partitions
+-->
+
+If you have several operating systems on your disks, then each
+uses one or more disk partitions.  A disagreement on where these
+partitions are may have catastrophic consequences.
+<P>
+<A NAME="partitiontable"></A> 
+The MBR contains a <I>partition table</I> describing where the
+(primary) partitions are.  There are 4 table entries, for 4
+primary partitions, and each looks like
+<BLOCKQUOTE><CODE>
+<PRE>
+struct partition {
+        char active;    /* 0x80: bootable, 0: not bootable */
+        char begin[3];  /* CHS for first sector */
+        char type;
+        char end[3];    /* CHS for last sector */
+        int start;      /* 32 bit sector number (counting from 0) */
+        int length;     /* 32 bit number of sectors */
+};
+</PRE>
+</CODE></BLOCKQUOTE>
+
+(where CHS stands for Cylinder/Head/Sector).
+<P>This information is redundant: the location of a partition
+is given both by the 24-bit <CODE>begin</CODE> and <CODE>end</CODE> fields,
+and by the 32-bit <CODE>start</CODE> and <CODE>length</CODE> fields.
+<P>Linux only uses the <CODE>start</CODE> and <CODE>length</CODE> fields, and can
+therefore handle partitions of not more than 2^32 sectors,
+that is, partitions of at most 2 TiB.  That is twelve times
+larger than the disks available today, so maybe it will be
+enough for the next five years or so.
+(So, partitions can be very large, but there is a serious
+restriction in that a file in an ext2 filesystem on hardware
+with 32-bit integers cannot be larger than 2 GiB.)
+<P>DOS uses the <CODE>begin</CODE> and <CODE>end</CODE> fields, and uses the
+BIOS INT13 call to access the disk, and can therefore only
+handle disks of not more than 8.4 GB, even with a translating
+BIOS. (Partitions cannot be larger than 2.1 GB because of
+restrictions of the FAT16 file system.) The same holds for
+Windows 3.11 and WfWG and Windows NT 3.*.
+<P>Windows 95 has support for the Extended INT13 interface, and
+uses special partition types (c, e, f instead of b, 6, 5)
+to indicate that a partition should be accessed in this way.
+When these partition types are used, the <CODE>begin</CODE> and <CODE>end</CODE> fields
+contain dummy information (1023/255/63).
+Windows 95 OSR2 introduces the FAT32 file system (partition type
+b or c), that allows partitions of size at most 2 TiB.
+<P>What is this nonsense you get from <CODE>fdisk</CODE> about `overlapping'
+partitions, when in fact nothing is wrong?
+Well - there is something `wrong': if you look at the <CODE>begin</CODE>
+and <CODE>end</CODE> fields of such partitions, as DOS does, they overlap.
+(And that cannot be corrected, because these fields cannot store
+cylinder numbers above 1024 - there will always be `overlap'
+as soon as you have more than 1024 cylinders.)
+However, if you look at the <CODE>start</CODE> and <CODE>length</CODE> fields,
+as Linux does, and as Windows 95 does in the case of partitions
+with partition type c, e or f, then all is well.
+So, ignore these warnings when <CODE>cfdisk</CODE> is satisfied and you
+have a Linux-only disk. Be careful when the disk is shared with DOS.
+Use the commands <CODE>cfdisk -Ps /dev/hdx</CODE> and <CODE>cfdisk -Pt /dev/hdx</CODE>
+to look at the partition table of <CODE>/dev/hdx</CODE>.
+<P>
+<H2><A NAME="ss6.1">6.1 The last cylinder</A>
+</H2>
+
+<P>Many old IBM PS/2 systems used disks with a defect map written
+to the end of the disk. (Bit 0x20 in the control word of the
+<A HREF="http://www.win.tue.nl/~aeb/linux/hdtypes/hdtypes-2.html">disk parameter table</A> is set.)
+Therefore, FDISK would not use the last cylinder. Just to be sure, the BIOS
+often already reports the size of the disk as one cylinder smaller than
+reality, and that may mean that two cylinders are lost.
+Newer BIOSes have several disk size reporting functions, where internally
+one calls the other. When both subtract 1 for this reserved cylinder and
+also FDISK does so, then one may lose three cylinders.
+These days all of this is irrelevant, but this may provide an explanation
+if one observes that different utilities have slightly different opinions
+about the disk size.
+<P>
+<H2><A NAME="ss6.2">6.2 Cylinder boundaries</A>
+</H2>
+
+<P>A well-known claim says that partitions should start and end
+at cylinder boundaries.
+<P>Since "disk geometry" is something without objective existence,
+different operating systems will invent different geometries
+for the same disk. One often sees a translated geometry like */255/63
+used by one and an untranslated geometry like */16/63 used by another OS.
+(People tell me Windows NT uses */64/32 while Windows 2K uses */255/63.)
+Thus, it may be impossible to align partitions to cylinder boundaries
+according to each of the the various ideas about the size of a cylinder
+that one's systems have. Also different Linux kernels may assign
+different geometries to the same disk.
+Also, enabling or disabling the BIOS of a SCSI card may change the
+fake geometry of the connected SCSI disks.
+<P>Fortunately, for Linux there is no alignment requirement at all.
+(Except that some semi-broken installation software likes to be very sure
+that all is OK; thus, it may be impossible to install RedHat 7.1
+on a disk with unaligned partitions because DiskDruid is unhappy.)
+<P>People report that it is easy to create nonaligned partitions
+in Windows NT, without any noticeable bad effects.
+<P>But MSDOS 6.22 has an alignment requirement. Extended partition sectors
+that are not on a cylinder boundary are ignored by its FDISK.
+The system itself is happy with any alignment, but interprets
+relative starting addresses as if relative to an aligned address:
+The starting address of a logical partition is given relative not
+to the address of the extended partition sector that describes it,
+but relative to the start of the cylinder that contains that sector.
+(So, it is not surprising that also PartitionMagic requires alignment.)
+<P>What is the definition of alignment?
+MSDOS 6.22 FDISK will do the following:
+1. If the first sector of the cylinder is a partition
+table sector, then the rest of the track is unused,
+and the partition starts with the the next track.
+This applies to sector 0 (the MBR) and the partition table sectors
+preceding logical partitions.
+2. Otherwise, the partition starts at the first sector of the
+cylinder. Also the extended partition starts at a cylinder boundary.
+The <CODE>cfdisk</CODE> man page says that old versions of DOS did not
+align partitions.
+<P>Use of partition type 85 for the extended partition makes it invisible
+to DOS, making sure that only Linux will look inside.
+<P>As an aside: on a Sparc, the boot partition must start on a cylinder
+boundary (but there is no requirement on the end).
+<P>
+<HR>
+<A HREF="Large-Disk-HOWTO-7.html">Next</A>
+<A HREF="Large-Disk-HOWTO-5.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

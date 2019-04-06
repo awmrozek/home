@@ -1,0 +1,787 @@
+<HTML
+><HEAD
+><TITLE
+>Intrusion Detection</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Security Quick-Start HOWTO for  Linux"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Step 3: Firewalls and Setting Access Policies"
+HREF="firewalls.html"><LINK
+REL="NEXT"
+TITLE="General Tips"
+HREF="general.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Security Quick-Start HOWTO for  Linux</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="firewalls.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="general.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="INTRUSION">6. Intrusion Detection</H1
+><P
+> This section will deal with how to get early warning, how to be alerted 
+ after the fact, and how to clean up from intrusion attempts.
+ </P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="IDS">6.1. Intrusion Detection Systems (IDS)</H2
+><P
+> Intrusion Detection Systems (IDS for short) are designed to catch what might
+ have gotten past the firewall. They can either be designed to catch an 
+ active break-in attempt in progress, or to detect a successful break-in 
+ after the fact. In the latter case, it is too late to prevent any damage, but
+ at least we have early awareness of a problem. There are two basic types of
+ IDS: those protecting networks, and those protecting individual hosts.&#13;</P
+><P
+> For host based IDS, this is done with utilities that monitor the filesystem
+ for changes. System files that have changed in some way, but should not
+ change -- unless we did it -- are a dead give away that something is amiss.
+ Anyone who gets in, and gets root, will presumably make changes to the system
+ somewhere. This is usually the very first thing done. Either so he can get
+ back in through a backdoor, or to launch an attack against someone else. In
+ which case, he has to change or add files to the system. &#13;</P
+><P
+> This is where tools like tripwire (<A
+HREF="http://www.tripwire.org"
+TARGET="_top"
+>http://www.tripwire.org</A
+>) play a role.
+ 
+ Such tools monitor various aspects of the filesystem, and compare them against a
+ stored database. And can be configured to send an alert if
+ <EM
+>any</EM
+> changes are detected. Such tools should only be 
+ installed on a known <SPAN
+CLASS="QUOTE"
+>"clean"</SPAN
+> system. &#13;</P
+><P
+> For home desktops and home LANs, this is probably not an absolutely necessary
+ component of an overall security strategy. But it does give peace of mind, and
+ certainly does have its place. So as to priorities, make sure the Steps 1, 2
+ and 3 above are implemented and verified to be sound, before delving into
+ this.&#13;</P
+><P
+> <SPAN
+CLASS="APPLICATION"
+>RPM</SPAN
+> users can
+ get somewhat the same results with <TT
+CLASS="LITERAL"
+>rpm -Va</TT
+>, which will
+ verify all packages, but without all the same functionality. For instance, it
+ will not notice new files added to most directories. Nor will it detect 
+ files that have had the extended attributes changed (e.g. <TT
+CLASS="LITERAL"
+>chattr +i</TT
+>, 
+ man <B
+CLASS="COMMAND"
+>chattr</B
+> and man <B
+CLASS="COMMAND"
+>lsattr</B
+>). For this to
+ be helpful, it needs to be done after a clean install, and then each time any
+ packages are upgraded or added. Example:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> 
+ # rpm -Va &#62; /root/system.checked
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> Then we have a stored system snapshot that we can refer back to. &#13;</P
+><P
+> Debian users have a similar tool with <B
+CLASS="COMMAND"
+>debsums</B
+>.&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> 
+ # debsums -s &#62; /root/system.checked
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> Another idea is to run <B
+CLASS="COMMAND"
+>chkrootkit</B
+>
+ (<A
+HREF="http://www.chkrootkit.org/"
+TARGET="_top"
+>http://www.chkrootkit.org/</A
+>)
+ as a weekly cron job. This will detect common <SPAN
+CLASS="QUOTE"
+>"rootkits"</SPAN
+>. &#13;</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="HACKED">6.2. Have I Been Hacked?</H2
+><P
+> Maybe you are reading this because you've noticed something <SPAN
+CLASS="QUOTE"
+>"odd"</SPAN
+> 
+ about your system, and are suspicious that someone was gotten in? This can be
+ a clue. </P
+><P
+> The first thing an intruder typically does is install a <SPAN
+CLASS="QUOTE"
+>"rootkit"</SPAN
+>. 
+ There are many prepackaged rootkits available on the Internet. 
+ The rootkit is essentially a script, or set of scripts, that makes quick work
+ of modifying the system so the intruder is in control, and he is well hidden.
+ He does this by installing modified binaries of common system utilities and
+ tampering with log files. Or by using special kernel modules that achieve
+ similar results. So common commands like <B
+CLASS="COMMAND"
+>ls</B
+> may be
+ modified so as to not show where he has his files stored. Clever! &#13;</P
+><P
+> A well designed rootkit can be quite effective. Nothing on the system can
+ really be trusted to provide accurate feedback. Nothing! But sometimes the
+ modifications are not as smooth as intended and give hints that something is
+ not right. Some things that <EM
+>might</EM
+> be warning signs:</P
+><P
+> <P
+></P
+><UL
+><LI
+><P
+>  
+   <B
+CLASS="COMMAND"
+>Login</B
+> acts weird. Maybe no one can login. Or only 
+   root can login. Any <B
+CLASS="COMMAND"
+>login</B
+> weirdness at all should be
+   suspicious. Similarly, any weirdness with adding or changing passwords.
+  </P
+><P
+>   Wierdness with other system commands (e.g. <B
+CLASS="COMMAND"
+>top</B
+> or
+   <B
+CLASS="COMMAND"
+>ps</B
+>) should be cause for concern as well. 
+  </P
+></LI
+><LI
+><P
+>   System utilities are slower, or awkward, or show strange and unexpected 
+   results. Common utilities that might be modified are: <B
+CLASS="COMMAND"
+>ls</B
+>, 
+   <B
+CLASS="COMMAND"
+>find</B
+>, <B
+CLASS="COMMAND"
+>who</B
+>, <B
+CLASS="COMMAND"
+>w</B
+>, 
+   <B
+CLASS="COMMAND"
+>last</B
+>, <B
+CLASS="COMMAND"
+>netstat</B
+>,
+   <B
+CLASS="COMMAND"
+>login</B
+>, <B
+CLASS="COMMAND"
+>ps</B
+>, <B
+CLASS="COMMAND"
+>top</B
+>.
+   This is not a definitive list!
+  </P
+></LI
+><LI
+><P
+>   Files or directories named <SPAN
+CLASS="QUOTE"
+>"..."</SPAN
+> or <SPAN
+CLASS="QUOTE"
+>".. "</SPAN
+> 
+   (dot dot space). A sure bet in this case. Files with haxor looking 
+   names like <SPAN
+CLASS="QUOTE"
+>"r00t-something"</SPAN
+>.
+  </P
+></LI
+><LI
+><P
+>   Unexplained bandwidth usage, or connections. Script kiddies have a fondness 
+   for IRC, so such connections should raise a red flag.
+  </P
+></LI
+><LI
+><P
+>   Logs that are missing completely, or missing large sections. Or a sudden 
+   change in <B
+CLASS="COMMAND"
+>syslog</B
+> behavior.  
+  </P
+></LI
+><LI
+><P
+>    Mysterious open ports, or processes. 
+  </P
+></LI
+><LI
+><P
+>    Files that cannot be deleted or moved. Some rootkits use 
+    <B
+CLASS="COMMAND"
+>chattr</B
+> to make files <SPAN
+CLASS="QUOTE"
+>"immutable"</SPAN
+>, 
+    or not changable. This kind of change will not show up with
+    <B
+CLASS="COMMAND"
+>ls</B
+>, or <B
+CLASS="COMMAND"
+>rpm -V</B
+>, so the files look
+    normal at first glance. See the man pages for <B
+CLASS="COMMAND"
+>chattr</B
+>
+    and <B
+CLASS="COMMAND"
+>lsattr</B
+> on how to reverse this. Then see the next
+    section below on restoring your system as the jig is up at this point.
+  </P
+><P
+>    This is becoming a more and more common script kiddie trick. In fact, one 
+    quick test to run on a suspected system (as root):
+  </P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>  /usr/bin/lsattr `echo $PATH | tr ':' ' '` | grep i--
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>   This will look for any <SPAN
+CLASS="QUOTE"
+>"immutable"</SPAN
+> files in root's
+   <TT
+CLASS="LITERAL"
+>PATH</TT
+>, which is almost surely a sign of trouble since 
+   no standard distributions ship files in this state. If the above command 
+   turns up <EM
+>anything at all</EM
+>, then plan on completely
+   restoring the system (see below). A quick sanity check:
+  </P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>  # chattr +i /bin/ps
+  # /usr/bin/lsattr `echo $PATH | tr ':' ' '` | grep "i--"
+    ---i---------- /bin/ps
+  # chattr -i /bin/ps
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>   This is just to verify the system is not tampered with to the point that
+   <B
+CLASS="COMMAND"
+>lsattr</B
+> is completely unreliable. The third line is 
+   <EM
+>exactly</EM
+> what you should see. 
+  </P
+></LI
+><LI
+><P
+>   Indications of a <SPAN
+CLASS="QUOTE"
+>"sniffer"</SPAN
+>, such as log messages of an 
+   interface entering <SPAN
+CLASS="QUOTE"
+>"promiscuous"</SPAN
+> mode.
+  </P
+></LI
+><LI
+><P
+>   Modifications to <TT
+CLASS="FILENAME"
+>/etc/inetd.conf</TT
+>, 
+   <TT
+CLASS="FILENAME"
+>rc.local</TT
+>, <TT
+CLASS="FILENAME"
+>rc.sysint</TT
+> or
+   <TT
+CLASS="FILENAME"
+>/etc/passwd</TT
+>. Especially, any additions. Try 
+   using <B
+CLASS="COMMAND"
+>cat</B
+> or <B
+CLASS="COMMAND"
+>tail</B
+> to view these 
+   files. Additions will most likely be appended to the end. Remember though
+   such changes may not be <SPAN
+CLASS="QUOTE"
+>"visible"</SPAN
+> to any system tools. 
+  </P
+></LI
+></UL
+></P
+><P
+> Sometimes the intruder is not so smart and forgets about root's 
+ <TT
+CLASS="FILENAME"
+>.bash_history</TT
+>, or cleaning up log entries, or even
+ leaves strange, leftover files in <TT
+CLASS="FILENAME"
+>/tmp</TT
+>. So these should
+ always be checked too. Just don't necessarily expect them to be accurate. 
+ Often such left behind files, or log entries, will have obvious 
+ script kiddie sounding names, e.g. <SPAN
+CLASS="QUOTE"
+>"r00t.sh"</SPAN
+>.</P
+><P
+> Packet sniffers, like <SPAN
+CLASS="APPLICATION"
+>tcpdump</SPAN
+>
+ (<A
+HREF="http://www.tcpdump.org"
+TARGET="_top"
+>http://www.tcpdump.org</A
+>), might
+ be useful in finding any uninvited traffic. Interpreting sniffer output is
+ probably beyond the grasp of the average new user. <SPAN
+CLASS="APPLICATION"
+>snort</SPAN
+>  
+ (<A
+HREF="http://www.snort.org"
+TARGET="_top"
+>http://www.snort.org</A
+>), and 
+ <SPAN
+CLASS="APPLICATION"
+>ethereal</SPAN
+>  
+ (<A
+HREF="http://www.ethereal.com"
+TARGET="_top"
+>http://www.ethereal.com</A
+>), are 
+ also good. <SPAN
+CLASS="APPLICATION"
+>Ethereal</SPAN
+> has a GUI.&#13;</P
+><P
+> As mentioned, a compromised system will undoubtedly have altered system
+ binaries, and the output of system utilities is not to be trusted. Nothing on
+ the system can be relied upon to be telling you the whole truth. Re-installing
+ individual packages may or may not help since it could be system libraries
+ or kernel modules that are doing the dirty work. The point here is that there
+ is no way to know with absolute certainty exactly what components have been
+ altered. </P
+><P
+> <SPAN
+CLASS="APPLICATION"
+>RPM</SPAN
+> users  can
+ use <TT
+CLASS="LITERAL"
+>rpm -Va |less</TT
+> to attempt to verify the integrity all
+ packages. But again there is no assurance that <SPAN
+CLASS="APPLICATION"
+>rpm</SPAN
+>
+ itself has not been tampered with, or the system components that
+ <SPAN
+CLASS="APPLICATION"
+>RPM</SPAN
+> relies on. </P
+><P
+> If you have <B
+CLASS="COMMAND"
+>pstree</B
+> on your system, try this instead 
+ of the standard <B
+CLASS="COMMAND"
+>ps</B
+>. Sometimes the script kiddies forget
+ about this one. No guarantees though that this is accurate either.</P
+><P
+> You can also try querying the <TT
+CLASS="FILENAME"
+>/proc</TT
+> filesystem, 
+ which contains everything the kernel knows about processes that are 
+ running:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> 
+ # cat /proc/*/stat | awk '{print $1,$2}'
+ 
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> This will provide a list of all processes and PID numbers (assuming 
+ a malicious kernel module is not hiding this).</P
+><P
+> 
+ Another approach is to visit <A
+HREF="http://www.chkrootkit.org"
+TARGET="_top"
+>http://www.chkrootkit.org</A
+>, download
+ their rootkit checker, and see what it says.&#13;</P
+><P
+> Some interesting discussions on issues surrounding forensics can be found at <A
+HREF="http://www.fish.com/security/"
+TARGET="_top"
+>http://www.fish.com/security/</A
+>. 
+ There is also a collection of tools available, aptly called  
+ <SPAN
+CLASS="QUOTE"
+>"The Coroner's Toolkit"</SPAN
+> (TCT). 
+ </P
+><P
+> Read below for steps on recovering from an intrusion. </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RECLAIM">6.3. Reclaiming a Compromised System</H2
+><P
+> So now you've confirmed a break-in, and know that someone else has root 
+ access, and quite likely one or more hidden backdoors to your system. You've 
+ lost control. How to clean up and regain control? </P
+><P
+> There is no sure fire way of doing this short of a complete re-install. There
+ is no way to find with assurance all the modified files and backdoors that
+ may have been left. Trying to patch up a compromised system risks a false 
+ sense of security and may actually aggravate an already bad situation.
+ </P
+><P
+> The steps to take, in this order:&#13;</P
+><P
+> <P
+></P
+><UL
+><LI
+><P
+>   Pull the plug and disconnect the machine. You may be unwittingly
+   participating in criminal activity, and doing to others what has been done
+   to you. 
+  </P
+></LI
+><LI
+><P
+>   Depending on the needs of the situation and time available to restore the
+   system, it is advantageous to learn as much as you can about how the 
+   attacker got in, and what was done in order to plug the hole and avoid a
+   recurrence. This could conceivably be time consuming, and is not always
+   feasible. And it may require more expertise than the typical user
+   possesses.
+  </P
+></LI
+><LI
+><P
+>   Backup important data. Do <EM
+>not</EM
+> include any system files
+   in the backup, and system configuration files like
+   <TT
+CLASS="FILENAME"
+>inetd.conf</TT
+>. Limit the backup to personal data files 
+   only! You don't want to backup, then restore something that might open 
+   a backdoor or other hole.
+  </P
+></LI
+><LI
+><P
+>   Re-install from scratch, and reformat the drive during the installation
+   (<B
+CLASS="COMMAND"
+>mke2fs</B
+>) to make sure no remnants are hiding. Actually, 
+   replacing the drive is not a bad idea. Especially, if you want to keep 
+   the compromised data available for further analysis.
+  
+  </P
+></LI
+><LI
+><P
+>   Restore from backups. After a clean install is the best time to install 
+   an IDS (Intrusion Detection System) such as <SPAN
+CLASS="APPLICATION"
+>tripwire</SPAN
+>
+   (<A
+HREF="http://www.tripwire.org"
+TARGET="_top"
+>http://www.tripewire.org</A
+>). 
+  </P
+></LI
+><LI
+><P
+>   Apply all updates or patches for your distribution. Check
+   your vendor's web site for security related notices. 
+  </P
+></LI
+><LI
+><P
+>    Re-examine your system for unnecessary services. Re-examine your firewall and 
+    access policies, and tighten all holes. <EM
+>Use new
+    passwords</EM
+>, as these were stolen in all likelihood.
+  </P
+></LI
+><LI
+><P
+>    Re-connect system ;-) 
+  </P
+></LI
+></UL
+></P
+><P
+> At this time, any rootkit cleanup tools that may be available on-line are not 
+ recommended. They probably do work just fine most of the time. But again, 
+ how to be absolutely sure that all is well and all vestiges of the intrusion
+ are gone?&#13;</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="firewalls.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="general.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Step 3: Firewalls and Setting Access Policies</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>General Tips</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

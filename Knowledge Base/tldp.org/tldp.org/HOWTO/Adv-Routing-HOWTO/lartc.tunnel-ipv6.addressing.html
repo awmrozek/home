@@ -1,0 +1,411 @@
+<HTML
+><HEAD
+><TITLE
+>IPv6 Tunneling</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="IPv6 tunneling with Cisco and/or 6bone"
+HREF="lartc.ipv6-tunnel.html"><LINK
+REL="PREVIOUS"
+TITLE="IPv6 tunneling with Cisco and/or 6bone"
+HREF="lartc.ipv6-tunnel.html"><LINK
+REL="NEXT"
+TITLE="IPsec: secure IP over the Internet"
+HREF="lartc.ipsec.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.ipv6-tunnel.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 6. IPv6 tunneling with Cisco and/or 6bone</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.ipsec.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.TUNNEL-IPV6.ADDRESSING"
+></A
+>6.1. IPv6 Tunneling</H1
+><P
+>This is another application of the tunneling capabilities of Linux. It is
+popular among the IPv6 early adopters, or pioneers if you like.
+The 'hands-on' example described below is certainly not the only way
+to do IPv6 tunneling. However, it is the method that is often used to tunnel
+between Linux and a Cisco IPv6 capable router and experience tells us that
+this is just the thing many people are after. Ten to one this applies to
+you too ;-)</P
+><P
+>A short bit about IPv6 addresses:</P
+><P
+>IPv6 addresses are, compared to IPv4 addresses, really big: 128 bits
+against 32 bits. And this provides us just with the thing we need: many, many
+IP-addresses: 340,282,266,920,938,463,463,374,607,431,768,211,465 to be
+precise. Apart from this, IPv6 (or IPng, for IP Next Generation) is supposed
+to provide for smaller routing tables on the Internet's backbone routers,
+simpler configuration of equipment, better security at the IP level and
+better support for QoS.</P
+><P
+>An example: 2002:836b:9820:0000:0000:0000:836b:9886</P
+><P
+>Writing down IPv6 addresses can be quite a burden. Therefore, to make
+life easier there are some rules:</P
+><P
+>&#13;<P
+></P
+><UL
+><LI
+><P
+>Don't use leading zeroes. Same as in IPv4.&#13;</P
+></LI
+><LI
+><P
+>Use colons to separate every 16 bits or two bytes.&#13;</P
+></LI
+><LI
+><P
+>When you have lots of consecutive zeroes,
+you can write this down as ::. You can only do this once in an
+address and only for quantities of 16 bits, though.</P
+></LI
+></UL
+>&#13;</P
+><P
+>The address 2002:836b:9820:0000:0000:0000:836b:9886 can be written down
+as 2002:836b:9820::836b:9886, which is somewhat friendlier.</P
+><P
+>Another example, the address 3ffe:0000:0000:0000:0000:0020:34A1:F32C can be
+written down as 3ffe::20:34A1:F32C, which is a lot shorter.</P
+><P
+>IPv6 is intended to be the successor of the current IPv4. Because it
+is relatively new technology, there is no worldwide native IPv6 network
+yet. To be able to move forward swiftly, the 6bone was introduced. </P
+><P
+>Native IPv6 networks are connected to each other by encapsulating the IPv6
+protocol in IPv4 packets and sending them over the existing IPv4 infrastructure
+from one IPv6 site to another. </P
+><P
+>That is precisely where the tunnel steps in.</P
+><P
+>To be able to use IPv6, we should have a kernel that supports it. There
+are many good documents on how to achieve this. But it all comes down to
+a few steps:
+
+<P
+></P
+><UL
+><LI
+><P
+>Get yourself a recent Linux distribution, with suitable glibc.</P
+></LI
+><LI
+><P
+>Then get yourself an up-to-date kernel source.</P
+></LI
+></UL
+>
+
+If you are all set, then you can go ahead and compile an IPv6 capable
+kernel:
+
+<P
+></P
+><UL
+><LI
+><P
+>Go to /usr/src/linux and type:</P
+></LI
+><LI
+><P
+>make menuconfig</P
+></LI
+><LI
+><P
+>Choose "Networking Options"</P
+></LI
+><LI
+><P
+>Select "The IPv6 protocol", "IPv6: enable EUI-64 token format", "IPv6:
+disable provider based addresses"</P
+></LI
+></UL
+>
+
+HINT: Don't go for the 'module' option. Often this won't work well.</P
+><P
+>In other words, compile IPv6 as 'built-in' in your kernel.
+You can then save your config like usual and go ahead with compiling
+the kernel.</P
+><P
+>HINT: Before doing so, consider editing the Makefile:
+EXTRAVERSION = -x ; --&#62; ; EXTRAVERSION = -x-IPv6</P
+><P
+>There is a lot of good documentation about compiling and installing
+a kernel, however this document is about something else. If you run into
+problems at this stage, go and look for documentation about compiling a
+Linux kernel according to your own specifications.</P
+><P
+>The file /usr/src/linux/README might be a good start.
+After you accomplished all this, and rebooted with your brand new kernel,
+you might want to issue an '/sbin/ifconfig -a' and notice the brand 
+new 'sit0-device'. SIT stands for Simple Internet Transition. You may give
+yourself a compliment; you are now one major step closer to IP, the Next
+Generation ;-)</P
+><P
+>Now on to the next step. You want to connect your host, or maybe even
+your entire LAN to another IPv6 capable network. This might be the "6bone"
+that is setup especially for this particular purpose.</P
+><P
+>Let's assume that you have the following IPv6 network: 3ffe:604:6:8::/64 and
+you want to connect it to 6bone, or a friend. Please note that the /64
+subnet notation works just like with regular IP addresses.</P
+><P
+>Your IPv4 address is 145.100.24.181 and the 6bone router has IPv4 address
+145.100.1.5</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip tunnel add sixbone mode sit remote 145.100.1.5 [local 145.100.24.181 ttl 255]
+# ip link set sixbone up
+# ip addr add 3FFE:604:6:7::2/126 dev sixbone
+# ip route add 3ffe::0/16 dev sixbone</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Let's discuss this. In the first line, we created a tunnel device called
+sixbone. We gave it mode sit (which is IPv6 in IPv4 tunneling) and told it
+where to go to (remote) and where to come from (local). TTL is set to
+maximum, 255. </P
+><P
+>Next, we made the device active (up). After that, we added our own network
+address, and set a route for 3ffe::/15 (which is currently all of 6bone)
+through the tunnel. If the particular machine you run this on is your IPv6
+gateway, then consider adding the following lines:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># echo 1 &#62;/proc/sys/net/ipv6/conf/all/forwarding
+# /usr/local/sbin/radvd</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The latter, radvd is -like zebra- a router advertisement daemon, to
+support IPv6's autoconfiguration features. Search for it with your favourite
+search-engine if you like.
+You can check things like this:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># /sbin/ip -f inet6 addr</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>If you happen to have radvd running on your IPv6 gateway and boot your
+IPv6 capable Linux on a machine on your local LAN, you would be able to
+enjoy the benefits of IPv6 autoconfiguration:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># /sbin/ip -f inet6 addr
+1: lo: &#60;LOOPBACK,UP&#62; mtu 3924 qdisc noqueue inet6 ::1/128 scope host
+
+3: eth0: &#60;BROADCAST,MULTICAST,UP&#62; mtu 1500 qdisc pfifo_fast qlen 100
+inet6 3ffe:604:6:8:5054:4cff:fe01:e3d6/64 scope global dynamic
+valid_lft forever preferred_lft 604646sec inet6 fe80::5054:4cff:fe01:e3d6/10 
+scope link</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You could go ahead and configure your bind for IPv6 addresses. The A
+type has an equivalent for IPv6: AAAA. The in-addr.arpa's equivalent is:
+ip6.int. There's a lot of information available on this topic.</P
+><P
+>There is an increasing number of IPv6-aware applications available,
+including secure shell, telnet, inetd, Mozilla the browser, Apache the
+webserver and a lot of others. But this is all outside the scope of this
+Routing document ;-)</P
+><P
+>On the Cisco side the configuration would be something like this:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>!
+interface Tunnel1
+description IPv6 tunnel
+no ip address
+no ip directed-broadcast
+ipv6 enable
+ipv6 address 3FFE:604:6:7::1/126
+tunnel source Serial0
+tunnel destination 145.100.24.181
+tunnel mode ipv6ip
+!
+ipv6 route 3FFE:604:6:8::/64 Tunnel1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+But if you don't have a Cisco at your disposal, try one of the many
+IPv6 tunnel brokers available on the Internet. They are willing to configure
+their Cisco with an extra tunnel for you. Mostly by means of a friendly
+web interface. Search for "ipv6 tunnel broker" on your favourite search engine.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.ipv6-tunnel.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.ipsec.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>IPv6 tunneling with Cisco and/or 6bone</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.ipv6-tunnel.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>IPsec: secure IP over the Internet</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

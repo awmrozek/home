@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Ext2fs Undeletion mini-HOWTO: Modifying inodes directly</TITLE>
+ <LINK HREF="Ext2fs-Undeletion-12.html" REL=next>
+ <LINK HREF="Ext2fs-Undeletion-10.html" REL=previous>
+ <LINK HREF="Ext2fs-Undeletion.html#toc11" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ext2fs-Undeletion-12.html">Next</A>
+<A HREF="Ext2fs-Undeletion-10.html">Previous</A>
+<A HREF="Ext2fs-Undeletion.html#toc11">Contents</A>
+<HR>
+<H2><A NAME="sec-modify"></A> <A NAME="s11">11. Modifying inodes directly</A></H2>
+
+<P>This method is, on the surface, much easier.  However, as mentioned above,
+it cannot yet cope with files longer than 12 blocks.
+<P>For each inode you want to recover, you must set the usage count to one, and
+set the deletion time to zero.  This is done with the <CODE>mi</CODE> (modify inode)
+command in <CODE>debugfs</CODE>.  Some sample output, modifying inode 148003 from
+above:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+debugfs:  mi &lt;148003>
+                          Mode    [0100644]
+                       User ID    [503]
+                      Group ID    [100]
+                          Size    [6065]
+                 Creation time    [833201524]
+             Modification time    [832708049]
+                   Access time    [826012887]
+                 Deletion time    [833201524] 0
+                    Link count    [0] 1
+                   Block count    [12]
+                    File flags    [0x0]
+                     Reserved1    [0]
+                      File acl    [0]
+                 Directory acl    [0]
+              Fragment address    [0]
+               Fragment number    [0]
+                 Fragment size    [0]
+               Direct Block #0    [594810]
+               Direct Block #1    [594811]
+               Direct Block #2    [594814]
+               Direct Block #3    [594815]
+               Direct Block #4    [594816]
+               Direct Block #5    [594817]
+               Direct Block #6    [0]
+               Direct Block #7    [0]
+               Direct Block #8    [0]
+               Direct Block #9    [0]
+              Direct Block #10    [0]
+              Direct Block #11    [0]
+                Indirect Block    [0]
+         Double Indirect Block    [0]
+         Triple Indirect Block    [0]
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>That is, I set the deletion time to 0 and the link count to 1 and just pressed
+return for each of the other fields.  Granted, this is a little unwieldy if you
+have a lot of files to recover, but I think you can cope.  If you'd wanted
+chrome, you'd have used a graphical `operating system' with a pretty `Recycle
+Bin'.
+<P>By the way: the <CODE>mi</CODE> output refers to a `Creation time' field in the
+inode.  This is a lie!  (Or misleading, anyway.)  The fact of the matter is
+that you cannot tell on a UNIX file system when a file was created.  The
+<CODE>st_ctime</CODE> member of a <CODE>struct stat</CODE> refers to the `inode change time',
+that is, the last time when any inode details were changed.  Here endeth
+today's lesson.
+<P>Note that more recent versions of <CODE>debugfs</CODE> than the one I'm using probably
+do not include some of the fields in the listing above (specifically,
+<CODE>Reserved1</CODE> and (some of?) the fragment fields).
+<P>Once you've modified the inodes, you can quit <CODE>debugfs</CODE> and say:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# e2fsck -f /dev/hda5
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The idea is that each of the deleted files has been literally undeleted, but
+none of them appear in any directory entries.  The <CODE>e2fsck</CODE> program can
+detect this, and will add a directory entry for each file in the
+<CODE>/lost+found</CODE> directory of the file system.  (So if the partition is
+normally mounted on <CODE>/usr</CODE>, the files will now appear in
+<CODE>/usr/lost+found</CODE> when you next mount it.)  All that still remains to
+be done is to work out the name of each file from its contents, and return
+it to its correct place in the file system tree.
+<P>When you run <CODE>e2fsck</CODE>, you will get some informative output, and some
+questions about what damage to repair.  Answer `yes' to everything that refers
+to `summary information' or to the inodes you've changed.  Anything else I
+leave up to you, although it's usually a good idea to say `yes' to all the
+questions.  When <CODE>e2fsck</CODE> finishes, you can remount the file system.
+<P>Actually, there's an alternative to having <CODE>e2fsck</CODE> leave the files in
+<CODE>/lost+found</CODE>: you can use <CODE>debugfs</CODE> to create a link in the
+file system to the inode.  Use the <CODE>link</CODE> command in <CODE>debugfs</CODE> after
+you've modified the inode:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+debugfs:  link &lt;148003> foo.txt
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This creates a file called <CODE>foo.txt</CODE> in what <CODE>debugfs</CODE> thinks is the
+current directory; <CODE>foo.txt</CODE> will be your file.  You'll still need to run
+<CODE>e2fsck</CODE> to fix the summary information and block counts and so on.
+<P>
+<P>
+<HR>
+<A HREF="Ext2fs-Undeletion-12.html">Next</A>
+<A HREF="Ext2fs-Undeletion-10.html">Previous</A>
+<A HREF="Ext2fs-Undeletion.html#toc11">Contents</A>
+</BODY>
+</HTML>

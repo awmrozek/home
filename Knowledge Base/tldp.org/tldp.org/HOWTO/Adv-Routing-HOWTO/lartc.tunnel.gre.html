@@ -1,0 +1,354 @@
+<HTML
+><HEAD
+><TITLE
+>GRE tunneling</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="GRE and other tunnels"
+HREF="lartc.tunnel.html"><LINK
+REL="PREVIOUS"
+TITLE="IP in IP tunneling"
+HREF="lartc.tunnel.ip-ip.html"><LINK
+REL="NEXT"
+TITLE="Userland tunnels"
+HREF="lartc.tunnel.userland.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.tunnel.ip-ip.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 5. GRE and other tunnels</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.tunnel.userland.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.TUNNEL.GRE"
+></A
+>5.3. GRE tunneling</H1
+><P
+>GRE is a tunneling protocol that was originally developed by Cisco, and it
+can do a few more things than IP-in-IP tunneling. For example, you can also
+transport multicast traffic and IPv6 through a GRE tunnel.</P
+><P
+>In Linux, you'll need the ip_gre.o module.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN324"
+></A
+>5.3.1. IPv4 Tunneling</H2
+><P
+>Let's do IPv4 tunneling first:</P
+><P
+>Let's say you have 3 networks: Internal networks A and B, and intermediate network C (or let's say, Internet). </P
+><P
+>So we have network A:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>network 10.0.1.0
+netmask 255.255.255.0
+router  10.0.1.1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+The router has address 172.16.17.18 on network C.
+Let's call this network neta (ok, hardly original)</P
+><P
+>and network B:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>network 10.0.2.0
+netmask 255.255.255.0
+router  10.0.2.1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+The router has address 172.19.20.21 on network C.
+Let's call this network netb (still not original)</P
+><P
+>As far as network C is concerned, we assume that it will pass any packet sent
+from A to B and vice versa. How and why, we do not care.</P
+><P
+>On the router of network A, you do the following:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ip tunnel add netb mode gre remote 172.19.20.21 local 172.16.17.18 ttl 255
+ip link set netb up
+ip addr add 10.0.1.1 dev netb
+ip route add 10.0.2.0/24 dev netb</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Let's discuss this for a bit. In line 1, we added a tunnel device, and
+called it netb (which is kind of obvious because that's where we want it to
+go). Furthermore we told it to use the GRE protocol (mode gre), that the
+remote address is 172.19.20.21 (the router at the other end), that our
+tunneling packets should originate from 172.16.17.18 (which allows your
+router to have several IP addresses on network C and let you decide which
+one to use for tunneling) and that the TTL field of the packet should be set
+to 255 (ttl 255).</P
+><P
+>The second line enables the device.</P
+><P
+>In the third line we gave the newly born interface netb the address
+10.0.1.1. This is OK for smaller networks, but when you're starting up a
+mining expedition (LOTS of tunnels), you might want to consider using
+another IP range for tunneling interfaces (in this example, you could use
+10.0.3.0).</P
+><P
+>In the fourth line we set the route for network B. Note the different notation for the netmask. If you're not familiar with this notation, here's how it works: you write out the netmask in binary form, and you count all the ones. If you don't know how to do that, just remember that 255.0.0.0 is /8, 255.255.0.0 is /16 and 255.255.255.0 is /24. Oh, and 255.255.254.0 is /23, in case you were wondering.</P
+><P
+>But enough about this, let's go on with the router of network B.
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ip tunnel add neta mode gre remote 172.16.17.18 local 172.19.20.21 ttl 255
+ip link set neta up
+ip addr add 10.0.2.1 dev neta
+ip route add 10.0.1.0/24 dev neta</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+And when you want to remove the tunnel on router A:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ip link set netb down
+ip tunnel del netb</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Of course, you can replace netb with neta for router B.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN342"
+></A
+>5.3.2. IPv6 Tunneling</H2
+><P
+>See Section 6 for a short bit about IPv6 Addresses.</P
+><P
+>On with the tunnels.</P
+><P
+>Let's assume that you have the following IPv6 network, and you want to connect it to 6bone, or a friend.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Network 3ffe:406:5:1:5:a:2:1/96</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Your IPv4 address is 172.16.17.18, and the 6bone router has IPv4 address 172.22.23.24. </P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ip tunnel add sixbone mode sit remote 172.22.23.24 local 172.16.17.18 ttl 255
+ip link set sixbone up
+ip addr add 3ffe:406:5:1:5:a:2:1/96 dev sixbone
+ip route add 3ffe::/15 dev sixbone </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Let's discuss this. In the first line, we created a tunnel device called sixbone. We gave it mode sit (which is IPv6 in IPv4 tunneling) and told it where to go to (remote) and where to come from (local). TTL is set to maximum, 255. Next, we made the device active (up). After that, we added our own network address, and set a route for 3ffe::/15 (which is currently all of 6bone) through the tunnel.</P
+><P
+>GRE tunnels are currently the preferred type of tunneling. It's a standard that is also widely adopted outside the Linux community and therefore a Good Thing.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.tunnel.ip-ip.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.tunnel.userland.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>IP in IP tunneling</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.tunnel.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Userland tunnels</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

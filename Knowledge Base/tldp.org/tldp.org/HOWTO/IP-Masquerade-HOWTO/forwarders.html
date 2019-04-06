@@ -1,0 +1,1110 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Port Forwarding with IPTABLES or external tools like IPPORTFW, 
+IPMASQADM, IPAUTOFW, REDIR, UDPRED, and other Port Forwarding tools </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Other IP Masquerade Issues and Software Support "
+HREF="ipmasq-support-portfw-and-stronger-rulesets.html"><LINK
+REL="PREVIOUS"
+TITLE="IP Masquerade and Dial-on-Demand Connections"
+HREF="dial-on-demand.html"><LINK
+REL="NEXT"
+TITLE="CU-SeeMe and Linux IP-Masquerade"
+HREF="cuseeme.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="dial-on-demand.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 6. Other IP Masquerade Issues and Software Support</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="cuseeme.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="FORWARDERS"
+></A
+>6.7. Port Forwarding with IPTABLES or external tools like IPPORTFW, 
+IPMASQADM, IPAUTOFW, REDIR, UDPRED, and other Port Forwarding tools</H1
+><P
+>IPTABLES as well as IPPORTFW, IPAUTOFW, REDIR, UDPRED, and other programs offer
+generic TCP and/or UDP port forwarding for Linux IP Masquerade.  These 
+tools are typically used with or as a replacement for specific IP MASQ modules 
+to get a specific network traffic through the MASQ server.  </P
+><P
+>With port forwarders, you can redirect data connections from the Internet to 
+an internal, privately addressed machine behind your IP MASQ server.  This 
+forwarding ability includes network protocols such as TELNET, WWW, and SMTP. 
+Protocols such as FTP, legacy ICQ, and others require special handling via
+kernel modules (see below). </P
+><P
+><STRONG
+>NOTE:  </STRONG
+>If you are just looking to do simple 
+port forwarding but you don't need Masquerading support, you don't have any 
+choice.  You will <STRONG
+>STILL NEED</STRONG
+> to enable IP 
+Masquerading support in the kernel AND either run a IPTABLES, IPCHAINS, or 
+IPFWADM ruleset to be able to use Linux's port forwarding tools.</P
+><P
+>So why all the different choices?  IPTABLES, IPPORTFW, MARK (MFW), IPMASQADM 
+(PORTFW or AUTOFW), IPAUTOFW, REDIR, and UDPRED (all URLs are in 
+<A
+HREF="ipmasq-compiling3.1.html#IPMASQ-COMPILING3.1.3"
+>Section 3.2.3</A
+>) are the various tools available to IP 
+MASQ users to allow this type of functionality depending on their kernel
+version.  Later, as the Linux IP Masquerade feature matured, many of these 
+tools were eventually replaced by the IPTABLES or PORTFW and MARK systems 
+which are far more intelligent solutions.  </P
+><P
+>For the later 2.2.x kernels, the IPMASQADM tool combined the legacy IPAUTOFW and 
+IPPORTFW 2.0.x kernel tools into one binary.  Both the IPMASQADM tool for 2.2.x
+kernels as well as IPTABLES for the 2.6.x and 2.4.x kernels also supports a 
+new mechanism called "MARK" or MFW for PORTFW functionality.  The MARK system 
+works where a specific IPTABLES or IPCHAINS ruleset would match a given packet 
+sequence.  Once matched, the tool would "mark" these packets.  Later, the 
+IPMASQADM tool or a specific IPTABLE "table" could be instructed to change 
+these packets as needed and forward them off to their desired internal 
+destination.  Currently, this HOWTO doesn't cover the MARK solution but it 
+will in the future.</P
+><P
+>Anyway, because of the availablity of the newer tools, it is *HIGHLY 
+DISCOURAGED* to use the old tools such as IPAUTOFW (even AUTOFW in IPMASQADM) 
+and REDIR because they don't properly notify the Linux kernel of their 
+presence and can ultimately <STRONG
+>CRASH</STRONG
+> your 
+Linux server with extreme use.  </P
+><P
+><STRONG
+>NOTE #2:  </STRONG
+>With enabling PORTFW functionality 
+in ANY 2.2/2.0 Linux kernel (2.6.x. and 2.4.x users won't use these specific 
+tools anyway), <STRONG
+>internal 
+machines typically CANNOT use the same "external" PORTFWed IP address to 
+access a given internal" machine.</STRONG
+>  To put it another way, PORTFW 
+was only intended to be used with "external" computers on the Internet.  If 
+this is an issue for you, you can also use the REDIR tool for older 2.2.x and 
+2.0.x kernels to let internal machines get redirected to the internal servers 
+too.  2.6.x and 2.4.x kernels users running IPTABLES solves this issue once 
+and for all and is fully covered in a FAQ entry in 
+<A
+HREF="portfw-local.html"
+>Section 7.19</A
+> below.  If you would like a technical 
+explination on why this internal/external forwarding doesn't work, please page 
+down towards the bottom of the 2.2.x PORTFW section for a note from 
+Juan Jose Ciarlante.</P
+><P
+>NOTE #3: The forwarding of non-NAT friendly traffic such as FTP server traffic 
+to an internal MASQed FTP server, known as <STRONG
+>PORTFW 
+FTP</STRONG
+>, is now fully supported in the 2.6.x and 2.4.x kernels as well 
+as in the 2.2.x kernels via a BETA version FTP kernel module (does NOT come 
+with the stock Linus kernels).  It should also be noted that you can also 
+PORTFW FTP traffic using an external FTP proxy program (not covered in this 
+HOWTO).  It should be noted that the Beta 2.2.x FTP 
+kernel module code is still experimental and some people get better results 
+simply using ACTIVE FTP sessions compared to PASSIVE connections.  
+Interestingly enough, other people have seen the exact opposite behavior.  
+Please let us know what your results are like.  More about this is 
+covered below in both the 2.2.x and 2.0.x sections as the solutions require
+the use of different patches.</P
+><P
+><STRONG
+>WARNING!</STRONG
+>  Before jumping right into 
+installing ANY of these tools, it needs to be mentioned that network security 
+can be an issue with <EM
+>ANY</EM
+> PORT FORWARD tool.  The reason 
+for this is because these tools basically create a hole in strong packet 
+firewalls for the required TCP/UDP ports.  Though this doesn't pose any threat 
+to your Linux machine, it might be an issue to the PORTFW'ed internal 
+machine(s).  No worries though, this is what Steven Clarke (the author of 
+IPPORTFW) had to say about that:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>   "Port Forwarding is only called within masquerading functions so it 
+   fits inside the same IPFWADM/IPCHAINS rules. Masquerading is an extension to 
+   IP forwarding. Therefore, ipportfw only sees a packet if it fits 
+   both the input and masquerading ipfwadm rule sets."</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>What that means in English is that if you have a strong packet firewall
+running, PORTFW doesn't directly bypass any of that security.  You will still 
+be able to allow or deny specific IPs and/or domains to this new PORTFW'ed 
+resource if you so wish.</P
+><P
+>With this said, it's important to have a strong firewall ruleset.  Please see 
+<A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPTABLES-STRONGER"
+>Section 6.4.1</A
+>, 
+<A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPCHAINS-STRONGER"
+>Section 6.4.2</A
+>,
+ and <A
+HREF="stronger-firewall-examples.html#RC.FIREWALL-IPFWADM-STRONGER"
+>Section 6.4.3</A
+> for more details on getting 
+strong rulesets.</P
+><P
+> <P
+></P
+><UL
+><LI
+><P
+>2.6.x and 2.4.x kernels have PORTFW functional already built in using the 
+IPTABLES tool.  2.2.x and 2.0.x kernel kernel users will need to re-compile 
+the Linux kernel to support PORTFW.  It should be noted that some Linux 
+distribution kernels might have this already done for you.
+   </P
+></LI
+><LI
+><P
+>The latest 2.2.x kernel users will already have the PORTFW kernel option 
+available to them though you might still need to recompile the kernel via the 
+normal kernel "make" procedures.
+   </P
+></LI
+><LI
+><P
+>2.0.x users will need to apply a simple kernel option patch to have access to
+then enable this via the normal kernel "make" procedures.
+   </P
+></LI
+></UL
+></P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="PORTFW-VIA-IPTABLES-PREROUTING"
+></A
+>6.7.1. IPTABLES-based PORTFWD'ing: Using IPTABLES's PREROUTING option for 2.6.x 
+and 2.4.x kernels</H2
+><P
+>As mentioned before, a port forward or "PORTFW" allows a single or range
+of TCP/IP ports from the external side of the network to be forwarded into
+the inside network.</P
+><P
+>Unlike ALL previous Linux kernels, the 2.6.x and 2.4.x series kernels now 
+allows for full PORTFW, PORTFW FTP, and PORTFW REDIR functionality within 
+the "iptables" tool itself.</P
+><P
+><STRONG
+>NOTE: </STRONG
+>Once you enable a port forwarder on 
+say port 80 (forward WWW traffic through the MASQ server to an internal WWW
+server), that port will no longer be used by the Linux IP Masquerade server
+itself.  To be more specific, if you have a WWW server already running on the 
+MASQ server, enabling PORTFW will now give all Internet users acces to the WWW 
+pages from the -INTERNAL- WWW server and not the pages on your IP MASQ server.</P
+><P
+>To enable port forwarding on an IPTABLES (2.6.x or 2.4.x kernel):
+
+<P
+></P
+><UL
+><LI
+><P
+>Edit the /etc/rc.d/rc.firewall-iptables ruleset and place the lines 
+            shown below just ABOVE the "<TT
+CLASS="LITERAL"
+>FWD: Allow all 
+            connections OUT and only existing and related ones IN</TT
+>" 
+            line (in the "Optional FORWARD section").  Please 
+            <STRONG
+>be sure </STRONG
+>to replace the word 
+            "$EXTIP" with your specific Internet IP address.
+      </P
+></LI
+><LI
+><P
+>NOTE: Unlike the 2.2.x and 2.0.x kernels, PORTFWed traffic does
+            *not* traverse the INPUT or OUTPUT rules.  It only traverses the
+            FORWARD rule.
+      </P
+></LI
+></UL
+>
+
+<P
+></P
+><UL
+><LI
+><P
+><STRONG
+>NOTE: </STRONG
+> If you get a dynamically assigned
+TCP/IP address from your ISP (PPP, DSL, Cablemodems, etc.), you <STRONG
+>CANNOT load</STRONG
+> this strong ruleset upon booting.  You
+will either need to reload this firewall ruleset EVERY TIME you get a new IP
+address or make your /etc/rc.d/rc.firewall-ipchains-stronger ruleset more
+intelligent.  To do this for various types of connections such as PPP or
+DHCP users, please see the <A
+HREF="masq-and-dyn-addr.html"
+>Section 7.8</A
+> FAQ entry for all
+the details.</P
+></LI
+></UL
+>&#13;</P
+><P
+>/etc/rc.d/rc.firewall-*
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#echo "Enabling PORTFW Redirection on the external LAN.."
+#
+#   This will forward ALL port 80 traffic from the external IP address
+#   to port 80 on the 192.168.0.10 machine
+#
+#   Be SURE that when you add these new rules to your rc.firewall-*, you
+#   add them before a direct or implict DROP or REJECT.
+#
+PORTFWIP="192.168.0.10"
+
+
+# NOTE:  If you are using the basic rc.firewall-iptables ruleset, you
+#        will need to enable the following EXTIP option.  Users of the
+#        rc.firewall-iptables-stronger ruleset already have this defined.
+#
+#  *PLEASE* look over the rc.firewall-iptables-stronger ruleset for more 
+#            specific issues regarding dynamic vs. static IP addresses
+#
+#
+# Determine the external IP automatically:
+# ----------------------------------------
+#
+#  The following line will determine your external IP address.  This
+#  line is somewhat complex and confusing but it will also work for
+#  all NON-English Linux distributions:
+#
+# DISABLED by default -- to enable, REMOVE both the "#" characters below
+#
+#EXTIP="`$IFCONFIG $EXTIF | $AWK \
+#/$EXTIF/'{next}//{split($0,a,":");split(a[2],a," ");print a[1];exit}'`"
+
+
+# Allow forwarding of new and existing port 80 connections from the external
+# interface.  This rule is required as our default FORWARD policy is DENY.
+#
+$IPTABLES -A FORWARD -i $EXTIF -o $INTIF -p tcp --dport 80 -m state \
+ --state NEW,ESTABLISHED,RELATED -j ACCEPT
+
+
+#Enable PORTFW of this port 80 traffic from the external interface
+#
+$IPTABLES -A PREROUTING -t nat -p tcp -d $EXTIP --dport 80 -m state \ 
+ --state NEW,ESTABLISHED,RELATED -j DNAT --to $PORTFWIP:80 </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>That's it!  Just re-run your /etc/rc.d/rc.firewall-iptables ruleset and test 
+it out!  If you would like to learn more about this, please see the
+<A
+HREF="portfw-local.html"
+>Section 7.19</A
+></P
+><P
+>--------------------------------------------------------------------------</P
+><P
+>Running the rc.firewall-iptables-stronger ruleset?  Good for you!  To get 
+PORTFW running with this ruleset, it's very easy.  The following example is 
+for HTTP (WWW) traffic to be PORTFWed to the IP address indicated by the 
+$PORTFWIP variable:
+<P
+></P
+><UL
+><LI
+><P
+>Take the ruleset lines shown above (for the generic rc.firewall-* 
+        ruleset) and place them just *after* the "<TT
+CLASS="LITERAL"
+>#FORWARD 
+        Enable Forwarding and thus IPMASQ</TT
+>" comment lines.  It should 
+        also be noted that you <STRONG
+>DO NOT</STRONG
+> have 
+        to enable the "HTTPD" rules under the "Optional 'INPUT' section" for
+        2.4-based kernels.   With 2.4 kernels, those lines are ONLY used if 
+        you want to allow HTTP traffic to terminate on the MASQ server's own
+        local httpd process (usually Apache).
+  </P
+></LI
+></UL
+></P
+><P
+><STRONG
+>PORTFW FTP:  </STRONG
+>If you have the 
+"ip_conntrack_ftp" and "ip_nat_ftp" kernel modules loaded into kernel space 
+(as already done in the rc.firewall-iptables script), the simple PREROUTING 
+command like the one shown above changed for for port "21" should do the 
+trick.  This is much easier than the configuration for the older IPCHAINS / 
+IPFWADM tools for the  2.2.x / 2.0.x kernels!</P
+><P
+>Please note, if you setup PORTFW to redirect traffic to an internal FTP server 
+that is running on a NON-standard FTP port, say port 8021 instead of the usual
+port 21, you MUST tell the "ip_conntrack_ftp" module to be aware of the new 
+FTP port.  The reason for this configuration change is that FTP is not a 
+NAT-friendly protocol.  By telling the FTP NAT module about this non-standard 
+FTP port, the NAT module and do it's job again.  To enable this, edit your 
+rc.firewall-* file and change the loading of the FTP module to look something 
+like this:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>/sbin/insmod ip_conntrack_ftp ports=21,8021</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+><STRONG
+>PORTFW Redirection of Internal requests:</STRONG
+></P
+><P
+>In the past, if users PORTFWed port 80 on their EXTERNAL IP address to some 
+internal machine, only the machines out on the Internet would be able to 
+properly reach this internal WWW server.  If you tried to contact this 
+internal WWW server via the MASQ server's EXTERNAL address, it would fail.  
+Fortunately, there are workarounds for all Linux kernels.  IPTABLES for the 
+2.6.x and 2.4.x kernels supports this functionality natively.  IPCHAINS support 
+for the 2.2.x kernels and IPFWADM support for the 2.0.x kernels need to use 
+the external REDIR tool (not currently covered in the HOWTO).  For those of 
+you who understand IPTABLES fairly well, the rule of thumb is a 
+PREROUTING/DNAT rule is for enabling PORTFW from *external* machines and a 
+POSTROUTING/SNAT rule is for enabling PORTFW from *internal* machines.</P
+><P
+>To support redirection like this from an internal host, add a rule like 
+the one shown below ABOVE the "Catch all" FORWARDing rule in the rc.firewall-* 
+file.  The following example will REDIRECT all external as well as internal 
+WWW traffic to the internal machine noted as PORTFWIP (192.168.0.10).  This 
+traffic will have the source IP address of the IP Masq server's internal 
+IP address.  Please change the IP address of the PORTFWIP variable to reflect 
+your specific configuration:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#The following rule should be configured in *addition* to the above rule
+# for enabling external to internal PORTFWing
+
+$IPTABLES -t nat -A POSTROUTING -d $PORTFWIP -s $INTLAN -p tcp \
+--dport 80 -m state --state NEW,ESTABLISHED,RELATED -j SNAT \
+--to $INTIP</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="PORTFWDING-VIA-2.2.X-IPMASQADM"
+></A
+>6.7.2. IPMASQADM-based PORTFWD'ing: Using IPMASQADM with 2.2.x kernels</H2
+><P
+>First, make sure you have the newest 2.2.x kernel uncompressed into 
+/usr/src/kernel/linux.  If you haven't already done this, please see 
+<A
+HREF="ipmasq-compiling3.1.html#IPMASQ-COMPILING3.1.2"
+>Section 3.2.2</A
+> section for full details.  Next, 
+download the "ipmasqadm.c" program from <A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+> 
+into the /usr/src/kernel directory.</P
+><P
+>Next, you'll need to compile the 2.2.x kernel as shown in 
+<A
+HREF="ipmasq-compiling3.1.html#IPMASQ-COMPILING3.1.2"
+>Section 3.2.2</A
+> section.   Be sure to say "YES" to the 
+IPPORTFW option when you configure the kernel.  Once the kernel compile is 
+complete and you have rebooted, return to this section.</P
+><P
+>Now, compile and install the IPMASQADM tool:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>        cd /usr/src
+        tar xzvf ipmasqadm-x.tgz
+        cd ipmasqadm-x
+        make
+        make install </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Now, for this example, we are going to allow ALL WWW Internet traffic (port 80) 
+hitting your Internet TCP/IP address to be forwarded to the internal 
+Masqueraded machine at IP address 192.168.0.10.</P
+><P
+>PORTFW FTP:  As mentioned above, there are two solutions for forwarding FTP 
+server traffic to an internal MASQed PC.  The first solution *IS* a BETA level 
+<STRONG
+>IP_MASQ_FTP</STRONG
+> module for 2.2.x kernels to PORT 
+Forward FTP connections to an internal MASQed FTP server.  The other method is 
+using a FTP proxy program (the URL is in <A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+>.  
+It should also be noted that the FTP kernel module also supports the adding of 
+additional PORTFW FTP ports on the fly without the requirement of unloading and 
+reloading the IP_MASQ_FTP module and thus breaking any existing FTP transfers.  
+You can find more about this new code at the IPMASQ WWW site at 
+<A
+HREF="http://ipmasq.webhop.net"
+TARGET="_top"
+>http://ipmasq.webhop.net;</A
+>.  There are 
+also examples and some additional information about PORTFWed FTP connection 
+below in the 2.0.x. kernel section.</P
+><P
+><STRONG
+>NOTE: </STRONG
+>Once you enable a port forwarder on 
+port 80, that port can no longer be used by the Linux IP Masquerade server.  
+To be more specific, if you have a WWW server already running on the MASQ 
+server, a port forward will now give all Internet users the WWW pages from the 
+-INTERNAL- WWW server and not the pages on your IP MASQ server.</P
+><P
+>Anyway, to enable port forwarding for HTTPd:
+<P
+></P
+><UL
+><LI
+><P
+>Edit the /etc/rc.d/rc.firewall-* ruleset and ENABLE the "Optional"
+            "HTTP" sections in both the INPUT and OUTPUT subsections.
+      </P
+></LI
+><LI
+><P
+>Add the following lines shown below JUST BELOW the 
+            "<TT
+CLASS="LITERAL"
+>ipchains -P forward DENY</TT
+>" rule
+            (in the "Optional FORWARD section").  Be sure to replace the 
+            "$EXTIP" variable's contents with your EXTERNAL Internet IP 
+            address on the IPMASQ server.
+      </P
+></LI
+></UL
+></P
+><P
+><STRONG
+>NOTE #2:</STRONG
+> If you get a dynamically assigned
+TCP/IP address from your ISP (PPP, DSL, Cablemodems, etc.), you <STRONG
+>CANNOT load</STRONG
+> this strong ruleset upon booting.  You
+will either need to reload this firewall ruleset EVERY TIME you get a new IP
+address or make your /etc/rc.d/rc.firewall-ipchains-stronger ruleset more
+intelligent.  To do this for various types of connections such as PPP or
+DHCP users, please see the <A
+HREF="masq-and-dyn-addr.html"
+>Section 7.8</A
+> FAQ entry for all
+the details.</P
+><P
+>/etc/rc.d/rc.firewall-*
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#echo "Enabling IPPORTFW Redirection on the external LAN.."
+#
+#   This will forward ALL port 80 traffic from the external IP address
+#   to port 80 on the 192.168.0.10 machine
+#
+PORTFWIP="192.168.0.10"
+
+/usr/sbin/ipmasqadm portfw -f
+/usr/sbin/ipmasqadm portfw -a -P tcp -L $EXTIP 80 -R $PORTFWIP 80</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>That's it!  Just re-run your /etc/rc.d/rc.firewall-* ruleset and test it out!</P
+><P
+>If you get the error message "ipchains: setsockopt failed: Protocol not 
+available", you AREN'T running your new IPPORTFW enabled kernel.  Make sure 
+that you moved the new kernel over, re-run LILO, and then reboot again.  If 
+you are sure you are running your new kernel, run the command 
+"ls /proc/net/ip_masq" and make sure the "portfw" file exists.  If it doesn't, 
+you must have made an error when configuring your kernel.  Try again.</P
+><P
+><STRONG
+>PORTFW Redirection of Internal requests:</STRONG
+></P
+><P
+>It should be mention that this IPMASQ HOWTO currently does *NOT* provide any 
+explination or examples on how to use the REDIR tool.  If you need help 
+setting it up for 2.2.x kernels, send me an email.  For those who want to 
+understand why PORTFW cannot redirect traffic for both external and internal 
+interfaces (what the REDIR tool fixes), here is an email from Juanjo that 
+better explains it.  </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>From Juanjo Ciarlante
+--
+
+&#62;If I use:
+&#62;
+&#62; ipmasqadm portfw -a -P tcp  -L 1.2.3.4 80 -R 192.168.2.3 80
+&#62;
+&#62;Everything works great from the outside but internal requests for the same
+&#62;1.2.3.4 address fail. Are there chains that will allow a machine on localnet 
+&#62;192.168.2.0 to accesss www.periapt.com without using a proxy? 
+
+Actually not.
+
+I usually setup a ipmasqadm rule for outside, *AND* a port
+redirector for inside. This works because ipmasqadm hooks before
+redir will get the eventual outside connection, _but_ leaves things
+ok if not (stated by APPROPIATE rules).
+
+The actual "conceptual" problem comes from the TRUE client (peer) IP
+goal (thanks to masq) being in the same net as target server.
+
+The failing scenario for "local masq" is :
+   client: 192.168.2.100
+   masq:   192.168.2.1
+   serv:   192.168.2.10
+
+1)client-&#62;server packet
+ a) client:  192.168.2.100:1025  -&#62; 192.168.2.1:80   [SYN]
+ b) (masq):  192.168.2.100:1025  -&#62; 192.168.2.10:80  [SYN]
+            (and keep  192.168.2.1:61000 192.168.2.100:1025 related)
+ c) serv:    gets masqed packet (1b)
+
+2)server-&#62;client packet
+ a) serv:    192.168.2.10:80     -&#62; 192.168.2.100:1025  [SYN,ACK]
+ b) client:  192.168.2.100:1025  -&#62; 192.168.2.10:80     [RST]
+
+Now take a moment to compare (1a) with (2a).
+You see, the server replied DIRECTLY to client bypassing masq (not
+letting masq to UNDO the packet hacking) because it is in SAME net, so
+the client resets the connection.
+
+hope I helped.
+
+Warm regards
+Juanjo</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="PORTFWDING-VIA-2.0.X-IPPORTFW"
+></A
+>6.7.3. IPPORTFW-based PORTFWD'ing: Using IPPORTFW on 2.0.x kernels</H2
+><P
+>First, make sure you have the newest 2.0.x kernel uncompressed into 
+/usr/src/kernel.  If you haven't already done this, please see 
+<A
+HREF="ipmasq-compiling3.1.html#IPMASQ-COMPILING3.1.3"
+>Section 3.2.3</A
+> for full details.  Next, download the 
+"ipportfw.c" program and the "subs-patch-x.gz" kernel patch from 
+<A
+HREF="ipmasq-compiling3.1.html#IPMASQ-COMPILING3.1.3"
+>Section 3.2.3</A
+> into the /usr/src/ directory.  </P
+><P
+>NOTE:  Please replace the "x" in the "subs-patch-x.gz" file name with the 
+most current version available on the site.</P
+><P
+>Next, if you plan on port forwarding FTP traffic to an internal server, you 
+will have to apply an additional <STRONG
+>NEW</STRONG
+> 
+<EM
+>IP_MASQ_FTP</EM
+> module patch found in 
+<A
+HREF="ipmasq-compiling3.1.html#IPMASQ-COMPILING3.1.3"
+>Section 3.2.3</A
+>.  More details regarding this are later 
+in this section.  Please note that this is NOT the same patch as for the 2.2.x 
+kernels so some functionality such as the dynamic FTP PORT functionality is 
+not present.</P
+><P
+>Now, copy the IPPORTFW patch (subs-patch-x.gz) into the Linux directory
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>        cp /usr/src/subs-patch-1.37.gz /usr/src/linux</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Next, apply the kernel patch to create the IPPORTFW kernel option: 
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>        cd /usr/src/linux
+        zcat subs-patch-1.3x.gz | patch -p1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Ok, time to compile the kernel as shown in 
+<A
+HREF="ipmasq-compiling3.1.html#IPMASQ-COMPILING3.1.3"
+>Section 3.2.3</A
+>.  Be sure to say YES to the IPPORTFW 
+option now available when you configure the kernel.  Once the compile is 
+complete and you have rebooted, return to this section.</P
+><P
+>Now with a newly compiled kernel, please compile and install the actual 
+"IPPORTFW" program
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>        cd /usr/src
+        gcc ipportfw.c -o ipportfw
+        mv ipportfw /usr/local/sbin</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Now, for this example, we are going to allow ALL WWW Internet traffic (port 80) 
+hitting your Internet TCP/IP address to then be forwarded to the internal 
+Masqueraded machine at IP address 192.168.0.10.  </P
+><P
+><STRONG
+>NOTE:</STRONG
+>  Once you enable a port forwarder on 
+port 80, that port can no longer be used by the Linux IP Masquerade server.  
+To be more specific, if you have a WWW server already running on the MASQ 
+server and then you port forward port 80 to an internal MASQed computer, ALL 
+internet users will see the WWW pages pages from the -INTERNAL- WWW server and 
+not the pages on your IP MASQ server.  This only performs a port forward to 
+some other port, say 8080, to your internal MASQ machine.  Though this will 
+work, all Internet users will have to append <STRONG
+>:8080</STRONG
+> to the URL to then contact the internal MASQed WWW server.</P
+><P
+>Anyway, to enable port forwarding, edit the <STRONG
+>/etc/rc.d/rc.firewall-*</STRONG
+> ruleset.  Add the follow lines but be sure 
+to replace the word "$extip" with your Internet IP address.  </P
+><P
+><STRONG
+>NOTE #2:</STRONG
+> If you get a dynamically assigned
+TCP/IP address from your ISP (PPP, DSL, Cablemodems, etc.), you <STRONG
+>CANNOT load</STRONG
+> this strong ruleset upon booting.  You
+will either need to reload this firewall ruleset EVERY TIME you get a new IP
+address or make your /etc/rc.d/rc.firewall-ipchains-stronger ruleset more
+intelligent.  To do this for various types of connections such as PPP or
+DHCP users, please see the <A
+HREF="masq-and-dyn-addr.html"
+>Section 7.8</A
+> FAQ entry for all
+the details.</P
+><P
+>/etc/rc.d/rc.firewall-*
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#echo "Enabling IPPORTFW Redirection on the external LAN.."
+#
+#   This will forward ALL port 80 traffic from the external IP address
+#   to port 80 on the 192.168.0.10 machine
+#
+/usr/local/sbin/ipportfw -C
+/usr/local/sbin/ipportfw -A -t$extip/80 -R 192.168.0.10/80</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>That's it!  Just re-run your /etc/rc.d/rc.firewall-* ruleset and test it out!</P
+><P
+>If you get the error message "ipfwadm: setsockopt failed: Protocol not 
+available", you AREN'T running your new kernel.  Make sure that you moved the 
+new kernel over, re-run LILO, and then reboot again.</P
+><P
+>Port Forwarding FTP servers:</P
+><P
+>If you plan on port forwarding FTP to an internal machine, things get more 
+complicated.  The reason for this is because the standard 
+<STRONG
+>IP_MASQ_FTP</STRONG
+> kernel module wasn't written 
+for this though some users report that it works without any problems.  
+Personally, without the patch, I've heard that extended file transfers in 
+excess of 30 minutes will fail without the patch while other users swear that 
+it works flawlessly.  Anyway, I recommend that you try the following PORTFW 
+instruction with the STOCK ip_masq_ftp module and see if it works for you.  If 
+it doesn't, try using the modified ip_masq_ftp module.</P
+><P
+>For those who need the module, Fred Viles wrote a modified IP_MASQ_FTP module 
+to make things work.  If you are curious what EXACTLY are the issues, download 
+the following archive since Fred documents it quite well.  Also understand that 
+this patch is somewhat experimental and should be treated as such.  It should 
+be noted that this patch is ONLY available for the 2.0.x kernels though there 
+is a different patch available for 2.2.x kernels.</P
+><P
+>So, to get the 2.0.x patch working, you need to:</P
+><P
+> <P
+></P
+><UL
+><LI
+><P
+>FIRST, apply the IPPORTFW kernel patch as shown earlier in this section.
+   </P
+></LI
+><LI
+><P
+>Download the "msqsrv-patch-36" from Fred Viles's FTP server in 
+<A
+HREF="ipmasq-compiling3.1.html#IPMASQ-COMPILING3.1.3"
+>Section 3.2.3</A
+>and put it into /usr/src/linux.
+   </P
+></LI
+><LI
+><P
+>Patch the kernel with this new code by running "cat msqsrv-patch-36 | 
+patch -p1"
+   </P
+></LI
+><LI
+><P
+>Next, replace the original <STRONG
+>"ip_masq_ftp.c"</STRONG
+> 
+kernel module with the new one
+   </P
+><P
+>mv /usr/src/linux/net/ipv4/ip_masq_ftp.c /usr/src/linux/net/ipv4/ip_masq_ftp.c.orig
+   </P
+><P
+>mv /usr/src/linux/ip_masq_ftp.c /usr/src/linux/net/ipv4/ip_masq_ftp.c
+   </P
+></LI
+><LI
+><P
+>Lastly, build and install the kernel with this new code in place.
+   </P
+></LI
+></UL
+></P
+><P
+>Once this is complete, edit the /etc/rc.d/rc.firewall-* ruleset and add the 
+following lines, but be sure to replace the word "$extip" with your Internet 
+IP address.</P
+><P
+>This example, like the one above, will allow ALL FTP Internet traffic (port 21) 
+hitting your Internet TCP/IP address to then be forwarded to the internal 
+Masqueraded machine at IP address 192.168.0.10.</P
+><P
+>NOTE:  Once you enable a port forwarder on port 21, that port can no longer 
+be used by the Linux IP Masquerade server.  To be more specific, if you have 
+an FTP server already running on the MASQ server, a port forward will now give 
+all Internet users the FTP files from the -INTERNAL- FTP server and not the 
+files on your IP MASQ server.</P
+><P
+>        /etc/rc.d/rc.firewall-*
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#echo "Enabling IPPORTFW Redirection on the external LAN.."
+#
+/usr/local/sbin/ipportfw -C
+/usr/local/sbin/ipportfw -A -t$extip/21 -R 192.168.0.10/21
+
+#NOTE: If you are using multiple local port numbers to PORTFW
+#      to multuple internal FTP servers (say, 21, 2121, 2112,
+#      etc, you need to configure the ip_masq_ftp nodule to
+#      listen to these ports.  To do this, edit the 
+#      /etc/rc.d/rc.firewall-* script as shown in this HOWTO
+#      to look like:
+#
+# /sbin/modprobe ip_masq_ftp ports=21,2121,2112
+#
+# Re-run the /etc/rc.d/rc.firewall-* script for these changes to
+# take effect.
+
+
+#Please note that PORTFWing port 20 is probably NOT required 
+#  for ACTIVE connections as the internal FTP server will 
+#  initiate this port 20 connection and it will be properly 
+#  handled by the classic MASQ mechanisms.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>That's it!  Just re-run your /etc/rc.d/rc.firewall-* ruleset and test it out!</P
+><P
+><STRONG
+>PORTFW Redirection of Internal requests:</STRONG
+></P
+><P
+>It's not clear if the REDIR tool will compile or work against legacy 2.0.x 
+kernels.  It should also be mentioned that this IPMASQ HOWTO currently does 
+*NOT* provide any explination or examples on how to use the REDIR tool.  If 
+you need help setting it up, send me an email.  If you would like to learn 
+more about REDIR, please see the above section for the 2.2.x kernels.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="dial-on-demand.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="cuseeme.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>IP Masquerade and Dial-on-Demand Connections</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="ipmasq-support-portfw-and-stronger-rulesets.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>CU-SeeMe and Linux IP-Masquerade</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

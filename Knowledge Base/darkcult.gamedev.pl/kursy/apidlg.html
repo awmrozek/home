@@ -1,0 +1,279 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Dialogi</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apianim.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidlg2.html">Następna część kursu >></A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+Okna dialogowe
+</H1>
+
+<P>
+Mało która windowsowa aplikacja składa się z jednego jedynego okienka. Jeśli chcemy zbudować coś bardziej skomplikowanego niż Notatnik, powinniśmy do dyspozycji użytkownika dać jeszcze wiele innych okienek: do otwierania plików, do pokazywania pomocy i informacji o aktualnej wersji programu, do wyszukiwania słów w tekście, do zmiany ustawień itp.
+</P>
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/dialog.gif" ALT="Przykładowy dialog">
+</P>
+<P>
+Te wszelkie pomniejsze okienka zwane są na ogół <SPAN CLASS=Wazne>oknami dialogowymi</SPAN>, ponieważ służą właśnie do czegoś w rodzaju dialogu między userem a aplikacją. Niektórzy leniwi programiści (tak jakby istnieli pracowici... ;-)) idą sobie na łatwiznę i z dialogu robią często monolog, tzn. użytkownik wpisuje jakieś dane, a program ma to wszystko tylko zaakceptować. Praktyka pokazuje jednak, że beztroska lub niewiedza userów nie zna granic, dlatego też wszelkie wprowadzane przez te ofiary losu dane należy na bieżąco kontrolować, czy spełniają ustalone wymagania, czy też nie. Ale to tylko tak na marginesie.
+</P>
+
+<H2>
+ZASOBY Z DIALOGAMI
+</H2>
+
+<P>
+Okno dialogowe najłatwiej stworzyć za pośrednictwiem <SPAN CLASS=Wazne>pliku zasobów</SPAN> (<SPAN CLASS=Inglisz>resource file</SPAN>). Jest to zwykły plik tekstowy z rozszerzeniem *.rc, zawierający skrypty zasobów. Wiele IDE tworzy domyślnie taki plik dla każdego projektu. I tak na przykład Dev-C++ w wersji oznacznej czwórką miał nawet swój własny, mały edytorek do takich plików, niestety podczas tworzenia piątej wersji edytorek gdzieś się twórcom zapodział :-(. Bardziej profesjonalne narzędzia w rodzaju MS Visual C++ posiadają potężne wizualne edytory to tworzenia dialogów. Bez względu na to, czy twój IDE ma jakiś edytor plików *.rc czy też nie, na pewno przyda ci się wiedza, jak taki plik wygląda w środku:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;windows.h&gt;<BR>
+#include "dialog.h"</SPAN><BR>
+<BR>
+IDD_MOJDIALOG <SPAN CLASS=K>DIALOG DISCARDABLE</SPAN> <SPAN CLASS=L>20, 20, 200, 66</SPAN><BR>
+<SPAN CLASS=K>STYLE</SPAN> DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU<BR>
+<SPAN CLASS=K>CAPTION</SPAN> <SPAN CLASS=L>"Mój własny dialog"</SPAN><BR>
+<SPAN CLASS=K>FONT</SPAN> <SPAN CLASS=L>8, "MS Sans Serif"</SPAN><BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>DEFPUSHBUTTON</SPAN> <SPAN CLASS=L>"&Fajnie!"</SPAN>,IDOK,<SPAN CLASS=L>124,18,50,14</SPAN><BR>
+&nbsp;<SPAN CLASS=K>PUSHBUTTON</SPAN> <SPAN CLASS=L>"&Anuluj"</SPAN>,IDCANCEL,<SPAN CLASS=L>124,35,50,14</SPAN><BR>
+&nbsp;<SPAN CLASS=K>LTEXT</SPAN> <SPAN CLASS=L>"To jest okno dialogowe"</SPAN>,IDC_LABEL,<SPAN CLASS=L>16,18,80,33</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Cały ten badziew powyżej odpowiedzialny jest za stworzenie prostego okna dialogowego, co określa pierwsza linijka. Zaczyna się ona od identyfikatora <SPAN CLASS=T>IDD_MOJDIALOG</SPAN>. Jest to zwykła stała o ustalonej przez nas wartości (praktycznie dowolnej, byle unikalnej - w skali aplikacji), a konkretnie makro, które musimy sobie zdefiniować sami, za pomocą dyrektywy <SPAN CLASS=C>#define</SPAN> oczywiście. Najlepiej będzie zrobić osobny plik nagłówkowy, na przykład <SPAN CLASS=C>dialog.h</SPAN> (tak jak to zrobiliśmy w powyższym przykładzie) i wrzucić do niego tę oraz wszystkie następne deklaracje identyfikatorów dla elementów naszego dialogu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#define IDD_MOJDIALOG 200<BR>
+#define IDC_LABEL 201<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Czasami jest konieczne dołączenie do pliku zasobów odpowiedniego nagłówka, zawierającego definicje takich stałych, jak <SPAN CLASS=K>PUSHBUTTON</SPAN> czy <SPAN CLASS=K>LTEXT</SPAN>, niezbędnych do przetwarzania plików *.rc (wszystkie te stałe opisane są tam gdzie zwykle, czyli w MSDN :-)). Nazwa takiego nagłówka jest zależna od używanego IDE, zazwyczaj jednak wystarczy dołączyć <SPAN CLASS=C>windows.h</SPAN>, który zajmie się całą brudną robotą :-).
+</P>
+<P>
+Słowo <SPAN CLASS=K>DISCARDABLE</SPAN> oznacza, że dany zasób może być wrzucony do pamięci wirtualnej na dysku, jeśli nie jest akurat używany. Następujące po nim liczby, nietrudno się domyślić, to współrzędne i wymiary okna dialogowego. Niestety, nie w pikselach. Oficjalnie dla ułatwienia programistom życia, praktycznie w celu dokładnie odwrotnym wymyślono, że jednostki miary w plikach zasobów zależne są od wielkości czcionki używanej przez system. Poniekąd słusznie, gdyż jeśli trafi się jakiś odmieniec używający fonta wielkości 20 punktów, to nasz dialog będzie automatycznie do tego przystosowany...
+</P>
+<P>
+Druga linijka zasobu z naszym dialogiem nie jest trudna do rozszyfrowania - tak, to kombinacja stylów dla okna, są one identyczne z tymi stosowanymi przez funkcję <SPAN CLASS=T>CreateWindow</SPAN>. Styl <SPAN CLASS=T>DS_MODALFRAME</SPAN> jest typowy dla modalnych okien dialogowych, o tym trochę później. Trzecia i czwarta linijka - tajne zastosowanie, tylko dla orłów ;-).
+</P>
+<P>
+Dalej otwieramy "blok instrukcji" (niektóre kompilatory mogą wymagać słów <SPAN CLASS=T>BEGIN</SPAN> i <SPAN CLASS=T>END</SPAN> zamiast nawiasów klamrowych). Jest to miejsce na deklaracje elementów naszego dialogu, czyli kontrolek, które się na nim znajdą. U nas będą trzy: dwa przyciski, OK i Anuluj (pierwszy z nich będzie domyślnym przyciskiem), oraz jakiś napis. Niepotrzebne nam są tutaj dodatkowe identyfikatory dla przycisków, ponieważ dla niektórych najczęściej używanych elementów okna dialogowego mamy predefiniowane identyfikatory systemowe - w naszym przypadku <SPAN CLASS=T>IDOK</SPAN> i <SPAN CLASS=T>IDCANCEL</SPAN>.
+</P>
+
+<H2>
+PROCEDURA DIALOGOWA
+</H2>
+
+<P>
+Za wszystkie akcje użytkownika na głównym oknie odpowiedzialna jest procedura okna. Okno dialogowe nie jest tutaj żadnym wyjątkiem, też musi mieć podobną procedurę. Wygląda ona mniej więcej tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+BOOL CALLBACK DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(Msg)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_INITDIALOG:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_COMMAND:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>default</SPAN>: <SPAN CLASS=K>return</SPAN> FALSE;<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> TRUE;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Nazwa procedury dialogowej zależy oczywiście wyłącznie od ciebie, nie musi to być <SPAN CLASS=T>DlgProc</SPAN>.
+</P>
+<P>
+Najważniejszą rzecz widać od razu po typie naszej procedurki: dla komunikatów, których nie obsłużymy, nie musimy (a nawet nie możemy) wywołać <SPAN CLASS=T>DefWindowProc</SPAN>. Jeśli nie interesuje nas dany komunikat, po prostu zwracamy <SPAN CLASS=T>FALSE</SPAN>, w przeciwnym wypadku obsługujemy komunikat, po czym <SPAN CLASS=K>break</SPAN> przenosi nas na zewnątrz konstrukcji <SPAN CLASS=K>switch</SPAN>, skąd procedura wraca z wartością <SPAN CLASS=T>TRUE</SPAN>.
+</P>
+<P>
+Wspomniałem wcześniej, że tworzymy <SPAN CLASS=Wazne>dialog modalny</SPAN>. Oznacza to, że od momentu pokazania okna dialogowego aż do jego zamknięcia użyszkodnik nie może wykonywać żadnych czynności na oknie rodzicielskim (czyli w naszym przypadku na oknie głównym naszego programu). A więc procedura <SPAN CLASS=T>DlgProc</SPAN> nie zwróci wartości, dopóki okno dialogowe nie zostanie zamknięte. Do tego momentu sterowanie należy do dialogowej pętli komunikatów (każdy dialog ma własną, niezależną od tej, którą umieściliśmy w funkcji <SPAN CLASS=T>WinMain</SPAN>!).
+</P>
+<P>
+No właśnie - jak zamknąć okno dialogowe? Oczywiście, użytkownik zawsze może skorzystać ze standardowych sposobów (Alt+F4, krzyżyk w prawym górnym rogu itp.), ale byłoby iście podłym czynem zmuszać go do szukania takich drastycznych rozwiązań. Użytkownik też człowiek, jak by nie patrzeć, a w dodatku posiada też rozum i wolną wolę i naprawdę nie lubi programów o nieprzyjaznym interfejsie, a jak nie lubi, to i nie będzie ich używać - czego, rzecz ciemna, nie chcemy. Ale dość gadania - zwykle na oknie dialogowym umieszcza się przyciski OK i Anuluj, lub coś podobnego. Zapominamy o <SPAN CLASS=T>DestroyWindow</SPAN>, no a żeby przycisk zamykał dialog, należy mu przypisać następujący kod:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+EndDialog(hwnd, ID_RETVAL);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Proste, nieprawdaż? Oczywiście <SPAN CLASS=T>hwnd</SPAN> to uchwyt okna dialogowego, które niszczymy, a zamiast <SPAN CLASS=T>ID_RETVAL</SPAN> wstawiamy wartość, którą ma zwrócić makro <SPAN CLASS=T>DialogBox</SPAN> (zwykle jest to ID jakiegoś przycisku albo coś w tym rodzaju). Warto by jeszcze wspomnieć o jednym drobiazgu, mianowicie dla dialogów nie występuje komunikat <SPAN CLASS=T>WM_CREATE</SPAN>, zamiast niego mamy <SPAN CLASS=T>WM_INITDIALOG</SPAN> (którego oczywiście nie.
+</P>
+
+<h2>
+WYWOŁANIE DIALOGU
+</h2>
+
+<P>
+No to brudną robotę mamy za sobą, czas poznać instrukcję, otwierającą dialog. Zowie się ona po prostu <SPAN CLASS=T>DialogBox</SPAN> (uwaga: jest to makro, a nie funkcja!), a składnię ma taką oto:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<SPAN CLASS=K>int</SPAN> DialogBox(<I>HINSTANCE hInstance, LPCTSTR lpTemplate, HWND hWndParent, DLGPROC lpDialogFunc</I>)
+</TD></TR><TR></TR><TR></TR><TR></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>hInstance</I></TD><TD CLASS=ARGLIST>Uchwyt do naszej aplikacji</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpTemplate</I></TD><TD CLASS=ARGLIST>Identyfikator wzorca dialogu</TD></TR> 
+<TR><TD CLASS=ARGLIST><I>hWndParent</I></TD><TD CLASS=ARGLIST>Uchwyt okna wywołującego dialog</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpDialogFunc</I></TD><TD CLASS=ARGLIST>Wskaźnik do procedury dialogowej</TD></TR>
+</TABLE>
+
+<P>
+Jako uchwyt do wystąpienia programu możemy wykorzystać parametr <SPAN CLASS=T>hInstance</SPAN>, przekazany przez system do funkcji <SPAN CLASS=T>WinMain</SPAN>. Możemy również uzyskać ten uchwyt poza <SPAN CLASS=T>WinMain</SPAN>, wywołując funkcję <SPAN CLASS=T>GetModuleHandle</SPAN> z argumentem <SPAN CLASS=T>NULL</SPAN>.
+</P>
+<P>
+Identyfikator naszego dialogu to <SPAN CLASS=T>IDD_MOJDIALOG</SPAN> (czyli <SPAN CLASS=L>200</SPAN>). Aby z liczby tej zrobić argument typu <SPAN CLASS=T>LPCSTR</SPAN>, używamy makra <SPAN CLASS=T>MAKEINTRESOURCE</SPAN>.
+</P>
+<P>
+No i argument <SPAN CLASS=T>hWndParent</SPAN> oznacza okno, wywołujące dialog (będzie ono rodzicem dla okna dialogowego), natomiast <SPAN CLASS=T>lpDialogFunc</SPAN> - adres utworzonej przez nas przed chwilą procedury dialogowej. To wszystko, dialog gotowy. Przedstawiam teraz kompletny kod przykładowej aplikacji z dialogiem (jednak bez tworzenia okna, bo pewne rzeczy na pewnym etapie zaczynają nudzić ;-)):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#include &lt;windows.h&gt;<BR>
+#include "dialog.h"<BR>
+<BR>
+//Prototypy funkcji obsługujących komunikaty.<BR>
+//Sztuk dwie, jedna dla okna głównego, jedna dla dialogu ;-)<BR>
+</SPAN>
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);<BR>
+BOOL CALLBACK DlgProc(HWND, UINT, WPARAM, LPARAM);<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> WINAPI WinMain (HINSTANCE hThisInstance, HINSTANCE hPrevInstance, LPSTR lpszArgument, <SPAN CLASS=K>int</SPAN> nFunsterStil)<BR>
+{<BR>
+<SPAN CLASS=C>
+&nbsp;//<BR>
+&nbsp;// Tworzenie okna - saaaam to sobie zrób ;-)<BR>
+&nbsp;//<BR>
+<BR>
+&nbsp;//Tworzymy jakiś przycisk do wywołania dialogu<BR>
+</SPAN>
+&nbsp;HWND hPrzyc = CreateWindowEx(<SPAN CLASS=L>0, "BUTTON", "Dialog"</SPAN>, WS_CHILD | WS_VISIBLE,<BR>
+&nbsp;&nbsp;<SPAN CLASS=L>5,5,50,25</SPAN>, hwnd, NULL, hThisInstance, NULL);<BR>
+<BR>
+<SPAN CLASS=C>
+&nbsp;//Pokazujemy główne okno<BR></SPAN>
+&nbsp;ShowWindow(hwnd, nFunsterStil); <BR>
+<BR>
+<SPAN CLASS=C> 
+&nbsp;//No i standardowo - pętelka<BR></SPAN>
+&nbsp;<SPAN CLASS=K>while</SPAN>(GetMessage(&msg, NULL,<SPAN CLASS=L> 0, 0</SPAN>))<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;TranslateMessage(&msg);<BR>
+&nbsp;&nbsp;DispatchMessage(&msg);<BR>
+&nbsp;}<BR>
+<BR><SPAN CLASS=K>
+&nbsp;return</SPAN> msg.wParam;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=C>
+//Procedura okna</SPAN><BR>
+LRESULT CALLBACK WndProc(HWND hwnd, UINT mesg, WPARAM wParam, LPARAM lParam)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(mesg)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_COMMAND:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//Tutaj wywołujemy nasz dialog</SPAN><BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>int</SPAN> ret = DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(<SPAN CLASS=L>200</SPAN>), hwnd, DlgProc);<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(ret == IDOK)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wybrałeś 'Fajnie' w oknie dialogowym!", "Test",</SPAN> MB_ICONINFORMATION);<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>else if</SPAN>(ret == IDCANCEL)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wybrałeś 'Anuluj' w oknie dialogowym!", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_DESTROY:<BR>
+&nbsp;&nbsp;&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>default:<BR>
+&nbsp;&nbsp;&nbsp;return</SPAN> DefWindowProc(hwnd, mesg, wParam, lParam);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=C>
+//Procedura dialogowa</SPAN><BR>
+BOOL CALLBACK DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(Msg)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_COMMAND:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//reakcja na przyciski</SPAN><BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>switch</SPAN>(LOWORD(wParam))<BR>
+&nbsp;&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> IDOK: EndDialog(hwnd, IDOK); <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> IDCANCEL: EndDialog(hwnd, IDCANCEL); <SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>default: return</SPAN> FALSE;<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> TRUE;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Na koniec miła niespodzianka: pętla komunikatów okna dialogowego będzie wykonywała za nas pewne niemiłe czynności! Mam na myśli przełączanie się między kontrolkami za pomocą TAB-a oraz dostęp do kontrolek za pomocą skrótów z lewym ALT-em. W dalszej części tego kursu pokażę prostą sztuczkę, dzięki której można trochę "oszukać" system i zaimplementować te przydatne drobiazgi również i w "zwykłym" oknie.
+</P>
+
+
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apianim.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidlg2.html">Następna część kursu >></A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

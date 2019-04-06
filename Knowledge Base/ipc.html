@@ -1,0 +1,309 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html><head><title>IPC Linux - opis</title></head><body>
+<a name="SPIS-TRESCI"></a>
+<em><a href="http://rainbow.mimuw.edu.pl/SO/Linux/index03.html">Do spisu tresci tematu 3</a></em>
+<h1 align="center">3.2.1 IPC ogolnie</h1><br><br>
+<br>
+
+<h2 align="center">Spis tresci</h2>
+<ul>
+<li><a href="#1.">1.Pakiet IPC</a> <br>
+</li><li><a href="#2.">2.Struktury globalne</a> <br>
+</li><li><a href="#3.">3.Klucze</a> <br>
+</li><li><a href="#4.">4.Deskryptory<br></a>
+</li><li><a href="#5.">5.Funkcja systemowa _get</a> <br>
+</li><li><a href="#6.">6.Struktura ipc_perm i funkcja systemowa _ctl</a> <br>
+</li><li><a href="#8.">7.Komendy shella</a> <br>
+</li><li><a href="#9.">8.System plikow a IPC</a> 
+</li><li><a href="#10.">9.Bibliografia</a> 
+</li></ul>
+<hr>
+<p><a name="1."></a></p><h2><b>1.Pakiet IPC</b></h2>
+
+<p></p><h3>Pakiet IPC SystemuV sklada sie z trzech mechanizmów
+(typów) komunikacji miedzyprocesowej: </h3><p></p>
+
+<ul>
+<li> kolejek komunikatow (message queues) 
+</li><li> zestawow semaforow (semaphore arrays)
+</li><li> segmentow pamieci dzielonej (shared memory segmennts)
+</li></ul>
+
+<p>Wszystkie mechanizmy posiadaja pewne wspolne cechy i podobny
+interfejs, co ulatwia zycie programiscie. W przypadku kolejek i semaforow
+komunikacja odbywa sie przez pamiec jadra, zas segmenty pamieci dzielonej
+sa wspoldzielonymi czesciami wirtualnych przestrzeni adresowych procesow,
+co zapewnia wysoka efektywnosc tego mechanizmu komunikacji.<br>
+Komunikacja miedzyprocesowa jest pojeciem szerokim, czemu wyraz daje pakiet IPC.
+Pozornie rozne mechanizmy: msg -przesylanie komunikatow o konkretnej strukturze,
+sem- mechanizm synchronizacji, shm- wspoldzielenie przez procesy pamieci 
+,zostaly polaczone w jeden pakiet.</p>
+<hr>
+
+<p><a name="2."></a></p><h2><b>2.Struktury globalne</b></h2><p></p>
+
+<p>Dla kazdego mechanizmu istnieje w przestrzeni adresowej
+jadra globalna tablica, opisujaca wszystkie istniejace instancje danego
+mechanizmu. Elementami tablic sa struktury (scislej wskazniki do struktur)
+zdefiniowane w plikach naglowkowych poszczegolnych mechanizmow. Takze w
+plikach naglowkowych sa zdefiniowane rozmiary tych tablic oraz rozmiary
+innych elementow danego mechanizmu (np: min i max rozmiar segmentu pamieci
+dzielonej).Rozmiary powyzszych tablic w Linuxie 2.0 sa jednakowe dla kazdego
+ mechanizmu i wynosza 128. Jest to wiec wartosc okreslajaca maksymalna liczbe
+instancji danego mechanizmu. <br>
+Kazdy mechanizm posiada kilka zmiennych globalnych dla potrzeb statystyki
+i kontroli  informacji przechowywanej przez dany mechanizm
+(np: laczna liczba bajtow wszystkich komunikatow). Zmienne globalne sa
+inicjowane na 0. Wskazniki w tablicach inicjalnie wskazuja <b>IPC_UNUSED
+</b> zrzutowane na odpowiednia strukture
+typowa dla danego mechanizmu.</p>
+<hr>
+<p><a name="3."></a></p><h2><b>3.Klucze instancji</b></h2><p></p>
+
+<p>Kazda instancja ma swoja nazwe - klucz, ktory jest najczesciej
+liczba typu long. Klucz powinien byc wstepnie uzgodniony pomiedzy procesami,
+aby ostatecznie korzystaly one z tej samej instancji danego mechanizmu.
+Klucz jest unikalny w obrebie mechanizmu - instancja musi byc jednoznacznie
+odszukana przez podlaczajacy sie proces. Wyjatek stanowi klucz 
+<a href="#13.">IPC_PRIVATE.</a>
+(def: =0) o ktorym wiecej w punkcie 5. Kazdorazowa zgodnosc kluczy
+mozna zapewnic definiujac ich wartosci w kodzie aplikacji, co jednak dopuszcza
+mozliwosc kolizji z kluczem juz istniejacym w systemie. Mozna tez skorzystac
+z funkcji bibliotecznej<b> ftok:</b></p>
+
+<p></p><h3>LIBRARY: key_t ftok (char*&nbsp;pathname,char proj)<br>
+POWROT: wartosc klucza&nbsp;lub -1 w przypadku niepowodzenia</h3><p></p>
+
+
+<p><b>Key_t </b>jest typem klucza zdefiniowanym domyslnie
+jako integer. Wartosc klucza jest generowana przy uzyciu numeru urzadzenia
+i numeru i-wezla sciezki podanej jako pierwszy parametr oraz pierwszej
+litery projektu podanej jako drugi parametr (dowolna ustalona miedzy procesami
+litera). Nalezy zagwarantowac, ze podana sciezka istnieje, inaczej funkcja
+zwroci -1. Aby jednak miec pewnosc, ze nie dojdzie do kolizji kluczy, kazda
+aplikacja musi podac unikalna sciezke (np: do swojego katalogu domowego),
+ta sama dla wszystkich swoich procesow a takze wszystkie klucze w systemie
+musza byc uzyskane za pomoca funkcji ftok.<br>Znak 8-bitowy ,bedacy wartoscia argumentu 
+<b>proj</b> , funkcja laczy z numerem i-wezla pliku dyskowego oraz z malym numerem
+urzadzenia dla tego systemu plikow , w ktorym plik istnieje.Z polaczenia tych trzech 
+liczb powstaje 32-bitowy klucz. Istnieje szansa (bardzo mala),ze uzywajac dwu
+roznych sciezek otrzymamy taka sama wartosc klucza.  
+Prostszym rozwiazaniem wydaje sie losowe wygenerowanie  klucza
+i zapisanie go w kodzie aplikacji,jednak wartosc nalezy przekazac innym procesom
+ np. zapisujac ja na pliku.
+</p><hr>
+<p><a name="4."></a></p><h2><b>4.Deskryptory instancji</b></h2><p></p>
+
+<p>Instancja IPC&nbsp;jest identyfikowana przez unikalny
+w obrebie mechanizmu deskryptor, zwiazany z indeksem tablicy wzorem:</p>
+
+<p><b>int deskryptor = seq * rozm_tablicy + indeks</b></p>
+
+<p>gdzie<b> seq </b>jest zmienna globalna mechanizmu typu
+ushort, zwiekszana o 1 przy kazdym usunieciu dowolnej instancji danego
+mechanizmu. Tak wiec kolejna instancja utworzona pod tym samym indeksem
+dostaje deskryptor przynajmniej o rozm_tablicy wiekszy, stary deskryptor
+traci waznosc. Przyklad:</p>
+
+<center><p><img src="ipc_files/tab_key1.gif" alt="tab_key1.gif" height="180" width="600"></p></center>
+
+<center><p>zwalniamy wejscie w tablicy a nastepnie ponownie
+przydzielamy to samo:</p></center>
+
+<center><p><img src="ipc_files/tab_key2.gif" alt="tab_key2.gif" height="180" width="600"></p></center>
+
+<p>Zeby stwierdzic, ze deskryptor utracil waznosc musimy
+przechowywac w naglowku instancji (strukturze opisujacej instancje) jego
+wartosc lub wartosc seq z momentu tworzenia instancji. Oczywiscie, seq
+jest krotsze wiec jest przechowywane zamiast deskryptora.<br>
+Funkcje systemowe odwoluja sie do tablicy za pomoca deskryptora obliczajac
+najpierw indeks:</p>
+
+<center><p><b>indeks = deskr mod (rozm_tablicy)</b></p></center>
+
+<p>a nastepnie seq:</p>
+
+<center><p><b>seq = deskr div (rozm_tablicy)</b></p></center>
+
+<p>ktorego wartosc musi byc rowna wartosci zapisanej w naglowku
+(inaczej deskr jest niewazny i nie uprawnia do dostepu do instancji).</p>
+Powyzszy mechanizm przydzielania deskryptorow jest potrzebny,w celu 
+zminimalizowania prawdopodobienstwa odczytywania komunikatow przez proces 
+niepozadany.Uzywajac niewielkich liczb calkowitych mialby szanse natrafic na taka
+,ktora jest biezaco uzywanym identyfikatorem majacym ustawione prawo dostepu
+ do czytania dla innych.Jesli wartosciami tych identyfikatorow bylyby male
+liczby calkowite(np. jak deskryptory plikow),to prawdopodobienstwo znalezienia
+wlasciwego identyfikatora byloby duze.  
+<hr>
+<p><a name="5."></a><b><h2>5.Funkcja systemowa _get</h2></b></p>
+
+<p>Najwyzsza pora wyjasnic skad sie biora deskryptory. Otoz
+kazdy mechanizm pakietu IPC zawiera funkcje systemowa _get mniej wiecej
+tej postaci:</p>
+
+
+<p><b>SYSTEM:&nbsp;int _get (key_t klucz, int flagi)<br>
+POWROT:&nbsp;deskryptor nowo utworzonej lub odnalezionej instancji lub
+-1 </b></p>
+
+<ul>
+<p><b>errno:<br>
+</b>EACCESS /* brak praw dostepu - przy odszukiwaniu */<br>
+EEXIST /* klucz istnieje oraz sa flagi: IPC_CREAT &amp; IPC_EXCL */<br>
+EINVAL /* bledne parametry */<br>
+ENOENT /* klucz nie istnieje i nie ma flagi IPC_CREAT */<br>
+ENOMEM /* brak pamieci */<br>
+ENOSPC /* bledny rozmiar - przy tworzeniu */</p>
+</ul>
+
+
+<p>Funkcja ta pobiera klucz i ewentualne dodatkowe parametry
+oraz flagi, oddaje natomiast w zaleznosci od ustawionych flag i efektu
+poszukiwan deskryptor instancji o podanym kluczu, nowy deskryptor lub kod
+bledu: -1.<br>
+Oto przyblizony schemat dzialania funkcji get:</p>
+
+<center><p><img src="ipc_files/get.gif" alt="get.gif" height="500" width="660"></p></center>
+Funkcja wewnetrzna <b> find ( key_t key ) </b> jest odpowiedzialna za 
+wyszukanie indeksu w tablicy glownej ,gdzie przechowywane sa informacje
+o instancji majcej przydzielony klucz <b>key</b>.<br>
+<p>Parametr flagi jest liczba typu int w ktorej poszczegolne
+bity pierwszych dwoch bajtow oznaczaja prawa dostepu do instancji mechanizmu
+oraz ustawienie (1) badz brak (0) flag: </p>
+
+<ul>
+<p>IPC_CREAT /*osemkowo: 00001000 prosi o utworzenie
+instancji*/<br>
+IPC_EXCL /*00002000 blokuje podlaczenie do instancji istniejacej*/</p>
+</ul>
+
+<p>Przypominam, ze int w kompilatorze C Linuxa ma rozmiar
+4 bajtow.<br>
+Skladania flag dokonuje sie przy pomocy operatora binarnego OR np: (IPC_CREAT&nbsp;|
+IPC_EXCL |&nbsp;0666) oznacza ze wszyscy maja prawa czytania i pisania
+(osemkowe 666), instancja o podanym kluczu bedzie utworzona jesli nie istnieje,
+jesli natomiast zostala odnaleziona, funkcja get zwroci blad EEXIST (nie
+chcemy przeszkadzac komunikujacym sie przez nia procesom).<br>
+Warto zwrocic uwage, iz wystepujaca samotnie flaga <b>IPC_EXCL</b>&nbsp;nie
+ma zadnego znaczenia.<br>
+Po przetlumaczeniu klucza na deskryptor za pomoca funkcji get wszystkie
+odwolania do instancji korzystaja z deskryptora, a wiec z punktu widzenia
+procesu kllucz nie jest juz potrzebny.<br>
+<a name="13."></a>Klucz <b>IPC_PRIVATE</b>&nbsp;(def:=0) wymusza utworzenie nowej instancji
+bez wzgledu na to czy klucz 0 juz istnieje czy tez nie. Moze byc wiec kilka
+instancji tego samego mechanizmu o kluczu IPC_PRIVATE, ale ich deskryptory
+zawsze beda rozne (ich reszty modulo rozm_tablicy oznaczajace indeks slotu
+sa rozne).</p>
+<hr>
+<p><a name="6."></a></p><h2><b>6.Struktura ipc_perm i funkcja systemowa _ctl</b></h2><p></p>
+
+<p>Struktura naglowkowa kazdego mechanizmu zawiera strukture
+typu ipc_perm (plik:&nbsp;ipc.h) zawierajaca klucz, prawa dostepu (takie
+jak dla pliku), identyfikatory uzytkownika i tworcy (inicjalnie te same)
+oraz ich grup.</p>
+
+<center><p><img src="ipc_files/perm.gif" alt="perm.gif" height="337" width="620"></p></center>
+
+<p></p><h3><b> Funkcja _ctl(  ..  ,  int cmd ,  ..),</b></h3>
+Sterujaca funkcja systemowa ,ktora w zaleznosci od wartosci argumentu <b> cmd&gt;</b> informuje o 
+stanie instancji i pozwala ten stan modyfikowac.Parametrami
+sa: deskryptor, nazwa operacji i wskaznik do bufora stanu (unia).<br>
+Argument cmd moze przyjmowac ponizsze wartosci ( dla trzech mechanizmow ):<br>
+<pre>IPC_STAT
+     Odzwierciedla stan struktury charakterystycznej dla danego mechanizu
+IPC_SET
+     Ustawia prawa dostêpu 
+IPC_RMID
+   Usuwa instancje z systemu
+IPC_INFO
+    Zwraca informacje o parametrach instancji 
+</pre>
+ 
+W przypadku
+pobierania informacji jadro sprawdza prawa czytania procesu, po czym kopiuje
+odpowiednie informacje do bufora w przestrzeni adresowej uzytkownika, wskazanego
+jako parametr wywolania funkcji _ctl. W przypadku modyfikacji stanu instancji
+prawa pisania procesu nie wystarczaja! Proces musi byc tworca, wlascicielem
+lub nadzorca. Nie moga byc zmienione informacje o tworcy
+danej instancji, dzieki czemu zawsze zachowuje on prawa do utworzonego
+przez siebie obiektu. Prawa czytania nie sa potrzebne dla pobrania informacji
+globalnych o danym mechanizmie (komenda IPC_INFO).<p></p>
+<hr>
+<p><a name="8."></a></p><h2><b>7. Komendy shella</b></h2><p></p>
+
+<p><b>ipcs</b> - informacje o wszystkich istniejacych
+instancjach IPC, do ktorych wykonawca ma prawa dostepu</p>
+
+<p><b>ipcrm &lt;msg | sem | shm&gt; &lt;IPC&nbsp;ID&gt;</b>
+- usuniecie podanego deskryptora w zakresie podanej instancji (trzeba byc
+wlascicielem lub tworca).</p>
+
+<p>Wiecej informacji o tych komendach w man-ie</p>
+<hr>
+<p><a name="9."></a></p><h2><b>8. System plikow a IPC</b></h2><p></p>
+
+<p>Istnieja pewne podobienstwa mechanizmu IPC do systemu
+plikow:</p>
+
+<ul>
+<table bgcolor="#808080" border="1">
+<tbody><tr>
+<td><b>&nbsp;&nbsp;get&nbsp; </b></td>
+
+<td><b>&nbsp;&nbsp;creat,&nbsp; open&nbsp;&nbsp;</b></td>
+</tr>
+
+<tr>
+<td><b>&nbsp;&nbsp;ctl</b></td>
+
+<td><b>&nbsp;&nbsp;unlink</b></td>
+</tr>
+
+<tr>
+<td>&nbsp; &nbsp;&nbsp;<b>?</b></td>
+
+<td><b>&nbsp;&nbsp;close</b></td>
+</tr>
+</tbody></table>
+</ul>
+
+<p><b>1. </b>Zasadnicza roznica: jadro nie wie jakie procesy
+maja dostep do mechanizmow IPC, zatem:</p>
+
+<ul>
+<p>- proces ktory nigdy nie wykonal funkcji typu get moze
+uzyskac dostep do tych mechanzmow po odgadnieciu deskryptora, jezeli prawa
+dostepu beda odpowiednio ustawione.<br>
+- struktury IPC nie moga byc automatycznie usuwane przez jadro, poniewaz
+nie wiadomo kiedy staja sie one bezuzyteczne.<br>
+</p></ul>
+
+<p><b>2. </b> Przestrzen kluczy &lt;=&gt; przestrzen nazw
+plikow</p>
+
+<p>Przestrzen kluczy jest raczej pomyslana dla srodowiska
+zlozonego z jednego komputera</p>
+
+<p>
+</p><hr><p><a name="10."></a></p><h2><b>9. Bibliografia</b></h2><p></p>
+
+
+<ol>
+<li><b><code><a href="http://rainbow.mimuw.edu.pl/SO/Linux/Kod/include/linux/ipc.h.html">ipc.h</a>,
+sem.c, msg.c, shm.c, util.c, sem.h, msg.h, shm.h</code></b></li>
+(naglowki funkcji i definicje stalych),
+   
+<li>Sven Goldt, Sven van der Meer, Scott Burkett, Matt Welsh: <em>The Linux
+    Programmer's Guide</em> - rozdzial o ipc.
+</li><li>Maurice J. Bach: <em>Budowa systemu operacyjnego UNIX</em> 
+</li><li>W. Richard Stevens: <em>Programowanie zastosowan sieciowych w systemie
+    UNIX</em>  
+</li></ol>
+
+<p>
+</p><hr width="100%"><p></p>
+
+<p><i> autor: Dariusz Piotrak </i></p>
+
+
+</body></html>

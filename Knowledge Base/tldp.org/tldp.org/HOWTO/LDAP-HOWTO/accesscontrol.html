@@ -1,0 +1,307 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Access Control Examples</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="LDAP Linux HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Configuring the LDAP Server"
+HREF="config.html"><LINK
+REL="PREVIOUS"
+TITLE="LDBM Database Directives"
+HREF="ldbmdirect.html"><LINK
+REL="NEXT"
+TITLE="Configuration File Example"
+HREF="configurationexample.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>LDAP Linux HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="ldbmdirect.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. Configuring the LDAP Server</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="configurationexample.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="AccessControl"
+></A
+>3.7. Access Control Examples</H1
+><P
+>The access control facility provided by the <EM
+>access</EM
+> directive is 
+quite powerful. This section shows some examples of it's use. First, some simple examples: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>access to * by * read </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This access directive grants read access to everyone.</P
+><P
+>The following example shows the use of a regular expression to select the 
+entries by DN in two access directives where ordering is significant. </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>access to dn=".*, o=U of M, c=US" 
+by * search 
+access to dn=".*, c=US" 
+by * read </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Read access is granted to entries under the c=US subtree, except for those 
+entries under the "o=U of M, c=US" subtree, to which search access is granted. No access 
+is granted to c=US as neither access directive matches this DN.If the order of these
+access directives was reversed, the U-M-specific directive would never be matched, since 
+all U-M entries are also c=US entries. </P
+><P
+>Another way to implement the same access controls is:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>access to dn.children="dc=example,dc=com"
+	by * search
+	access to dn.children="dc=com"
+	by * read
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Read access is granted to entries under the dc=com subtree, except for those entries 
+under the dc=example,dc=com subtree, to which search access is granted. No access is granted 
+to dc=com as neither access directive matches this DN. If the order of these access directives 
+was reversed, the trailing directive would never be reached, since all entries under 
+dc=example,dc=com are also under dc=com entries.</P
+><P
+><B
+CLASS="command"
+>Note:</B
+> Also note that if no access to directive or no "by &#60;who&#62;" clause matches, 
+<B
+CLASS="command"
+>access is denied</B
+>. That is, every <EM
+>access to</EM
+> directive ends with an implicit <EM
+>by * none </EM
+>clause 
+and every access list ends with an implicit <EM
+>access to * by * none</EM
+> directive.</P
+><P
+>The next example again shows the importance of ordering, both of the access 
+directives and the "by &#60;who&#62;" clauses. It also shows the use of an attribute selector
+ to grant access to a specific attribute and various &#60;who&#62; selectors. </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>access to dn.subtree="dc=example,dc=com" attr=homePhone
+	by self write
+	by dn.children=dc=example,dc=com" search
+	by peername=IP:10\..+ read
+access to dn.subtree="dc=example,dc=com"
+	by self write
+	by dn.children="dc=example,dc=com" search
+	by anonymous auth
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This example applies to entries in the "dc=example,dc=com" subtree. To all 
+attributes except homePhone, an entry can write to itself, entries under 
+example.com entries can search by them, anybody else has no access (implicit by * none) 
+excepting for authentication/authorization (which is always done anonymously). The 
+homePhone attribute is writable by the entry, searchable by entries under example.com, 
+readable by clients connecting from network 10, and otherwise not readable 
+(implicit by * none). All other access is denied by the implicit access to * by * none.</P
+><P
+>Sometimes it is useful to permit a particular DN to add or remove itself from 
+an attribute. For example, if you would like to create a group and allow people
+ to add and remove only their own DN from the member attribute, you could accomplish 
+ it with an access directive like this: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>access to attr=member,entry 
+	by dnattr=member selfwrite 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The dnattr &#60;who&#62; selector says that the access applies to entries listed
+in the member attribute. The selfwrite access selector says that such members 
+can only add or delete their own DN from the attribute, not other values. The 
+addition of the entry attribute is required because access to the entry is 
+required to access any of the entry's attributes. </P
+><P
+>There's plenty of information about Access Control on the OpenLDAP
+Administrator's Guide. Take a look at: <A
+HREF="http://www.openldap.org/doc/admin22/slapdconfig.html#Access Control"
+TARGET="_top"
+>Access Control</A
+>
+for more information about this subject.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="ldbmdirect.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="configurationexample.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>LDBM Database Directives</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="config.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Configuration File Example</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

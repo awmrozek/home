@@ -1,0 +1,469 @@
+<HTML
+><HEAD
+><TITLE
+>Routing</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="Firewall Piercing mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Unsecure solution: piercing using telnet"
+HREF="x244.html"><LINK
+REL="NEXT"
+TITLE="Reverse piercing"
+HREF="x353.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Firewall Piercing mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x244.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x353.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN296"
+>6. Routing</A
+></H1
+><P
+>Piercing the firewall is not everything.
+You must also route the packets
+from the client side of the firewall to the server side.
+This section tackles the basic settings specific
+about routing accross a tunnel.
+For more detailed explanations of routing,
+see the relevant HOWTOs and man pages
+about networking, routing and masquerading.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN299"
+>6.1. The catch</A
+></H2
+><P
+>The catch is that although your network administration would tell you
+to setup your some router on your client side's as the default route,
+(this may be relevant if you want to have a specific route
+to the networks on the client of the firewall),
+you should setup PPP link as the route to the networks on the server side.</P
+><P
+>In other words, your default route should point to a router
+on whichever side of the tunnel that gives you access to the Internet.</P
+><P
+>Most importantly, packets sent to the server host as part of running the tunnel
+should be routed through your usual network
+(e.g. your default ethernet router);
+otherwise, your kernel will have problems,
+as it tries to route through the inside the tunnel
+the very packets that ought to constitute the outside of the tunnel.</P
+><P
+>Thus, you'll have to setup correct routes
+in your network startup configuration.
+The precise location of your routing configuration data
+depends on your distribution, but it is typically
+under <TT
+CLASS="FILENAME"
+>/etc/init.d/network</TT
+>
+or <TT
+CLASS="FILENAME"
+>/etc/network/</TT
+>;
+similarly, your PPP configuration is typically
+in <TT
+CLASS="FILENAME"
+>/etc/ppp/</TT
+>,
+and the proper place to configure its routes is usually
+in <TT
+CLASS="FILENAME"
+>ip-up</TT
+> or <TT
+CLASS="FILENAME"
+>ip-up.d/</TT
+>.
+(Tip: to identify your distribution-specific file locations,
+you must read the documentation of your distribution and otherwise
+<A
+HREF="http://foldoc.doc.ic.ac.uk/foldoc/foldoc.cgi?RTFM"
+TARGET="_top"
+>RTFM</A
+>;
+alternatively use <B
+CLASS="COMMAND"
+>grep</B
+> recursively
+on your <TT
+CLASS="FILENAME"
+>/etc</TT
+>;
+at worst, trace what happens at boot time,
+as configured in your <TT
+CLASS="FILENAME"
+>/etc/inittab</TT
+>.)</P
+><P
+>When piercing a tunnel from a roaming laptop on the Internet
+into a protected network, the script <B
+CLASS="COMMAND"
+>getroute.pl</B
+>
+(available from the <B
+CLASS="COMMAND"
+>fwprc</B
+> distribution)
+gives the current route to the server host that is the other end of the tunnel.</P
+><P
+>Once you can route packets to the server side of the tunnel,
+you might want to setup your machine as a router for all your pals
+on the client side of the firewall, achieving a full-fledged shared VPN.
+This is not specific to Firewall-Piercing, so just you read
+the relevant HOWTOs about networking, routing and masquerading.
+Also, for security reasons, be sure to also setup
+a proper firewall on your machine,
+especially if you're going to be a router for other people.</P
+><P
+>Finally, be reminded that if you're using <B
+CLASS="COMMAND"
+>pppd</B
+>
+on the server end of the tunnel
+(as opposed to user-mode <B
+CLASS="COMMAND"
+>slirp</B
+>),
+you will have to configure proper routes and firewall rules
+on the server side of the tunnel, too.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN321"
+>6.2. Example of routing</A
+></H2
+><P
+>In this example, your client machine is connected to a firewalled LAN
+through ethernet device <TT
+CLASS="FILENAME"
+>eth0</TT
+>.
+Its IP address is <TT
+CLASS="LITERAL"
+>12.34.56.78</TT
+>;
+its network is <TT
+CLASS="LITERAL"
+>12.34.56.0/24</TT
+>;
+its router is <TT
+CLASS="LITERAL"
+>12.34.56.1</TT
+>.</P
+><P
+>Your network administrator may have told you
+to use <TT
+CLASS="LITERAL"
+>12.34.56.1</TT
+>
+as default router, but you shouldn't.
+You should only use it as a route to the client side of the firewall.</P
+><P
+>Let's suppose the client side of your firewall is made of networks
+<TT
+CLASS="LITERAL"
+>12.34.0.0/16</TT
+> and <TT
+CLASS="LITERAL"
+>12.13.0.0/16</TT
+>,
+and of host <TT
+CLASS="LITERAL"
+>11.22.33.44</TT
+>.
+To make them accessible through your client router,
+add these routes to your global network startup script:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>route add -net 12.34.0.0 netmask 255.255.0.0 gw 12.34.56.1
+route add -net 12.13.0.0 netmask 255.255.0.0 gw 12.34.56.1
+route add -host 11.22.33.44 gw 12.34.56.1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+You must also keep the route to the client's local network,
+necessary for linux kernel 2.0 and earlier,
+but but unnecessary for linux kernel 2.2 and later
+(that implicitly adds it during the <B
+CLASS="COMMAND"
+>ifconfig</B
+>):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>route add -net 12.34.56.0 netmask 255.255.255.0 dev eth0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+On the other hand, you <EM
+>must</EM
+> remove
+any default route from your scripts.
+Delete or comment away a line like:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>route add default gw 12.34.56.1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Note that it is also possible to remove the route from the running
+kernel configuration without rebooting, by the following command:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>route del default gw 12.34.56.1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Then you can have <B
+CLASS="COMMAND"
+>pppd</B
+> setup a default route automatically
+when it starts by using its <B
+CLASS="COMMAND"
+>defaultroute</B
+> option.
+Alternatively, you can add it afterwards:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>route add default gw 10.0.2.2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+If you don't want <B
+CLASS="COMMAND"
+>pppd</B
+> as a default route,
+because the Internet access is available on your side of the firewall,
+and if you instead want network <TT
+CLASS="LITERAL"
+>98.76.48.0/20</TT
+>
+to be routed through the tunnel,
+except from host <TT
+CLASS="LITERAL"
+>98.76.54.32</TT
+>
+that serves as the other end of the tunnel,
+then add the following lines to your <TT
+CLASS="FILENAME"
+>/etc/ppp/ip-up</TT
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>route add -host 98.76.54.32 gw 12.34.56.1
+route add -net 98.76.48.0 netmask 255.255.240.0 gw 10.0.2.2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+If you're a laptop and your current LAN moves,
+and yet you want to keep your current route to <TT
+CLASS="LITERAL"
+>98.76.54.32</TT
+>,
+whatever it be, then use <B
+CLASS="COMMAND"
+>getroute.pl</B
+> as follows
+to automatically find the right gateway
+in the <B
+CLASS="COMMAND"
+>route add -host</B
+> command:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$(getroute.pl 98.76.54.32)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Note that if you have them in your <TT
+CLASS="FILENAME"
+>/etc/hosts</TT
+>,
+you might use symbolic names instead of numerical IP addresses
+(and you might even use FQDN's, if you trust the DNS never to fail).</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x244.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x353.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Unsecure solution: piercing using telnet</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Reverse piercing</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

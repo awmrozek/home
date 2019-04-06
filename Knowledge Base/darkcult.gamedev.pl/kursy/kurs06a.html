@@ -1,0 +1,413 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Klasy, cz. 2</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs06.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs07.html"> Następna część kursu >></A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H2>
+6.3 Konstruktory z argumentami
+</H2>
+
+<P>
+Jeśli konstruktor ma pusty wykaz argumentów, sprawa jest prosta. Jednak w praktyce większość obiektów czymś chcemy zainicjalizować i wtedy pojawiają się konflikty pomiędzy konstruktorami klasy rodzicielskiej i potomnej. Weźmy sobie klasę <SPAN CLASS=T>Rodzic</SPAN>, zawierającą zmienne <SPAN CLASS=T>a</SPAN> i <SPAN CLASS=T>b</SPAN> oraz klasę <SPAN CLASS=T>Dzieciak</SPAN>, która dziedziczy tamte dwie zmienne oraz dodatkowo zawiera trzecią zmienną, <SPAN CLASS=T>c</SPAN>. Obie klasy mają odpowiednie konstruktory:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Rodzic<BR>
+{<BR>
+<SPAN CLASS=K>protected</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> a, b;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;Rodzic(<SPAN CLASS=K>int</SPAN> na, <SPAN CLASS=K>int</SPAN> nb)<BR>
+&nbsp;&nbsp;{ a = na; b = nb; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Dzieciak : <SPAN CLASS=K>public</SPAN> Rodzic<BR>
+{<BR>
+<SPAN CLASS=K>private</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> c;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;Dzieciak(<SPAN CLASS=K>int</SPAN> na, <SPAN CLASS=K>int</SPAN> nb, <SPAN CLASS=K>int</SPAN> nc) : Rodzic(na, nb)<BR>
+&nbsp;&nbsp;{ c = nc; }<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Widzimy tutaj coś nowego - jest to budowa konstruktora klasy <SPAN CLASS=T>Dzieciak</SPAN>. Klasa ta dziedziczy zmienne <SPAN CLASS=T>a</SPAN> i <SPAN CLASS=T>b</SPAN> od klasy <SPAN CLASS=T>Rodzic</SPAN>, a więc w sumie konstruktor musi zainicjalizować trzy zmienne: <SPAN CLASS=T>a</SPAN>, <SPAN CLASS=T>b</SPAN> i <SPAN CLASS=T>c</SPAN>, co widać w jego wykazie argumentów. Zmienną <SPAN CLASS=T>c</SPAN> klasa <SPAN CLASS=T>Dzieciak</SPAN> musi inicjalizować sama w normalny sposób, ale ZANIM to zrobi, wywołuje jawnie konstruktor klasy <SPAN CLASS=T>Rodzic</SPAN>, aby ten zainicjalizował "swoje" zmienne argumentami <SPAN CLASS=T>na</SPAN> i <SPAN CLASS=T>nb</SPAN>. W ten sposób mamy pewność, że konstruktory się nie pokłócą; każdy dba o "swoje" zmienne.
+</P>
+<P>
+Dodam jeszcze, że po tym tajemniczym dwukropku, który umożliwił nam jawne wywołanie konstruktora klasy <SPAN CLASS=T>Rodzic</SPAN>, możemy sobie wstawić niemal dowolne wyrażenie, a więc także np. wywołanie jakiejś funkcji składowej, co daje nam dużą swobodę przy budowaniu konstruktora klasy potomnej.
+</P>
+<P>
+Sprawdźmy, czy się udadzą stuczki z "leniwą" wersją konstruktora, tworząc obiekt typu <SPAN CLASS=T>Dzieciak</SPAN> (tylko bez skojarzeń proszę ;-)):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Dzieciak A(<SPAN CLASS=L>10</SPAN>,<SPAN CLASS=L>20</SPAN>,<SPAN CLASS=L>30</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+No, efektu wielkiego nie widać, ale gdybyśmy dorzucili do obu klas jakieś funkcje wypisujące stan zmiennych składowych na ekran, moglibyśmy się na własne oczęta przekonać, że wszystko jest OK:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;iostream.h&gt;<BR>
+#include &lt;stdlib.h&gt;<BR></SPAN>
+<BR>
+<SPAN CLASS=K>class</SPAN> Rodzic<BR>
+{<BR>
+<SPAN CLASS=K>protected</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> a, b;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;Rodzic(<SPAN CLASS=K>int</SPAN> na, <SPAN CLASS=K>int</SPAN> nb)<BR>
+&nbsp;&nbsp;{ a = na; b = nb; }<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> PodajR()<BR>
+&nbsp;&nbsp;{ cout << <SPAN CLASS=L>"a="</SPAN> << a << <SPAN CLASS=L>", b="</SPAN> << b << endl; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Dzieciak : <SPAN CLASS=K>public</SPAN> Rodzic<BR>
+{<BR>
+<SPAN CLASS=K>private</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> c;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;Dzieciak(<SPAN CLASS=K>int</SPAN> na, <SPAN CLASS=K>int</SPAN> nb, <SPAN CLASS=K>int</SPAN> nc) : Rodzic(na, nb)<BR>
+&nbsp;&nbsp;{ c = nc; }<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> PodajD()<BR>
+&nbsp;&nbsp;{ PodajR(); cout << <SPAN CLASS=L>"c="</SPAN> << c << endl; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;Rodzic R(<SPAN CLASS=L>2</SPAN>,<SPAN CLASS=L>3</SPAN>);<BR>
+&nbsp;Dzieciak D(<SPAN CLASS=L>10</SPAN>,<SPAN CLASS=L>20</SPAN>,<SPAN CLASS=L>30</SPAN>);<BR>
+<BR>
+&nbsp;cout << <SPAN CLASS=L>"Stan Rodzica: "</SPAN> << endl;<BR>
+&nbsp;R.PodajR();<BR>
+&nbsp;cout << <SPAN CLASS=L>"Stan Dzieciaka: "</SPAN> << endl;<BR>
+&nbsp;D.PodajD();<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Efekt jest zgodny z naszymi oczekiwaniami:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black;">
+<SPAN CLASS=W>
+Stan Rodzica:<BR>
+a=2, b=3<BR>
+Stan Dzieciaka:<BR>
+a=10, b=20<BR>
+c=30<BR>
+Naciśnij dowolny klawisz, aby kontynuować . . .<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Ponieważ jesteśmy leniwi, do wypisania składowych <SPAN CLASS=T>a</SPAN> i <SPAN CLASS=T>b</SPAN> obiektu klasy <SPAN CLASS=T>Dzieciak</SPAN> użyliśmy odziedziczonej funkcji <SPAN CLASS=T>PodajR</SPAN>, natomiast tylko do wypisania stanu zmiennej <SPAN CLASS=T>c</SPAN> dopisaliśmy "nowy" kod. A co, wolno nam!
+</P>
+
+<H2>
+6.4 Przysłanianie
+</H2>
+
+<P>
+W poprzednim podrozdziale celowo użyliśmy różnych nazw dla funkcji wypisujących stan obiektu; w klasie <SPAN CLASS=T>Rodzic</SPAN> była to nazwa <SPAN CLASS=T>PodajR</SPAN>, a w klasie <SPAN CLASS=T>Dzieciak</SPAN> - <SPAN CLASS=T>PodajD</SPAN>. Taki zabieg pozwolił nam dodatkowo na użycie funkcji <SPAN CLASS=T>PodajR</SPAN> wewnątrz klasy <SPAN CLASS=T>Dzieciak</SPAN>, a więc nie musieliśmy się trudzić wypisywaniem zmiennych <SPAN CLASS=T>a</SPAN> i <SPAN CLASS=T>b</SPAN>. Co natomiast stałoby się, gdyby zrobić w tych dwóch klasach dwie zupełnie ze sobą nie powiązane funkcje <SPAN CLASS=T>Podaj</SPAN>? Sprawdźmy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;iostream.h&gt;<BR>
+#include &lt;stdlib.h&gt;<BR></SPAN>
+<BR>
+<SPAN CLASS=K>class</SPAN> Rodzic<BR>
+{<BR>
+<SPAN CLASS=K>protected</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> a, b;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;Rodzic(<SPAN CLASS=K>int</SPAN> na, <SPAN CLASS=K>int</SPAN> nb)<BR>
+&nbsp;&nbsp;{ a = na; b = nb; }<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Podaj()<BR>
+&nbsp;&nbsp;{ cout << <SPAN CLASS=L>"a="</SPAN> << a << <SPAN CLASS=L>", b="</SPAN> << b << endl; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Dzieciak : <SPAN CLASS=K>public</SPAN> Rodzic<BR>
+{<BR>
+<SPAN CLASS=K>private</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> c;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;Dzieciak(<SPAN CLASS=K>int</SPAN> na, <SPAN CLASS=K>int</SPAN> nb, <SPAN CLASS=K>int</SPAN> nc) : Rodzic(na, nb)<BR>
+&nbsp;&nbsp;{ c = nc; }<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Podaj()<BR>
+&nbsp;&nbsp;{ cout << <SPAN CLASS=L>"a="</SPAN> << a << <SPAN CLASS=L>", b="</SPAN> << b << <SPAN CLASS=L>", c="</SPAN> << c << endl; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;Rodzic R(<SPAN CLASS=L>2</SPAN>,<SPAN CLASS=L>3</SPAN>);<BR>
+&nbsp;Dzieciak D(<SPAN CLASS=L>10</SPAN>,<SPAN CLASS=L>20</SPAN>,<SPAN CLASS=L>30</SPAN>);<BR>
+<BR>
+&nbsp;cout << <SPAN CLASS=L>"Stan Rodzica: "</SPAN> << endl;<BR>
+&nbsp;R.Podaj();<BR>
+&nbsp;cout << <SPAN CLASS=L>"Stan Dzieciaka: "</SPAN> << endl;<BR>
+&nbsp;D.Podaj();<BR>
+&nbsp;cout << <SPAN CLASS=L>"Zmienne a i b Dzieciaka: "</SPAN> << endl;<BR>
+&nbsp;D.Rodzic::Podaj();<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Niespodzianka - nic się nie stanie! Program skompilował się prawidłowo. Funkcja <SPAN CLASS=T>Podaj</SPAN> z klasy <SPAN CLASS=T>Rodzic</SPAN> została przesłonięta przez funkcję o takiej samej nazwie z klasy <SPAN CLASS=T>Dzieciak</SPAN>, a więc instrukcja <SPAN CLASS=T>R.Podaj()</SPAN> wywołuje <SPAN CLASS=T>Podaj</SPAN> z klasy <SPAN CLASS=T>Rodzic</SPAN>, a <SPAN CLASS=T>D.Podaj()</SPAN> wywołuje <SPAN CLASS=T>Podaj</SPAN> z klasy <SPAN CLASS=T>Dzieciak</SPAN>. Żeby było śmieszniej, nadal mamy dostęp do "starej wersji" funkcji <SPAN CLASS=T>Podaj</SPAN> w klasie <SPAN CLASS=T>Dzieciak</SPAN>! Robimy to tak: <SPAN CLASS=T>D.Rodzic::Podaj()</SPAN>, jak powyżej zresztą. Oto wydruk z programu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+Stan Rodzica:<BR>
+a=2, b=3<BR>
+Stan Dzieciaka:<BR>
+a=10, b=20, c=30<BR>
+Zmienne a i b Dzieciaka:<BR>
+a=10, b=20<BR>
+Naciśnij dowolny klawisz, aby kontynuować . . .
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<H2>
+6.5 Konwersje
+</H2>
+
+<P>
+Równie ciekawie jest z konwersjami w hierarchii klas. Rozbudujmy trochę naszego Rodzica, dorzucając mu operator przypisania:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Rodzic<BR>
+{<BR>
+<SPAN CLASS=K>protected</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> a, b;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;Rodzic(<SPAN CLASS=K>int</SPAN> na, <SPAN CLASS=K>int</SPAN> nb)<BR>
+&nbsp;&nbsp;{ a = na; b = nb; }<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Podaj()<BR>
+&nbsp;&nbsp;{ cout << <SPAN CLASS=L>"a="</SPAN> << a << <SPAN CLASS=L>", b="</SPAN> << b << endl; }<BR>
+&nbsp;Rodzic& <SPAN CLASS=K>operator=</SPAN>(<SPAN CLASS=K>const</SPAN> Rodzic& obj)<BR>
+&nbsp;&nbsp;{ a = obj.a; b = obj.b; <SPAN CLASS=K>return *this</SPAN>; }<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W klasie <SPAN CLASS=T>Dzieciak</SPAN> zostawiamy wszystko po staremu i testujemy nasz nowy operatorek:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;Rodzic R(<SPAN CLASS=L>1</SPAN>,<SPAN CLASS=L>2</SPAN>);<BR>
+&nbsp;Dzieciak D(<SPAN CLASS=L>3</SPAN>,<SPAN CLASS=L>4</SPAN>,<SPAN CLASS=L>5</SPAN>);<BR> 
+<BR>
+&nbsp;cout << <SPAN CLASS=L>"Stan Rodzica przed przypisaniem: "</SPAN>;<BR>
+&nbsp;R.Podaj();<BR>
+&nbsp;cout << <SPAN CLASS=L>"Stan Rodzica po przypisaniu: "</SPAN>;<BR>
+&nbsp;R = D;<BR>
+&nbsp;R.Podaj();<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Dostajemy takie napisy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD STYLE="background-color: black">
+<SPAN CLASS=W>
+Stan Rodzica przed przypisaniem: a=1, b=2<BR>
+Stan Rodzica po przypisaniu: a=3, b=4<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Zastanawiasz się, co właściwie się stało? Proste jak drut: możliwa jest niejawna konwersja obiektu klasy potomnej na obiekt klasy rodzicielskiej! Wykonując instrukcję <SPAN CLASS=T>R = D</SPAN> komputer po prostu przepisał wartości zmiennych <SPAN CLASS=T>a</SPAN> i <SPAN CLASS=T>b</SPAN> z obiektu <SPAN CLASS=T>D</SPAN> do obiektu <SPAN CLASS=T>R</SPAN>, natomiast zmienną <SPAN CLASS=T>c</SPAN> po prostu sobie zignorował, ponieważ klasa <SPAN CLASS=T>Rodzic</SPAN> jej nie zna.
+</P>
+<P>
+W drugą stronę oczywiście to nie działa, tzn. nie możemy napisać <SPAN CLASS=T>D = R</SPAN>. Możemy za to dodać odpowiedni operator konwersji do klasy <SPAN CLASS=T>Dzieciak</SPAN> i wtedy będzie się dało zrobić również i takie przypisanie. 
+</P>
+<P>
+Co ciekawe, wskaźniki i referencje do klasy rodzicielskiej mogą być używane także z obiektami klasy potomnej (co, rzecz jasna, jest zupełnie niezależne od zdefiniowania operatora <SPAN CLASS=T>'='</SPAN>):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Dzieciak D;<BR>
+Rodzic* wskRodzic;<BR>
+wskRodzic = &D;<BR>
+Rodzic& refRodzic = D;<BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+6.6 Dziedziczenie mnogie
+</H2>
+
+<P>
+Obiekt w C++ może mieć wielu rodziców. Sam też może być rodzicem dla wielu innych obiektów. Realizuje się to w tzw. <SPAN CLASS=Wazne>dziedziczeniu mnogim</SPAN>. W ten sposób możemy tworzyć naprawdę skomplikowane hierarchie klas. Możemy też użyć dziedziczenia mnogiego do całkiem niewinnego celu, np. stworzenia hybrydy psa i działa laserowego ;-).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> MechPiesek<BR>
+{<BR>
+<SPAN CLASS=K>protected</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>char</SPAN>* imie;<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> kolor;<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> wielkosc;<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> wypisz_imie();<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> szczekaj();<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> aportuj();<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Laser<BR>
+{<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> strzel();<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> MechPsisko : <SPAN CLASS=K>public</SPAN> MechPiesek<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>void</SPAN> atakuj_akwizytora();<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Hybryda : <SPAN CLASS=K>public</SPAN> MechPsisko, <SPAN CLASS=K>public</SPAN> Laser<BR>
+{<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widzimy, klasa Hybryda jest zupełnie pusta, a jednak ma sporo możliwości - wszystkie odziedziczone - a więc: może strzelać z lasera, może atakować akwizytora, może szczekać, aportować i wypisywać swoje imię, a w dodatku posiada kolor i wielkość. Widzimy również, że specyfikatory i nazwy klas rodzicielskich przy dziedziczeniu rozdzieliliśmy przecinkiem.
+</P>
+<P>
+Nasz schemat dziedziczenia tworzy już całe drzewo, można go przedstawić następująco:
+</P>
+<P ALIGN=CENTER>
+<IMG SRC = "../gfx/drzewo.gif" ALT="Schemat dziedziczenia dla bieżącego przykładu">
+</P>
+<P>
+Nad dziedziczeniem mnogim nie ma się co rozwodzić, bo wszystko jest tu prawie takie samo, jak w dziedziczeniu pojedynczym. Warto jednak wspomnieć o przysłanianiu dziedziczonych składowych. Kiedy np. dziedziczymy od dwóch klas równocześnie i w obu tych klasach występują składowe o identycznych nazwach, to przesłonięcie nie nastąpi, ponieważ kompilator nie będzie mógł rozstrzygnąć, która z tych dwóch klas jest "ważniejsza". Z tego powodu żadna z dwóch składowych nie będzie bezpośrednio dostępna:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#include &lt;iostream.h&gt;<BR>
+#include &lt;stdlib.h&gt;<BR>
+</SPAN>
+<BR>
+<SPAN CLASS=K>class</SPAN> Rodzic1<BR>
+{<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> x;<BR>
+&nbsp;Rodzic1(<SPAN CLASS=K>int</SPAN> z) { x=z; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Rodzic2<BR>
+{<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> x;<BR>
+&nbsp;Rodzic2(<SPAN CLASS=K>int</SPAN> z) { x=z; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Dzieciak : <SPAN CLASS=K>public</SPAN> Rodzic1, <SPAN CLASS=K>public</SPAN> Rodzic2<BR>
+{<BR>
+<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> a;<BR>
+&nbsp;Dzieciak(<SPAN CLASS=K>int</SPAN> z1, <SPAN CLASS=K>int</SPAN> z2, <SPAN CLASS=K>int</SPAN> z3)<BR>
+&nbsp;&nbsp;: Rodzic1(z1), Rodzic2(z2) { a=z3; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;Dzieciak D(<SPAN CLASS=L>5</SPAN>,<SPAN CLASS=L>10</SPAN>,<SPAN CLASS=L>15</SPAN>);<BR>
+&nbsp;cout << D.Rodzic1::x << endl;<BR>
+&nbsp;cout << D.Rodzic2::x << endl;<BR>
+&nbsp;cout << D.a << endl;<BR>
+<SPAN CLASS=C>// cout << D.x << endl; //tak nie można!</SPAN><BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W sumie klasa <SPAN CLASS=T>Dzieciak</SPAN> ma tu trzy składowe zmienne: własną <SPAN CLASS=T>a</SPAN> oraz dwie odziedziczone <SPAN CLASS=T>x</SPAN>. Konstruktor dla takich dwóch niejawnych zmiennych o identycznych nazwach jest dokładnie taki sam, jak we wcześniejszych przykładach, ale odwołania do tych zmiennych - nie bardzo. Nie możemy odwoływać się do nich bezpośrednio, tak jak w wykomentowanej linijce, ponieważ kompilator stwierdzi, że jest to niejednoznaczność (możesz sprawdzić, usuwając komentarz). Musimy użyć operatora dostępu <SPAN CLASS=T>::</SPAN> (podwójny dwukropek), żeby pokazać kompilatorowi, do której zmiennej <SPAN CLASS=T>x</SPAN> chcemy się odwołać. Powyższy przykład pokazuje zresztą, że <SPAN CLASS=T>x</SPAN> w klasie <SPAN CLASS=T>Dzieciak</SPAN> to dwie zupełnie niezależne zmienne: jedna będzie zawierać wartość <SPAN CLASS=L>5</SPAN>, a druga <SPAN CLASS=L>10</SPAN>.
+</P>
+
+<H2>
+6.7 Przestroga na przyszłość ;-)
+</H2>
+
+<P>
+Nie rozpędzaj się zbytnio z tym dziedziczeniem. To dobra rzecz, ale stosuj je tylko wtedy, gdy jest to naprawdę potrzebne. Bardzo rozległe hierarchie klas są bardzo trudne do zaprojektowania, zupełnie niepostrzeżenie można w nich zrobić trudny do wykrycia błąd, który sprawi, że cała hierarchia nie będzie działać.
+</P>
+<P>
+Z dziedziczeniem jest w C++ tak samo, jak w naturze. Gdyby jakiś gatunek zwierzątek, np. człowiek, okazał się na tyle głupi, by wynaleźć cywilizację, przestać uznawać prawo dżungli i przestać zabijać słabsze zwierzątka aby mogły przetrwać silniejsze, to te słabsze rozmnażając się przekazywałyby swoje słabe geny dalej, aż w końcu skaziłyby nimi cały gatunek, który by zginął, do czego nawiasem mówiąc nieuchronnie zmierzamy. Sytuację analogiczną mamy w klasach: klasa słaba, z najmniejszym nawet błędem może popsuć wszystkie swoje klasy potomne. W dodatku takie błędy potęgują się z każdym dziedziczeniem, aż w końcu "najmłodsza" klasa jest jednym wielkim błędem.
+</P>
+<P>
+Im drzewo klas rozleglejsze, tym trudniej programiście ogarnąć je umysłem, a więc tym trudniej kontrolować. Pamiętaj!
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs06.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs07.html"> Następna część kursu >></A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

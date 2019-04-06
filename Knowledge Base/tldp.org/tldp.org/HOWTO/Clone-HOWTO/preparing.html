@@ -1,0 +1,528 @@
+<HTML
+><HEAD
+><TITLE
+>Preparing boot files</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="HOWTO Clone Disk Images on Linux Booted from a Network"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Setting up DHCP and TFTP servers"
+HREF="setting-up.html"><LINK
+REL="NEXT"
+TITLE="Booting from Grub floppy disk"
+HREF="booting.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>HOWTO Clone Disk Images on Linux Booted from a Network</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="setting-up.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="booting.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="PREPARING">4. Preparing boot files</H1
+><P
+>Now that the server is set up, you need to prepare the files to make the client boot. Two files are necessary: the kernel and the init ramdisk (initrd) which will be mounted by the kernel as the root file system. This document assumes that the procedures outlined in this section and the next are made in the client machine. Normally, when saving and restoring disk images, there is no need to have Linux installed on a local hard disk. To deploy disk images to a number of machines, start by installing a Linux distribution on one machine for each model. Use DHCP and have TFTP client to test the setup made in the previous section. Unless otherwise noted, commands are issued in the <B
+CLASS="COMMAND"
+>bash</B
+> shell by the user <TT
+CLASS="VARNAME"
+>root</TT
+> in a working directory.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN114">4.1. Kernel</H2
+><P
+>Identify the compressed kernel file:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>cd /boot
+<TT
+CLASS="PROMPT"
+># </TT
+>ls vmlinuz-$(uname -r)
+vmlinuz-2.4.18-3
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The version may vary, according to your system. Upload this file to the TFTP server, renaming it to <TT
+CLASS="FILENAME"
+>vmlinuz</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>tftp 10.0.0.1
+<TT
+CLASS="PROMPT"
+>tftp&#62; </TT
+>binary
+<TT
+CLASS="PROMPT"
+>tftp&#62; </TT
+>put vmlinuz-2.4.18-3 vmlinuz
+Sent 1030147 bytes in 2.3 seconds
+<TT
+CLASS="PROMPT"
+>tftp&#62; </TT
+>quit
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You may want to keep the file name, or have different names for different hardware models or kernel versions. We use the same names for the kernel and initrd so we don't have to make another boot floppy disk after changing the kernel or the initrd images.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN128">4.2. Files on initrd</H2
+><P
+>Next, make the root file system image for the client. The full listing of the files is in <A
+HREF="initrdfiles.html"
+>Appendix A</A
+>.</P
+><P
+>These files have been taken from a working system as a minimum configuration for having powerful shell (<B
+CLASS="COMMAND"
+>bash</B
+>), client network utilities (<B
+CLASS="COMMAND"
+>dhcpcd</B
+> and <B
+CLASS="COMMAND"
+>tftp</B
+>), and copying and compressing utilities (<B
+CLASS="COMMAND"
+>dd</B
+>, <B
+CLASS="COMMAND"
+>gzip</B
+>). Administrative commands (<B
+CLASS="COMMAND"
+>mknod</B
+>, <B
+CLASS="COMMAND"
+>mount</B
+>, <B
+CLASS="COMMAND"
+>fdisk</B
+> and <B
+CLASS="COMMAND"
+>insmod</B
+>) are also present.</P
+><P
+>In the working directory create a file named <TT
+CLASS="FILENAME"
+>initrd.lst</TT
+> and put these file names on it. To check the existence of these files in your system, run the following command:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>ls -d $(&#60;initrd.lst) &#62; /dev/null
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You should get an error output like this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>ls: /bin/clone: No such file or directory
+ls: /bin/tftp: No such file or directory
+ls: /lib/3c59x.o: No such file or directory
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The first error is a script to be created in the working directory. The second error is the program <B
+CLASS="COMMAND"
+>tftp</B
+> found in the directory <TT
+CLASS="FILENAME"
+>/usr/bin</TT
+> instead of <TT
+CLASS="FILENAME"
+>/bin</TT
+>. The third is the network interface card module (probably not yours) found in the directory <TT
+CLASS="FILENAME"
+>/lib/modules/$(uname -r)/kernel/drivers/net</TT
+>.</P
+><P
+>These three files will be discussed in upcoming sections separately soon. If there are other missing files, check for lack of installation or differences in version, distribution or hardware. Adjust the list to match your system.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN154">4.3. Packing initrd</H2
+><P
+>The next step is to make the image. A size of 4 Mbytes was enough to hold the files in our setup. You may increase this size if necessary.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>dd if=/dev/zero of=initrd bs=1024 count=4096
+4096+0 records in
+4096+0 records out
+<TT
+CLASS="PROMPT"
+># </TT
+>yes | mkfs initrd
+mke2fs 1.27 (8-Mar-2002)
+initrd is not a block special device.
+Proceed anyway? (y,n) Filesystem label=
+blah blah blah...
+<TT
+CLASS="PROMPT"
+># </TT
+>mkdir mnt
+<TT
+CLASS="PROMPT"
+># </TT
+>mount -o loop initrd mnt/
+<TT
+CLASS="PROMPT"
+># </TT
+>egrep -v "clone|3c59x|tftp" initrd.lst | cpio -pdm mnt
+4876 blocks
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now the three files excluded by the <B
+CLASS="COMMAND"
+>egrep</B
+> command. Copy the <TT
+CLASS="FILENAME"
+>tftp</TT
+> program from <TT
+CLASS="FILENAME"
+>/usr/bin</TT
+> to the image directory:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>cp -p /usr/bin/tftp mnt/bin/
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Identify the proper module for your network interface card. Use the output of the commands <B
+CLASS="COMMAND"
+>lspci</B
+> and <B
+CLASS="COMMAND"
+>lsmod</B
+> to identify the file, which resides in the directory <TT
+CLASS="FILENAME"
+>/lib/modules/$(uname -r)/kernel/drivers/net</TT
+>.</P
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>Whenever you see a reference to <EM
+>3c59x</EM
+>, use the name of the module suited for your case.</P
+></TD
+></TR
+></TABLE
+></DIV
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>cp -p /lib/modules/$(uname -r)/kernel/drivers/net/3c59x.o mnt/lib/
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Edit the clone script found in <A
+HREF="clonescript.html"
+>Appendix B</A
+>, changing the variables as explained in <A
+HREF="running.html"
+>Section 6</A
+>. Make it executable and copy it to the image directory:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>chmod +x clone
+<TT
+CLASS="PROMPT"
+># </TT
+>cp -p clone mnt/bin/
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Unmount, compress, and send the initrd image.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>umount mnt/
+<TT
+CLASS="PROMPT"
+># </TT
+>gzip initrd
+<TT
+CLASS="PROMPT"
+># </TT
+>tftp 10.0.0.1
+<TT
+CLASS="PROMPT"
+>tftp&#62; </TT
+>binary
+<TT
+CLASS="PROMPT"
+>tftp&#62; </TT
+>put initrd.gz
+Sent 1155530 bytes in 2.8 seconds
+<TT
+CLASS="PROMPT"
+>tftp&#62; </TT
+>quit
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="setting-up.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="booting.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Setting up DHCP and TFTP servers</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Booting from Grub floppy disk</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,349 @@
+<HTML
+><HEAD
+><TITLE
+>Booting from Grub floppy disk</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="HOWTO Clone Disk Images on Linux Booted from a Network"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Preparing boot files"
+HREF="preparing.html"><LINK
+REL="NEXT"
+TITLE="Running the clone script"
+HREF="running.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>HOWTO Clone Disk Images on Linux Booted from a Network</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="preparing.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="running.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="BOOTING">5. Booting from Grub floppy disk</H1
+><P
+>The next step is to make a boot floppy disk using Grub. GNU Grub is the GRand Unified Bootloader. It can handle BOOTP and TFTP, so it can boot from network.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN195">5.1. Grub menu file</H2
+><P
+>In the working directory create a file named <TT
+CLASS="FILENAME"
+>grub.conf</TT
+> with the following content:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>default=0
+timeout=1
+title Clone
+	bootp
+	root (nd)
+	kernel /vmlinuz rw root=/dev/ram ramdisk_size=4096 init=/bin/clone
+	initrd /initrd.gz
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>In the last four lines are the Grub commands to boot from network:</P
+><P
+></P
+><UL
+><LI
+><P
+><B
+CLASS="COMMAND"
+>bootp</B
+>, to get an IP address from the DHCP server.</P
+></LI
+><LI
+><P
+><B
+CLASS="COMMAND"
+>root (nd)</B
+>, to set the root in the network (TFTP server). An alternative TFTP server could be set before this command using the command <B
+CLASS="COMMAND"
+>tftpserver</B
+> <TT
+CLASS="PARAMETER"
+><I
+>&#60;tftp server&#62;</I
+></TT
+>.</P
+></LI
+><LI
+><P
+><B
+CLASS="COMMAND"
+>kernel</B
+>, to specify the kernel file and its parameters:</P
+><P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="PARAMETER"
+><I
+>rw</I
+></TT
+>, to specify writable mounting of the root file system.</P
+></LI
+><LI
+><P
+><TT
+CLASS="PARAMETER"
+><I
+>root</I
+></TT
+>, to specify where to mount the root file system (in ram memory).</P
+></LI
+><LI
+><P
+><TT
+CLASS="PARAMETER"
+><I
+>ramdisk_size</I
+></TT
+>, to specify the ram disk size. 4096 (kbytes) is the default size but if you needed a greater image, change this parameter accordingly.</P
+></LI
+><LI
+><P
+><TT
+CLASS="PARAMETER"
+><I
+>init</I
+></TT
+>, to specify (our script) as the first program to run in user mode (in the absence of <B
+CLASS="COMMAND"
+>init</B
+> and <B
+CLASS="COMMAND"
+>sh</B
+>).</P
+></LI
+></UL
+></LI
+><LI
+><P
+><B
+CLASS="COMMAND"
+>initrd</B
+> to specify the file holding the image of the root file system.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN231">5.2. Compiling Grub with network support</H2
+><P
+>To compile Grub, first download the source tarball from <A
+HREF="http://www.gnu.org/software/grub/"
+TARGET="_top"
+>the Grub web site</A
+> and unpack it. Run <B
+CLASS="COMMAND"
+>configure</B
+> specifying the menu file you just created and the network interface card model. Run <B
+CLASS="COMMAND"
+>make</B
+> as usual.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>tar xzf grub-0.92.tar.gz
+<TT
+CLASS="PROMPT"
+># </TT
+>cd grub-0.92
+<TT
+CLASS="PROMPT"
+># </TT
+>./configure --enable-preset-menu=../grub.conf --enable-3c90x
+<TT
+CLASS="PROMPT"
+># </TT
+>make
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Again, where you see <EM
+>3c90x</EM
+> put the model of your network interface card. First check if it is supported by Grub.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN244">5.3. Making the boot floppy disk</H2
+><P
+>Once Grub is compiled, the image of the boot floppy disk is the concatenation of the files <TT
+CLASS="FILENAME"
+>stage1/stage1</TT
+> and <TT
+CLASS="FILENAME"
+>stage2/stage2</TT
+>. To make the floppy disk run:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>cat stage1/stage1 stage2/stage2 | dd of=/dev/fd0
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You should now have a boot floppy disk.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="preparing.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="running.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Preparing boot files</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Running the clone script</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

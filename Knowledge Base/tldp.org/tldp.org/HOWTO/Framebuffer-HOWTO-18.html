@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Framebuffer HOWTO: How do I convert XFree86 mode-lines into framebuffer device timings?</TITLE>
+ <LINK HREF="Framebuffer-HOWTO-19.html" REL=next>
+ <LINK HREF="Framebuffer-HOWTO-17.html" REL=previous>
+ <LINK HREF="Framebuffer-HOWTO.html#toc18" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Framebuffer-HOWTO-19.html">Next</A>
+<A HREF="Framebuffer-HOWTO-17.html">Previous</A>
+<A HREF="Framebuffer-HOWTO.html#toc18">Contents</A>
+<HR>
+<H2><A NAME="s18">18. How do I convert XFree86 mode-lines into framebuffer device timings?</A></H2>
+
+<P>
+<P>If you have XFree86 (X11) installed on your machine, and you can use it successfully, 
+it is a simple matter to convert the mode-lines in your XF86Config to the 
+required timings needed by the framebuffer devices. 
+<P>The framebuffer device requires the following fields
+<UL>
+<LI>pixclock - pixel clock in pico seconds</LI>
+<LI>left_margin - time fron sync to picture</LI>
+<LI>right_margin - time from picture to sync</LI>
+<LI>upper_margin - time from sync to picture</LI>
+<LI>lower_margin - time from picture to sync</LI>
+<LI>hsync_len - length of horizontal sync</LI>
+<LI>vsync_len - length of vertical sync</LI>
+</UL>
+<P>
+<P>An XFree86 mode line has the following fields
+<P>
+<PRE>
+Modeline  "1280x1024" DCF HR SH1 SH2 HFL VR SV1 SV2 VFL
+</PRE>
+<P>
+<P>It is necessary to do some simple calculations to translate the XF86 mode-lines into 
+a set of framebuffer device timings. As an example, we shall examine how to convert a
+mode-line taken from my XF86Config file.
+<P>
+<PRE>
+Modeline  "1280x1024" 110.00 1280 1328 1512 1712 1024 1025 1028 1054
+</PRE>
+<P>
+<P>First, calculate the required pixclock rate. XFree86 uses megahertz whilst framebuffer
+devices uses picoseconds (Why, I don't know). Divide one million by DCF.  For example, 
+1,000,000 / 110.0 = 9090.9091 
+<P>
+<P>Now we need to calculate the horizontal timings. 
+<UL>
+<LI>left_margin = HFL - SH2 </LI>
+<LI>right_margin = SH1 - HR</LI>
+<LI>hsync_len = SH2 - SH1</LI>
+</UL>
+<P>
+<P>In our example, this would be:
+<UL>
+<LI>left_margin = 1712 - 1512 = 200</LI>
+<LI>right_margin = 1328 - 1280 = 48</LI>
+<LI>hsync_len = 1512 - 1328 = 184</LI>
+</UL>
+<P>
+<P>And now we need to calculate the vertical timings.
+<UL>
+<LI>upper_margin = VFL - SV2</LI>
+<LI>lower_margin = SV1 - VR</LI>
+<LI>vsync_len = SV2 - SV1</LI>
+</UL>
+<P>
+<P>For our example, this would be:
+<UL>
+<LI>upper_margin = 1054 - 1028 = 26</LI>
+<LI>lower_margin = 1025 - 1024 = 1</LI>
+<LI>vsync_len = 1028 - 1025 = 3</LI>
+</UL>
+<P>
+<P>Now we can use this information to set up the framebuffer for the desired mode. 
+For example, for the matroxfb framebuffer, it requires:
+<P>
+<PRE>
+video=matrox:xres:&lt;>,yres:&lt;>,depth:&lt;>,left:&lt;>,right:&lt;>,hslen:&lt;>,upper:&lt;>,lower:&lt;>,vslen:&lt;>
+</PRE>
+<P>I put in my /etc/lilo.conf the following line:
+<PRE>
+append = "video=matrox:xres:1280,yres:1024,depth:32,left:200,right:48,hslen:184,upper:26,lower:0,vslen:3"
+</PRE>
+<P>
+<P>Note that in this case the pixclock isn't used. It's only necessary if you don't like the default pixclock
+rates. You can supply this as a parameter as well. Setting the pixclock is documented in other parts of this
+HOWTO.  
+<P>
+<HR>
+<A HREF="Framebuffer-HOWTO-19.html">Next</A>
+<A HREF="Framebuffer-HOWTO-17.html">Previous</A>
+<A HREF="Framebuffer-HOWTO.html#toc18">Contents</A>
+</BODY>
+</HTML>

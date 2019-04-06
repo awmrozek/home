@@ -1,0 +1,339 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Second Stage Restoration</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Complete Backup and Recovery HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="First Stage Restore"
+HREF="firststagerestore.html"><LINK
+REL="NEXT"
+TITLE="Distribution Specific Notes"
+HREF="distributionspecificnotes.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Complete Backup and Recovery HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="firststagerestore.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="distributionspecificnotes.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="SECONDSTAGERESTORATION"
+></A
+>6. Second Stage Restoration</H1
+><P
+>As the computer reboots, go back to the BIOS and verify that the clock is more or less correct.</P
+><P
+>Once you have verified the clock is correct, exit the BIOS and reboot to the hard drive. You can simply let the computer boot in its normal sequence. You will see a lot of error messages, mostly along the lines of <SPAN
+CLASS="QUOTE"
+>"I can't find blah! Waahhh!"</SPAN
+> If you have done your homework correctly up until now, those error messages won't matter. You don't need linuxconf or apache to do what you need to do.</P
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>NOTE</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>As an alternative, you can boot to single user mode (at the lilo prompt, enter <B
+CLASS="COMMAND"
+>linux single</B
+>), but you will have to configure your network manually and fire up sshd or whatever daemons you need to restore your system. How you do those things is very system specific.</P
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>You should be able to log into a root console (no X -- no users, sorry). You should now be able to use the network, for example to nfs mount the backup of your system.</P
+><P
+>If you did the two stage backup I suggested for Arkeia, you can now restore Arkeia's database and executables. You should be able to run</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>/etc/rc.d/init.d/arkeia start</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>and start the server. If you have the GUI installed on another computer with X installed, you should now be able to log in to Arkeia on your tape server, and prepare your restoration.</P
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>NOTE</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>When you restore, read the documentation for your restoration programs carefully. For example, tar does not normally restore certain characteristics of files, like suid bits. File permissions are set by the user's umask. To restore your files exactly as you saved them, use tar's p option. Similarly, make sure your restoration software will restore everything exactly as you saved it.</P
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>To restore the test computer:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>bash# <B
+CLASS="COMMAND"
+>restore.all</B
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>If you used tar for your backup and restoration, and used the -k (keep old files, don't overwrite) option, you will see a lot of this:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>tar: usr/sbin/rpcinfo: Could not create file: File exists
+tar: usr/sbin/zdump: Could not create file: File exists
+tar: usr/sbin/zic: Could not create file: File exists
+tar: usr/sbin/ab: Could not create file: File exists</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This is normal, as tar is refusing to overwrite files you restored during the first stage of restoration.</P
+><P
+>Then reboot. On the way down, you will see a lot of error messages, such as <SPAN
+CLASS="QUOTE"
+>"no such pid."</SPAN
+> This is a normal part of the process. The shutdown code is using the pid files from daemons that were running when the backup was made to shut down daemons that were not started on the last boot. Of course there's no such pid.</P
+><P
+>Your system should come up normally, with a lot fewer errors than it had before; ideally no errors. The acid test of how well your restore works on an RPM based system is to verify all packages:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>bash# <B
+CLASS="COMMAND"
+>rpm -Va | sort +2 -t ' ' | uniq &#62; ~/foo.txt
+diff /etc/rpmVa.txt ~/foo.txt</B
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Prelinking error messages are normal and you can ignore them. Or you may run the command <B
+CLASS="COMMAND"
+>/etc/cron.daily/prelink</B
+> to remove them.</P
+><P
+>Some files, such as configuration and log files, will have changed in the normal course of things, and you should be able to mentally filter those out of the report. You can redirect the output to a file, and diff it against the one that was made at backup time (/etc/rpmVa.txt), thereby speeding up this step considerably. Emacs users should check out its diff facilities.</P
+><P
+>Now you should be up and running. It is time to test your applications, especially those that run as daemons. The more sophisticated the application, the more testing you may need to do. If you have remote users, disable them from using the system, or make it <SPAN
+CLASS="QUOTE"
+>"read only"</SPAN
+> while you test it. This is especially important for databases, to prevent making any corruption or data loss worse than it already might be.</P
+><P
+>If you normally boot to X, and disabled it above, test X before you re-enable it. Re-enable it by changing that one line in /etc/inittab back to:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>id:5:initdefault:</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You should now be ready for rock and roll -- and some aspirin and a couch.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="firststagerestore.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="distributionspecificnotes.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>First Stage Restore</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Distribution Specific Notes</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

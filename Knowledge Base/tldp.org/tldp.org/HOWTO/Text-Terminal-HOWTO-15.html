@@ -1,0 +1,1129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Text-Terminal-HOWTO: Computer Set-Up (Configure) Details </TITLE>
+ <LINK HREF="Text-Terminal-HOWTO-16.html" REL=next>
+ <LINK HREF="Text-Terminal-HOWTO-14.html" REL=previous>
+ <LINK HREF="Text-Terminal-HOWTO.html#toc15" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Text-Terminal-HOWTO-16.html">Next</A>
+<A HREF="Text-Terminal-HOWTO-14.html">Previous</A>
+<A HREF="Text-Terminal-HOWTO.html#toc15">Contents</A>
+<HR>
+<H2><A NAME="comp_conf_details"></A> <A NAME="s15">15.</A> <A HREF="Text-Terminal-HOWTO.html#toc15">Computer Set-Up (Configure) Details </A></H2>
+
+<P> There are various files to edit to set up the computer for
+terminals.  If you're lucky, you'll only need to edit /etc/inittab.
+One does this by editing at the console (or from any working terminal).</P>
+
+<H2><A NAME="getty_"></A> <A NAME="ss15.1">15.1</A> <A HREF="Text-Terminal-HOWTO.html#toc15.1">Getty (used in /etc/inittab)  </A>
+</H2>
+
+<H3>Introduction to Getty</H3>
+
+<P> In order to have a login process run on a serial port (and the
+terminal connected to it) when the computer starts up (or switches run
+levels) a getty command must be put into the /etc/inittab file.
+Running getty from the command line may cause problems (see 
+<A HREF="#stopped_">If getty run from command line: Programs get stopped</A> to see why ).  Getty GETs a TTY (a terminal) going.  Each
+terminal needs its own getty command.  There is also at least one
+getty command for the console in every /etc/inittab file.  Find this
+and put the getty commands for the real terminals next to it.  This
+file may contain sample getty lines for text terminals that are
+commented out so that all you need to do is to uncomment them (remove
+the leading #) and change a few arguments.</P>
+<P>The arguments which are permitted depend on which getty you
+use:<BR>
+Two gettys best for directly connected terminals are:
+<OL>
+<LI> agetty (sometimes just called getty):  Easy to set up with no config
+required.  See 
+<A HREF="#agetty_">agetty</A></LI>
+<LI> 
+<A HREF="#getty_ps">getty (part of getty_ps)</A> More
+advanced with config file. </LI>
+</OL>
+
+Two gettys best for dial-in modems (avoid for directly connected
+terminals) are:
+<OL>
+<LI> mgetty: the best one for modems; works for terminals too but inferior</LI>
+<LI> uugetty: for modems only; part of the getty_ps package</LI>
+</OL>
+
+Simple gettys to use if you don't use a real text-terminal.  Most
+Linux users use one of these at their monitor:
+<OL>
+<LI> mingetty</LI>
+<LI> fbgetty</LI>
+<LI> fgetty</LI>
+<LI> rungetty</LI>
+</OL>
+</P>
+<P>Your Linux distribution may come with either getty_ps or agetty for
+text-terminals.  Some distributions supply neither.  Unfortunately,
+they often just call it "getty".  If you need to determine which one
+you have look at the man page for "getty".  As of 2007 agetty (in the
+"util-linux package) seems to be more widely used then getty_ps which
+was at:
+<A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=getty_ps&amp;subm">getty_ps</A></P>
+<P>As a last resort to try to determine which getty you have, you might
+check out its executable code (usually in /sbin).  getty_ps has
+/etc/gettydefs embedded in this code.  To search for it, go
+to /sbin and type:<BR> 
+<CODE>strings getty | grep getty </CODE><BR>
+If getty is actually agetty the above will result in
+nothing.  However if you have agetty typing:<BR>
+<CODE>getty -h</CODE><BR> should show the agetty options [-hiLmw].</P>
+<P>The source codes for various gettys may be downloaded from 
+<A HREF="http://ibiblio.org/pub/Linux/system/serial/getty/">Getty Software</A>.</P>
+<P>If you are not using modem control lines (for example if you only use
+the minimum number of 3 conductors: transmit, receive, and common
+signal ground) you should let getty know this by using a "local" flag.
+The format of this depends on which getty you use.</P>
+
+<H3>Getty exits after login (and can respawn)</H3>
+
+<P>After you log in you will notice (by using "top", "ps -ax", or
+"ptree") that the getty process is no longer running.  What happened
+to it?  Why does getty restart again if your shell is killed?  Here's
+why.</P>
+<P>After you type in your user name, getty takes it and calls the login
+program telling it your user name.  The getty process is replaced
+by the login process.  The login process asks for your password,
+checks it and starts whatever process is specified in your password
+file.  This process is often the bash shell.  If so, bash starts and
+replaces the login process.  Note that one process replaces another
+and that the bash shell process originally started as the getty
+process.  The implications of this will be explained below.</P>
+<P>Now in the /etc/inittab file, getty is supposed to respawn (restart) if
+killed.  It says so on the line that calls getty.  But if the bash shell
+(or the login process) is killed, getty respawns (restarts).  Why?
+Well, both the login process and bash are replacements for getty and
+inherit the signal connections establish by their predecessors.  In
+fact if you observe the details you will notice that the replacement
+process will have the same process ID as the original process.  Thus
+bash is sort of getty in disguise with the same process ID number.  If
+bash is killed it is just like getty was killed (even though getty
+isn't running anymore).  This results in getty respawning.</P>
+<P>When one logs out, all the processes on that serial port are killed
+including the bash shell.  This may also happen (if enabled) if a
+hangup signal is sent to the serial port by a drop of DCD voltage by
+the modem.  Either the logout or drop in DCD will result in getty
+respawning.  One may force getty to respawn by manually killing bash
+(or login) either by hitting the k key, etc. while in "top" or with
+the "kill" command.  You will likely need to kill it with signal 9
+(which can't be ignored).</P>
+
+
+<H3><A NAME="stopped_"></A> If getty run from command line: Programs get stopped </H3>
+
+<P> You should normally run getty from inside <CODE>/etc/inittab</CODE>
+and not from the command line or else some programs running on the
+terminal may be unexpectedly suspended (stopped).  Here's why (skip to
+the next section if the why is not important to you).  If you start
+getty for say ttyS1 from the command line of another terminal, say tty1,
+then it will have tty1 as its "controlling terminal" even though the
+actual terminal it runs on is ttyS1.  Thus it has the wrong
+controlling terminal.  But if it's started inside the inittab file
+then it will have ttyS1 as the controlling terminal (correct).</P>
+<P>Even though the controlling terminal is wrong, the login at ttyS1 works
+fine (since you gave ttyS1 as an argument to getty).  The standard
+input and output are set to ttyS1 even though the controlling terminal
+remains tty1.  Other programs run at ttyS1 may inherit this standard
+input/output (which is connected to ttyS1) and everything is OK.  But
+some programs may make the mistake of trying to read from their
+controlling terminal (tty1) which is wrong.  Now tty1 may think that
+these programs are being run in the background by tty1 so an attempt
+to read from tty1 (it should have been ttyS1) results in stopping the
+process that attempted to read.  (A background process is not allowed
+to read from its controlling terminal.).  You may see a message
+something like: "<CODE>[1]+  Stopped</CODE>" on the screen.  At this point
+you are stuck since you can't interact with a process which is trying
+to communicate with you via the wrong terminal.  Of course to escape
+from this you can go to another terminal and kill the process, etc.</P>
+
+<H3><A NAME="agetty_"></A> agetty (may be named getty) </H3>
+
+<P>agetty means "alternative getty" and it was an easier-to-use
+alternative to the original getty (getty_ps).<BR>
+An example line in /etc/inittab: <BR>
+<BLOCKQUOTE><CODE>
+<PRE>
+S1:23:respawn:/sbin/getty -L 19200 ttyS1 vt102
+</PRE>
+</CODE></BLOCKQUOTE>
+
+S1 is from ttyS1.  23 means that getty is run upon entering run levels
+2 or 3.  respawn means that if getty (or a process that replaced it
+such as bash) is killed, getty will automatically start up (respawn)
+again.  /sbin/getty is the getty command.  The -L means Local (ignore
+modem control signals).  -h (not shown in the example) enables
+hardware flow control (same as stty crtscts).  19200 is the baud rate.
+ttyS1 means /dev/ttyS1 (COM2 in MS-DOS).  vt102 is the type of
+terminal and this getty will set the environment variable TERM to this
+value.  There are no configuration files.  Type "init q" on the
+command line after editing getty and you should see a login prompt.</P>
+
+<H3>Agetty's auto-detection of parity problems</H3>
+
+<P> The <CODE>agetty</CODE> program will attempt to auto-detect the parity set
+inside the terminal (including no parity).  It doesn't support 8-bit
+data bytes plus 1-bit parity.  See 
+<A HREF="#parity_8-bit">8-bit data bytes (plus parity)</A>.  If you use <CODE>stty</CODE> to set parity,
+<CODE>agetty</CODE> will automatically unset it since it initially wants the
+parity bit to come thru as if it was a data bit.  This is because it
+needs to get the last bit (possibly a parity bit) as you type your
+login-name so that it can auto-detect parity.  Thus if you use parity,
+enable it only inside the text-terminal and let <CODE>agetty</CODE>
+auto-detect it and set it at the computer.  If your terminal supports
+received parity, the login prompt will look garbled until you type
+something so that getty can detect the parity.  The garbled prompt
+will deter visitors, etc. from trying to login.  That could be just
+what you want.</P>
+<P>There is sometimes a problem with auto detection of parity.  This
+happens because after you first type your login name, <CODE>agetty</CODE>
+starts the <CODE>login</CODE> program to finish logging you in.
+Unfortunately, the <CODE>login</CODE> program can't detect parity so if the
+<CODE>getty</CODE> program failed to determine the parity then <CODE>login</CODE> will
+not be able to determine it either.  If the first login attempt fails,
+<CODE>login</CODE> will let you try again, etc. (all with the parity set
+wrong).  Eventually, after a number of failed attempts to login (or
+after a timeout) <CODE>agetty</CODE> will start up again and start the login
+sequences all over again.  Once getty is running again, it may be able
+to detect the parity on the second try so everything may then work OK.</P>
+<P>With wrong parity, the <CODE>login</CODE> program can't correctly read what
+you type and you can't log in.  If your terminal supports received
+parity, you will continue to see a garbled screen.  If getty fails to
+detect parity an /etc/issue file is usually dumped to the screen just
+before the before the prompt, so more garbled words may appear on the
+screen.</P>
+<P>Why can't agetty detect parity by the first letter typed?  Here's an
+example: Suppose it detects an 8-bit byte with its parity bit 0
+(high-order bit) and with an odd number of 1-bits.  What parity is it?
+Well, the odd number of 1 bits implies that it's odd parity.  But it
+could also just be an 8-bit character with no parity.  There's no way
+so far to determine which.  But so far we have eliminated the
+possibility of even parity.  The detection of parity thus proceeds by
+a process of elimination.</P>
+<P>If the next byte typed is similar to the first one and also only
+eliminates the possibility of even parity, it's still impossible to
+determine parity.  This situation can continue indefinitely and in rare
+cases login will fail until you change your login-name.  If agetty
+finds a parity bit of 1 it will assume that this is a parity bit and
+not a high-order bit of an 8-bit character.  It thus assumes that you
+don't use meta-characters (high bit set) in your user name (i.e that
+your name is in ASCII).</P>
+<P>One may get into a "login loop" in various ways.  Suppose you only
+type a single letter or two for your login name and then hit return.
+If these letters are not sufficient for parity detection, then login
+runs before parity has been detected.  Sometimes this problem happens
+if you don't have the terminal on and/or connected when agetty first
+starts up.</P>
+<P>If you get stuck in this "login loop" a way out of it is
+to hit the return key several times until you get the getty login
+prompt.  Another way is to just wait a minute or so for a timeout.
+Then the getty login prompt will be put on the screen by the getty
+program and you may try again to log in.</P>
+
+<H3><A NAME="parity_8-bit"></A> 8-bit data bytes (plus parity) </H3>
+
+<P> Unfortunately, agetty can't detect this parity.  As of late 1999
+it has no option for disabling the auto-detection of parity and thus
+will detect incorrect parity.  The result is that the login process
+will be garbled and parity will be set wrong.  Thus it doesn't seem
+feasible to try to use 8-bit data bytes with parity.</P>
+
+<H3><A NAME="getty_ps"></A> getty (part of getty_ps) </H3>
+
+<P>The name has often been misspelled as <CODE>ps_getty</CODE>. (Most of
+this is from the old Serial-HOWTO by Greg Hankins)<BR> For this
+getty one needs to both put entries in a configuration file and add an
+entry in <CODE>/etc/inittab</CODE>.  Here are some example entries to use
+for your terminal that you put into the configuration file
+<CODE>/etc/gettydefs</CODE>.</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# 38400 bps Dumb Terminal entry
+DT38400# B38400 CS8 CLOCAL # B38400 SANE -ISTRIP CLOCAL #@S @L login: #DT38400
+
+# 19200 bps Dumb Terminal entry
+DT19200# B19200 CS8 CLOCAL # B19200 SANE -ISTRIP CLOCAL #@S @L login: #DT19200
+
+# 9600 bps Dumb Terminal entry
+DT9600# B9600 CS8 CLOCAL # B9600 SANE -ISTRIP CLOCAL #@S @L login: #DT9600
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P> Note that the DT38400, DT19200, etc. are just labels and must
+be the same that you use in <CODE>/etc/inittab</CODE>.</P>
+<P>If you want, you can make <CODE>getty</CODE> print interesting things in the
+login banner.  In my examples, I have the system name and the serial
+line printed.  You can add other things:
+<BLOCKQUOTE><CODE>
+<PRE>
+@B    The current (evaluated at the time the @B is seen) bps rate.
+@D    The current date, in MM/DD/YY.
+@L    The serial line to which getty is attached.
+@S    The system name.
+@T    The current time, in HH:MM:SS (24-hour).
+@U    The number of currently signed-on users.  This is  a
+      count of the number of entries in the /etc/utmp file
+      that have a non-null ut_name field.
+@V    The value of VERSION, as given in the defaults file.
+To display a single '@' character, use either '\@' or '@@'.
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>When you are done editing <CODE>/etc/gettydefs</CODE>, you can verify that
+the syntax is correct by doing:
+<BLOCKQUOTE><CODE>
+<PRE>
+linux# getty -c /etc/gettydefs
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>Make sure there is no other <CODE>getty</CODE> or <CODE>uugetty</CODE> config file for
+the serial port that your terminal is attached to such as
+(<CODE>/etc/default/{uu}getty.ttyS</CODE><EM>N</EM> or
+<CODE>/etc/conf.{uu}getty.ttyS</CODE><EM>N</EM>), as this will probably
+interfere with running <CODE>getty</CODE> on a terminal.  Remove such
+conflicting files if they exits.</P>
+<P>Edit your <CODE>/etc/inittab</CODE> file to run <CODE>getty</CODE> on the serial
+port (substituting in the correct information for your environment -
+port, speed, and default terminal type):
+<BLOCKQUOTE><CODE>
+<PRE>
+S1:23:respawn:/sbin/getty ttyS1 DT9600 vt100
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Restart <CODE>init</CODE>:
+<BLOCKQUOTE><CODE>
+<PRE>
+linux# init q
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>At this point, you should see a login prompt on your terminal.  You
+may have to hit return to get the terminal's attention.</P>
+
+<H3>mgetty</H3>
+
+<P> The "m" stands for modem.  This program is primarily for modems
+and as of mid 2000 it will require recompiling to use it for
+text-terminals (unless you use hardware flow control --and that
+usually requires a hand-made cable).  For the documentation for
+directly connected terminals see the "Direct" section of the manual:
+<CODE>mgetty.texi.</CODE></P>
+<P>Look at the last lines of <CODE>/etc/mgetty/mgetty.config</CODE> for an
+example of configuring it for a terminal.  Unless you say "toggle-dtr
+no" it will think that you have a modem and drop (negate) the DTR pin
+at the PC in a vain attempt to reset the non-existent modem.  In
+contrast to other gettys, mgetty will not attach itself to a terminal
+until someone hits any key of that terminal so you'll see a ? for the
+terminal in <CODE>top</CODE> or <CODE>ps</CODE> until this happens.  The logs in
+<CODE>/var/log/mgetty/</CODE> may show a few warning messages which are
+only applicable to modems which you may ignore.</P>
+<P>Here's an example of the simple line you put in <CODE>/etc/inittab:</CODE></P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+s1:23:respawn:/sbin/mgetty -r ttyS1
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<H2><A NAME="stty_setserial"></A> <A NAME="ss15.2">15.2</A> <A HREF="Text-Terminal-HOWTO.html#toc15.2">Stty &amp; Setserial </A>
+</H2>
+
+<P> There is both a "stty" command and a "setserial" command for
+setting up the serial ports.   Some (or all) of the needed stty
+settings can be done via getty and there may be no need to use
+setserial so you may not need to use either command.  These two
+commands (stty and setserial) set up different aspects of the serial
+port.  Stty does the most while setserial configures the low-level
+stuff such as interrupts and port addresses.  To "save" the settings,
+these commands must be written in certain files (shell scripts) which
+run each time the computer starts up.  Distributions of Linux often
+supply a shell script which runs <CODE>setserial</CODE> but seldom supply one
+which runs <CODE>stty</CODE> since on seldom need it.</P>
+
+<H2><A NAME="set_serial"></A> <A NAME="ss15.3">15.3</A> <A HREF="Text-Terminal-HOWTO.html#toc15.3">Setserial </A>
+</H2>
+
+<P> This part is in 3 HOWTOs: Modem, Serial, and Text-Terminal.  There
+are some minor differences, depending on which HOWTO it appears in.</P>
+
+<H3>Setserial problems with linmodems, laptops</H3>
+
+<P> 
+If you have a Laptop (PCMCIA) don't use <CODE>setserial</CODE> until you
+read 
+<A HREF="#laptops_">Laptops: PCMCIA</A>.</P>
+
+<H3>Introduction</H3>
+
+<P><CODE>setserial</CODE> is a program used for the user to communicate with
+the serial device driver.  You normally never need to use it, provided
+that you only use the one or two serial ports that come as standard
+equipment with a PC.  Even in other cases, most extra serial ports
+should be auto-detected by modern kernels.  Except you'll need to use
+setserial if you have an old ISA serial port set by jumpers on the
+physical hardware or if your kernel (such as 2.2 or older) doesn't
+both detect and set your add-on PCI serial ports.</P>
+<P><CODE>setserial</CODE> allows you (or a shell script) to talk to the serial
+software.  But there's also another program, tt/stty/, that also deals
+with the serial port and is used for setting the port speed, etc.</P>
+<P><CODE>setserial</CODE> deals with the lower-level configuring of the serial
+port, such as dealing with IRQs (such as 5), port addresses (such as
+3f8), and the like.  A major problem with it is that it can't
+set or configure the serial port hardware: It can't set the IRQ or
+port addresses into the hardware.  Furthermore, when it seemingly
+reports the configuration of the hardware, it's sometimes wrong since
+it doesn't actually probe the hardware unless you specifically tell it
+to.  Even then, it doesn't do the modern type of bus probing and some
+hardware may never be found by it.  Still, what it shows is right most
+all the time but if you're having trouble getting a serial port to
+work, then there's a fair chance it's wrong.</P>
+<P>In olden days, when the IRQ and port address was set by jumpers on the
+serial card, one would use <CODE>setserial</CODE> to tell the driver how these
+jumpers were set.  Today, when plug-and-play methods detect how the
+jumperless serial port is set, <CODE>setserial</CODE> is not really needed
+anymore unless you're having problems or using old hardware.
+Furthermore, if the configuration file used by <CODE>setserial</CODE> is
+wrong, then there's trouble.  In this case, if you use <CODE>setserial</CODE>
+to try to find out how the port is configured, it may just repeat the
+incorrect information in the configuration file.</P>
+<P><CODE>setserial</CODE> can sometimes be of help to find a serial port.  But 
+it's only of use if you know the port address and use the right
+options.  For modern ports, there's usually better ways to look for
+them by plug-and-play methods.</P>
+<P>Thus the name <CODE>setserial</CODE> is somewhat of a misnomer since it
+doesn't set the I/O address nor IRQ in the hardware, it just "sets"
+them in the driver software.  And the driver naively believes that
+what <CODE>setserial</CODE> tells it, even if it conflicts with what the driver
+has found by using plug-and-play methods.  Too bad that it fails to
+at least issue a warning message for such a conflict.  Since the
+device driver is considered to be part of the kernel, the word
+"kernel" is often used in other documentation with no mention made of
+any "serial driver". </P>
+<P>Some distributions (and versions) set things up so that <CODE>setserial</CODE>
+is run at boot-time by an initialization shell script (in the
+/etc directory tree).   But the configuration file which this script
+uses may be either in the /etc tree or the /var tree.  In some cases,
+if you want <CODE>setserial</CODE> to run at boot-time, you may have to take
+some action.  <CODE>setserial</CODE>will not work without either serial
+support built into the kernel or loaded as a module.  The module may
+get loaded automatically if you (or a script) attempt to use
+<CODE>setserial</CODE>.</P>
+<P>While <CODE>setserial</CODE> can be made to probe the hardware IO port
+addresses to try to determine the UART type and IRQ, this has
+severe limitations.  See 
+<A HREF="#probing_ss">Probing</A>.  It
+can't set the IRQ or the port address in the hardware of PnP or PCI
+serial ports (but the plug-and-play features of the serial driver may
+do this).  It also can't directly read the PnP data stored in
+configuration registers in the hardware.  But since the device driver
+can read these registers and setserial tells you what the device
+driver thinks, it might be correct.  Or it could be telling you what
+<CODE>setserial</CODE> had previously (and perhaps erroneously) told the
+driver.  There's no way to know for sure without doing some other
+checks.</P>
+<P>The serial driver (for Linux Kernel 2.4+) looks for a few "standard"
+legacy serial ports, for PnP ports on the ISA bus, and for all
+supported port hardware on the PCI bus.  If it finds your ports
+correctly, then there's no need to use <CODE>setserial</CODE>.  The driver
+doesn't probe for the IRQs of old ISA serial ports set with jumpers on
+the card and may get these wrong.</P>
+<P>Besides the man page for <CODE>setserial</CODE>, check out info in
+<CODE>/usr/doc/setserial.../</CODE> or <CODE>/usr/share/doc/setserial</CODE>.
+This should tell you how setserial is handled for your distribution of
+Linux.  While <CODE>setserial</CODE> behaves the same in all distributions,
+the scripts for running it, how to configure such scripts (including
+automatic configuration), and the names and locations of the script
+files, etc., are all distribution-dependent.  If your serial port is Plug-and-Play you may need to consult other
+HOWTOs such as Plug-and-Play or Serial.</P>
+
+<H3>Serial module unload</H3>
+
+<P>If a serial module gets unloaded, the changes previously made by
+<CODE>setserial</CODE> will be forgotten by the driver.  But while the driver
+forgets it, a script provided by the distribution may save it in a
+file somewhere so that it can the restored if the module is reloaded.</P>
+
+
+
+<H3>Giving the <CODE>setserial</CODE> command</H3>
+
+<P>Remember, that <CODE>setserial</CODE> can't set any I/O addresses or IRQs
+in the hardware.  That's done either by plug-and-play software (run by
+the driver) or by jumpers for legacy serial ports.  Even if you give
+an I/O address or IRQ to the driver via <CODE>setserial</CODE> it will not set
+such values and assumes that they have already been set.  If you give
+it wrong values, the serial port will not work right (if at all).</P>
+<P>For legacy ports, if you know the I/O address but don't know the IRQ
+you may command setserial to attempt to determine the IRQ.</P>
+<P>You can see a list of possible commands by just typing <CODE>setserial</CODE>
+with no arguments.  This fails to show you the one-letter options such
+as -v for verbose which you should normally use when troubleshooting.
+Note that setserial calls an IO address a "port".  If you type:
+<BLOCKQUOTE><CODE>
+<PRE>
+setserial -g /dev/ttyS*
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You'll see some info about how the device driver is configured for
+your ports.  In many cases you'll see some ports displayed with what
+appears at first glance to be erroneous IRQs and addresses.  But if
+you also see: <CODE>"UART: unknown"</CODE> just ignore the entire line
+since no serial port exists at that address. </P>
+<P>If you add -a to the option -g you will see more info although few
+people need to deal with (or understand) this additional info since
+the default settings you see usually work fine.  In normal cases the
+hardware is set up the same way as "setserial" reports.  But if you are
+having problems there is a good chance that <CODE>setserial</CODE> has it wrong.
+In fact, you can run "setserial" and assign a purely fictitious I/O
+port address, any IRQ, and whatever uart type you would like to have.
+Then the next time you type "setserial ..." it will display these
+bogus values you've supplied to the driver.  They will also be officially
+registered with the kernel as displayed (at the top of the screen) by
+the "scanport" command (Debian).  Of course the serial
+port driver will not work correctly (if at all) if you attempt to use
+such a port.  Thus, when giving parameters to <CODE>setserial</CODE>, "anything
+goes".  Well almost.  If you assign one port a base address that is
+already assigned (such as 3e8) it may not accept it.  But if you use
+3e9 it will accept it.  Unfortunately 3e9 is actually assigned since it
+is within the range starting at base address 3e8.  Thus the moral of
+the story is to make sure your data is correct before assigning
+resources with setserial.</P>
+
+<H3>Configuration file</H3>
+
+<P>While assignments made by setserial are lost when the PC is powered
+off, a configuration file may restore them when the PC is started
+up again.  In newer versions, what you change by setserial might get
+automatically saved to a configuration file.  When <CODE>setserial</CODE> runs
+it uses the info from the configuration file.</P>
+<P>Where this configuration file resides depends on your distribution.
+Look at the start-up scripts somewhere in the /etc/ tree (such as
+/etc/init.d/ or /etc/rc.d/) and read the startup script for "serial"
+or "setserial" or the like.  It should show where the configuration
+file(s) reside.  In Debian there are 4 options for use of this
+configuration file:</P>
+<P>
+<OL>
+<LI>Don't use this file at all.  At each boot, the serial driver
+alone detects the ports and setserial doesn't ever run.  ("kernel" option)</LI>
+<LI>Save what <CODE>setserial</CODE> reports when the system is first
+shutdown and put it in the configuration file.  After that, don't ever
+make any changes to the configuration file, even if someone has made
+changes by running the <CODE>setserial</CODE> command on the command line and
+then shuts down the system. ("autosave-once" option)</LI>
+<LI>At every shutdown, save whatever <CODE>setserial</CODE> detects to the
+configuration file.  ("autosave" option)</LI>
+<LI>Manually edit the configuration file to set the configuration.
+Don't ever do any automatic saves to it. ("manual" option)</LI>
+</OL>
+</P>
+<P>In olden days (perhaps before 2000), there wasn't any configuration
+file and the configuration was manually set (hard coded) inside the
+shell script that ran <CODE>setserial</CODE>.  See 
+<A HREF="#old_sets_script">Edit a script (prior to version 2.15)</A>.</P>
+
+<H3><A NAME="probing_ss"></A> Probing </H3>
+
+<P>You probe for a port with <CODE>setserial</CODE> only when you suspect that
+it has been enabled (by PnP methods, the BIOS, jumpers, etc.).
+Otherwise <CODE>setserial</CODE> probing will never find it since its address
+doesn't exist.  A problem is where the software looks for a port at
+specified I/O addresses.  Prior to probing with "setserial", one may
+run the "scanport" (Debian) command to check all possible ports in one
+scan.  It makes crude guesses as to what is on some ports but doesn't
+determine the IRQ.  It's a fast first start.  It may hang your PC but
+so far it's worked fine for me.  Note that non-Debian distributions
+don't seem to supply "scanport".  Is there another scan program?</P>
+<P>With appropriate options, <CODE>setserial</CODE> can probe (at a given I/O
+address) for a serial port but you must guess the I/O address.  If you
+ask it to probe for /dev/ttyS2 for example, it will only probe at the
+address it thinks ttyS2 is at (2F8).  If you tell setserial that ttyS2
+is at a different address, then it will probe at that address, etc.
+See 
+<A HREF="#probing_ss">Probing</A></P>
+<P>The purpose of such probing is to see if there is a uart there, and if
+so, what its IRQ is.  Use <CODE>setserial</CODE> mainly as a last resort as
+there are faster ways to attempt it such as wvdialconf to detect
+modems, looking at very early boot-time messages, or using <CODE>pnpdump
+--dumpregs</CODE>, or lspci -vv.  But if you want to detect hardware
+with <CODE>setserial</CODE> use for example :<BR> <CODE>setserial
+/dev/ttyS2 -v autoconfig</CODE><BR>
+If the resulting message shows a uart type such as 16550A, then you're
+OK.  If instead it shows "<CODE>unknown</CODE>" for the uart type, then there
+is supposedly no serial port at all at that I/O address.  Some cheap
+serial ports don't identify themselves correctly so if you see
+"<CODE>unknown</CODE>" you still might have a serial port there.</P>
+<P>Besides auto-probing for a uart type, setserial can auto-probe for
+IRQ's but this doesn't always work right either.  In one case it first
+gave the wrong irq but when the command was repeated it found the
+correct irq.  In versions of setserial >= 2.15, the results of your
+last probe test could be automatically saved and put into a
+distribution-specific configuration file such as
+<CODE>/etc/serial.conf</CODE> or <CODE>/etc/sysconfig/serial</CODE> or
+<CODE>/var/lib/setserial/autoserial.conf</CODE> for Debian.  This will be
+used next time you start Linux.  </P>
+<P>It may be that two serial ports both have the same IO address set in
+the hardware.  Of course this is not normally permitted for the ISA
+bus but it sometimes happens anyway.  Probing detects one serial port
+when actually there are two.  However if they have different IRQs,
+then the probe for IRQs may show IRQ = 0.  For me, it only did this if
+I first used <CODE>setserial</CODE> to give the IRQ a fictitious value.</P>
+
+<H3><A NAME="sets_boot_time"></A> Boot-time Configuration </H3>
+
+<P>While <CODE>setserial</CODE> may run via an initialization script,
+something akin to <CODE>setserial</CODE> also runs earlier when the serial
+module is loaded (or when the kernel starts the built-in serial driver
+if it was compiled into the kernel).  Thus when you watch the start-up
+messages on the screen it may look like it ran twice, and in fact it
+has. </P>
+<P>If the first message is for a legacy port, the IRQs shown may be wrong
+since it didn't probe for IRQs.  If there is a second report of serial
+ports, it may the result of a script such as /etc/init.d/setserial.
+It usually does no probing and thus could be wrong about how the
+hardware is actually set.  It only shows configuration data that got
+saved in a configuration files.  The old method, prior to setserial
+2.15, was to manually write such data directly into the script.</P>
+<P>When the kernel loads the serial module (or if the "module equivalent"
+is built into the kernel) then all supported PnP ports are detected.
+For legacy (non-PnP) ports, only <CODE>ttyS{0-3}</CODE> are auto-detected
+and the driver is set to use only IRQs 4 and 3 (regardless of what
+IRQs are actually set in the hardware).  No probing is done for IRQs
+but it's possible to do this manually.  You see this as a boot-time
+message just as if <CODE>setserial</CODE> had been run.</P>
+<P>To correct possible errors in IRQs (or for other
+reasons) there may be a script file somewhere that runs
+<CODE>setserial</CODE>.  Unfortunately, if this file has some IRQs wrong, the
+kernel will still have incorrect info about the IRQs.  This file is
+usually part of the initialization done at boot-time.  Whether it
+runs or not depends on how you (and/or your distribution) have set
+things up.  It may also depends on the runlevel.  </P>
+<P>Before modifying a configuration file, you can test out a "proposed"
+<CODE>setserial</CODE> command by just typing it on the command line.  In some
+cases the results of this use of <CODE>setserial</CODE> will automatically get
+saved somewhere such as /etc/serial.conf (or autoserial.conf or
+serial) when you shutdown.  So if it worked OK (and solved your
+problem) then there's no need to modify any configuration file.  See
+<A HREF="#config_file">Configuration method using /etc/serial.conf, etc.</A>.</P>
+
+<H3><A NAME="old_sets_script"></A> Edit a script (required prior to version 2.15) </H3>
+
+<P> This is how it was done prior to <CODE>setserial</CODE> 2.15 (1999)
+The objective was to modify (or create) a script file in the /etc
+tree that runs setserial at boot-time.  Most distributions provided
+such a file (but it may not have initially resided in the /etc tree).</P>
+<P>So prior to version 2.15 (1999) it was simpler.  All you did was edit
+a script.  There was no /etc/serial.conf file (or the like) to
+configure setserial.   Thus you needed to find the file that runs
+"setserial" at boot time and edit it.  If it didn't exist, you needed
+to create one (or place the commands in a file that ran early at
+boot-time).  If such a file was currently being used it's likely
+was somewhere in the /etc directory-tree.  But Redhat &lt;6.0 has supplied it
+in /usr/doc/setserial/ but you need to move it to the /etc tree before
+using it.</P>
+<P>The script <CODE>/etc/rc.d/rc.serial</CODE> was commonly used in the past.
+The Debian distribution used <CODE>/etc/rc.boot/0setserial</CODE>.
+Another file once used was <CODE>/etc/rc.d/rc.local</CODE> but it's may
+not have run early enough.  It was reported that other processes may
+try to open the serial port before rc.local ran resulting in serial
+communication failure.  Later on it most likely was found in
+/etc/init.d/ but wasn't normally intended to be edited.</P>
+<P>If such a file was supplied, it likely contained a number of
+commented-out examples.  By uncommenting some of these and/or
+modifying them, you could set things up correctly.  It was important
+use a valid path for <CODE>setserial</CODE>, and a valid
+device name.  You could do a test by executing this file manually
+(just type its name as the super-user) to see if it works right.
+Testing like this was a lot faster than doing repeated reboots to get
+it right.</P>
+<P>For versions >= 2.15 (provided your distribution implemented the
+change, Redhat didn't at first) it may be more tricky to do since the
+file that runs setserial on startup, /etc/init.d/setserial or the like
+was not intended to be edited by the user.  See 
+<A HREF="#config_file">Configuration method using /etc/serial.conf, etc.</A>.</P>
+<P>An example line in such a script was:
+<BLOCKQUOTE><CODE>
+<PRE>
+/sbin/setserial /dev/ttyS3 irq 5 uart 16550A  skip_test
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>or, if you wanted setserial to automatically determine the uart and the
+IRQ for ttyS3 you would have used something like this:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/sbin/setserial  /dev/ttyS3 auto_irq skip_test autoconfig
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>This was done for every serial port you wanted to auto configure,
+using a device name that really does exist on your machine.  In some
+cases it didn't work right due to the hardware. </P>
+
+<H3><A NAME="config_file"></A> Configuration method using /etc/serial.conf, etc.</H3>
+
+<P> Prior to setserial version 2.15 (1999), the way to configure
+setserial was to manually edit the shell-script that ran setserial at
+boot-time.  See 
+<A HREF="#old_sets_script">Edit a script (before version 2.15)</A>.  This was simple, but the simple and clear method has
+been changed to something that is unnecessarily complex.  Today the
+script and configuration file are two different files instead of one.
+This shell-script is not edited but gets its data from a configuration
+file such as <CODE>/etc/serial.conf</CODE> (or
+<CODE>/var/lib/setserial/autoserial.conf</CODE>).</P>
+<P>Furthermore you may not even need to edit serial.conf (or the like)
+because using the "setserial" command on the command line may
+automatically cause serial.conf to be edited appropriately.  This was
+done so that you may not need to edit any file in order to set up (or
+change) what setserial does each time that Linux is booted.</P>
+<P>What often happens is this:  When you shut down your PC the script
+that ran "setserial" at boot-time is run again, but this time it only
+does what the part for the "stop" case says to do:  It uses
+"setserial" to find out what the current state of "setserial" is, and
+it puts that info into the serial configuration file such as
+<CODE>serial.conf</CODE>.  Thus when you run "setserial" to change
+the serial.conf file, it doesn't get changed immediately but only when
+and if you shut down normally.</P>
+<P>Now you can perhaps guess what problems might occur.  Suppose you
+don't shut down normally (someone turns the power off, etc.) and the
+changes don't get saved.  Suppose you experiment with "setserial" and
+forget to run it a final time to restore the original state (or make a
+mistake in restoring the original state).  Then your "experimental"
+settings are saved.  And worst of all, unless you know which options
+were set in the configuration file, you don't know what will happen.
+One option in Debian (and likely other distributions) is known as
+"AUTOSAVE-ONCE" which saves changes only for the first time you make
+them with the setserial command.</P>
+<P>If the option "###AUTOSAVE###" is set and you manually edit
+serial.conf, then your editing is destroyed when you shut down because
+it gets changed back to the state of setserial at shutdown.  There is
+a way to disable the changing of serial.conf at shutdown and that is
+to remove "###AUTOSAVE###" or the like from first line of serial.conf.
+In the Debian distribution, the removal of "###AUTOSAVE###" from the
+first line was once automatically done after the first time you
+shutdown just after installation.  To retain this effect the
+"AUTOSAVE-ONCE" option was created which only does a save when time
+the system is shut down for the first time (just after you install or
+update the setserial program).</P>
+<P>The file most commonly used to run setserial at boot-time (in
+conformance with the configuration file) is now /etc/init.d/setserial
+(Debian) or /etc/init.d/serial (Redhat), or etc.,  but it should not
+normally be edited.  For 2.15, Redhat 6.0 just had a file
+/usr/doc/setserial-2.15/rc.serial which you have to move to
+/etc/init.d/ if you want setserial to run at boot-time.</P>
+<P>To disable a port, use <CODE>setserial</CODE> to set it to "uart none".  This
+will not be saved.  The format of /etc/serial.conf appears to be just
+like that of the parameters placed after "setserial" on the command
+line with one line for each port.  If you don't use autosave, you may
+edit /etc/serial.conf manually.</P>
+<P>In order to force the current settings set by setserial to be saved to
+the configuration file (serial.conf) without shutting down, do what
+normally happens when you shutdown: Run the shell-script
+<CODE>/etc/init.d/{set}serial stop</CODE>.  The "stop" command will save
+the current configuration but the serial ports still keep working OK.</P>
+<P>In some cases you may wind up with both the old and new configuration
+methods installed but hopefully only one of them runs at boot-time.
+Debian labeled obsolete files with "...pre-2.15".</P>
+
+<H3>IRQs</H3>
+
+<P> By default, both ttyS0 and ttyS2 will share IRQ 4, while ttyS1 and
+ttyS3 share IRQ 3.  But while sharing serial interrupts (using them in
+running programs) is OK for the PCI bus, it's not permitted for the
+ISA bus unless you: 1. have kernel 2.2 or better, and 2. you've
+compiled in support for this, and 3. your serial hardware supports it.
+See
+Serial-HOWTO: Interrupt sharing and Kernels 2.2+.</P>
+
+<P>If you only have two serial ports, ttyS0 and ttyS1, you're still OK
+since IRQ sharing conflicts don't exist for non-existent devices.</P>
+<P>If you add a legacy internal modem (without plug-and-play) and retain
+ttyS0 and ttyS1, then you should attempt to find an unused IRQ and set
+it in your serial port (or modem card) and then use setserial to
+assign it to your device driver.  If IRQ 5 is not being used for a
+sound card, this could be used for a modem.</P>
+
+<H3><A NAME="laptops_"></A> Laptops: PCMCIA </H3>
+
+<P>If you have a Laptop, read PCMCIA-HOWTO for info on the serial
+configuration.  For serial ports on the motherboard, setserial is used
+just like it is for a desktop.  But for PCMCIA cards (such as a modem)
+it's a different story.  The configuring of the PCMCIA system should
+automatically run setserial so you shouldn't need to run it.  If you
+do run it (by a script file or by /etc/serial.conf) it might be
+different and cause trouble.  The autosave feature for serial.conf
+shouldn't save anything for PCMCIA cards (but Debian did until
+2.15-7).  Of course, it's always OK to use setserial to find out how
+the driver is configured for PCMCIA cards.</P>
+
+
+<H2><A NAME="stty_"></A> <A NAME="ss15.4">15.4</A> <A HREF="Text-Terminal-HOWTO.html#toc15.4">Stty </A>
+</H2>
+
+<H3>Introduction</H3>
+
+<P> <CODE>stty</CODE> does much of the configuration of the serial port but
+since application programs (and the getty program) often handle this,
+you may not need to use it much.  It's handy if you're having problems
+or want to see how the port is set up.  Try typing ``stty -a'' at your
+terminal/console to see how it's now set.  Also try typing it without
+the -a (all) for a short listing which shows how it's set different
+than normal.  Don't try to learn all the setting unless you want to
+become a serial historian since many of the settings are only for slow
+antique dumb terminals of the 1970's.  Most of the defaults should
+work OK.</P>
+<P><CODE>stty</CODE> is documented in the man pages with a more detailed account
+in the info pages.  Type <CODE>"man stty"</CODE> or <CODE>"info stty"</CODE>.</P>
+<P>Whereas <CODE>setserial</CODE> only deals with actual serial ports, stty is
+used both for serial ports and for virtual terminals such as the standard
+Linux text interface at a PC monitor.  For the PC monitor, many of the
+stty settings are meaningless.  Changing the baud rate, etc. doesn't
+appear to actually do anything.</P>
+<P>Here are some of the items stty configures: speed (bits/sec), parity,
+bits/byte, # of stop bits, strip 8th bit?, modem control signals, flow
+control, break signal, end-of-line markers, change case, padding, beep
+if buffer overrun?, echo what you type to the screen, allow background
+tasks to write to terminal?, define special (control) characters (such
+as what key to press for interrupt).  See the <CODE>stty</CODE> man or info
+page for more details.  Also see the man page: <CODE>termios</CODE> which
+covers the same options set by stty but (as of mid 1999) covers
+features which the stty man page fails to mention.
+For use of some special characters see 
+<A HREF="Text-Terminal-HOWTO-17.html#stty_chars">Special (Control) Characters</A></P>
+<P>With some implementations of getty (getty_ps package), the commands
+that one would normally give to stty are typed into a getty
+configuration file: /etc/gettydefs.  Even without this configuration
+file, the getty command line may be sufficient to set things up so
+that you don't need stty.</P>
+<P>One may write C programs which change the stty configuration, etc.
+Looking at some of the documentation for this may help one better
+understand the use of the stty command (and its many possible
+arguments).  Serial-Programming-HOWTO may be useful but it's outdated.
+The manual page: termios contains a description of the C-language
+structure (of type termios) which stores the stty configuration in
+computer memory.  Many of the flag names in this C-structure are
+almost the same (and do the same thing) as the arguments to the stty
+command.</P>
+
+<H3>Flow control options</H3>
+
+<P> To set hardware flow control use "crtscts".  For software flow
+control there are 3 settings: ixon, ixoff, and ixany.</P>
+<P>ixany: Mainly for terminals.  Hitting any key will restart the flow
+after a flow-control stop.  If you stop scrolling with the "stop
+scroll" key (or the like) then hitting any key will resume scrolling.
+It's seldom needed since hitting the "scroll lock" key again will do
+the same thing.</P>
+<P>ixon: Enables the port to listen for Xoff and to stop transmitting
+when it gets an Xoff.  Likewise, it will resume transmitting if it gets
+an Xon.</P>
+<P>ixoff: enables the port to send the Xoff signal out the transmit line
+when its buffers in main memory are nearly full.  It protects the
+device where the port is located from being overrun.</P>
+<P>For a slow dumb terminal (or other slow device) connected to a fast
+PC, it's unlikely that the PC's port will be overrun.  So you seldom
+actually need to enable ixoff.  But it's often enabled "just in case".</P>
+
+<H3>Using stty at a "foreign" terminal</H3>
+
+<P>How do you use stty to view or set a terminal other than the
+terminal you are currently using?  It's usually impossible to do it if
+the foreign terminal is in use and has a shell running on it.  In
+other cases for dealing with say ttyS2 while typing at another
+terminal (such as tty1) use <CODE> stty -F /dev/ttyS2 ...</CODE> (or
+--file instead of F).  If ... is -a it displays all the stty settings
+(-a means all).</P>
+<P>But if the foreign terminal (ttyS2 in this example) has a shell
+running on it, then what you see will likely be deceptive and trying
+to set it will not work.  This problem exists for virtual terminals
+also such as dealing with tty3 from tty1, etc.  See 
+<A HREF="#two_term_interfaces">Two interfaces at a terminal</A> to
+understand it.</P>
+
+<H3><A NAME="two_term_interfaces"></A> Two interfaces at a terminal </H3>
+
+<P> When using a shell (such as bash) with command-line-editing
+enabled there are two different terminal interfaces (what you see when
+you type stty -a).  When you type in modern shells at the command line
+you have a temporary "raw" interface (or raw mode) where each
+character is read by the command-line-editor as you type it.  Once you
+hit the &lt;return&gt; key, the command-line-editor is exited and the
+terminal interface is changed to the nominal "cooked" interface
+(cooked mode) for the terminal.  This cooked mode lasts until the next
+prompt is sent to the terminal (which is only a small fraction of a
+second).  Note that one never gets to type any command in this cooked
+mode but what was typed in raw mode on the command line gets read by
+the shell while in cooked mode.</P>
+<P>When a prompt is sent to the terminal, the terminal goes from "cooked"
+to "raw" mode (just like it does when you start an editor such as vim.
+The prompt signals starting the command-line editor.  The settings for
+the "raw" mode are based only on the basic stty settings taken from the
+"cooked" mode.  Raw mode keeps these setting but changes several other
+settings in order to change the mode to "raw".  It is not at all based
+on the settings used in the previous "raw" mode.  Thus if one uses
+stty to change settings for the raw mode, such settings will be
+permanently lost as soon as one hits the &lt;return&gt; key at the
+terminal that has supposedly been "set".</P>
+<P>Now when one types stty to look at the terminal interface, one may
+either get a view of the cooked mode or the raw mode.  You need to
+figure out which one you're looking at.  It you use stty from a
+foreign terminal (other than the terminal you are currently typing
+at) then you will see the raw mode settings.  Any changes made will
+only be made to the raw mode and will be lost when someone presses
+&lt;return&gt; at the foreign terminal you tried to "set".  But if you
+type a stty command to view/change the configuration of the terminal
+you are using, and then hit &lt;return&gt; it's a different story.
+The &lt;return&gt; puts the terminal in cooked mode.  Your changes are
+saved and will still be there when the terminal goes back into raw
+mode (unless of course it's a setting not allowed in raw mode).</P>
+<P>This situation can create problems.  For example, suppose you corrupt
+your terminal interface.  To restore it you go to another terminal and
+"stty -F dev/ttyS1 sane" (or the like).  It will not work!  Of course
+you can try to type "stty sane ..." at the terminal that is corrupted
+but you can't see what you typed.  All the above not only applies to
+dumb terminals but to virtual terminals used on a PC Monitor as well
+as to the terminal windows in X.  In other words, it applies to almost
+everyone who uses Linux.</P>
+<P>Luckily, when you start up Linux, any file that runs stty at boot-time
+will likely deal with a terminal (or serial port with no terminal)
+that has no shell running on it so there's no problem for this special
+case.</P>
+
+<H3><A NAME="stty_where"></A> Where to put the stty command ? </H3>
+
+<P> Should you need to have <CODE>stty</CODE> set up the serial interface each
+time the computer starts up then you need to put the <CODE>stty</CODE> command
+in a file that will be executed each time the computer is started up
+(Linux boots).  It should be run before the serial port is used
+(including running getty on the port).  There are many possible places
+to put it.  If it gets put in more than one place and you only know
+about (or remember) one of those places, then a conflict is likely.
+So make sure to document what you do.</P>
+<P>One place to put it would be in the same file that runs setserial when
+the system is booted.  The location is distribution and version
+dependent.  It would seem best to put it after the setserial command
+so that the low level stuff is done first.  If you have directories in
+the /etc tree where every file in them is executed at boot-time
+(System V Init) then you could create a file named "stty" for this
+purpose.</P>
+
+<H3>Obsolete redirection method</H3>
+
+<P>Prior to about 2000 you needed to use the redirection operator "&lt;"
+if you wanted to use stty on a foreign terminal.  For example to use
+stty on ttyS2 sitting at tty1 you would type: stty .... &lt; /dev/ttyS2.
+After 2000 (provided your version of setserial is >= 1.17 and stty >=
+2.0) a better method was created using the -F option: stty -F
+/dev/ttyS2.  This will work when the old redirection method fails.  </P>
+<P>The old redirection example above makes ttyS2 the standard input to
+stty.  This gives the stty program a link to the "file" ttyS2 so that
+it may "read" it.  But instead of reading the bytes sent to ttyS2 as
+one might expect, it uses the link to find the configuration settings
+of the port so that it may read or change them.  In olden days, some
+people tried to use ``stty ... &gt; /dev/ttyS2'' to set the terminal.
+This didn't work.  Instead, it takes the message normal displayed
+by the stty command for the terminal you are on (say tty1) and sends
+this message to ttyS2.  But it doesn't change any settings for ttyS2.</P>
+<P>Here's a problem with the old redirection operator (which doesn't
+happen if you use the newer -F option instead).  Sometimes when trying
+to use stty, the command hangs and nothing happens (you don't get a
+prompt for a next command even after hitting &lt;return&gt;).  This is
+likely due to the port being stuck because it's waiting for one of the
+modem control lines to be asserted.  For example, unless you've set
+"clocal" to ignore modem control lines, then if no CD signal is
+asserted the port will not open and stty will not work for it (unless
+you use the newer -F option).  A similar situation seems to exist for
+hardware flow control.  If the cable for the port doesn't even have a
+conductor for the pin that needs to be asserted then there is no easy
+way to stop the hang.</P>
+<P>One way to try to get out of the above hang is to use the newer -F
+option and set "clocal" and/or "crtscts" as needed.  If you don't have
+the -F option then you may try to run some program (such as minicom) on
+the port that will force it to operate even if the control lines say
+not to.  Then hopefully this program might set the port so it doesn't
+need the control signal in the future in order to open: clocal or
+-crtscts.  To use "minicom" to do this you likely will have to
+reconfigure minicom and then exit it and restart it.  Instead of all
+this bother, it may be simpler to just reboot the PC or via using a
+virtual terminal kill the process using "top" (or "ps" to get the
+process number and then "kill" to kill that process.</P>
+<P>The obsolete redirection method (which still works in later versions)
+is to type ``stty ... &lt; /dev/ttyS2''.   If the new method using -F
+works but the obsolete one hangs, it implies that the port is hung due
+to a modem control line not being asserted.  Thus the obsolete
+redirection method might still useful for troubleshooting.</P>
+
+
+<H2><A NAME="termcap1"></A> <A NAME="ss15.5">15.5</A> <A HREF="Text-Terminal-HOWTO.html#toc15.5">Terminfo &amp; Termcap (brief) </A>
+</H2>
+
+<P> See 
+<A HREF="Text-Terminal-HOWTO-16.html#termcap2">Terminfo and Termcap (detailed)</A> for
+a more detailed discussion of termcap.  Many application programs that
+you run use the terminfo (formerly termcap) data base.  This has an
+entry (or file) for each model or type (such as vt100) of terminal and
+tells what the terminal can do, what codes to send for various
+actions, and what codes to send to the terminal to initialize it.</P>
+<P>Since many terminals (and PC's also) can emulate other terminals and
+have various "modes" of operation, there may be several terminfo
+entries from which to choose for a given physical terminal.  They
+usually will have similar names.  The last parameter of getty (for
+both agetty and getty_ps) should be the terminfo name of the terminal
+(or terminal emulation) that you are using (such as vt100).</P>
+<P>The terminfo does more than just specify what the terminal is capable
+of doing and disclose what codes to send to the terminal to get it to
+do those things.  It also specifies what "bold" will look like (will
+it be reverse video or will it be high intensity, etc.), what
+the cursor will look like, if the letters will be black, white, or
+some other color, etc.  In PC terminology these are called
+"preferences".  It also specifies initialization codes to send to the
+terminal (analogous to the init strings sent to modems).  Such strings
+are not automatically sent to the terminal by Linux.  See 
+<A HREF="Text-Terminal-HOWTO-16.html#init_string">Init String</A>.  If you don't like the way the
+display on the screen looks and behaves you may need to edit (and then
+update) the terminfo (or termcap) file.  See 
+<A HREF="Text-Terminal-HOWTO-16.html#tic">Terminfo Compiler (tic)</A> for how to update.</P>
+
+<H2><A NAME="ss15.6">15.6</A> <A HREF="Text-Terminal-HOWTO.html#toc15.6">Setting TERM and TERMINFO</A>
+</H2>
+
+<P> These are two environment variables for terminals: TERM and
+TERMINFO, but you may not need to do anything about them.  TERM must
+always be set to the  type of the terminal you are using (such as
+vt100).  If you don't know the type (name) see 
+<A HREF="#term_name">What is the terminfo name of my terminal ?</A>.  TERMINFO contains
+the path to the terminfo data base, but may not be needed if the
+database is in a default location (or TERMINFO could be set
+automatically by a file that comes with your distribution of Linux).
+You may want to look at 
+<A HREF="Text-Terminal-HOWTO-16.html#tc_compiled_locs"> Compiled database locations</A>.</P>
+<P>Fortunately, the getty program usually sets TERM for you just before
+login.  It just uses the terminal type that was specified on getty's
+command line (in /etc/inittab).  This permits application programs to
+find the name of your terminal and then look up the terminal
+capabilities in the terminfo data base.  See 
+<A HREF="Text-Terminal-HOWTO-16.html#term_var">TERM Variable</A> for more details on TERM.</P>
+<P>If your terminfo data base can't be found you may see an error message
+about it on your terminal.  If this happens it's time to check out
+where terminfo resides and set TERMINFO if needed.  You may find out
+where the terminfo database is by searching for a common terminfo file
+such as "vt100" using the "locate" command.  Make sure that your
+terminal is in this database.  An example of setting TERMINFO is:
+export TERMINFO=/usr/share/terminfo (put this in /etc/profile or the
+like).  If the data for your terminal in this data base is not to your
+liking, you may need to edit it.  See 
+<A HREF="#termcap1">Terminfo &amp; Termcap (brief)</A>.</P>
+
+<H3><A NAME="term_name"></A> What is the terminfo name of my terminal ? </H3>
+
+<P> You need the exact name in order to set the TERM environment
+variable or to give to <CODE>getty</CODE>.  The same name should be used by
+both the termcap and terminfo databases so you only need to find it
+once.  A terminal usually has alias names but if more than one name is
+shown, use the first one.</P>
+<P>To find it, try looking at the /etc/termcap... file (if you have it).
+If not, then either look at the terminfo trees (see 
+<A HREF="Text-Terminal-HOWTO-16.html#tc_compiled_locs"> Compiled database locations</A>) or try to
+find the terminfo source code file (see 
+<A HREF="Text-Terminal-HOWTO-16.html#tc_source_loc">Source-code database locations</A>.</P>
+
+<H2><A NAME="ss15.7">15.7</A> <A HREF="Text-Terminal-HOWTO.html#toc15.7">Rarely Needed /etc/ttytype File</A>
+</H2>
+
+<P> The configuration file /etc/ttytype is used to map /dev/ttySn's to
+terminal names per terminfo.  tset/reset uses it, but if the TERM
+environment variable is already set correctly, then this file is not
+needed.  Since the Linux getty sets TERM for each tty, you don't need
+this file.  In other Unix-like systems such as FreeBSD, the file
+/etc/ttys maps ttys to much more, such as the appropriate getty
+command, and the category of connection (such as "dialup").  An
+example line of Linux ttytype: vt220 ttyS1</P>
+
+<H2><A NAME="login_restr"></A> <A NAME="ss15.8">15.8</A> <A HREF="Text-Terminal-HOWTO.html#toc15.8">Login Restrictions </A>
+</H2>
+
+<P> By default, the root user may not login from a terminal.  To
+permit this you must create (or edit) the file /etc/securetty per the
+manual page "securetty".  To restrict logins of certain users and/or
+certain terminals, etc. edit /etc/login.access (this replaces the old
+/etc/usertty file ??).  /etc/login.def determines if /etc/securetty is
+to be used and could be edited so as to make /etc/securetty not needed
+(or not used).  /etc/porttime restricts the times at which certain
+ttys and users may use the computer.  If there are too many failed
+login attempt by a user, that user may be prohibited from ever logging
+in again.  See the man page "faillog" for how to control this.</P>
+
+<H2><A NAME="ss15.9">15.9</A> <A HREF="Text-Terminal-HOWTO.html#toc15.9">Run Command Only If TERM=my_term_type</A>
+</H2>
+
+<P> Sometimes there are commands that one wants to execute at start-up
+only for a certain type of terminal.  To do this for the stty command
+is no problem since one uses the redirection operator &lt; to specify
+which terminal the command is for.  But what about shell aliases or
+functions?  You may want to make a function for the ls command so it
+will color-code the listing of directories only on color terminals or
+consoles.  For monochrome terminals you want the same function name
+(but a different function body) which will use symbols as a substitute
+for color-coding.  Where to put such function definitions that are
+to be different for different terminals?</P>
+<P>You may put them inside an "if" statement in /etc/profile which runs
+at startup each time one logs on.  The conditional "if" statement
+defines certain functions, etc. only if the terminal is of a
+specified type.</P>
+
+<H3><A NAME="ls_color"></A> Example for ls Function </H3>
+
+<P> While much of what this if statement does could be done in the
+configuration file for dircolors, here's an example for the case of
+the bash shell.  It makes the <EM>ls</EM> command display colors if the
+terminal is "linux" but uses <EM>ls -F</EM> if you're using a dumb
+terminal (VT220).  Note that the -F option uses symbols to give
+information on file types just like color coding does. So there are
+alternatives to using colors for the <EM>ls</EM> command, although a color
+display may look more impressive.</P>
+<P>
+<HR>
+<PRE>
+if [ "$TERM" = linux ]; then
+    eval `dircolors`;
+elif [ "$TERM" = vt220 ]; then
+    ls () { command ls -F $* ; }# to export the function ls():
+    declare -xf ls
+else echo "From /etc/profile: Unknown terminal type $TERM"
+fi
+</PRE>
+<HR>
+</P>
+
+<H2><A NAME="mapchan_"></A> <A NAME="ss15.10">15.10</A> <A HREF="Text-Terminal-HOWTO.html#toc15.10">Character Mapping: mapchan </A>
+</H2>
+
+<P> There is a free program named "mapchan" which will map characters
+(bytes) typed at a terminal keyboard (input) into different characters
+per a user-supplied mapping table.  It can also map characters which
+are sent to the screen (output).  This is nice for remapping the
+keyboard for foreign language alphabets.  Most distributions don't
+seem to supply it (let me know if any do).  Source code by Yura
+Kalinichenko (Ukraine, partly in Russian ) 
+<A HREF="http://www.iceb.vc.ukrtel.net/download.html">download mapchan etc.</A></P>
+
+<HR>
+<A HREF="Text-Terminal-HOWTO-16.html">Next</A>
+<A HREF="Text-Terminal-HOWTO-14.html">Previous</A>
+<A HREF="Text-Terminal-HOWTO.html#toc15">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,401 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>tcp_wrapper</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IPv6 HOWTO (en)"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Hints for IPv6-enabled daemons"
+HREF="chapter-hints-daemons.html"><LINK
+REL="PREVIOUS"
+TITLE="DHCP Server Dibbler"
+HREF="hints-daemons-dibbler.html"><LINK
+REL="NEXT"
+TITLE="vsftpd"
+HREF="hints-daemons-vsftpd.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IPv6 HOWTO (en)</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="hints-daemons-dibbler.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 22. Hints for IPv6-enabled daemons</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="hints-daemons-vsftpd.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="HINTS-DAEMONS-TCPWRAPPER"
+></A
+>22.8. tcp_wrapper</H1
+><P
+>tcp_wrapper is a library which can help you to protect service against misuse.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2747"
+></A
+>22.8.1. Filtering capabilities</H2
+><P
+>You can use tcp_wrapper for</P
+><P
+></P
+><UL
+><LI
+><P
+>Filtering against source addresses (IPv4 or IPv6)</P
+></LI
+><LI
+><P
+>Filtering against users (requires a running ident daemon on the client)</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2755"
+></A
+>22.8.2. Which program uses tcp_wrapper</H2
+><P
+>Following are known:</P
+><P
+></P
+><UL
+><LI
+><P
+>Each service which is called by xinetd (if xinetd is compiled using tcp_wrapper library)</P
+></LI
+><LI
+><P
+>sshd (if compiled using tcp_wrapper)</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2763"
+></A
+>22.8.3. Usage</H2
+><P
+>tcp_wrapper is controlled by two files name /etc/hosts.allow and /etc/hosts.deny. For more information see</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>$ man hosts.allow</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2767"
+></A
+>22.8.3.1. Example for /etc/hosts.allow</H3
+><P
+>In this file, each service which should be positive filtered (means connects are accepted) need a line.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>sshd:           1.2.3. [2001:0db8:100:200::]/64
+daytime-stream: 1.2.3. [2001:0db8:100:200::]/64</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Note: there are broken implementations around, which uses following broken IPv6 network description: [2001:0db8:100:200::/64]. Hopefully, such versions will be fixed soon.</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2772"
+></A
+>22.8.3.2. Example for /etc/hosts.deny</H3
+><P
+>This file contains all negative filter entries and should normally deny the rest using</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ALL: ALL</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>If this node is a more sensible one you can replace the standard line above with this one, but this can cause a DoS attack (load of mailer and spool directory), if too many connects were made in short time. Perhaps a logwatch is better for such issues.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ALL: ALL: spawn (echo "Attempt from %h %a to %d at `date`" 
+ | tee -a /var/log/tcp.deny.log | mail root@localhost)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2778"
+></A
+>22.8.4. Logging</H2
+><P
+>Depending on the entry in the syslog daemon configuration file /etc/syslog.conf the tcp_wrapper logs normally into /var/log/secure.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2781"
+></A
+>22.8.4.1. Refused connection</H3
+><P
+>A refused connection via IPv4 to an xinetd covered daytime service produces a line like following example</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Jan 2 20:40:44 gate xinetd-ipv6[12346]: FAIL: daytime-stream libwrap
+¬ from=::ffff:1.2.3.4
+Jan 2 20:32:06 gate xinetd-ipv6[12346]: FAIL: daytime-stream libwrap 
+ from=2001:0db8:100:200::212:34ff:fe12:3456</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>A refused connection via IPv4 to an dual-listen sshd produces a line like following example</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Jan 2 20:24:17 gate sshd[12345]: refused connect from ::ffff:1.2.3.4
+¬ (::ffff:1.2.3.4)
+Jan 2 20:39:33 gate sshd[12345]: refused connect 
+ from 2001:0db8:100:200::212:34ff:fe12:3456
+¬ (2001:0db8:100:200::212:34ff:fe12:3456)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2787"
+></A
+>22.8.4.2. Permitted connection</H3
+><P
+>A permitted connection via IPv4 to an xinetd covered daytime service produces a line like following example</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Jan 2 20:37:50 gate xinetd-ipv6[12346]: START: daytime-stream pid=0
+¬ from=::ffff:1.2.3.4 
+Jan 2 20:37:56 gate xinetd-ipv6[12346]: START: daytime-stream pid=0 
+ from=2001:0db8:100:200::212:34ff:fe12:3456</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>A permitted connection via IPv4 to an dual-listen sshd produces a line like following example</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Jan 2 20:43:10 gate sshd[21975]: Accepted password for user from ::ffff:1.2.3.4
+¬ port 33381 ssh2
+Jan 2 20:42:19 gate sshd[12345]: Accepted password for user 
+ from 2001:0db8:100:200::212:34ff:fe12:3456 port 33380 ssh2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="hints-daemons-dibbler.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="hints-daemons-vsftpd.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>DHCP Server Dibbler</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="chapter-hints-daemons.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>vsftpd</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

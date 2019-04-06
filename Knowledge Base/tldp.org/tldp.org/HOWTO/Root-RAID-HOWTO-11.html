@@ -1,0 +1,253 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root RAID HOWTO cookbook: Appendix D. - obsolete linuxrc and shutdown scripts </TITLE>
+ <LINK HREF="Root-RAID-HOWTO-12.html" REL=next>
+ <LINK HREF="Root-RAID-HOWTO-10.html" REL=previous>
+ <LINK HREF="Root-RAID-HOWTO.html#toc11" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Root-RAID-HOWTO-12.html">Next</A>
+<A HREF="Root-RAID-HOWTO-10.html">Previous</A>
+<A HREF="Root-RAID-HOWTO.html#toc11">Contents</A>
+<HR>
+<H2><A NAME="Appendix-D"></A> <A NAME="s11">11. Appendix D. - obsolete linuxrc and shutdown scripts </A></H2>
+
+<P>
+<H2><A NAME="ss11.1">11.1 Obsolete working - linuxrc</A>
+</H2>
+
+<P>This linuxrc file works fine with the shutdown procedure in the next
+subsection.
+<PRE>
+ ---------------------- linuxrc --------------------
+#!/bin/sh
+# ver 1.07 2-12-98
+# linuxrc - for raid1 using small dos partition and loadlin
+#
+
+# mount the proc file system
+/bin/mount /proc
+
+# This may vary for your system.
+# Mount the dos partitions, try both
+# in case one disk is dead
+/bin/mount /dosa
+/bin/mount /dosc
+
+# Set a flag in case the raid status file is not found
+# then check both drives for the status file
+RAIDOWN="raidstat.ro not found"
+/bin/echo "Reading md0 shutdown status."
+if [ -f /dosa/raidboot/raidstat.ro ]; then
+  RAIDOWN=`/bin/cat /dosa/raidboot/raidstat.ro`
+  RAIDREF=`/bin/cat /dosc/raidboot/raidgood.ref`
+else
+  if [ -f /dosc/raidboot/raidstat.ro ]; then
+    RAIDOWN=`/bin/cat /dosc/raidboot/raidstat.ro`
+    RAIDREF=`/bin/cat /dosc/raidboot/raidgood.ref`
+  fi
+fi
+
+# Test for a clean shutdown with all disks operational
+if [ "${RAIDOWN} != ${RAIDREF}" ]; then
+  echo "ERROR ${RAIDOWN}"
+#  Use the next 2 lines to BAIL OUT and leave rescue running
+   /bin/echo 0x100>/proc/sys/kernel/real-root-dev
+   exit                 # leaving the error files in dosa/raidboot,etc...
+fi
+
+# The raid array is clean, proceed by removing
+# status file and writing a clean superblock
+/bin/rm /dosa/raidboot/raidstat.ro
+/bin/rm /dosc/raidboot/raidstat.ro
+/sbin/mkraid /etc/raid1.conf -f --only-superblock
+
+/bin/umount /dosa
+/bin/umount /dosc
+
+# Mount raid array
+echo "Mounting md0, root filesystem"
+/sbin/mdadd -ar
+
+#  If there are errors - BAIL OUT and leave rescue running
+if [ $? -ne 0 ]; then
+   echo "RAID device has errors"
+#  Use the next 3 lines to BAIL OUT
+   /bin/rm /etc/mtab            # remove bad mtab
+   /bin/echo 0x100>/proc/sys/kernel/real-root-dev
+   exit
+fi
+
+# else tell the kernel to switch to /dev/md0 as the /root device
+# The 0x900 value the device number calculated by:
+#  256*major_device_number + minor_device number
+/bin/echo 0x900>/proc/sys/kernel/real-root-dev
+
+# umount /proc to deallocate initrd device ram space
+/bin/umount /proc
+/bin/echo "/dev/md0 mounted as root"
+exit
+#------------------ end linuxrc ----------------------
+</PRE>
+<P>
+<H2><A NAME="ss11.2">11.2 Obsolete working - shutdown scripts</A>
+</H2>
+
+<P>This shutdown procedure works fine with the preceeding <B>linuxrc</B>
+<P>To capture the raid array shutdown status,
+just before the file systems are dismounted insert:
+<PRE>
+        RAIDSTATUS=`/bin/cat /proc/mdstat | /usr/bin/grep md0`
+</PRE>
+
+After all the file systems are dismounted (the root file system
+'will not' dismount) add:
+<PRE>
+        # root device remains mounted RO
+        # mount dos file systems RW
+        mount -n -o remount,ro /
+        echo "Writing RAID read-only boot FLAG(s)."
+        mount -n /dosa
+        mount -n /dosc
+        # create raid mounted RO flag in duplicate
+        # containing the shutdown status of the raid array
+        echo ${RAIDSTATUS} > /dosa/raidboot/raidstat.ro
+        echo ${RAIDSTATUS} > /dosc/raidboot/raidstat.ro
+
+        umount -n /dosa
+        umount -n /dosc
+
+        # Stop all the raid arrays (except root)
+        echo "Stopping raid"
+        mdstop -a
+</PRE>
+
+This will cleanly stop all raid devices except root.  Root status
+is passed to the next boot in <B>raidstat.ro</B>.
+<P>The complete shutdown script from my old raid1 Slackware system follows, I
+have switched raid1 to the new procedure with the /etc/raidboot.conf file.
+<PRE>
+#! /bin/sh
+#
+# rc.6          This file is executed by init when it goes into runlevel
+#               0 (halt) or runlevel 6 (reboot). It kills all processes,
+#               unmounts file systems and then either halts or reboots.
+#
+# Version:      @(#)/etc/rc.d/rc.6      1.50    1994-01-15
+#
+# Author:       Miquel van Smoorenburg &lt;miquels@drinkel.nl.mugnet.org>
+# Modified by:  Patrick J. Volkerding, &lt;volkerdi@ftp.cdrom.com>
+# Modified by:  Michael A. Robinton, &lt;michael@bzs.org> for RAID shutdown
+
+  # Set the path.
+  PATH=/sbin:/etc:/bin:/usr/bin
+
+  # Set linefeed mode to avoid staircase effect.
+  stty onlcr
+
+  echo "Running shutdown script $0:"
+
+  # Find out how we were called.
+  case "$0" in
+        *0)
+                message="The system is halted."
+                command="halt"
+                ;;
+        *6)
+                message="Rebooting."
+                command=reboot
+                ;;
+        *)
+                echo "$0: call me as \"rc.0\" or \"rc.6\" please!"
+                exit 1
+                ;;
+  esac
+
+  # Kill all processes.
+  # INIT is supposed to handle this entirely now, but this didn't always
+  # work correctly without this second pass at killing off the processes.
+  # Since INIT already notified the user that processes were being killed,
+  # we'll avoid echoing this info this time around.
+  if [ "$1" != "fast" ]; then # shutdown did not already kill all processes
+    killall5 -15 
+    killall5 -9
+  fi
+
+  # Try to turn off quota and accounting.
+  if [ -x /usr/sbin/quotaoff ]
+  then
+        echo "Turning off quota."
+        /usr/sbin/quotaoff -a
+  fi
+  if [ -x /sbin/accton ]
+  then
+        echo "Turning off accounting."
+        /sbin/accton
+  fi
+
+  # Before unmounting file systems write a reboot or halt record to wtmp.
+  $command -w
+
+  # Save localtime
+  [ -e /usr/lib/zoneinfo/localtime ] &amp;&amp; cp /usr/lib/zoneinfo/localtime /etc
+
+  # Asynchronously unmount any remote filesystems:
+  echo "Unmounting remote filesystems."
+  umount -a -tnfs &amp;
+
+  # you must have issued
+  # 'cat /proc/mdstat | grep md0 > {your boot vol}/raidboot/raidgood.ref'  
+  # before linuxrc will execute properly with this info
+  RAIDSTATUS=`/bin/cat /proc/mdstat | /usr/bin/grep md0 # capture raid status`
+
+  # Turn off swap, then unmount local file systems.
+  # clearing mdtab as well
+  echo "Turning off swap."
+  swapoff -a
+  echo "Unmounting local file systems."
+  umount -a -tnonfs
+
+  # Don't remount UMSDOS root volumes:
+  if [ ! "`mount | head -1 | cut -d ' ' -f 5`" = "umsdos" ]; then
+    mount -n -o remount,ro /
+  fi
+
+  # root device remains mounted
+  # mount dos file systems RW
+  echo "Writing RAID read-only boot FLAG(s)."
+  mount -n /dosa
+  mount -n /dosc
+  # create raid mounted RO flag in duplicate
+  # containing the shutdown status of the raid array
+  echo ${RAIDSTATUS} > /dosa/raidboot/raidstat.ro
+  echo ${RAIDSTATUS} > /dosc/raidboot/raidstat.ro
+
+  umount -n /dosa
+  umount -n /dosc
+
+  # Stop all the raid arrays (except root)
+  echo "Stopping raid"
+  mdstop -a
+
+  # See if this is a powerfail situation.
+  if [ -f /etc/power_is_failing ]; then
+    echo "Turning off UPS, bye."
+    /sbin/powerd -q
+    exit 1
+  fi
+
+  # Now halt or reboot.
+  echo "$message"
+  [ ! -f /etc/fastboot ] &amp;&amp; echo "On the next boot fsck will be FORCED."
+  $command -f
+</PRE>
+<P>
+<P>
+<HR>
+<A HREF="Root-RAID-HOWTO-12.html">Next</A>
+<A HREF="Root-RAID-HOWTO-10.html">Previous</A>
+<A HREF="Root-RAID-HOWTO.html#toc11">Contents</A>
+</BODY>
+</HTML>

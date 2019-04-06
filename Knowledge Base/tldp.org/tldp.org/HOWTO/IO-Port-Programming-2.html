@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux I/O port programming mini-HOWTO: Using I/O ports in C programs</TITLE>
+ <LINK HREF="IO-Port-Programming-3.html" REL=next>
+ <LINK HREF="IO-Port-Programming-1.html" REL=previous>
+ <LINK HREF="IO-Port-Programming.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="IO-Port-Programming-3.html">Next</A>
+<A HREF="IO-Port-Programming-1.html">Previous</A>
+<A HREF="IO-Port-Programming.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Using I/O ports in C programs</A></H2>
+
+<H2><A NAME="ss2.1">2.1 The normal method</A>
+</H2>
+
+<P>Routines for accessing I/O ports are in <CODE>/usr/include/asm/io.h</CODE>
+(or <CODE>linux/include/asm-i386/io.h</CODE> in the kernel source
+distribution). The routines there are inline macros, so it is enough
+to <CODE>#include &lt;asm/io.h&gt;</CODE>; you do not need any additional
+libraries.
+<P>Because of a limitation in gcc (present in all versions I know of,
+including egcs), you <EM>have to</EM> compile any source code that uses
+these routines with optimisation turned on (<CODE>gcc -O1</CODE> or higher),
+or alternatively use <CODE>#define extern static</CODE> before you
+<CODE>#include &lt;asm/io.h&gt;</CODE> (remember to <CODE>#undef
+extern</CODE>afterwards).
+<P>For debugging, you can use <CODE>gcc -g -O</CODE> (at least with modern
+versions of gcc), though optimisation can sometimes make the debugger
+behave a bit strangely. If this bothers you, put the routines that use
+I/O port access in a separate source file and compile only that with
+optimisation turned on.
+<P>
+<H3>Permissions</H3>
+
+<P>Before you access any ports, you must give your program permission to
+do so. This is done by calling the <CODE>ioperm()</CODE> function (declared
+in <CODE>unistd.h</CODE>, and defined in the kernel) somewhere near the start
+of your program (before any I/O port accesses). The syntax is
+<CODE>ioperm(from, num, turn_on)</CODE>, where <CODE>from</CODE> is the first port
+number to give access to, and <CODE>num</CODE> the number of consecutive ports
+to give access to. For example, <CODE>ioperm(0x300, 5, 1)</CODE> would give
+access to ports 0x300 through 0x304 (a total of 5 ports). The last
+argument is a Boolean value specifying whether to give access to the
+program to the ports (true (1)) or to remove access (false (0)). You
+can call <CODE>ioperm()</CODE> multiple times to enable multiple
+non-consecutive ports. See the <CODE>ioperm(2)</CODE> manual page for details
+on the syntax.
+<P>The <CODE>ioperm()</CODE> call requires your program to have root privileges;
+thus you need to either run it as the root user, or make it setuid
+root. You can drop the root privileges after you have called
+<CODE>ioperm()</CODE> to enable the ports you want to use. You are not
+required to explicitly drop your port access privileges with
+<CODE>ioperm(..., 0)</CODE> at the end of your program; this is done
+automatically as the process exits.
+<P>A <CODE>setuid()</CODE> to a non-root user does not disable the port access
+granted by <CODE>ioperm()</CODE>, but a <CODE>fork()</CODE> does (the child process
+does not get access, but the parent retains it).
+<P><CODE>ioperm()</CODE> can only give access to ports 0x000 through 0x3ff; for
+higher ports, you need to use <CODE>iopl()</CODE> (which gives you access to
+all ports at once). Use the level argument 3 (i.e., <CODE>iopl(3)</CODE>) to
+give your program access to <EM>all</EM> I/O ports (so be careful ---
+accessing the wrong ports can do all sorts of nasty things to your
+computer). Again, you need root privileges to call <CODE>iopl()</CODE>. See
+the <CODE>iopl(2)</CODE> manual page for details.
+<P>
+<H3>Accessing the ports</H3>
+
+<P>
+<P>To input a byte (8 bits) from a port, call <CODE>inb(port)</CODE>, it returns
+the byte it got. To output a byte, call <CODE>outb(value, port)</CODE> (please
+note the order of the parameters). To input a word (16 bits) from
+ports <CODE>x</CODE> and <CODE>x+1</CODE> (one byte from each to form the word, using
+the assembler instruction <CODE>inw</CODE>), call <CODE>inw(x)</CODE>. To output a
+word to the two ports, use <CODE>outw(value, x)</CODE>. If you're unsure of
+which port instructions (byte or word) to use, you probably want
+<CODE>inb()</CODE> and <CODE>outb()</CODE> --- most devices are designed for bytewise
+port access. Note that all port access instructions take at least
+about a microsecond to execute.
+<P>The <CODE>inb_p()</CODE>, <CODE>outb_p()</CODE>, <CODE>inw_p()</CODE>, and <CODE>outw_p()</CODE>
+macros work otherwise identically to the ones above, but they do an
+additional short (about one microsecond) delay after the port access;
+you can make the delay about four microseconds with <CODE>#define
+REALLY_SLOW_IO</CODE> before you <CODE>#include &lt;asm/io.h&gt;</CODE>. These
+macros normally (unless you <CODE>#define SLOW_IO_BY_JUMPING</CODE>, which
+is probably less accurate) use a port output to port 0x80 for their
+delay, so you need to give access to port 0x80 with <CODE>ioperm()</CODE>
+first (outputs to port 0x80 should not affect any part of the
+system). For more versatile methods of delaying, read on.
+<P>There are manual pages for <CODE>ioperm(2)</CODE>, <CODE>iopl(2)</CODE>, and the above
+macros in reasonably recent releases of the Linux manual page
+collection.
+<P>
+<P>
+<H2><A NAME="ss2.2">2.2 An alternate method: <CODE>/dev/port</CODE></A>
+</H2>
+
+<P>Another way to access I/O ports is to <CODE>open()</CODE> <CODE>/dev/port</CODE> (a
+character device, major number 1, minor 4) for reading and/or writing
+(the stdio <CODE>f*()</CODE> functions have internal buffering, so avoid
+them). Then <CODE>lseek()</CODE> to the appropriate byte in the file (file
+position 0 = port 0x00, file position 1 = port 0x01, and so on), and
+<CODE>read()</CODE> or <CODE>write()</CODE> a byte or word from or to it.
+<P>Naturally, for this to work your program needs read/write access to
+<CODE>/dev/port</CODE>. This method is probably slower than the normal
+method above, but does not need compiler optimisation nor
+<CODE>ioperm()</CODE>. It doesn't need root access either, if you give a
+non-root user or group access to <CODE>/dev/port</CODE> --- but this is a
+very bad thing to do in terms of system security, since it is possible
+to hurt the system, perhaps even gain root access, by using
+<CODE>/dev/port</CODE> to access hard disks, network cards, etc. directly.
+<P>You cannot use <CODE>select(2)</CODE> or <CODE>poll(2)</CODE> to read /dev/port,
+because the hardware does not have a facility for notifying the CPU
+when a value in an input port changes.
+<P>
+<P>
+<HR>
+<A HREF="IO-Port-Programming-3.html">Next</A>
+<A HREF="IO-Port-Programming-1.html">Previous</A>
+<A HREF="IO-Port-Programming.html#toc2">Contents</A>
+</BODY>
+</HTML>

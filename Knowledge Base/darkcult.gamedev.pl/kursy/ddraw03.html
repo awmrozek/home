@@ -1,0 +1,128 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Bezpośredni dostęp do powierzchni</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="ddraw02.html">&lt;&lt; Animacja</A> &nbsp;
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="ddraw04.html"> Utrata powierzchni &gt;&gt;</A>
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h2>Bezpośredni dostęp do powierzchni</h2>
+
+<P>
+Do tej pory korzystając z DirectDraw głównie blitowaliśmy na ekran gotowe bitmapy. Jeśli chcieliśmy narysować coś "ręcznie" bądź wypisać jakiś tekst, musieliśmy się uciekać do takiej sztuczki: pobieraliśmy uchwyt kontekstu powierzchni i wykorzystywaliśmy funkcje WinAPI do rysowania po niej. Takie rozwiązanie miało dwie poważne wady: było arcyniewygodne (te wszelkie pędzle, pióra, pobieranie i zwalnianie zasobów... brrr) oraz zbyt powolne.
+</P>
+<P>
+Nasuwa się zatem pytanie: czy nie można by po prostu dostać dostęp do miejsca, gdzie przechowywane są "surowe" dane o pikselach? To niewątpliwie byłaby najszybsza metoda rysowania po powierzchni, a zarazem niezbyt skomplikowana, co doskonale wiedzą ludzie, zaczynający swą programistyczną karierę jeszcze pod DOS-em, gdzie o żadnych uchwytach, kontekstach, pędzlach i innych głupotach nie było mowy. Odpowiedź na pytanie brzmi: tak!
+</P>
+<P>
+Naszym zadaniem będzie narysowanie kółeczka, w którym barwy będą płynnie przechodzić między różnymi wartościami. Robliśmy już coś takiego w kursie WinAPI. Metoda, która zwraca nam wskaźnik do pikseli danej powierzchni, nazywa się <SPAN CLASS=T>Lock</SPAN>. W najprostszej możliwej postaci jej wywołanie wymaga podania adresu struktury typu <SPAN CLASS=T>DDSURFACEDESC</SPAN>, którą to strukturę funkcja <SPAN CLASS=T>Lock</SPAN> wypełni niezbędnymi (i nie tylko ;-)) danymi. Strukturę tę musimy najpierw odpowiednio przygotować, tj. wyzerować jej pola oraz wpisać rozmiar struktury do pola <SPAN CLASS=T>dwSize</SPAN>. Oczywiście pomijam takie pierdołki, jak tworzenie głównego obiektu DD oraz powierzchni, gdyż to wszystko masz już w małym palcu (prawda? ;-)). Zaczynamy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DDSURFACEDESC ddsd;<BR>
+ZeroMemory(&ddsd, <SPAN CLASS=K>sizeof</SPAN>(DDSURFACEDESC));<BR>
+ddsd.dwSize = <SPAN CLASS=K>sizeof</SPAN>(DDSURFACEDESC);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz możemy już zablokować naszą powierzchnię funkcją <SPAN CLASS=T>Lock</SPAN>. Słowo "zablokować" nie jest bynajmniej przypadkowe; od momentu kiedy to zrobimy, aż do wywołania funkcji <SPAN CLASS=T>Unlock</SPAN> (która, jak się domyślamy, odblokowuje powierzchnię) na powierzchni żaden inny proces nie może nic narysować. Wyjaśnienia wymagałaby jeszcze może flaga <SPAN CLASS=T>DDLOCK_WAIT</SPAN>, którą podajemy jako trzeci argument; oznacza ona, że w razie gdyby w momencie wywołania <SPAN CLASS=T>Lock</SPAN> powierzchnia była czymś zajęta (np. blitowaniem grafiki), to funkcja <SPAN CLASS=T>Lock</SPAN> ma zaczekać, aż powierzchnia zakończy swoją poprzednią "misję". W przeciwnym wypadku <SPAN CLASS=T>Lock</SPAN> natychmiast zwróci kod błędu.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HRESULT ret = lpPowierznia->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);<BR>
+<SPAN CLASS=K>if</SPAN>(ret != DD_OK) <SPAN CLASS=K>return</SPAN> FALSE;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Gotowe, powierzchnia zablokowana (chyba, że funkcja <SPAN CLASS=T>Lock</SPAN> zwróciła nam coś innego, niż <SPAN CLASS=T>DD_OK</SPAN>, co stać się nie powinno). Gdzie zatem nasz wskaźnik do pikseli? Jest on ukryty w strukturze <SPAN CLASS=T>ddsd</SPAN>, jak nietrudno się domyślić. Nazwa jego kryjówki to <SPAN CLASS=T>lpSurface</SPAN>. Niestety, wskaźnik ten wskazuje na tablicę jednowymiarową, a co za tym idzie - będziemy musieli zastosować pewną formułę matematyczną (na szczęście niezbyt skomplikowaną), aby dostać się do konkretnego piksela. Chodzi mianowicie o odwzorowanie przestrzeni dwuwymiarowej (jaką jest ekran oraz wszelkie powierzchnie pozaekranowe) na jednowymiarową (tablica z danymi pikseli). Jeśli chcemy dobrać się do piksela o współrzędnych <SPAN CLASS=T>(x,y)</SPAN>, należy pomnożyć wartość <SPAN CLASS=T>dwWidth</SPAN> (liczba pikseli w każdej linii, czyli szerokość linii) przez numer linii (<SPAN CLASS=T>y</SPAN>) i dodać numer kolumny (<SPAN CLASS=T>x</SPAN>). Tak więc instrukcja, ustawiająca piksel o takich współrzędnych na kolor wyglądać może jakoś tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+((DWORD*)ddsd.lpSurface)[ddsd.dwWidth * y + x] = k;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wskaźnik <SPAN CLASS=T>lpSurface</SPAN> jest typu <SPAN CLASS=K>void*</SPAN>, tak więc przed użyciem musimy go przekonwertować. Jeśli założymy, że operujemy na kolorze 32-bitowym, to powinniśmy przekonwertować ten wskaźnik na wskaźnik do wartości 32-bitowej właśnie, czyli <SPAN CLASS=T>DWORD*</SPAN>. Mając gotowy wskaźnik, dysponujemy zarazem tablicą - tego chyba już nie muszę tłumaczyć. Teraz pozostaje tylko zastosować omówiony wyżej wzór i już możemy rysować nasze kolorowe kółko:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>const</SPAN> WORD sx = <SPAN CLASS=L>100</SPAN>; <SPAN CLASS=C>// środek koła - wsp. x</SPAN><BR>
+<SPAN CLASS=K>const</SPAN> WORD sy = <SPAN CLASS=L>100</SPAN>; <SPAN CLASS=C>// środek koła - wsp. y</SPAN><BR>
+<SPAN CLASS=K>const</SPAN> WORD r = <SPAN CLASS=L>100</SPAN>;  <SPAN CLASS=C>// promień koła</SPAN><BR>
+<BR>
+<SPAN CLASS=K>for</SPAN>(WORD y=<SPAN CLASS=L>0</SPAN>; y&lt;<SPAN CLASS=L>200</SPAN>; ++y)<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(WORD x=<SPAN CLASS=L>0</SPAN>; x&lt;<SPAN CLASS=L>200</SPAN>; ++x)<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>( (x-sx)*(x-sx)+(y-sy)*(y-sy) <= r*r )<BR>
+&nbsp;&nbsp;&nbsp;((DWORD*)ddsd.lpSurface)[ddsd.dwWidth * y + x] = Kolor32(<SPAN CLASS=L>255</SPAN>-x, y, <SPAN CLASS=L>255</SPAN>-y);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Do "zmontowania" odpowiedniej wartości koloru użyliśmy sobie funkcji <SPAN CLASS=T>Kolor32</SPAN> (lub <SPAN CLASS=T>Kolor16</SPAN> dla trybu 16-bitowego). Funkcję tę omówiliśmy sobie w miarę dokładnie w poprzedniej części kursu DirectDraw, więc nie będziemy się powtarzać.
+</P>
+<P>
+Jak już wspomniałem, nasza powierzchnia jest teraz zablokowana i należy użyć <SPAN CLASS=T>Unlock</SPAN>, żeby znów przywrócić ją do "normalności":
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+lpPowierzchnia->Unlock(NULL);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pozostało nam tylko wrzucenie wyniku na ekran (o ile do tej pory rysowaliśmy na powierzchni pozaekranowej, bo równie dobrze moglibyśmy rysować od razu po głównej powierzchni ekranu). Tak też czynimy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+lpEkran->BltFast(<SPAN CLASS=L>100,100</SPAN>,lpPowierzchnia,NULL, DDBLTFAST_WAIT|DDBLTFAST_NOCOLORKEY);
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście jeśli stworzyłeś sobie łańcuch powierzchni, to zamiast blitować, możesz również przerzucić bufory funkcją <SPAN CLASS=T>Flip</SPAN>. Jeśli niczego nie skaszaniłeś po drodze, otrzymujesz takie cuś:
+</P>
+
+<p align=center>
+<img src="../gfx/circle.jpg" alt="Nawet fajne kółko, nie?">
+</p>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="ddraw02.html">&lt;&lt; Animacja</A> &nbsp;
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="ddraw04.html"> Utrata powierzchni &gt;&gt;</A>
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

@@ -1,0 +1,333 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Animacja</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apibmp.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidlg.html">Następna część kursu >></A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+Animacja w WinAPI
+</H1>
+
+<P>
+Czas tchnąć trochę życia w szary świat Okien. Na początek zrobimy sobie kulkę, która lata po całym oknie. Będziemy potrzebować kilku zmiennych, w których zapamiętamy: aktualną pozycję kulki (<SPAN CLASS=T>KulkaX</SPAN>, <SPAN CLASS=T>KulkaY</SPAN>) oraz prędkość kulki, czyli liczbę pikseli, o jaką się ona przesuwa w każdej klatce. Prędkość rozdzielimy sobie na prędkość w poziomie i prędkość w pionie, zaraz się okaże po co. 
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+WORD KulkaX=<SPAN CLASS=L>100</SPAN>, KulkaY=<SPAN CLASS=L>100</SPAN>;<BR>
+SHORT SpeedX=<SPAN CLASS=L>2</SPAN>, SpeedY=<SPAN CLASS=L>2</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Potrzebujemy jeszcze globalnego uchwytu do głównego okna, coby dało się z niego skorzystać w funkcji rysującej kulkę. Przyda się też struktura typu <SPAN CLASS=T>RECT</SPAN>, do której pobierzemy wymiary naszego okna, korzystając z funkcji <SPAN CLASS=T>GetClientRect</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//w zasięgu globalnym</SPAN><BR>
+HWND g_hwnd;<BR>
+<BR>
+<SPAN CLASS=C>//w funkcji WinMain</SPAN><BR>
+g_hwnd = hwnd;<BR>
+<BR>
+<SPAN CLASS=C>//gdziekolwiek</SPAN><BR>
+RECT rcOkno;<BR>
+GetClientRect(g_hwnd, &rcOkno);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Następnie robimy nowy uchwyt do bitmapy i wczytujemy bitmapę z naszą kulką z dysku, po czym pobieramy jej wymiary funkcją <SPAN CLASS=T>GetObject</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HBITMAP hbmKulka;<BR>
+hbmKulka = (HBITMAP)LoadImage(NULL, <SPAN CLASS=L>"kulka.bmp"</SPAN>, IMAGE_BITMAP, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, LR_LOADFROMFILE);<BR>
+<BR>
+BITMAP bmKulka;<BR>
+GetObject(hbmKulka, sizeof(bmKulka), &bmKulka);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Żeby zrobić użytek z bitmapy, musimy ją przypisać do jakiegoś kompatybilnego<SPAN CLASS=T> HDC</SPAN>. Tworzymy je funkcją <SPAN CLASS=T>CreateCompatibleDC</SPAN>, jako parametr podając <SPAN CLASS=T>HDC</SPAN> naszego okna. Tworzymy też uchwyt do domyślnej bitmapy nowoutworzonego kontekstu, żeby nam się żadne zasoby systemowe nie wymknęły spod kontroli:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdc = GetDC(g_hwnd);<BR>
+HDC hdcMem = CreateCompatibleDC(hdc);<BR>
+HBITMAP hbmOld = (HBITMAP)SelectObject(hdcMem, hbmKulka);<BR>
+ReleaseDC(g_hwnd, hdc);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wszystkie powyższe deklaracje zmiennych (może oprócz <SPAN CLASS=T>hdc</SPAN>, która w tym akurat miejscu pełni tylko rolę pomocniczą) umieszczamy w globalnym zasięgu, ponieważ musimy mieć do nich dostęp z funkcji rysującej kulkę, którą zaraz sobie utworzymy.
+</P>
+<P>
+Narysować kulkę to żadna sztuka, ale żeby raczyła ona ruszyć zadek z miejsca, musimy mieć jakieś urządzenie odmierzające czas. W programistycznym żargonie nazywa się takie urządzenie <SPAN CLASS=Wazne>timerem</SPAN>. WinAPI posiada szereg rozwiązań dla timerów, jedno gorsze od drugiego ;-). I na razie zajmiemy się właśnie tym najgorszym, ale za to bardzo prostym, do naszych celów w zupełności wystarczającym.
+</P>
+<P>
+Każdy timer (bo możemy ich mieć w programie wiele) powinien mieć swój numer identyfikacyjny; nadajemy go sami. Najlepiej po prostu dawać kolejne liczby:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>const</SPAN> WORD ID_TIMER = <SPAN CLASS=L>1</SPAN>;
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz możemy już stworzyć timera funkcją <SPAN CLASS=T>SetTimer</SPAN>. Timer jest zwykle skojarzony z konkretnym okienkiem, dlatego też podajemy uchwyt tego okienka jako argument dla funkcji <SPAN CLASS=T>SetTimer</SPAN>. Drugim argumentem jest numer identyfikacyjny, trzecim - tzw. <SPAN CLASS=Wazne>interwał</SPAN> (o nim zaraz), ostatni argument najbezczelniej w świecie olewamy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(SetTimer(hwnd, ID_TIMER, <SPAN CLASS=L>100</SPAN>, NULL) == <SPAN CLASS=L>0</SPAN>)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Nie można utworzyć timera!"</SPAN>, <SPAN CLASS=L>"Kurde"</SPAN>, MB_ICONSTOP);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Od tej pory nasz timer odmierza czas... Co <SPAN CLASS=L>100</SPAN> milisekund (to jest właśnie ów interwał, o którym wcześniej wspomniałem) do okienka o uchwycie <SPAN CLASS=T>hwnd</SPAN> jest wysyłany komunikat <SPAN CLASS=T>WM_TIMER</SPAN>. Wystarczy dodać obsługę tego komunikatu i już mamy (prawie) gotową animację:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_TIMER:<BR>
+&nbsp;RysujKulke();<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jeszcze tylko wyczarować funkcję <SPAN CLASS=T>RysujKulke</SPAN> i kulka skacze sobie radośnie po całym okienku:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> RysujKulke()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//wylicz nowe parametry kulki</SPAN><BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(KulkaX&lt;=<SPAN CLASS=L>0</SPAN> || KulkaX&gt;=ptOkno.x) SpeedX = -SpeedX;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(KulkaY&lt;=<SPAN CLASS=L>0</SPAN> || KulkaY&gt;=ptOkno.y) SpeedY = -SpeedY;<BR>
+&nbsp;KulkaX += SpeedX;<BR>
+&nbsp;KulkaY += SpeedY;<BR>
+&nbsp;<SPAN CLASS=C>//narysuj na nowej pozycji</SPAN><BR>
+&nbsp;HDC hdc = GetDC(hwnd);<BR>
+&nbsp;BitBlt(hdc, KulkaX, KulkaY, bmKulka.bmWidth, bmKulka.bmHeight, hdcMem, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, SRCCOPY);<BR>
+&nbsp;ReleaseDC(hwnd, hdc);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W momencie, kiedy chcemy już zatrzymać naszą animację albo po prostu kończymy wykonywanie programu, musimy zniszczyć niepotrzebnego timera:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_DESTROY:<BR>
+{<BR>
+&nbsp;KillTimer(hwnd, ID_TIMER);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;
+</TD></TR>
+</TABLE>
+
+<P>
+Pamiętamy również o zwolnieniu pozostałych zasobów, tzn. zniszczeniu pomocniczego kontekstu <SPAN CLASS=T>hdcMem</SPAN>, przywracając mu przedtem jego domyślną bitmapę <SPAN CLASS=T>hbmOld</SPAN>.
+</P>
+
+<H2>
+"CYWILIZUJEMY" NASZĄ ANIMACJĘ
+</H2>
+
+<P>
+A więc kulka lata po oknie i nawet zostawia za sobą piękny ślad... No właśnie. Zapomnieliśmy, że przed narysowaniem każdej nowej klatki animacji trzeba zetrzeć starą! A w dodatku chcielibyśmy, aby tło bitmapy z kulką było przezroczyste... To pierwsze to żaden problem, możemy zamazać "starą" klatkę funkcją <SPAN CLASS=T>FillRect</SPAN>. Funkcja ta pobiera współrzędne prostokąta, który zamazujemy, tak więc rezygnujemy z naszych zmiennych <SPAN CLASS=T>KulkaX</SPAN> i <SPAN CLASS=T>KulkaY</SPAN>, a współrzędne kulki (i jej wymiary, przy okazji) przechowywać sobie będziemy w strukturze typu<SPAN CLASS=T> RECT</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+RECT rcKulka;<BR>
+SetRect(&rcKulka, <SPAN CLASS=L>5</SPAN>, <SPAN CLASS=L>5</SPAN>, <SPAN CLASS=L>5</SPAN>+bmKulka.bmWidth, <SPAN CLASS=L>5</SPAN>+bmKulka.bmHeight);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Przy okazji dowiedzieliśmy się, jak ustawić wszystkie współrzędne prostokąta <SPAN CLASS=T>RECT</SPAN> za jednym zamachem. Oczywiście wywołanie funkcji <SPAN CLASS=T>SetRect</SPAN> musi się znaleźć ZA wywołaniem funkcji <SPAN CLASS=T>GetObject</SPAN>, która pobiera nam wymiary bitmapy z kulką, inaczej zmienne <SPAN CLASS=T>bmKulka.bmWidth</SPAN> i <SPAN CLASS=T>bmKulka.bmHeight</SPAN> będą zawierać nieprawidłowe wartości.
+</P>
+<P>
+Struktura typu <SPAN CLASS=T>RECT</SPAN> posiada cztery pola: <SPAN CLASS=T>left, right, top, bottom</SPAN>. Tak więc musimy w naszym programie pozamieniać wszystkie <SPAN CLASS=T>KulkaX</SPAN> na <SPAN CLASS=T>rcKulka.left</SPAN>, wszystkie <SPAN CLASS=T>KulkaY</SPAN> na <SPAN CLASS=T>rcKulka.top</SPAN>, natomiast w miejscach, gdzie używamy szerokości i wysokości bitmapy piłki, wstawiamy odpowiednio: <SPAN CLASS=T>bmKulka.right</SPAN> i <SPAN CLASS=T>bmKulka.bottom</SPAN> (trochę "nielegalnie", o tym zaraz). Poza tym pola <SPAN CLASS=T>rcKulka.left</SPAN> i <SPAN CLASS=T>rcKulka.top</SPAN> będą się musiały zmieniać z każdą klatką animacji. To zmienianie możemy sobie znowu załatwić, korzystając z funkcji <SPAN CLASS=T>OffsetRect</SPAN>, która modyfikuje właśnie pola <SPAN CLASS=T>left</SPAN> i <SPAN CLASS=T>top</SPAN> wskazanego prostokąta. Czyli nasza nowa funkcja <SPAN CLASS=T>RysujKulke</SPAN> będzie mniej więcej taka:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> RysujKulke()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//pobierz HDC okna</SPAN><BR>
+&nbsp;HDC hdc = GetDC(g_hwnd);<BR>
+&nbsp;<SPAN CLASS=C>//zamaż "starą" kulkę</SPAN><BR>
+&nbsp;FillRect(hdc, &rcTemp, (HBRUSH)GetStockObject(LTGRAY_BRUSH));<BR>
+&nbsp;<SPAN CLASS=C>//wylicz nowe parametry kulki</SPAN><BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(rcKulka.left&lt;=<SPAN CLASS=L>0</SPAN> || rcKulka.right&gt;=rcOkno.right) SpeedX = -SpeedX;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(rcKulka.top&lt;=<SPAN CLASS=L>0</SPAN> || rcKulka.bottom&gt;=rcOkno.bottom) SpeedY = -SpeedY;<BR>
+&nbsp;OffsetRect(&rcKulka, SpeedX, SpeedY);<BR>
+&nbsp;<SPAN CLASS=C>//narysuj na nowej pozycji</SPAN><BR>
+&nbsp;BitBlt(hdc, rcKulka.left, rcKulka.top, rcKulka.right-rcKulka.left, rcKulka.bottom-rcKulka.top, hdcMem, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, SRCCOPY);<BR>
+&nbsp;ReleaseDC(g_hwnd, hdc);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, użyliśmy funkcji <SPAN CLASS=T>GetStockObject</SPAN>, aby pobrać systemowy pędzel o kolorze szarym - takiego samego używa kod generowany przez Dev-C++ aby zamalować główne okno programu. Musieliśmy użyć jawnej konwersji na typ <SPAN CLASS=T>HBRUSH</SPAN>, ponieważ <SPAN CLASS=T>GetStockObject</SPAN> zwraca uchwyty różnego rodzaju, nie tylko <SPAN CLASS=T>HBRUSH</SPAN> (niektóre kompilatory ten fakt olewają, te używane z Dev-C++ niestety nie).
+</P>
+<P>
+No to pierwszy problem z głowy, czas zająć się przezroczystością tła. W części poświęconej bitmapom podałem wam przepis na funkcję <SPAN CLASS=T>CreateBitmapMask</SPAN>, która tworzy maskę opierając się o daną bitmapę i kolor maski. Wykorzystamy teraz tę funkcję, aby nie trzeba było robić maski "ręcznie":
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HBITMAP hbmMaska = CreateBitmapMask(hbmKulka, RGB(<SPAN CLASS=L>255,0,255</SPAN>));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jako kolor maski podaliśmy <SPAN CLASS=T>RGB(<SPAN CLASS=L>255,0,255</SPAN>)</SPAN>, czyli "magiczny róż", ponieważ tego właśnie koloru używa się najczęściej w celu maskowania. Teraz musimy znów wprowadzić zmiany do funkcji <SPAN CLASS=T>RysujKulke</SPAN>, a mianowicie dorzucić do niej jedną instrukcję <SPAN CLASS=T>BitBlt</SPAN> oraz zmienić nieco poprzednią - jeśli nie wiesz dlaczego, zajrzyj do odcinka poświęconego rysowaniu bitmap. Ponieważ zaś stworzony przez nas pomocniczy kontekst <SPAN CLASS=T>hdcMem</SPAN> będzie teraz musiał "obsłużyć" dwie bitmapy (właściwą kulkę i maskę) zamiast jednej, więc albo będziemy przypisywać do niego jedną bitmapę, a raz drugą, albo też utworzyć dla maski osobny kontekst. Wybieramy to pierwsze rozwiązanie, choć wolniejsze jest, ponieważ nie chcemy się pogubić w aż tylu kontekstach :-). Tak będzie teraz wyglądała funkcja <SPAN CLASS=T>RysujKulke</SPAN> (podaję tylko część, która się zmieniła, między komentarzem "narysuj na nowej pozycji" a wywołaniem <SPAN CLASS=T>ReleaseDC</SPAN>):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+SelectObject(hdcMem, hbmMaska);<BR>
+BitBlt(hdc, rcKulka.left, rcKulka.top, rcKulka.right-rcKulka.left, rcKulka.bottom-rcKulka.top, hdcMem, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, SRCAND);<BR>
+SelectObject(hdcMem, hbmKulka);<BR>
+BitBlt(hdc, rcKulka.left, rcKulka.top, rcKulka.right-rcKulka.left, rcKulka.bottom-rcKulka.top, hdcMem, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, SRCINVERT);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+To już w zasadzie wszystko, ale zanim uruchomimy kompilator, by podziwiać efekty, jeszcze grzecznie po sobie posprzątamy, żeby później nie zapomnieć ;-). Musimy zwrócić kontekstowi <SPAN CLASS=T>hdcMem</SPAN> jego bitmapę domyślną (przechowywaną w <SPAN CLASS=T>hbmOld</SPAN>), usunąć ten kontekst, skasować bitmapy z kulką i z maską, no i oczywiście "zabić" timera. A więc obsługa komunikatu <SPAN CLASS=T>WM_DESTROY</SPAN> powinna wyglądać mniej więcej tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_DESTROY:<BR>
+{<BR>
+&nbsp;KillTimer(hwnd, ID_TIMER);<BR>
+&nbsp;SelectObject(hdcMem, hbmOld);<BR>
+&nbsp;DeleteDC(hdcMem);<BR>
+&nbsp;DeleteObject(hbmKulka);<BR>
+&nbsp;DeleteObject(hbmMaska);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+PODWÓJNE BUFOROWANIE
+</H2>
+
+<P>
+Kulka zasuwa po ekranie, ale robi to z widoczną niechęcią, wręcz z obrzydzeniem; animacja co trochę paskudnie miga i w ogóle nie wygląda zachęcająco. Trzeba zrobić podwójne buforowanie! Brzmi groźnie, ale idea jest bardzo prosta. Do tej pory najpierw rysowaliśmy na ekranie szary prostokąt, potem maskę, która również trafiała prosto na ekran, a na tym dopiero "właściwą" kulkę, która lądowała na ekranie w ułamek sekundy później. W ten sposób czasami karta graficzna mogła czasem nie zdążyć narysować co trzeba przed odświeżeniem obrazu na monitorze i stąd to dziwne miganie. Gdyby jednak utworzyć pomocniczy bufor (kontekst + tymczasowa bitmapa), w nim "skleić" szary prostokąt, maskę i bitmapę, a dopiero cały efekt wysłać na ekran, wówczas animacja byłaby dużo płynniejsza. Spróbujmy więc:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdcBufor;<BR>
+HBITMAP hbmBuf, hbmOldBuf;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+To na razie tylko deklaracje; potrzebujemy jednego uchwytu do kontekstu oraz dwóch uchwytów do bitmap (jeden będzie pełnił rolę tymczasowej bitmapy, do drugiego przypiszemy domyślną bitmapę naszego bufora). Następnie tworzymy bufor podobnie, jak tworzyliśmy kontekst <SPAN CLASS=T>hdcMem</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+hdcBufor = CreateCompatibleDC(hdc);<BR>
+hbmBuf = CreateCompatibleBitmap(hdcBufor, rcOkno.right, rcOkno.bottom);<BR>
+hbmOldBuf = (HBITMAP)SelectObject(hdcBufor, hbmBuf);<BR>
+FillRect(hdcBufor, &rcOkno, (HBRUSH)GetStockObject(LTGRAY_BRUSH));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Bitmapa, której używamy jako bufor z kontekstem <SPAN CLASS=T>hdcBufor</SPAN>, ma wymiary okienka. Oznacza to ni mniej ni więcej, że cały obszar okna będzie rysowany od nowa. W ten sposób możemy zmazać "starą" klatkę animacji oraz narysować nową za jednym zamachem. Oczywiście pociąga to za sobą pewne koszty; animacja będzie wolniejsza. Za to, dzięki podwójnemu buforowaniu, nie będzie nam denerwująco migotać. Dalsze optymalizacje (a trzeba przede wszystkim zmniejszyć powierzchnię odświeżanego obszaru) pozostawiam tobie.
+</P>
+<P>
+Teraz zmieniamy po raz kolejny funkcję <SPAN CLASS=T>RysujKulke</SPAN>. Obydwie instrukcje <SPAN CLASS=T>BitBlt</SPAN> zostają gdzie są, ale zmieniamy im docelowe <SPAN CLASS=T>HDC</SPAN>; tym razem nie blitujemy na ekran, tylko do bufora. No a ponieważ bufor ma wielkość zaledwie fragmentu całego okna, więc zmieniamy również docelowe współrzędne (na zera):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+SelectObject(hdcMem, hbmMaska);<BR>
+BitBlt(hdcBufor, rcKulka.left, rcKulka.top, rcKulka.right-rcKulka.left, rcKulka.bottom-rcKulka.top, hdcMem, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, SRCAND);<BR>
+SelectObject(hdcMem, hbmKulka);<BR>
+BitBlt(hdcBufor, rcKulka.left, rcKulka.top, rcKulka.right-rcKulka.left, rcKulka.bottom-rcKulka.top, hdcMem, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, SRCINVERT);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Instrukcja <SPAN CLASS=T>FillRect</SPAN> teraz też będzie malowała w buforze, a nie na ekranie, więc zmieniamy jej prostokąt docelowy oraz uchwyt kontekstu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//zamaż "starą" kulkę</SPAN><BR>
+FillRect(hdcBufor, &rcOkno, (HBRUSH)GetStockObject(LTGRAY_BRUSH));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Następnie po prostu posyłamy zawartość bufora na ekran, dorzucając trzecią instrukcję <SPAN CLASS=T>BitBlt</SPAN>, tym razem z flagą <SPAN CLASS=T>SRCCOPY</SPAN>, ponieważ wszystkie "kombinacje" zostały już wykonane w buforze:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+BitBlt(hdc, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, rcOkno.right, rcOkno.bottom, hdcBufor, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, SRCCOPY);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Nie zapominamy o dodatkowych obowiązkach porządkowych: pod koniec programu buforowi przywracamy jego domyślną bitmapę i usuwamy go. Niszczymy też oczywiście bitmapę <SPAN CLASS=T>hbmBuf</SPAN>. Po tych zabiegach możemy wreszcie wcisnąć F9 i rozkoszować widokiem kulki mknącej przez ekran... Z niezbyt imponującą prędkością może, ale bez "efektów ubocznych". Optymalizacje, jak już wspomniałem, są twoją pracą domową, natomiast przykładowy program wraz z kodem źródłowym znajdziesz w dziale Download.
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apibmp.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidlg.html">Następna część kursu >></A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

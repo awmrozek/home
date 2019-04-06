@@ -1,0 +1,444 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>ISP-Hookup-HOWTO: News</TITLE>
+ <LINK HREF="ISP-Hookup-HOWTO-6.html" REL=next>
+ <LINK HREF="ISP-Hookup-HOWTO-4.html" REL=previous>
+ <LINK HREF="ISP-Hookup-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="ISP-Hookup-HOWTO-6.html">Next</A>
+<A HREF="ISP-Hookup-HOWTO-4.html">Previous</A>
+<A HREF="ISP-Hookup-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. News</A></H2>
+
+<H2><A NAME="ss5.1">5.1 How do I set up an online news-reader?</A>
+</H2>
+
+<P>
+<!--
+news-reader
+-->
+ As long as PPP is active, it will be
+possible to read news <B>online</B>.  There are lots
+of available programs, two simple alternatives being
+<!--
+rtin
+-->
+ rtin and 
+<!--
+trn
+-->
+
+trn.
+<P>To start reading news, the only thing required in terms of
+configuration in most cases is to set NNTPSERVER
+(usually once and for all in the file 
+<!--
+.profile
+-->
+
+.profile):
+<BLOCKQUOTE><CODE>
+<PRE>
+export NNTPSERVER=news.acme.xz
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To get the <I>From</I>-address correct in postings, some
+programs <I>may</I> require:
+<BLOCKQUOTE><CODE>
+<PRE>
+export NNTP_INEWS_DOMAIN=acme.xz
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+NNTP_INEWS_DOMAIN
+-->
+<P>
+<H2><A NAME="ss5.2">5.2 How do I set up an offline news-reader?</A>
+</H2>
+
+<P>
+<!--
+news-reader
+-->
+ To be able to read news while
+offline and thus reduce phone bills and give greater
+flexibility, one must set up a local news-spool of one
+sort or the other.  This requires some configuration, and there
+will also be a certain amount of disk space involved.  After
+initial setup, things should run more or less by themselves, with
+only some attention needed from time to time.
+<P>Two different solutions will be described here.
+<P>
+<H2><A NAME="ss5.3">5.3 How do I set up C News?</A>
+</H2>
+
+<P>The solution described here is based on the news-server
+<B>C News</B> and the NNTP protocol.
+C News was originally targeted towards another sort of
+configuration, but is flexible enough to handle our situation
+too.  One might also use the more recent <B>INN</B>
+news server but it might require a bit more in terms
+of resources. Either way, be careful <B>not</B> to install
+both; they don't live together easily.
+<P>It is crucial that all maintenance of news is done while logged
+in as user <CODE>news</CODE>, and that all configuration
+files is placed in 
+<!--
+/usr/lib/news
+-->
+
+/usr/lib/news.  One way of handling this is, while
+logged in as <CODE>root</CODE> to write <CODE>su news;
+cd</CODE>.
+<P>The most important files in the configuration are:
+<P> 
+<UL>
+<LI> 
+<!--
+active
+-->
+ active is an overview
+over active newsgroups.  It is updated as required by the command
+<!--
+addgroup
+-->
+ addgroup, e.g.  <CODE>addgroup
+comp.os.linux.networking y</CODE>.</LI>
+<LI> 
+<!--
+organization
+-->
+ organization should
+simply contain whatever you want in the <I>Organization:</I>
+header field, in our case:</LI>
+</UL>
+
+<BLOCKQUOTE><CODE>
+<PRE>
+Dirk Gently's Holistic Detective Agency
+</PRE>
+</CODE></BLOCKQUOTE>
+<P> 
+<UL>
+<LI> 
+<!--
+mailname
+-->
+ mailname should in our
+case be set to <CODE>acme.xz</CODE>.</LI>
+<LI> 
+<!--
+whoami
+-->
+ whoami is set to the name
+of your <CODE>site</CODE> in the Path: thread.
+In a setup as described here, using 
+<!--
+newsx
+-->
+
+newsx, this name will never leave the machine, so
+you can set this to whatever you like as long as you are pretty
+sure it is unique. In this case <CODE>roderick</CODE>.</LI>
+<LI> The file 
+<!--
+sys
+-->
+ sys controls
+fetching and further distribution of news.  We will assume the
+ISP in our case adds <CODE>acme.xz</CODE> to the Path, and that this
+is the only news source we have.  The example given really tells
+that we will accept everything that arrives, and that we will
+only post news to <CODE>acme.xz</CODE> that it hasn't seen before,
+and is originally posted at our own site.  In this simplified
+setup we assume that the all groups will come from a single
+source.  <CODE>/all</CODE> specifies the distribution, and
+<B>must</B> be included.  The letter <CODE>F</CODE> says
+that (pointers to) outgoing news articles will be collected in a
+file.</LI>
+</UL>
+
+<BLOCKQUOTE><CODE>
+<PRE>
+ME:all/all::
+acme/acme.xz:all,!junk/all:FL:
+</PRE>
+</CODE></BLOCKQUOTE>
+<P> 
+<UL>
+<LI> A subdirectory for the outgoing news must be created, in
+our case:</LI>
+</UL>
+
+<BLOCKQUOTE><CODE>
+<PRE>
+mkdir /var/spool/news/out.going/acme
+</PRE>
+</CODE></BLOCKQUOTE>
+<P> 
+<UL>
+<LI> 
+<!--
+mailpaths
+-->
+ mailpaths controls
+posting in moderated groups, although this task may usually be
+left to the ISP.</LI>
+</UL>
+<P>C News needs a certain degree of daily maintenance, but this can
+be specified once and for all via the command <CODE>crontab -e</CODE>
+<!--
+crontab
+-->
+ issued as user <CODE>news</CODE>.  A suggested
+setup follows; it can be tuned as required:
+<BLOCKQUOTE><CODE>
+<PRE>
+# maintain incoming and outgoing batches
+10,40 *  * * * /usr/lib/newsbin/input/newsrun
+
+# expire C News, once a day
+30 0  * * * /usr/lib/newsbin/expire/doexpire
+
+# monitor and report if needed
+00 2  * * sat /usr/lib/newsbin/maint/addmissing
+40 3  * * * /usr/lib/newsbin/maint/newswatch
+50 3  * * * /usr/lib/newsbin/maint/newsdaily
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+newsrun
+-->
+ newsrun moves articles in and
+out (twice every hour), 
+<!--
+doexpire
+-->
+
+doexpire will delete articles as they get old (every
+night at 00:30), and the three last commands does various
+supervisory and error correcting tasks.
+<P>One should also ensure that things are cleaned up when starting
+the machine. As user root, add the following line to
+/etc/rc.d/rc.local:
+<BLOCKQUOTE><CODE>
+<PRE>
+su news -c /usr/lib/newsbin/maint/newsboot
+</PRE>
+</CODE></BLOCKQUOTE>
+
+News may be collected via the program <B>NewsX</B>,
+<!--
+NewsX
+-->
+ picking news from an NNTP-server
+The program can be found at:
+<P><CODE>
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/system/news/transport/newsx-0.9.tar.gz">ftp://sunsite.unc.edu/pub/Linux/system/news/transport/newsx-0.9.tar.gz</A></CODE>
+Or:
+<P><CODE>
+<A HREF="ftp://ftp.sol.no/user/egilk/newsx-0.9.tar.gz">ftp://ftp.sol.no/user/egilk/newsx-0.9.tar.gz</A></CODE>
+<P>Setting up <CODE>NewsX</CODE> is quite simple.
+Installation is a classic case of:
+<BLOCKQUOTE><CODE>
+<PRE>
+make
+su
+make install
+exit
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>With the setup outlined here, all you have to do is to create the
+groups you want to read using the 
+<!--
+addgroup
+-->
+
+addgroup command.
+<P>To fetch articles, user <CODE>news</CODE> issues the
+following commands (assuming communication via PPP or similar is
+up):
+<BLOCKQUOTE><CODE>
+<PRE>
+newsrun
+newsx acme news.acme.xz
+newsrun
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+newsrun
+-->
+<P>The option <CODE>-d</CODE> gives continuous printout to the screen.
+Refer to the NewsX documentation for further information.
+<P>NewsX will also take care of posting of outgoing news.
+<P>To control disposal of articles as they get old, a file
+<CODE>explist</CODE> is required.  The comments in this
+example should explain what we want to do:
+<BLOCKQUOTE><CODE>
+<PRE>
+# hold onto history lines 14 days, nobody gets &gt;120 days
+/expired/                       x       14      -
+/bounds/                        x       0-1-120 -
+
+# retain these for 2 months
+comp.sources,comp.os.linux.all  x       60      -
+
+# noise gets thrown away fast
+junk,control                    x       2       -
+
+# default:  14 days, no archive
+all                             x       14      -
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><B>ALT:</B> In a small news-spool, one will usually not need
+the newsgroup <CODE>control</CODE>.  The traffic is <B>huge</B>
+compared to the possible usefulness. The main point is that
+articles will be canceled, and that groups may be created
+automatically. To ensure that control messages containing
+<CODE>newgroup</CODE> not shall mess up things for us, a file called
+<!--
+newgroupperm
+-->
+ newgroupperm specifies
+what we will allow:
+<BLOCKQUOTE><CODE>
+<PRE>
+comp.os.linux   tale@uunet.com  yv
+all             any             nq
+</PRE>
+</CODE></BLOCKQUOTE>
+
+In this example, all proper groups under comp.os.linux will be
+created (y), and the user <CODE>news</CODE> will be notified (v).
+Everything else will be silently (q) ignored (n).  The last line
+is sufficient if you want to create all groups manually.
+<P><B>ALT:</B> An alternative to NewsX is suck.
+<P>
+<H2><A NAME="ss5.4">5.4 How do I set up Leafnode?</A>
+</H2>
+
+<P>A different solution altogether is to install the integrated
+package 
+<!--
+leafnode
+-->
+ leafnode.  This will
+handle all tasks required for a personal news spool, and is easy
+to configure.  It is available via:
+<P><CODE>
+<A HREF="http://www.troll.no/freebies/leafnode.html">http://www.troll.no/freebies/leafnode.html</A></CODE>
+<P>As for C News, all news maintenance really should be performed as
+user <CODE>news</CODE>.
+<P>The home directory for leafnode is in
+/usr/lib/leafnode.  To install, write:
+<BLOCKQUOTE><CODE>
+<PRE>
+cd /usr/lib/leafnode
+tar -xzvf leafnode-0.8.tgz
+cd leafnode-0.8
+make
+su
+make install
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Note in the following that the prefix
+/usr/local/sbin should be replaced with
+/usr/sbin if you installed leafnode from a package.
+<P>While still being logged in as <CODE>root</CODE>, change the line
+that controls NNTP in 
+<!--
+/etc/inetd.conf
+-->
+
+/etc/inetd.conf:
+<BLOCKQUOTE><CODE>
+<PRE>
+nntp  stream  tcp  nowait  news  /usr/sbin/tcpd /usr/local/sbin/leafnode
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Activate it by:
+<BLOCKQUOTE><CODE>
+<PRE>
+killall -HUP inetd
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Return to user <CODE>news</CODE> by writing exit.  In
+<!--
+/usr/lib/leafnode/config
+-->
+
+/usr/lib/leafnode/config change the line that
+defines the NNTP server. In our case:
+<BLOCKQUOTE><CODE>
+<PRE>
+server = news.acme.xz
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Leafnode will look after itself by adding the following command
+via <CODE>crontab -e</CODE> as user <CODE>news</CODE>:
+<BLOCKQUOTE><CODE>
+<PRE>
+# expire Leafnode, once a day
+0 4 * * * /usr/local/sbin/texpire
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+texpire
+-->
+<P>News exchange is also done as user <CODE>news</CODE> by the following
+command (assuming PPP is up and running):
+<BLOCKQUOTE><CODE>
+<PRE>
+/usr/local/sbin/fetch
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+fetch
+-->
+<P>Users who wants to read news should then use the recipe in
+<I>How do I set up an online news-reader?</I>, except that they
+configure for the local machine, i.e:
+<BLOCKQUOTE><CODE>
+<PRE>
+export NNTPSERVER=localhost
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>That should be all there is to it.  The first
+<CODE>fetch</CODE> will transfer a list of available
+newsgroups.  Leafnode will then monitor what groups the users are
+requesting, and adapt to this the <B>next</B> time it is
+activated.
+<P>Note that leafnode does not seems to work in cases where NNTP
+authorization is required.  +.LP
+<P><B>ALT:</B> An alternative to leafnode is
+nntpcache, available from:
+<P><CODE>
+<A HREF="ftp://ftp.suburbia.net/pub/nntpcache/nntpcache.tgz">ftp://ftp.suburbia.net/pub/nntpcache/nntpcache.tgz</A></CODE>
+<B>ALT:</B> Another alternative is to use the newsreader
+<!--
+slrn
+-->
+ slrn together with the 
+<!--
+slrn-
+pull
+-->
+ slrn-pull package. The newsreader must
+be compiled with the <CODE>spool</CODE> feature set.
+<P>
+<HR>
+<A HREF="ISP-Hookup-HOWTO-6.html">Next</A>
+<A HREF="ISP-Hookup-HOWTO-4.html">Previous</A>
+<A HREF="ISP-Hookup-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

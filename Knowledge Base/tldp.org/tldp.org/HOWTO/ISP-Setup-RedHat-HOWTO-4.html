@@ -1,0 +1,1581 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>"Pocket" ISP based on RedHat Linux HOWTO: Step by step guide</TITLE>
+ <LINK HREF="ISP-Setup-RedHat-HOWTO-5.html" REL=next>
+ <LINK HREF="ISP-Setup-RedHat-HOWTO-3.html" REL=previous>
+ <LINK HREF="ISP-Setup-RedHat-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="ISP-Setup-RedHat-HOWTO-5.html">Next</A>
+<A HREF="ISP-Setup-RedHat-HOWTO-3.html">Previous</A>
+<A HREF="ISP-Setup-RedHat-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Step by step guide</A></H2>
+
+<P>
+<P>Ingredients needed:
+<UL>
+<LI>RedHat Linux distribution (the instructions are exactly applicable to RedHat
+6.x or 7.x and, I think,  with some minor changes to 5.x))</LI>
+<LI>
+<A HREF="http://www.redhat.com/support/hardware/">compatible</A> hardware (also known as a PC), that includes
+network card and modem (at least one)</LI>
+<LI>3-256 IP addresses (as the machine will give out some IP addresses for modem
+callers and use others for virtual hosting more than 1 is needed, the upper
+number is the maximum number of IP-based virtual hosts allowed without
+recompiling the stock RedHat kernel, lower is one real IP, one modem and one virtual
+IP - see reference for sinlge IP virtual hosting below).</LI>
+<LI>some sort of permanent network connection (using some modems for dialin while
+providing the Internet access via another modem is considered <I>totally weird</I>
+and not recommended)</LI>
+</UL>
+<P>Here follows the procedure:
+<P>
+<H2><A NAME="ss4.1">4.1 Get RH</A>
+</H2>
+
+<P>Purchase or otherwise procure the RedHat 7.0 (further referred as RH,
+latest version number is 7.0 at the time of updating) distribution and
+<A HREF="http://www.redhat.com/support/hardware/">compatible</A> hardware.  One can get a full RH CDROM for about
+$3.00 including shipping and handling at 
+<A HREF="http://www.cheapbytes.com">http://www.cheapbytes.com</A>. This version will not contain such luxuries
+as secure web server and extra software. For those you should turn to
+<A HREF="http://www.redhat.com">RedHat website</A>.
+Or probably buying the PC with Linux RH pre-installed is  an option for some. 
+<P>     
+<H2><A NAME="ss4.2">4.2 Install RH</A>
+</H2>
+
+<P>Install the RH following the *instructions on the package* (might be
+added here later). CDROM install is very easy to perform. I suggest
+using text-mode setup, in my case their graphical one failed
+miserably. When asked about the installation type
+(Server/Workstation/Custom) choose Server or Custom (if you know what
+you are doing)-you can always add software later. Some other important
+installation decisions are outlined further. For RH 6.0 and 6.1 you
+might be able to add packages to Workstation setup as well, but in RH 6.2 and
+later (7.0) all
+the server services are disabled and significant amount of tweaking is
+required-so only Server or Custom is strongly recommended.
+<P>
+<H2><A NAME="ss4.3">4.3 Some install tips</A>
+</H2>
+
+<P>If your hardware really is 
+<A HREF="http://www.redhat.com/support/hardware/">compatible</A> the installation
+process will detect and configure it correctly. Otherwise, refer to
+corresponding documentation for troubleshooting network card, modem,
+video card, etc problems
+(mostly HOWTOs and mini-HOWTOs, some are in References section below).
+<P>Here are some ideas on disk space partitioning. Read 
+<A HREF="http://linuxdoc.org/HOWTO/Multi-Disk-HOWTO.html">Linux Partitions HOWTO</A>  (a bit outdated)
+to get some general hints on functions of partitions and their sizes for
+different kinds of server setups. 
+<P>Lest assume we are setting up a server for under one hundred users. We will
+need separate /tmp, /var and /home partititons (and swap, of course).
+If you hard drive is around 4 GB than roughly 300 MB is /tmp, 100MB swap, 1 GB /var (you
+want ample logging) and 1GB /home.
+The remaining  1.6GB will be root partition (no separate /usr). The split between
+/home  and / might depend upon the amount of web pages you plan to host - the
+more pages the more space goes to /home. To enhance security it is nice to put
+some restricions (in /etc/fstab) to /tmp, /var and /home partitions (similar to those
+described in my
+<A HREF="http://www.chuvakin.org/kiodoc">Public Browser Station HOWTO </A>.
+<P>If your network card is detected properly you will be asked for an IP
+address of your machine, gateway address and network mask and the
+address of the DNS server (might be your own machine if you plan to
+set it up this way). Have all this info handy.
+Also you will be asked for a machine name and domain name.
+We will use a sample domain name <B>you.com</B> and the machine will be
+named <B>ns</B> (that gives us a fully qualified domain name (FQDN)
+<B>ns.you.com</B>). You should use whatever domain you registered (see
+Setting Up Your New Domain Mini-HOWTO, link in References section below)
+and intend to use as your primary domain (not a virtual).
+For the gateway address we will use a sample 111.222.333.111 address. Gateway
+is likely the router that connects your machine (or your LAN) to the outside world.
+<P>Enable <B>shadow</B> and <B>MD5</B> passwords for greater security.
+First of those makes the file that contains encrypted
+passwords readable only to <CODE>root</CODE> user
+and the second allows longer and harder to crack passwords.
+As it will be a standalone machine do not enable NIS/NFS.
+<P>After installation finishes and machine reboots you will see the login
+prompt.
+Enter login and password (for the root account) and start configuring you
+new Linux station.
+<P>
+<H2><A NAME="ss4.4">4.4 Some preliminary security configuration</A>
+</H2>
+
+<P>First (and fast), add a line:
+<CODE>ALL:ALL</CODE>
+to your <I>/etc/hosts.deny</I> file. That would (to some known extent)
+prevent other people from accessing your machine while you are doing the
+configuration. That will also prevent you from doing the same. For
+further configuration efforts (that can be done remotely, by the way)
+<A HREF="http://www.ssh.com">secure shell</A> is
+recommended. Download the RPM package for RH from one of the many sites
+and install it (as root) using: <B> rpm -U ssh*rpm</B> or similar
+command (depends upon the version). You will have to get both client and
+server packages (if you want to ssh from this machines as well as to
+this machine). Upon installation all necessary post-installation commands
+(like server key generation)
+are run automatically by the RPM package. You will have to start server
+manually using command <B>/etc/rc.d/init.d/sshd start</B>.Some early
+versions of ssh1 and also all versions of ssh1 compiled with RSAREF library
+contain a buffer-overflow bug. Use ssh2 or the latest version of ssh1
+without RSAREF. If you do this you will have to allow access using ssh
+from some trusted machine (described later) in
+<I>/etc/hosts.allow</I> file. RedHat 7.0 now includes OpenSSH clone that
+supports both ssh1 and ssh2 protocols. Its configuration is almost the same
+as ssh. It has some minor configuration advantages over ssh (for instance, no X11 forwarding
+by default) and is otherwise the same. Sshd (when run as daemon) will also
+refer to  <I>/etc/hosts.deny</I> and  <I>/etc/hosts.allow</I> for access control.
+<P>If you want to be really rigorous in you configuration pursuits go to single
+use mode by giving the command <B>init 1</B>, in this case all work is to
+be done locally and you would not be able to test you network-related
+configuration as network is not available in this mode.
+<P>To further enhance your security <B>ipchains</B> software (that is
+usually part of your Linux distribution) can be
+used (for that refer to IPCHAINS HOWTO, link in References).
+It takes quite a bit more efforts to configure it than TCP wrappers,
+although some automated tools are available for that too.
+<P>
+<H2><A NAME="ss4.5">4.5 Remove unnecessary services</A>
+</H2>
+
+<P>Now lets deal with unnecessary services. Please note that my idea of
+"unnecessary" might not be 100% same as yours. Also, telnet is now considered
+by many to be not only unnecessary, but really utterly undesirable. <B>Use ssh</B>, and
+forget telnet once and for all!
+<OL>
+<LI>Services started from <I>/etc/inetd.conf</I> (RedHat 7.0
+introduced the more advanced <I>/etc/xinetd.conf</I> which uses somewhat
+different syntax, see below):<P>comment out all the lines, but those
+<BLOCKQUOTE><CODE>
+<PRE>
+ftp     stream  tcp     nowait  root    /usr/sbin/tcpd  in.ftpd -L -l -i -a
+telnet  stream  tcp     nowait  root    /usr/sbin/tcpd  in.telnetd
+         
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Check this by using the command: <B>grep -v '\#' /etc/inetd.conf</B>
+<P>If you will be using the secure shell (ssh), telnet is also not necessary and can
+be removed. Secure shell can either be started as a daemon on system startup
+or as a service from <I>/etc/inetd.conf</I>. Default configuration (used by
+the RPM package) is to start is as a daemon. Sshd can be compiled to refer to
+<I>/etc/hosts.allow</I> file for access control. In this case, while you
+will not have it in your <I>/etc/inetd.conf</I>, it will still use the
+settings from <I>/etc/hosts.allow</I> and <I>/etc/hosts.deny</I>. The
+advantages of this method is faster connection as the sshd will not have to
+regenerate server key every time somebody connects. On the other hand, if you
+start it from  <I>/etc/inetd.conf</I> it will be more isolated from the
+outside world.
+More lines will be added to <I>/etc/inetd.conf</I> as necessary (POP3 is one
+of those).
+<P>Here goes the note for RedHat 7.0 users. Inetd daemon (while still present
+in  the distribution) is now replaced with xinetd. Its configuration file
+format is  as follows:
+<BLOCKQUOTE><CODE>
+<PRE>
+#
+# Simple configuration file for xinetd
+#
+# Some defaults, and include /etc/xinetd.d/
+
+defaults
+{
+        instances               = 60
+        log_type                = SYSLOG authpriv
+        log_on_success          = HOST PID
+        log_on_failure          = HOST RECORD
+}
+
+includedir /etc/xinetd.d
+</PRE>
+</CODE></BLOCKQUOTE>
+
+where <I>/etc/xinetd.d</I> directory looks like (with probably more file in
+your case):
+<BLOCKQUOTE><CODE>
+<PRE>
+-rw-r--r--    1 root     root          498 Aug 23 00:17 tftp
+-rw-r--r--    1 root     root          414 Jul 21 08:43 rsh
+-rw-r--r--    1 root     root          362 Jul 21 08:43 rexec
+-rw-r--r--    1 root     root          361 Jul 21 08:43 rlogin
+-rw-r--r--    1 root     root          347 Aug  9 05:55 wu-ftpd
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Files in the directory configure individual services like finger, telnet or
+ftp. There format is (this service, ftp, defaults to <B>on</B> on stock
+RedHat 7.0)
+<BLOCKQUOTE><CODE>
+<PRE>
+# default: on
+# description: The wu-ftpd FTP server serves FTP connections. It uses \
+#       normal, unencrypted usernames and passwords for authentication.
+service ftp
+{
+        socket_type             = stream
+        wait                    = no
+        user                    = root
+        server                  = /usr/sbin/in.ftpd
+        server_args             = -l -a
+        log_on_success          += DURATION USERID
+        log_on_failure          += USERID
+        nice                    = 10
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Or (this service, tftp, defaults to <B>off</B> on stock
+RedHat 7.0)
+<BLOCKQUOTE><CODE>
+<PRE>
+# default: off
+# description: The tftp server serves files using the trivial file transfer \
+#       protocol.  The tftp protocol is often used to boot diskless \
+#       workstations, download configuration files to network-aware printers, \
+#       and to start the installation process for some operating systems.
+service tftp
+{
+        socket_type             = dgram
+        wait                    = yes
+        user                    = nobody
+        log_on_success          += USERID
+        log_on_failure          += USERID
+        server                  = /usr/sbin/in.tftpd
+        server_args             = /tftpboot
+        disable                 = yes
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>So, to disable services add "disable= yes" to the end of correspondent file or just remove the file. 
+<P>
+</LI>
+<LI>Services started on system startup from <I>/etc/rc.d</I> directory:<P>Check what services are running by using: <B>ps ax</B>. You will
+get something similar to the <CODE>sample</CODE> output below:
+<BLOCKQUOTE><CODE>
+<PRE>
+    PID TTY      STAT   TIME COMMAND
+    1 ?        S      0:04 init
+    2 ?        SW     0:30 [kflushd]
+    3 ?        SW     0:32 [kupdate]
+    4 ?        SW     0:00 [kpiod]
+    5 ?        SW     0:03 [kswapd]
+    6 ?        SW&lt;    0:00 [mdrecoveryd]
+  296 ?        SW     0:00 [apmd]
+  349 ?        S      0:00 syslogd -m 0
+  360 ?        S      0:00 klogd
+  376 ?        S      0:00 /usr/sbin/atd
+  392 ?        S      0:00 crond
+  412 ?        S      0:00 inetd
+  454 ttyS0    S      0:00 gpm -t ms
+  533 tty2     SW     0:00 [mingetty]
+  534 tty3     SW     0:00 [mingetty]
+  535 tty4     SW     0:00 [mingetty]
+  536 tty5     SW     0:00 [mingetty]
+  537 tty6     SW     0:00 [mingetty]
+  667 tty1     SW     0:00 [mingetty]
+ 4540 ?        S      0:00 httpd
+ 5176 ?        S      0:00 httpd
+ 5177 ?        S      0:00 httpd
+ 5178 ?        S      0:00 httpd
+ 5179 ?        S      0:00 httpd
+ 5180 ?        S      0:00 httpd
+ 5181 ?        S      0:00 httpd
+ 5182 ?        S      0:00 httpd
+ 5183 ?        S      0:00 httpd
+ 7321 ?        S      0:00 /usr/sbin/sshd                 &lt;&lt;&lt; only after you installed sshd to run on startup
+ 7323 pts/0    S      0:00 -bash
+ 7336 pts/0    R      0:00 ps ax
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Lets concentrate on processes that listen to network, such as
+lpd. Since we do not plan to use our server for printing (we sure
+might, I just don't describe it here), I suggest we remove the
+printer daemon by: <B>rpm -e lpd </B>. If rpm complains about any
+dependencies (like, in my case, printfilter and rhprinttool), add
+them to your <B>rpm -e</B> command and repeat it. Other services
+that should be removed are NFS, NIS, samba etc, if they got installed
+by mistake. Make sure you remove NFS/NIS (if you are not using
+them) as bugs are often found in them. Again, these are useful things, I am just following the
+*golden rule* <B>"remove the software you don't currently use"</B>. And,
+with RH RPM it is really easy to add it any time in the future.
+</LI>
+</OL>
+<P>Some more basic security settings can be obtained from 
+<A HREF="http://www.enteract.com/~lspitz/linux.html">Armoring Linux</A>
+paper. As suggested there, lets make a wheel group with trusted users
+(in our case, only user <CODE>you</CODE>will be able to do <CODE>/bin/su</CODE> and to
+run cron jobs (together with root).
+<UL>
+<LI>wheel group for sensitive commands:<P>
+<OL>
+<LI><CODE>vi /etc/group</CODE>, add a line (if it doesn't exist):
+<PRE>
+wheel:x:10:root,you
+</PRE>
+ If line exists, just add <CODE>you</CODE> in the end
+as shown.
+You don't have to use vi (and somehow I understand it very well ;-)), just use your favorite editor
+(for a nice reasonably user-friendly non-X editor try <CODE>pico</CODE>, distributed
+together with mail program <CODE>pine</CODE>, the latter is part of most Linux distributions)</LI>
+<LI>
+<PRE>
+/bin/chgrp wheel /bin/su
+</PRE>
+ change group ownership to
+<CODE>wheel</CODE> group on <CODE>/bin/su</CODE></LI>
+<LI>
+<PRE>
+/bin/chmod 4750 /bin/su
+</PRE>
+  change mode on <CODE>/bin/su</CODE></LI>
+</OL>
+</LI>
+<LI>restrict cron:<P>To only allow <CODE> root</CODE> and <CODE>you</CODE> to submit cron jobs create a
+file called <I>/etc/cron.allow</I> that contains usernames that you want to
+be able to run cron jobs. This file might look like this:
+<BLOCKQUOTE><CODE>
+<PRE>
+root
+you
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Why should one restrict cron jobs? Local exploits to elevate privileges to <CODE>root</CODE>
+from, say, <CODE>nobody</CODE>, exist for some versions of cron.
+</LI>
+</UL>
+<P>I suggest you do not install X Windows as it will bring new concern that
+you might not be prepared to deal with.
+<P>
+<H2><A NAME="ss4.6">4.6 Enable multiple IP addresses </A>
+</H2>
+
+<P>Now we are ready to enable our machine to handle multiple IP addresses for
+virtual hosting. At that point, the IP Aliasing HOWTO might come
+handy (see link in References).
+For several reasons, IP-based virtual hosting is better (if you have
+enough IP addresses, that is). For instance, reverse lookups would succeed, if
+done from the browser side. It might also be needed for hosting
+cryptographically enabled websites (commonly known as "secure websites").
+Older browsers (not supporting HTTP 1.1) will get unhappy too.
+<P>The changes would be concentrated in <I>/etc/rc.d/</I> directory.
+To enable multiple IP addresses your kernel should support this. On a freshly
+installed RH Linux it does. To verify it one should look into the config file
+that was used to compile the kernel. In my case, it was
+<I>/usr/src/linux/configs/kernel-2.2.17-i686.config</I> since the machine
+has Pentium III processor.  This file exists, if the <CODE>kernel-source</CODE> RPM
+package was installed. If line <CODE>CONFIG_IP_ALIAS=y</CODE> is present in the
+file than you are OK.  While we are here, we can also confirm the ability to
+forward IP packets (needed for dialup users PPP). This ability is present, but
+not turned on by default (to turn it on do execute the following command
+<CODE>echo 1 > /proc/sys/net/ipv4/ip_forward</CODE> or add a line into <I>/etc/sysctl.conf</I>). Also needed is the support for PPP protocol (line
+<CODE>CONFIG_PPP=m</CODE>, this means PPP support is compiled as a kernel loadable
+module, <CODE>CONFIG_PPP=y</CODE> is also OK)
+<P>The examples will use the ridiculous IP addresses
+111.222.333.444-111.222.333.777 from C block 111.222.333.0. 111.222.333.444 is
+a real host IP (that is configured during RH installation),
+111.222.333.555-777 are virtual addresses and 111.222.333.888 is a dialin user address
+(can be more of those).
+<P>
+<P> Lets assume we want to configure 3 virtual hosts.
+<P>Two sets of commands will be used:
+<OL>
+<LI>
+<BLOCKQUOTE><CODE>
+<PRE>
+/sbin/ifconfig eth0:0 111.222.333.555
+/sbin/ifconfig eth0:1 111.222.333.666
+/sbin/ifconfig eth0:2 111.222.333.777
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>These will bind the IP addresses to (virtual) interfaces
+<CODE>eth0:0-eth0:2</CODE>.
+<P>
+</LI>
+<LI>
+<BLOCKQUOTE><CODE>
+<PRE>
+/sbin/route add -host  111.222.333.555 dev eth0
+/sbin/route add -host  111.222.333.666 dev eth0
+/sbin/route add -host  111.222.333.777 dev eth0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>These commands will add routes for those addresses and connect those to real
+interface <CODE>eth0</CODE> (ethernet card).
+</LI>
+</OL>
+
+After doing them the ifconfig command output (<CODE>ifconfig</CODE>) will look
+like this:
+<BLOCKQUOTE><CODE>
+<PRE>
+eth0      Link encap:Ethernet  HWaddr 02:60:8C:4D:24:CE  
+          inet addr:111.222.333.444  Bcast:255.255.255.255  Mask:255.255.255.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:901597 errors:33 dropped:0 overruns:0 frame:823
+          TX packets:433589 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:128327 txqueuelen:100 
+          Interrupt:5 Base address:0x280 
+
+eth0:0    Link encap:Ethernet  HWaddr 02:60:8C:4D:24:CE  
+          inet addr:111.222.333.555  Bcast:111.222.333.255  Mask:255.255.255.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          Interrupt:5 Base address:0x280 
+
+eth0:1    Link encap:Ethernet  HWaddr 02:60:8C:4D:24:CE  
+          inet addr:111.222.333.666  Bcast:111.222.333.255  Mask:255.255.255.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          Interrupt:5 Base address:0x280
+
+eth0:2    Link encap:Ethernet  HWaddr 02:60:8C:4D:24:CE  
+          inet addr:111.222.333.777  Bcast:111.222.333.255  Mask:255.255.255.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          Interrupt:5 Base address:0x280
+
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:3924  Metric:1
+          RX packets:26232 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:26232 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0 
+</PRE>
+</CODE></BLOCKQUOTE>
+
+All commands can be added to the bottom of <I>/etc/rc.d/rc.local</I> so that
+the changes are saved after reboot. Strictly speaking, rebooting machine is
+not required for adding new IP addresses. Please, do document all changes
+you do to your machines. Many a good sysadmin (or, should I say not-so-good?)
+were burned on that at some point in their careers.
+<P><B>TO TEST THE CHANGES</B>
+<P><CODE>Do:</CODE> ping virtual addresses as
+<PRE>
+ping 111.222.333.555
+ping 111.222.333.666
+ping 111.222.333.777
+</PRE>
+<P><CODE>Should get:</CODE>
+interfaces should be up
+<P>
+<H2><A NAME="ss4.7">4.7 Configure DNS</A>
+</H2>
+
+<P>Now we are ready to configure DNS.
+The easiest way would be to add the hostnames (real and all the virtual) that
+we want to be seen by the world to the configuration of some machine that
+already has bind (DNS daemon) running. But, since we are setting up
+ISP-in-a-box we might not be able to avoid "DNS fun".
+<P>Now, let me
+also try to defend the (well, questionable) choice of "outdated" version of bind 4.9.7
+(last of the pre-8 series). I know that my arguments can be beaten, now that
+even bind 9 is out, but
+I consider bind 4.9.7 much more time-tested and stable. The arguments for
+upgrading to 8.x
+(provided 
+<A HREF="http://www.acmebw.com/askmrdns/00444.htm">http://www.acmebw.com/askmrdns/00444.htm</A>
+and 
+<A HREF="http://www.dns.net/dnsrd/servers.html">http://www.dns.net/dnsrd/servers.html</A>
+and, I guess, at many other places. Here is a
+<A HREF="http://www.deja.com/[ST_rn=ps]/getdoc.xp?AN=651139761">message</A>
+from Theo de Raadt 
+himself (the head of OpenBSD development) where he justifies the choice of
+bind 4 as part of OpenBSD-the most secure UNIX OS around. He also shudders at
+the amount of bugs the OpenBSD auditing team saw in BIND 8 source code) 
+still didn't seem to convince many people. And, lets not forget the "exploit of 1999" -
+ADMROCKS, that gives remote root access to almost any Linux machine running bind prior to
+8.1.2 patch 3. Judging by the INCIDENTS mailing list, this is still a very
+popular way to attack RH versions 5.0-6.1 if no recommended upgrades are
+installed.
+It is claimed that named (whatever version) should always be run in a chroot jail.
+<P>Here are the instructions, loosely following the DNS book from O'Reilly (a good
+one, highly recommended to all, but very casual DNS user).
+<P>
+<OL>
+<LI>Find and install bind 4.9.7 either from RPM package (RH 4.2, if I am not
+mistaken - for that you can use 
+<A HREF="http://rpmfind.net/linux/RPM/">RPMFIND.net</A>,
+personally I didn't try this and so I am somewhat skeptical
+about installing RH 4.2 package on RH 6.1 system, but it might work)
+or from source (
+<A HREF="ftp://ftp.isc.org/isc/bind/src/4.9.7/">bind 4.9.7</A>,
+compiling it is a bit troublesome, but reading all the README files
+in the archive will definitely help).</LI>
+<LI>Create files and directories needed for bind:
+<UL>
+<LI><I>/etc/named.boot</I></LI>
+<LI><I>/etc/namedb</I></LI>
+<LI><I>/etc/namedb/db.you</I></LI>
+<LI><I>/etc/namedb/db.111.222.333</I></LI>
+<LI><I>/etc/namedb/db.127.0.0</I></LI>
+<LI><I>/etc/namedb/db.yoursite1</I></LI>
+<LI><I>/etc/namedb/db.yoursite2</I></LI>
+<LI><I>/etc/namedb/db.yoursite3</I></LI>
+</UL>
+
+This will be used for 3 virtual domains: <B>yoursite1.com</B>,<B>yoursite2.com</B> and
+<B>yoursite3.com</B>. One more important comment refers to secondary DNS issue.
+As all your domains and all their services will be hosted on the same machine,
+DNS backup in the form of secondary server doesn't make much sense:
+if your primary DNS is down everything else (mail, www, ftp, pop, etc)
+is down as well. But you do have to have a secondary DNS to register a domain.
+Try to convince somebody to put you in as a secondary or use a free DNS service
+(link is in Setting Up Your New Domain Mini-HOWTO).
+</LI>
+<LI><P>That is how they look like (if you are unfamiliar with bind 4.x configuration
+file format, please, do read either the O'Reilly DNS book or any
+of the HOWTOs or documents at
+<A HREF="http://www.dns.net/dnsrd/">bind pages</A>, or, better, all of the above.
+You also have an option of using them without understanding, but this is a bad idea in general):
+<P><I>/etc/named.boot</I>
+<P>This is the main config file for bind 4.9.x.
+<BLOCKQUOTE><CODE>
+<PRE>
+directory /etc/namedb
+
+;cache-obtained from internic, usually
+cache   .                               db.cache
+
+;main config files
+primary you.com                         db.you
+;reverse lookups
+primary 333.222.111.in-addr.arpa        db.111.222.333
+;localhost.localnet configs
+primary 0.0.127.in-addr.arpa            db.127.0.0
+
+;virtual Domains
+primary yoursite1.net                     db.yoursite1
+primary yoursite2.net                     db.yoursite2
+primary yoursite3.net                     db.yoursite3
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI><P><I>/etc/namedb/db.you</I>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+; defines our local hosts at you.com, just one in our case, and its aliases
+@                       IN      SOA     ns.you.com. root.ns.you.com. (
+                                        2000012190 7200 1800 3600000 7200 )
+;name servers and mail servers
+                        IN      NS      ns.you.com.
+                        IN      MX      10 ns.you.com.
+                        IN      A       111.222.333.444
+ns                      IN      A       111.222.333.444
+
+;address of the canonical names
+localhost               IN      A       127.0.0.1
+gateway                 IN      A       111.222.333.111
+
+;aliases (to use in ftp: ftp ftp.you.com etc, for clarity)
+www                     CNAME   ns
+mail                    CNAME   ns
+ftp                     CNAME   ns
+pop3                    CNAME   ns
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI><P><I>/etc/namedb/db.111.222.333</I>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+;reverse mapping of our IP addresses
+.
+;origin is 333.222.111.in-addr.arpa
+333.222.111.in-addr.arpa. IN    SOA     ns.you.com. root.ns.you.com. (
+                                        1999121501 7200 1800 3600000 7200 )
+;name Servers
+                        IN      NS      ns.you.com.
+
+;addresses point to canonical name
+444.333.222.111.in-addr.arpa.   IN      PTR     ns.you.com.
+;dialins
+888                             IN      PTR     dialup.you.com.
+
+;virtual hosts
+555                             IN      PTR    yoursite1.com.
+666                             IN      PTR    yoursite2.com.
+777                             IN      PTR    yoursite3.com.
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI><I>/etc/namedb/db.127.0.0</I><P>
+<BLOCKQUOTE><CODE>
+<PRE>
+;local loop config file
+0.0.127.in-addr.arpa.   IN      SOA     ns.you.com. root.ns.you.com. (
+                                        1997072200 7200 1800 3600000 7200 )
+                        IN      NS      ns.you.com.
+1                       IN      PTR     localhost.
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI><I>/etc/namedb/db.yoursite1</I><P>
+<BLOCKQUOTE><CODE>
+<PRE>
+; yoursite1.com
+@                       IN      SOA     virtual root.virtual (
+                                        1999092201      ; Serial: update each time the file is changed
+                                        7200            ; refresh, sec
+                                        1800            ; retry, sec
+                                        3600000         ; expire, sec
+                                        7200 )          ; minimum TTL
+;name servers
+                        IN      NS      ns.you.com.
+                        IN      MX      10 virtual
+                        IN      A       111.222.333.555 
+;address of the canonical names
+localhost               IN      A       127.0.0.1
+gateway                 IN      A       111.222.333.111
+virtual                 IN      A       111.222.333.555
+                        IN      MX      10 virtual
+;aliases
+www                     CNAME   virtual
+mail                    CNAME   virtual
+ftp                     CNAME   virtual
+pop3                    CNAME   virtual
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI><I>/etc/namedb/db.yoursite2</I><P>
+<BLOCKQUOTE><CODE>
+<PRE>
+; yoursite2.com
+@                       IN      SOA     virtual root.virtual (
+                                        1999092201      ; Serial: update each time the file is changed
+                                        7200            ; refresh, sec
+                                        1800            ; retry, sec
+                                        3600000         ; expire, sec
+                                        7200 )          ; minimum TTL
+;name servers
+                        IN      NS      ns.you.com.
+                        IN      MX      10 virtual
+                        IN      A       111.222.333.666 
+;address of the canonical names
+localhost               IN      A       127.0.0.1
+gateway                 IN      A       111.222.333.111
+virtual                 IN      A       111.222.333.666
+                        IN      MX      10 virtual
+;aliases
+www                     CNAME   virtual
+mail                    CNAME   virtual
+ftp                     CNAME   virtual
+pop3                    CNAME   virtual
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI><I>/etc/namedb/db.yoursite3</I><P>
+<BLOCKQUOTE><CODE>
+<PRE>
+; yoursite3.com
+@                       IN      SOA     virtual root.virtual (
+                                        1999092201      ; Serial: update each time the file is changed
+                                        7200            ; refresh, sec
+                                        1800            ; retry, sec
+                                        3600000         ; expire, sec
+                                        7200 )          ; minimum TTL
+;name servers
+                        IN      NS      ns.you.com.
+                        IN      MX      10 virtual
+                        IN      A       111.222.333.777 
+;address of the canonical names
+localhost               IN      A       127.0.0.1
+gateway                 IN      A       111.222.333.111
+virtual                 IN      A       111.222.333.777
+                        IN      MX      10 virtual
+;aliases
+www                     CNAME   virtual
+mail                    CNAME   virtual
+ftp                     CNAME   virtual
+pop3                    CNAME   virtual
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+</OL>
+
+These configuration files will allow you to host these three virtual domains
+and your real domain <B>you.com</B>.
+<P><B>TO TEST THE CHANGES</B>
+<P><CODE>Do:</CODE> check address resolution
+<PRE>
+nslookup www.you.com
+nslookup www.yoursite1.com
+nslookup www.yoursite2.com
+nslookup www.yoursite3.com
+</PRE>
+<P><CODE>Should get:</CODE>
+nslookup returns the correct IP addresses for all hostnames
+<P>
+<H2><A NAME="ss4.8">4.8 Configure httpd</A>
+</H2>
+
+<P>To server html pages httpd daemon is used. RH 7.0 comes with Apache
+1.3.12 (latest version is currently 1.3.14 and the alpha of the upcoming 2.0 is
+released).
+At that point it is wise to check RH site or its mirrors
+(
+<A HREF="http://www.redhat.com/mirrors.html">RH Mirrors</A>) for updates. 
+<P>Most changes that we are about to make
+concentrate in  <I>/etc/httpd/httpd.conf</I> (RH standard
+location for Apache configuration). Default location for html pages (shown
+when you go to <B>www.you.com</B>) is <I>/home/httpd/html</I>. You can
+allocate directories for virtual hosts within the same  <I>/home/httpd</I>,
+shown below are the following locations for them:
+<I>/home/httpd/yoursite1</I>, 
+<I>/home/httpd/yoursite2</I> and
+<I>/home/httpd/yoursite3</I>.
+<P>Below I provide the minimum necessary changes for your
+<I>/etc/httpd/httpd.conf</I> file:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+&lt;VirtualHost 111.222.333.555&gt;
+ServerAdmin webmaster@you.com
+DocumentRoot /home/httpd/yoursite1
+ServerName www.yoursite1.com
+ErrorLog yoursite1-error_log
+TransferLog yoursite1-access_log
+&lt;/VirtualHost&gt;
+
+
+&lt;VirtualHost 111.222.333.666&gt;
+ServerAdmin webmaster@you.com
+DocumentRoot /home/httpd/yoursite2
+ServerName www.yoursite2.com
+ErrorLog yoursite2-error_log
+TransferLog yoursite2-access_log
+&lt;/VirtualHost&gt;
+
+&lt;VirtualHost 111.222.333.777&gt;
+ServerAdmin webmaster@you.com
+DocumentRoot /home/httpd/yoursite3
+ServerName www.yoursite3.com
+ErrorLog yoursite3-error_log
+TransferLog yoursite3-access_log
+&lt;/VirtualHost&gt;
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>That configuration will cause all logs to be stored in one directory (whatever
+is specified as such) for all sites. If that is not desired the <B>ErrorLog</B> and
+<B>TransferLog</B> directives can be changed to point to the proper
+location separately for each virtual host. The pages for the "real"
+<B>www.you.com</B> will be stored in default location <I>/home/httpd/html</I>.
+<P>
+<P>For more information, look at 
+<A HREF="http://www.apache.org">http://www.apache.org</A>, Apache http server homepage. They have a lot of
+support pages, including those for virtual hosting setup (both IP-based and
+name-based [uses just 1 IP address]). Also useful is Linux WWW HOWTO (link in
+References section), section on virtual hosting.
+<P><B>TO TEST THE CHANGES</B>
+<P><CODE>Do:</CODE> access the test pages via Lynx browser or telnet to port 80
+<PRE>
+lynx http://www.you.com
+lynx http://www.yoursite1.com
+lynx http://www.yoursite2.com
+lynx http://www.yoursite3.com
+</PRE>
+<P><CODE>Should get:</CODE>
+Test pages will be returned (if you put them in the proper directories)
+<P>
+<H2><A NAME="ss4.9">4.9 Configure sendmail</A>
+</H2>
+
+<P>
+<H3>Setup</H3>
+
+<P>Now we will deal with sendmail. Again, proposed are the minimum necessary
+changes to the stock RH <I>/etc/sendmail.cf</I> and  <I>/etc/sendmail.cw</I>.
+<OL>
+<LI>look for the lines that starts from <CODE>Dj$w.foo.com</CODE> and change it to
+point to your main ("real", not virtual) server name (<B>you.com</B>, so it
+will looks like this <CODE>Dj$w.you.com</CODE>).</LI>
+<LI>locate file <I>/etc/sendmail.cw</I> and make it look like this
+<BLOCKQUOTE><CODE>
+<PRE>
+# sendmail.cw - include all aliases for your machine here.
+you.com
+ns.you.com
+mail.you.com
+yoursite1.com
+mail.yoursite1.com
+yoursite2.com
+mail.yoursite2.com
+yoursite3.com
+mail.yoursite3.com
+</PRE>
+</CODE></BLOCKQUOTE>
+
+These are necessary so that sendmail accepts mail for these domains.</LI>
+</OL>
+<P>This <B>does not</B> address the issue of <CODE>user@yoursite1.com</CODE> and
+<CODE>user@yoursite2.com</CODE> mail getting to different mailboxes. For that
+look into <CODE>/etc/mail/virtusertable</CODE>  functionality
+(appropriate line in <I>/etc/sendmail.cw</I> is <CODE>Kvirtuser hash -o
+/etc/mail/virtusertable</CODE>, detailed info may be added here later).
+Excellent documentation on that is on
+<A HREF="http://www.sendmail.org/virtual">http://www.sendmail.org/virtual</A>, sendmail reference on virtual
+hosting.
+<P>It is worthwhile to add that linuxconf proposes a somewhat different
+scheme for virtual email with separate spool directories for all domains (that
+cleanly solves the above "name-conflict" issue"), but
+that requires a special virtual-aware POP/IMAP server (included with RH) and
+is somewhat more complicated. It is recommended for bigger email volume sites
+with many users within each domain.
+<P>A few words about sendmail, it is a good idea (good from the security
+standpoint) to have sendmail run from
+<I>inetd.conf</I> and not as a standalone daemon. For that we need to add it
+to <I>/etc/inetd.conf</I>, remove it from <I>/etc/rc.d/init.d</I>, add the
+sendmail queue processing to cron. Here is what you have to do:
+<OL>
+<LI>Add the following line to <I>/etc/inetd.conf</I>:
+<PRE>
+smtp  stream  tcp     nowait  root    /usr/sbin/tcpd  /usr/sbin/sendmail -bs
+</PRE>
+
+<P>Or, if using xinetd create a file <I>sendmail</I>  in
+<I>/etc/xinetd.d/</I>
+similar to
+<BLOCKQUOTE><CODE>
+<PRE>
+# default: on
+service sendmail
+{
+        socket_type     = stream
+        wait            = no
+        user            = root
+        server          = /usr/bin/sendmail -bs
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>
+Edit <I>/etc/rc.d/init.d/sendmail</I> to have <CODE> exit 0 </CODE> somewhere in
+the very beginning (might not be the best way, be sure to document the changes
+you do to these files) so that this file does nothing instead of starting sendmail
+</LI>
+<LI>
+By editing your (root's) crontab (to edit do <B>crontab -e</B>) add a line like this
+
+<PRE>
+*/20 * * * * /usr/sbin/sendmail -q
+</PRE>
+
+
+That would process sendmail queue every 20 min (if it exists).
+The described steps will simplify sendmail access control and will let you
+regulate who can talk to your 25 port, not just who can send email through you.
+The lines in <I>/etc/hosts.allow</I>
+that let all machines from .com and .org domains send you email are as follows
+<PRE>
+sendmail: .com .org
+</PRE>
+
+Please, note, that the daemon name, not protocol name is used here (sendmail,
+NOT smtp).
+</LI>
+</OL>
+<P>That would allow your system to handle email for all those domains.
+<P>
+<H3>Troubleshooting</H3>
+
+<P><B>PROBLEM:</B> mail that you are trying to send is denied with a message
+<CODE>Relaying denied</CODE>
+<P><B>SOLUTION:</B>Look into your <I>/etc/sendmail.cw</I>. Are you sure all
+possible variations of your hostname and of your virtual hostnames are here?
+Look in the message headers and see from what machine it was rejected from: does it
+look like another name of yours that you missed?
+<P><B>TO TEST THE CHANGES</B>
+<P><CODE>Do:</CODE> access the SMTP port 25 via telnet
+<PRE>
+telnet www.you.com 25
+telnet www.yoursite1.com 25
+telnet www.yoursite2.com 25
+telnet www.yoursite3.com 25
+</PRE>
+<P><CODE>Should get:</CODE>
+Sendmail should respond with prompt and version number! Type QUIT to get out
+of the prompt.
+<P>
+<H2><A NAME="ss4.10">4.10 Configure POP3</A>
+</H2>
+
+<P>
+<H3>Setup</H3>
+
+<P>POP3 configuration is easy (no "virtualization" is required for this setup). RH comes
+equipped with imapd IMAP server. If you do not want to use IMAP functionality
+or do not like this particular implementation (buffer overflow bugs were discovered in it at
+some point) the good idea is to use
+<CODE>qpopper</CODE>, free POP3 daemon from Eudora
+<A HREF="http://www.eudora.com/freeware/qpop.html">http://www.eudora.com/freeware/qpop.html</A>. At the time of writing the
+released version is qpopper 3.0.2.
+It is important to note that versions earlier than 2.5 contain a
+buffer overflow error that allows remote root exploit to be executed. Same
+problem plagues "public betas" up to 3.0 release 21. Use either 2.53 or the
+latest 3.0 (the former is better audited and the latter is better suited
+for RH - seamlessly works with PAM authentication). I suggest using 3.0, so
+the instructions below apply to that case. As of April 13, Qpopper 3.0 is no
+longer beta, but a regular software. As of recently, the bug was discovered
+even in Qpopper 2.53 that allows the attacker  to
+obtain a shell with group-id 'mail', potentially allowing read/write
+access to all mail. 
+<P>
+<P>
+<OL>
+<LI><CODE>wget ftp://ftp.qualcomm.com/eudora/servers/unix/popper/qpopper3.0.tar.Z</CODE>
+<P>Retrieve the archive from Eudora site.
+</LI>
+<LI><CODE>tar zxvf qpopper3.0.tar.Z</CODE>
+<P>Uncompress and untar the contents.
+</LI>
+<LI><CODE>cd qpopper</CODE>
+<P>If you need explanation for this step, please, discontinue reading the document.
+</LI>
+<LI><CODE>./configure --enable-specialauth --with-pam --enable-log-login --enable-shy</CODE>
+<P>The options here are:
+<P><CODE>--enable-specialauth</CODE> : allows MD5 and shadow passwords
+<P><CODE>--with-pam</CODE>: allows the use of RH Pluggable Authentication Modules (PAM) technology
+<P><CODE>--enable-log-login</CODE>: log successful logins, not only failures (not really that
+useful as it will use tcpd wrappers logging anyway)
+<P><CODE>--enable-shy</CODE>: conceal version number (yeah, a little pesky
+manifestation of "security through obscurity")
+</LI>
+<LI><CODE>make</CODE>
+<P>That compiles the popper
+</LI>
+<LI>
+<PRE>
+/bin/cp popper/popper /usr/local/bin
+</PRE>
+
+<P>Copies the binary to <I>/usr/local/bin</I>
+</LI>
+<LI>Now set the mode to
+<PRE>
+-rwx------   1 root     root       297008 Feb 16 15:41 /usr/local/bin/popper
+</PRE>
+
+by using the command:
+<PRE>
+chmod 700 /usr/local/bin/popper
+</PRE>
+</LI>
+<LI>Add a line to <I>/etc/inetd.conf</I>
+<PRE>
+pop3  stream tcp        nowait root /usr/sbin/tcpd /usr/local/bin/popper -s
+</PRE>
+
+That would cause the tcpd wrapper to control access to popper.
+
+The lines to add in <I>/etc/hosts.allow</I> are
+<PRE>
+popper: .good.com .nice.org
+</PRE>
+
+That will allow people from domains <CODE>good.com</CODE> and <CODE>nice.org</CODE>
+to read email via POP3 client from your machine.
+<P>To cause qpopper to use PAM authentication one must create a file for POP3
+service in <CODE>/etc/pam.d/</CODE> directory. File should be named "pop3" (same as line in
+<CODE>/etc/services</CODE> and qpopper compile-time option). The file looks like
+this:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+auth       required     /lib/security/pam_pwdb.so shadow 
+account    required     /lib/security/pam_pwdb.so
+password   required     /lib/security/pam_cracklib.so
+password   required     /lib/security/pam_pwdb.so nullok use_authtok md5 shadow
+session    required     /lib/security/pam_pwdb.so
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+</LI>
+<LI>For whatever reason stock RH lists line in <I>/etc/services</I>
+file for POP3 protocol as "pop-3". And since qpopper prefers to see "pop3",
+it should be edited to be:
+<PRE>
+pop3            110/tcp         # pop3 service
+</PRE>
+</LI>
+</OL>
+
+That would allow all user to get their email via any reasonable mail client.
+<P>
+<H3>Troubleshooting</H3>
+
+<P><B>PROBLEM:</B> you are connecting to your POP server with valid password
+and username and they are rejected with a message <CODE>Password incorrect</CODE>.
+<P><B>SOLUTION:</B> PAM doesn't like your setup. This message is common for
+qpopper 2.53, use 3.0 and it should disappear. Otherwise, look into
+<CODE>/etc/pam.d/pop3</CODE> that you created. Is it OK?
+<P><B>TO TEST THE CHANGES</B>
+<P><CODE>Do:</CODE> access the POP3 port 110 via telnet
+<PRE>
+telnet www.you.com 110
+</PRE>
+<P><CODE>Should get:</CODE>
+Qpopper should respond with prompt and version number! Type QUIT to get out
+of the prompt.
+<P>
+<H2><A NAME="ss4.11">4.11 Configure FTP server</A>
+</H2>
+
+<P>
+<H3>Anonymous FTP setup</H3>
+
+<P>We will use only anonymous ftp and will not allow any non-anonymous user any
+access.  Here we describe the anonymous ftp server setup that allows anonymous
+uploads.  Any self-respecting guide on the subject will tell you that "this is
+a bad thing". But how is it worse than allowing users to ftp from untrusted
+location and transfer their passwords in clear text? Not everybody
+(especially, using Windows) can easily setup an ftp tunnel via ssh. But you
+definitely should restrict access via tcp wrappers and watch for "warez
+puppies" (people who will try to exchange stolen software via your ftp site if
+you allow unlimited downloads!).
+<P>I suggest using the stock RH wu-ftpd (version 2.6.1 at the time of
+writing). While it is rumored that there are "more secure" ftp daemons
+(Pro-ftpd), wu-ftp appears to be one most commonly used. Recently a series of
+bugs was again discovered in wu-ftp (even in 2.6.x versions)  and its reputation as the most popular ftp
+daemon seem to be dwindling. CERT has issued an advisory concerning WU-FTPD and all ftp daemons derived
+from BSD's final release.
+<P>RH installs the wu-ftpd (package wu-ftpd-2.6.1-1) by default in server
+configuration. You are encouraged to check for updates as running ftp is an important
+security concern. There is also a separate rpm package that creates a separate
+directory structure for anonymous ftp home (anonftp-2.8-1).
+As anonymous ftp always does a <CODE>chroot()</CODE>
+system call (puts the user in the restricted file system) all necessary
+binaries and libraries are required. The typical directory looks like this
+(output of <B>ls -lRa</B> in <I>/home/ftp</I>):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+.:
+total 20
+d--x--x--x   2 root     root         4096 Feb 15 06:22 bin
+d--x--x--x   2 root     root         4096 Feb 15 06:22 etc
+drwxrws-wt   2 root     wheel        4096 Feb 18 19:51 incoming
+drwxr-xr-x   2 root     root         4096 Feb 15 06:22 lib
+drwxr-sr-x   3 root     ftp          4096 Feb 15 23:34 pub
+
+bin:
+total 344
+---x--x--x   1 root     root        15204 Mar 21  1999 compress
+---x--x--x   1 root     root        52388 Mar 21  1999 cpio
+---x--x--x   1 root     root        50384 Mar 21  1999 gzip
+---x--x--x   1 root     root        29308 Mar 21  1999 ls
+----------   1 root     root        62660 Mar 21  1999 sh
+---x--x--x   1 root     root       110668 Mar 21  1999 tar
+lrwxrwxrwx   1 root     root            4 Feb 15 06:22 zcat -> gzip
+
+etc:
+total 40
+-r--r--r--   1 root     root           53 Mar 21  1999 group
+-rw-r--r--   1 root     root        31940 Mar 21  1999 ld.so.cache
+-r--r--r--   1 root     root           79 Mar 21  1999 passwd
+
+incoming:
+total 0
+
+lib:
+total 1212
+-rwxr-xr-x   1 root     root        77968 Mar 21  1999 ld-2.1.1.so
+lrwxrwxrwx   1 root     root           11 Feb 15 06:22 ld-linux.so.2 -> ld-2.1.1.so
+-rwxr-xr-x   1 root     root      1031004 Mar 21  1999 libc-2.1.1.so
+lrwxrwxrwx   1 root     root           13 Feb 15 06:22 libc.so.6 -> libc-2.1.1.so
+-rwxr-xr-x   1 root     root        77196 Mar 21  1999 libnsl-2.1.1.so
+lrwxrwxrwx   1 root     root           15 Feb 15 06:22 libnsl.so.1 -> libnsl-2.1.1.so
+-rwxr-xr-x   1 root     root        33596 Mar 21  1999 libnss_files-2.1.1.so
+lrwxrwxrwx   1 root     root           21 Feb 15 06:22 libnss_files.so.2 -> libnss_fi
+les-2.1.1.so
+
+pub:
+total 0
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Notice though, that for whatever reason, RH puts a copy of <I>/bin/sh</I> in
+<I>/home/ftp/bin</I>.
+I do not feel good about having it there, so it is chmoded to 0 by
+<B>chmod 0 sh</B> (can also be removed completely, but RPM might be slightly
+unhappy if you attempt to remove the package afterwards).
+<P>Permissions on <I>/home/ftp</I> directories and files should be carefully
+considered. In the above example, all of the system files are owned by root
+and are only readable (executable where necessary) by all. Files in
+<I>bin</I> are only executable (as is the directory itself to prevent
+listing of its contents).
+<P>The interesting part is permissions on <I>pub</I> and <I>incoming</I>.
+<P>
+<P>Below follows the configuration file for ftp daemon
+(<I>/etc/ftpaccess</I>). It is well commented to the degree of being self-explanatory:
+<BLOCKQUOTE><CODE>
+<PRE>
+#ideas from &lt;htmlurl url="ftp://ftp.wu-ftpd.org/pub/wu-ftpd/upload.configuration.HOWTO" name="ftp://ftp.wu-ftpd.org/pub/wu-ftpd/upload.configuration.HOWTO"> 
+#only allow anonymous users-no other classes defined
+class anonftp anonymous *
+
+#number of users restriction with message shown when too many
+limit   remote  10  Any                 /toomany.msg
+
+#prevent uploads everywhere (for now)
+upload /home/ftp * no
+
+#display the contents of some files upon login/cd
+readme  README*    login
+readme  README*    cwd=*
+message /welcome.msg            login
+message .message                cwd=*
+
+#log all file transfers DISABLED
+#log transfers anonymous
+
+#prevent these file operations for anon users
+delete          no      anonymous
+overwrite       no      anonymous
+
+#fast cd and aliasing for the same reason (not really necessary, but convenient)
+alias   inc:    /incoming
+cdpath  /incoming
+cdpath  /pub
+cdpath  /
+
+#what is allowed in paths
+path-filter  anonymous  /etc/pathmsg  ^[-A-Za-z0-9_\.]*$  ^\.  ^-
+
+#prevent the retrieval of some file
+noretrieve .notar
+
+#allow upload with NO subdirectory creation by anon users
+upload    /home/ftp    /incoming   yes root wheel 0400 nodirs
+
+#allow upload with subdirectory creation by anon users DISABLED
+#upload    /home/ftp    /incoming   yes root wheel 0400 dirs
+
+#prevent anon users to GET files from incoming (you might not like it, but it
+#is a good idea-to prevent some people from using your ftp server to store
+#their own stuff, pics, warez etc)
+noretrieve /home/ftp/incoming
+</PRE>
+</CODE></BLOCKQUOTE>
+
+That would allow only anonymous users to do downloads and uploads in somewhat (<B>!</B>)
+controlled manner. Make sure you update the permissions on files that you
+changed  after you upgrade the RPM packages next time.
+<P>
+<H3>Guest FTP setup</H3>
+
+<P>Guest FTP users are those that have valid usernames and passwords (unlike
+anonymous), but do not have access to the whole directory structure (unlike
+real ones). So they are chrooted after authentication. Guest users can do
+uploads in this configuration.
+<P>Easy <B>21-step</B> directions for that are provided below ;-)
+<P>Software used: <CODE>wu-ftpd-2.6.1</CODE>
+<P>Sample username will be created: <B>ftpguy</B>, user ID=505.
+<P>Her group will be: <B>lusers</B>, group ID=701.
+<P>If you want more users of the same sort, they should be the members of the
+same group. For that it might be good to change the directory structure
+somewhat so that all of them use the same <I>passwd</I> file and the same
+static <CODE>ls</CODE>. But, for better separation you can give each of them their
+own files.
+<P>
+<OL>
+<LI><CODE>adduser ftpguy</CODE>
+<P>creates an entry in <I>/etc/passwd</I>
+</LI>
+<LI><CODE>passwd ftpguy</CODE>
+change password to whatever</LI>
+<LI>Edit file <I>/etc/passwd</I>, last line (that contains our new user)
+should look like this
+<PRE>
+ftpguy:x:505:701::/home/ftpguy/./:/etc/ftponly
+</PRE>
+
+yes, that is "slash"-"dot"-"slash" after his home directory.</LI>
+<LI>Edit file <I>/etc/shells</I>, add line, below
+<PRE>
+/etc/ftponly
+</PRE>
+
+This file has to exist in some newer Linux distributions (contrary to what is
+claimed at 
+<A HREF="ftp://ftp.fni.com/pub/wu-ftpd/guest-howto">Guest FTP HOWTO</A>). 
+Sometimes one can put <I>/bin/true</I> in its place.</LI>
+<LI>Edit file  <I>/etc/group</I>, add line, below
+<PRE>
+lusers:x:701:ftpguy
+</PRE>
+</LI>
+<LI><CODE>cd /home</CODE></LI>
+<LI>
+<PRE>
+chown ftpguy.lusers ftpguy
+</PRE>
+
+this directory is created by adduser command</LI>
+<LI>
+<PRE>
+cd ftpguy; mkdir etc bin ; chown root.daemon etc bin
+</PRE>
+
+this creates a directory tree for chroot</LI>
+<LI>
+<PRE>
+chmod 111 etc bin
+</PRE>
+
+this sets <B>very</B> conservative permissions on directories within the
+chrooted tree</LI>
+<LI>
+<PRE>
+cp ~/static_ls /home/ftpguy/bin/ls
+</PRE>
+
+obtaining static (not calling any libraries) version of <I>/bin/ls</I>:
+this directory
+(
+<A HREF="http://www.stanford.edu/group/itss-ccs/security/binaries/linux/redhat/">http://www.stanford.edu/group/itss-ccs/security/binaries/linux/redhat/</A>)
+contains static version of many RH 6.x/7.x-compatible utilities, including ls
+(local copy is
+<A HREF="http://www.chuvakin.org/ispdoc/ls.gz">http://www.chuvakin.org/ispdoc/ls.gz</A> here, <CODE>gunzip ls.gz</CODE> to run)</LI>
+<LI>
+<PRE>
+cd bin ; chown root.bin ls
+</PRE>
+</LI>
+<LI>
+<PRE>
+chmod 111 ls
+</PRE>
+
+this sets <B>very</B> conservative permissions on binaries within chroot</LI>
+<LI>
+<PRE>
+cd ../etc
+</PRE>
+</LI>
+<LI>Create file <I>/home/ftpguy/etc/passwd</I> as follows
+<BLOCKQUOTE><CODE>
+<PRE>
+root:*:0:0::/:/etc/ftponly
+ftpguy:*:505:701::/home/ftpguy/./:/etc/ftponly
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>Create file <I>/home/ftpguy/etc/group</I>, contents follow
+<BLOCKQUOTE><CODE>
+<PRE>
+root::0:root
+lusers::701:ftpguy
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>
+<PRE>
+chown root.daemon passwd group
+</PRE>
+
+this sets proper ownership of these files</LI>
+<LI>
+<PRE>
+chmod 444 passwd group
+</PRE>
+
+this sets minimum necessary permission on that file</LI>
+<LI>
+<PRE>
+cd ~ftpguy; touch .forward
+</PRE>
+
+this creates <I>.forward</I> file </LI>
+<LI>
+<PRE>
+chown root.root .forward ; chmod 400 .forward
+</PRE>
+
+and locks it for security reasons</LI>
+<LI>
+<PRE>
+cd /etc
+</PRE>
+</LI>
+<LI>Add the facilities for handling guest users into <I>/etc/ftpaccess</I>
+<BLOCKQUOTE><CODE>
+<PRE>
+#=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-           
+class anonftp guest,anonymous *                                                 
+                                                                                
+delete     no   anonymous,guest               # delete permission?              
+overwrite  no   anonymous,guest               # overwrite permission?           
+rename     no   anonymous,guest               # rename permission?              
+chmod      no   anonymous,guest               # chmod permission?               
+umask      no   anonymous,guest               # umask permission?               
+                                                                                
+guestgroup lusers                                                               
+                                                                                
+limit   remote  10  Any                 /toomany.msg                            
+upload /home/ftp * no                                                           
+readme  README*    login                                                        
+readme  README*    cwd=*                                                        
+message /welcome.msg            login                                           
+message .message                cwd=*                                           
+                                                                                
+alias   inc:    /incoming                                                       
+cdpath  /incoming                                                               
+cdpath  /pub                                                                    
+cdpath  /                                                                       
+                                                                                
+path-filter  anonymous  /etc/pathmsg  ^[-A-Za-z0-9_\.]*$  ^\.  ^-               
+noretrieve .notar                                                               
+upload    /home/ftp    /incoming   yes root wheel 0400 nodirs                   
+noretrieve /home/ftp/incoming
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+</OL>
+<P>Lets test this beast:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+localhost[anton]#1008: ftp localhost
+Connected to anton.
+220 anton FTP server (Version wu-2.6.1(1) Mon Feb 28 10:30:36 EST 2000) ready.
+Name (localhost:anton): ftpguy
+331 Password required for ftpguy.
+Password:
+230 User ftpguy logged in.  Access restrictions apply.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> ls -la
+200 PORT command successful.
+150 Opening ASCII mode data connection for /bin/ls.
+total 4
+drwx------   4 505      701          1024 Apr  8 02:16 .
+drwx------   4 505      701          1024 Apr  8 02:16 ..
+-r--------   1 0        0               0 Apr  8 02:16 .forward
+d--x--x--x   2 0        2            1024 Apr  8 02:09 bin
+d--x--x--x   2 0        2            1024 Apr  8 02:15 etc
+226 Transfer complete.
+ftp> mkdir TEST
+257 "/TEST" new directory created.
+ftp> ls -l
+200 PORT command successful.
+150 Opening ASCII mode data connection for /bin/ls.
+total 3
+-r--------   1 0        0               0 Apr  8 02:16 .forward
+drwxr-xr-x   2 505      701          1024 Apr  8 02:32 TEST
+d--x--x--x   2 0        2            1024 Apr  8 02:09 bin
+d--x--x--x   2 0        2            1024 Apr  8 02:15 etc
+226 Transfer complete.
+ftp> 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>and so on.
+<P><B>TO TEST THE CHANGES</B>
+<P><CODE>Do:</CODE> access the ftp server using ftp client
+<PRE>
+ftp www.you.com
+</PRE>
+<P><CODE>Should get:</CODE>
+ftp daemon should respond with prompt and version number!
+<P>
+<H2><A NAME="ss4.12">4.12 Configure dialin</A>
+</H2>
+
+<P>Now the fun part starts. We want the machine to allow dial-in access via
+attached (inserted?) modem or modems. It will provide either regular shell or
+restricted shell (that only executes pppd daemon). Windows 95/98 users should be
+able to effortlessly dial in using all default settings of their computers.
+<P>
+<H3>Linux setup</H3>
+
+<P>To handle login via serial line some version of <CODE>getty</CODE> program is
+needed. This program  monitors the serial line (<I>/dev/ttyS1</I> will be used
+throughout the document, see serial HOWTO for details) and upon connection
+shown the login prompt or starts a program.
+<P>I suggest using the mgetty program (as it has more features and is easier to
+setup than some of the competitors).
+<P>RH comes with <CODE>mgetty-1.1.21-2</CODE>, that also has extensions to receive
+faxes and voice mail (if the modem supports this). Check whether mgetty is
+installed by doing: <B>rpm -qa | grep mgetty</B>.
+<P>After installing mgetty some reconfiguration is necessary.
+The files that should be changed and the details follow:
+<P>
+<OL>
+<LI><I>/etc/inittab</I><P>That enables mgetty to start when system is booted and be respawned accordingly.
+These lines should be added in the end.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#for dialins use mgetty
+#note this S1 in the beginning of the line and ttyS1 in the end
+S1:2345:respawn:/sbin/mgetty ttyS1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+</LI>
+<LI><I>/etc/ppp/options</I><P>This file controls the pppd daemon whenever it is started.
+Some of the options here are optional (hey, that why they are called options, right?).
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+auth -chap +pap login modem crtscts debug proxyarp lock
+ms-dns 111.222.333.444
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Here is their brief meaning:
+<P>
+<UL>
+<LI><B>auth </B>: use some sort of authentication for dialin clients</LI>
+<LI><B>-chap</B>: not CHAP</LI>
+<LI><B> +pap</B>: use PAP</LI>
+<LI><B> login </B>: use the  system  password file for authenticating the client
+using PAP and record the user in the system wtmp  file, <I>/etc/ppp/pap-secrets</I> should
+still be present (see below)</LI>
+<LI><B>modem </B>: use the modem control lines (for carrier detection and other stuff)</LI>
+<LI><B> crtscts </B>: use hardware flow control</LI>
+<LI><B>debug </B>: log extra info (might be removed after everything is fine)</LI>
+<LI><B> proxyarp </B>: this is needed to connect from the client to the
+Internet, not just to the LAN you dialed into </LI>
+<LI><B>lock</B>: pppd should create a lock  file  for the serial device</LI>
+<LI><B>ms-dns 111.222.333.444</B>: this info is provided to Windows box as a default
+DNS server</LI>
+</UL>
+
+Look at pppd man page for all the juicy details (parts of the above info is
+adapted from there)
+<P>Another note is appropriate here. Some people reported that they had more
+success with <B>+chap -pap</B> in authenticating both Windows and Linux
+dial-up clients. If you are having problems, try changing
+<CODE>/etc/ppp/options</CODE> to have <B>+chap -pap</B>. In this case the new
+file  <I>/etc/ppp/chap-secrets</I> should be created (same contents as
+recommended <I>/etc/ppp/pap-secrets</I>).
+<P>Some other people reported that
+having default line from <I>/etc/mgetty+sendfax/login.config</I> works
+fine. I am very happy to hear that, and I never claimed that my way to set
+things up is the only true way.
+</LI>
+<LI><I>/etc/ppp/options.ttyS1</I><P>This file serves purpose similar to the previous one, but only applies to
+particular modem line. It specifies the IP address given to the remote machine
+(dynamic, in some sense, if you have more than one line) and the local IP as well.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+111.222.333.444:111.222.333.888
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+</LI>
+<LI><I>/etc/mgetty+sendfax/login.config</I><P>
+<P>This file is the main mgetty control file. Mgetty is Windows-PPP-aware, so it
+has provisions to start pppd automatically upon receiving connect from the Windows machine.
+<P>These lines should be present:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/AutoPPP/ -     -       /usr/sbin/pppd
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Before adding them, check that some other version of similar command is absent
+there (commented out by default).
+<P>
+</LI>
+<LI><I>/etc/ppp/pap-secrets</I><P>This is similar to <I>/etc/password</I> file, but only used for dialins and
+contains <B>plain text passwords</B> (apparently, only visible to root). All users
+that you want to be able to dialin must have their usernames and password
+listed in this file. They should enter the same username and password into
+Windows Dial Up Networking configuration.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# Secrets for authentication using PAP
+# these two users below can use dialin
+# client        server  secret pword   remote IP addresses
+dialinuser1     *       b1ab1a!?         111.222.333.888
+dialinuser2     *       p8sSw0rD         111.222.333.888
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+</OL>
+<P>
+<P>
+<P>Check that mgetty is running by looking for similar line in the output of
+<CODE>ps ax</CODE> command.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ 4625 ?        S      0:00 /sbin/mgetty ttyS1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Now this machine will allow modem calls from any Windows 95/98 box.
+<P>As was noted by one of the readers some steps are to be taken to prevent users
+from sharing their dialin password with others. A simple perl/shell script
+will do the job by killing and logging connections that use the same
+username.
+<P>Also, if it is desirable to prevent users from using dialing in their
+usernames should not be put into <I>/etc/ppp/pap-secrets </I>.
+<H3>Windows setup</H3>
+
+<P>This is <B>really</B> straightforward.
+<OL>
+<LI>Click on <B>My Computer</B></LI>
+<LI>Click on <B>Dial Up networking</B></LI>
+<LI>Click on <B>Make New Connection</B></LI>
+<LI>Proceed according to directions, enter the phone number etc</LI>
+<LI>After a new connection is created click on it and enter the username and
+password (same as mentioned in <I>/etc/passwd</I> and
+<I>/etc/ppp/pap-secrets</I>)</LI>
+<LI>Click <B>Connect</B> and it should work (it did in my case ;-) )</LI>
+</OL>
+<P>
+<P><B>TO TEST THE CHANGES</B>
+<P><CODE>Do:</CODE> try to dial in using terminal program (UNIX:minicom
+/Windows:terminal or other)
+<P><CODE>Should get:</CODE>
+Mgetty should respond with prompt and you Linux distribution version!
+<H2><A NAME="ss4.13">4.13 Open access</A>
+</H2>
+
+<P>
+<P>Now, after testing all the services, we are ready to open the access to this
+machine. The main access control facility in our case is TCP wrappers
+(tcpd). In case of RH 7 the xinetd will check the same access control files
+itself without any need to wrap services with /usr/sbin/tcpd.
+These facilities are controlled by 2 files <I>/etc/hosts.allow</I> and
+<I>/etc/hosts.deny</I>, as was mentioned in the sections devoted to various
+network services. TCP wrappers configuration can be done in 2 distinct
+ways and we will employ the simplest.
+<P>Let our <I>/etc/hosts.deny</I> contain <CODE>ALL:ALL</CODE> clause, thus
+denying the access to all services (started from <I>/etc/inetd.conf</I> ) for
+all hosts and all users on them. Now we can allow what we need explicitly in
+<I>/etc/hosts.allow</I>, thus following the philosophy <B>"what is not
+expressly allowed is denied"</B>.
+<P>Lets assume we want to allow people to read and send email, we want some
+trusted hosts to update contents of the web pages and we want admin
+workstation to have full access. So we arrive at the following
+<I>/etc/hosts.allow</I>:
+<BLOCKQUOTE><CODE>
+<PRE>
+#
+# hosts.allow   This file describes the names of the hosts which are
+#               allowed to use the local INET services, as decided
+#               by the '/usr/sbin/tcpd' server.
+#
+ALL: 127.0.0.1 adminbox.some.net
+#we rely on anti-relaying features of sendmail 8.9+ to fight spam
+#and also restrict some sites that we don't want to see email from
+sendmail: ALL EXCEPT .kr .cn
+popper: .com .edu .gov .mil
+#these people can upload/download stuff, make it restrictive to avoid warez!
+in.ftpd: .this.net .that.net
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="ISP-Setup-RedHat-HOWTO-5.html">Next</A>
+<A HREF="ISP-Setup-RedHat-HOWTO-3.html">Previous</A>
+<A HREF="ISP-Setup-RedHat-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

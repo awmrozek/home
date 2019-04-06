@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Ext2fs Undeletion mini-HOWTO: How not to delete files</TITLE>
+ <LINK HREF="Ext2fs-Undeletion-3.html" REL=next>
+ <LINK HREF="Ext2fs-Undeletion-1.html" REL=previous>
+ <LINK HREF="Ext2fs-Undeletion.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ext2fs-Undeletion-3.html">Next</A>
+<A HREF="Ext2fs-Undeletion-1.html">Previous</A>
+<A HREF="Ext2fs-Undeletion.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. How not to delete files</A></H2>
+
+<P>It is vital to remember that Linux is unlike MS-DOS when it comes to
+undeletion.  For MS-DOS (and its bastard progeny Windows 95), it is generally
+fairly straightforward to undelete a file - the `operating system' (I use the
+term loosely) even comes with a utility which automates much of the process.
+For Linux, this is not the case.
+<P>So.  Rule number one (the prime directive, if you will) is:
+<P>
+<BLOCKQUOTE>
+<B>KEEP BACKUPS</B>
+</BLOCKQUOTE>
+<P>no matter what.  Think of all your data.  Perhaps, like me, you keep several
+years' of accumulated email, contacts, programs, papers on your computer.
+Think of how your life would be turned upside down if you had a catastrophic
+disk failure, or if -- heaven forbid! -- a malicious cracker wiped your
+disks.  This is not unlikely; I have corresponded with a number of people in
+just such a situation.  I exhort all right-thinking Linux users to go out
+and buy a useful backup device, work out a decent backup schedule, and to
+<EM>stick to it</EM>.  Myself, I use a spare hard disk on a second machine, and
+periodically mirror my home directory onto it over the ethernet.  For more
+information on planning a backup schedule, read Frisch (1995) (see section
+<A HREF="Ext2fs-Undeletion-15.html#sec-credits">Bibliography and Credits</A>).
+<P>In the absence of backups, what then?  (Or even in the presence of backups:
+belt and braces is no bad policy where important data is concerned.)
+<P>Try to set the permissions for important files to 440 (or less): denying
+yourself write access to them means that <CODE>rm</CODE> requires an explicit
+confirmation before deleting.  (I find, however, that if I'm recursively
+deleting a directory with <CODE>rm -r</CODE>, I'll interrupt the program on the first
+or second confirmation request and reissue the command as <CODE>rm -rf</CODE>.)
+<P>A good trick for selected files is to create a hard link to them in a hidden
+directory.  I heard a story once about a sysadmin who repeatedly deleted
+<CODE>/etc/passwd</CODE> by accident (thereby half-destroying the system).  One of
+the fixes for this was to do something like the following (as root):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# mkdir /.backup
+# ln /etc/passwd /.backup
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>It requires quite some effort to delete the file contents completely: if
+you say
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# rm /etc/passwd
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>then
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ln /.backup/passwd /etc
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>will retrieve it.  Of course, this does not help in the event that you
+overwrite the file, so keep backups anyway.
+<P>On an ext2 file system, it is possible to use ext2 attributes to protect things.
+These attributes are manipulated with the <CODE>chattr</CODE> command.  There is an
+`append-only' attribute: a file with this attribute may be appended to, but may
+not be deleted, and the existing contents of the file may not be overwritten.
+If a directory has this attribute, any files or directories within it may be
+modified as normal, but no files may be deleted.  The `append-only' attribute
+is set with
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ chattr +a FILE...
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>There is also an `immutable' attribute, which can only be set or cleared by
+root.  A file or directory with this attribute may not be modified, deleted,
+renamed, or (hard) linked.  It may be set as follows:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# chattr +i FILE...
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The ext2fs also provides the `undeletable' attribute (<CODE>+u</CODE> in <CODE>chattr</CODE>).
+The intention is that if a file with that attribute is deleted, instead of
+actually being reused, it is merely moved to a `safe location' for deletion at
+a later date.  Unfortunately this feature has not yet been implemented in
+mainstream kernels; and though in the past there has been some interest in
+implementing it, it is not (to my knowledge) available for any current kernels.
+<P>Some people advocate making <CODE>rm</CODE> a shell alias or function for <CODE>rm -i</CODE>
+(which asks for confirmation on <EM>every</EM> file you delete).  Indeed, the
+<A HREF="http://www.redhat.com/">Red Hat distribution</A> does this by
+default for all users, including root.  Personally, I cannot stand software
+which won't run unattended, so I don't do that.  There is also the problem
+that sooner or later, you'll be running in single-user mode, or using a
+different shell, or even a different machine, where your <CODE>rm</CODE> function
+doesn't exist.  If you expect to be asked for confirmation, it is easy to
+forget where you are and to specify too many files for deletion.  Likewise,
+the various scripts and programs that replace <CODE>rm</CODE> are, IMHO, very
+dangerous.
+<P>A slightly better solution is to start using a package which handles
+`recyclable' deletion by providing a command not named <CODE>rm</CODE>.  For details
+on these, see Peek, et al (1993) (see section
+<A HREF="Ext2fs-Undeletion-15.html#sec-credits">Bibliography and Credits</A>).  These however
+still suffer from the problem that they tend to encourage the user to have a
+nonchalant attitude to deletion, rather than the cautious approach that is
+often required on Unix systems.
+<P>
+<P>
+<HR>
+<A HREF="Ext2fs-Undeletion-3.html">Next</A>
+<A HREF="Ext2fs-Undeletion-1.html">Previous</A>
+<A HREF="Ext2fs-Undeletion.html#toc2">Contents</A>
+</BODY>
+</HTML>

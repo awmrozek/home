@@ -1,0 +1,445 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>DNS Checks</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Techniques"
+HREF="techniques.html"><LINK
+REL="PREVIOUS"
+TITLE="SMTP Transaction Delays"
+HREF="smtpdelays.html"><LINK
+REL="NEXT"
+TITLE="SMTP checks"
+HREF="smtpchecks.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="smtpdelays.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 2. Techniques</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="smtpchecks.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="dnschecks"
+></A
+>2.2. DNS Checks</H1
+><P
+>&#13;      Some indication of the integrity of a particular peer can be
+      gleaned directly from the <A
+HREF="gloss.html#dns"
+><I
+CLASS="glossterm"
+>Domain Name System</I
+></A
+> (DNS), even
+      before SMTP commands are issued.  In particular, various DNS
+      blacklists can be consulted to find out if a particular IP
+      address is known to violate or fulfill certain criteria, and a
+      simple pair of forward/reverse (DNS/rDNS) lookups can be used as
+      a vague indicator of the host's general integrity.
+    </P
+><P
+>&#13;      Moreover, various data items presented during the SMTP dialogue
+      (such as the name presented in the Hello greeting) can be
+      subjected to DNS validation, once it becomes available.  For a
+      discussion on these items, see the section on <A
+HREF="smtpchecks.html"
+>SMTP checks</A
+>, below.
+    </P
+><P
+>&#13;      A word of caution, though.  DNS checks are not always conclusive
+      (e.g. a required DNS server may not be responding), and not
+      always indicative of spam.  Moreover, if you have a very busy
+      site, they can be expensive in terms of processing time per
+      message.  That said, they can provide useful information for
+      logging purposes, and/or as part of a more holistic integrity
+      check.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="dnsbl"
+></A
+>2.2.1. DNS Blacklists</H2
+><P
+>&#13;	DNS blacklists (DNSbl's, formerly called "Real-time Black-hole
+	Lists" after the original blacklist, "mail-abuse.org") make up
+	perhaps the most common tool to perform transaction-time spam
+	blocking.  The receiving server performs one or more rDNS
+	lookups of the peer's IP address within various DNSbl zones,
+	such as "dnsbl.sorbs.net", "opm.blitzed.org",
+	"lists.dsbl.org", and so forth.  If a matching DNS record is
+	found, a typical action is to reject the mail delivery.
+	<A
+NAME="AEN649"
+HREF="#FTN.AEN649"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>
+      </P
+><P
+>&#13;	If in addition to the DNS address ("A" record) you look up the
+	"TXT" record of an entry, you will typically receive a
+	one-line description of the listing, suitable for inclusion in
+	a SMTP reject response.  To try this out, you can use the
+	"host" command provided on most Linux and UNIX systems:
+	<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>host -t txt 2.0.0.127.dnsbl.sorbs.net</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;	There are currently hundreds of these lists available, each
+	with different listing criteria, and with different
+	listing/unlisting policies. Some lists even combine several
+	listing criteria into the same DNSbl, and issue different data
+	in response to the rDNS lookup, depending on which criterion
+	affects the address provided.  For instance, a rDNS lookup
+	against <TT
+CLASS="option"
+>sbl-xbl.spamhaus.org</TT
+> returns
+	127.0.0.2 for IP addresses that are believed by the SpamHaus
+	staff to directly belong to spammers and their providers,
+	127.0.0.4 response for <A
+HREF="gloss.html#zombie"
+><I
+CLASS="glossterm"
+>Zombie Host</I
+></A
+>s, or a
+	127.0.0.6 response for <A
+HREF="gloss.html#openproxy"
+><I
+CLASS="glossterm"
+>Open Proxy</I
+></A
+> servers.
+      </P
+><P
+>&#13;	Unfortunately, many of these lists contain large blocks of IP
+	addresses that are not directly responsible for the alleged
+	violations, don't have clear listing / delisting policies,
+	and/or post misleading information about which addresses are
+	listed<A
+NAME="AEN661"
+HREF="#FTN.AEN661"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+>.
+
+	The blind trust in such lists often cause a large amount of
+	what is referred to as <A
+HREF="gloss.html#coldamage"
+><I
+CLASS="glossterm"
+>Collateral Damage</I
+></A
+> (not to be
+	confused with <A
+HREF="gloss.html#colspam"
+><I
+CLASS="glossterm"
+>Collateral Spam</I
+></A
+>).
+      </P
+><P
+>&#13;	For that reason, rather than rejecting mail deliveries
+	outright based on a single positive response from DNS
+	blacklists, many administrators prefer to use these lists in a
+	more nuanced fashion.  They may consult several lists, and
+	assign a "score" to each positive response.  If the total
+	score for a given IP address reaches a given threshold,
+	deliveries from that address are rejected.  This is how DNS
+	blacklists are used by filtering software such as
+	SpamAssassin (<A
+HREF="datachecks.html#spamscanners"
+>Spam Scanners</A
+>).
+      </P
+><P
+>&#13;	One could also use such lists as one of several triggers for
+	SMTP transaction delays on incoming connections
+	(a.k.a. "teergrubing").  If a host is listed in a DNSbl, your
+	server would delay its response to every SMTP command issued
+	by the peer for, say, 20 seconds.  Several other criteria can
+	be used as triggers for such delays; see the section on 
+	<A
+HREF="smtpdelays.html"
+>SMTP transaction delays</A
+>.
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="rdns"
+></A
+>2.2.2. DNS Integrity Check</H2
+><P
+>&#13;	Another way to use DNS is to perform a reverse lookup of the
+	peer's IP address, then a forward lookup of the resulting
+	name.  If the original IP address is included in the result,
+	its DNS integrity has been validated.  Otherwise, the DNS
+	information for the connecting host is not valid.
+      </P
+><P
+>&#13;	Rejecting mails based on this criterion may be an option if
+	you are a militant member of the DNS police, setting up an
+	incoming MX for your own personal domain, and don't mind
+	rejecting legitimate mail as a way to impress upon the sender
+	that they need to ask their own system administrator to clean
+	up their DNS records.  For everyone else, the result of a DNS
+	integrity check should probably only be used as one data point
+	in a larger set of heuristics.  Alternatively, as above, using
+	SMTP transaction delays for misconfigured hosts may not be a
+	bad idea.
+      </P
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN649"
+HREF="dnschecks.html#AEN649"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;	    Similar lists exist for different purposes.  For instance,
+	    <SPAN
+CLASS="QUOTE"
+>"bondedsender.org"</SPAN
+> is a <EM
+>DNS
+	    whitelist</EM
+> (DNSwl), containing
+	    <SPAN
+CLASS="QUOTE"
+>"trusted"</SPAN
+> IP addresses, whose owners have
+	    posted a financial bond that will be debited in the event
+	    that spam originates from that address.  Other lists
+	    contain IP addresses in use by specific countries,
+	    specific ISPs, etc.
+	  </P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN661"
+HREF="dnschecks.html#AEN661"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;	  For instance, the outgoing mail exchangers (<SPAN
+CLASS="QUOTE"
+>"smart
+	  hosts"</SPAN
+>) of the world's largest Internet Service
+	  Provider (ISP), comcast.net, is as of the time of this
+	  writing included in the SPEWS <EM
+>Level 1</EM
+>
+	  list.  Not wholly undeserved from the viewpoint that
+	  Comcast needs to more effectively enforce their own AUP,
+	  but this listing does affect 30% of all US internet users,
+	  mostly <SPAN
+CLASS="QUOTE"
+>"innocent"</SPAN
+> subscribers such as myself.
+	</P
+><P
+>&#13;	  To make matters worse, information published in the <A
+HREF="http://spews.org/faq.html"
+TARGET="_top"
+>SPEWS FAQ</A
+> states:
+	  <EM
+>&#13;	    The majority of the Level 1 list is made up of netblocks
+	    owned by the spammers or spam support operations
+	    themselves, with few or no other legitimate customers
+	    detected.
+	  </EM
+>
+	  Technically, this information is accurate if (a) you
+	  consider Comcast a <SPAN
+CLASS="QUOTE"
+>"spam support operation"</SPAN
+>,
+	  and (b) pay attention to the word <SPAN
+CLASS="QUOTE"
+>"other"</SPAN
+>.
+	  Word parsing aside, this information is clearly misleading.
+	</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="smtpdelays.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="smtpchecks.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>SMTP Transaction Delays</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="techniques.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>SMTP checks</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,334 @@
+<HTML
+><HEAD
+><TITLE
+>Configuring your modem and serial port</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.52"><LINK
+REL="HOME"
+TITLE="Linux PPP HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Getting the Information you need about the PPP server"
+HREF="server-info.html"><LINK
+REL="NEXT"
+TITLE="Serial Port Names"
+HREF="x753.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+><A
+HREF="http://www.linuxports.com/howto/ppp"
+TARGET="_top"
+>Linux PPP HOWTO</A
+></TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="server-info.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x753.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="MODEM"
+>Chapter 12. Configuring your modem and serial port</A
+></H1
+><DIV
+CLASS="TOC"
+><DL
+><DT
+><B
+>Table of Contents</B
+></DT
+><DT
+>12.1. <A
+HREF="modem.html#AEN745"
+>A note about serial ports and speed capabilities</A
+></DT
+><DT
+>12.2. <A
+HREF="x753.html"
+>Serial Port Names</A
+></DT
+><DT
+>12.3. <A
+HREF="x761.html"
+>Configuring your modem</A
+></DT
+><DT
+>12.4. <A
+HREF="x797.html"
+>Note on Serial Flow Control</A
+></DT
+><DT
+>12.5. <A
+HREF="x808.html"
+>Testing your modem for dial out</A
+></DT
+></DL
+></DIV
+><P
+>You should make sure that your modem is correctly set up and that you
+know which serial port it is connected to.</P
+><P
+><I
+CLASS="EMPHASIS"
+>Remember</I
+>...
+
+<P
+></P
+><UL
+><LI
+><P
+>DOS com1: = Linux /dev/cua0 (and /dev/ttyS0)</P
+></LI
+><LI
+><P
+>DOS com2: = Linux /dev/cua1 (and /dev/ttyS1)
+
+et cetera</P
+></LI
+></UL
+>&#13;</P
+><P
+>It is also worth remembering that if you have 4 serial ports, the
+standard PC set up is to have com1 and com3 share IRQ4 and com2 and com4
+share IRQ3.</P
+><P
+>If you have devices on standard serial ports that share an IRQ with your
+modem you are going to have problems. You need to make sure that your
+modem serial port is on its own, unique IRQ. Many modern serial cards
+(and better quality motherboard serial ports) allow you to move the IRQ
+of the serial ports around.</P
+><P
+>If you are running Linux kernel 2, you can check the in-use IRQs using
+<TT
+CLASS="LITERAL"
+>cat /proc/interrupts</TT
+>, which will produce output like
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+> 0:    6766283   timer
+ 1:      91545   keyboard
+ 2:          0   cascade
+ 4:     156944 + serial
+ 7:     101764   WD8013
+10:     134365 + BusLogic BT-958
+13:          1   math error
+15:    3671702 + serial</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This shows a serial port on IRQ4 (a mouse) and a serial port
+on IRQ15 (the permanent modem based PPP link to the Internet. (There is
+also a serial port on com2, IRQ3 and com4 is on IRQ14, but as they are
+not in use, they do not show up).</P
+><P
+>Be warned - you need to know what you are doing if you are going to play
+with your IRQs! Not only do you have to open up you computer, pull out
+cards and play with jumpers, but you need to know what is on which IRQ.
+In my case, this is a totally SCSI based PC, and so I can disable the "on
+motherboard" IDE interfaces that normally use IRQ14 and 15!</P
+><P
+>You should also remember that if your PC boots other operating systems,
+moving IRQs around may well mean that OS cannot boot properly - or at all!</P
+><P
+>If you do move your serial ports to non-standard IRQs, then you need to
+tell Linux which IRQ each port is using. This is done using "
+<TT
+CLASS="LITERAL"
+>setserial</TT
+>" and is best done as part of the boot process in
+<TT
+CLASS="LITERAL"
+>rc.local</TT
+> or <TT
+CLASS="LITERAL"
+>rc.serial</TT
+> which is called from <TT
+CLASS="LITERAL"
+>rc.local</TT
+> or as
+part of the SysV initialization. For the machine illustrated above, the
+commands used are...
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>/bin/setserial -b /dev/ttyS2 IRQ 11
+/bin/setserial -b /dev/ttyS3 IRQ 15</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>However, if you are using serial modules dynamically loaded, when
+required by the <TT
+CLASS="LITERAL"
+>kerneld</TT
+> process, you cannot set and forget the IRQs,
+(etc.) once at boot time. This is because if the serial module is unloaded,
+Linux forgets the special settings.</P
+><P
+>So, if you are loading the serial module on demand, you will need to
+reconfigure the IRQs, (etc.) each time the module is loaded.</P
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN745"
+>12.1. A note about serial ports and speed capabilities</A
+></H1
+><P
+>If you are using a high speed (external) modem (14,400 Baud or above),
+your serial port needs to be capable of handling the throughput that
+such a modem is capable of producing, particularly when the modems are
+compressing the data.</P
+><P
+>This requires your serial port to use a modern UART (Universal
+Asynchronous Receiver Transmitter) such as a 16550(A). If you are using
+an old machine (or old serial card), it is quite possible that your
+serial port has only an 8250 UART, which will cause you considerable
+problems when used with a high speed modem.</P
+><P
+>Use the command...
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="SCREEN"
+>setserial -a /dev/ttySx</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>to get Linux to report to you the type of UART you have. If you
+do not have a 16550A type UART, invest in a new serial card (available
+for under $50). When you purchase a new card, make sure you can
+move the IRQs around on it!</P
+><P
+>Note: the first versions of the 16550 UART chip had an error. This was
+rapidly discovered and a revision of the chip was released - the 16550A
+UART. A relatively small number of the faulty chips did however get into
+circulation. It is unlikely that you will encounter one of these but you
+should look for a response that says 16550A, particularly on serial
+cards of some vintage.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="server-info.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x753.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Getting the Information you need about the PPP server</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Serial Port Names</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

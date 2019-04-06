@@ -1,0 +1,350 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Ethernet-Howto: Miscellaneous.</TITLE>
+ <LINK HREF="Ethernet-HOWTO-7.html" REL=previous>
+ <LINK HREF="Ethernet-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+Next
+<A HREF="Ethernet-HOWTO-7.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="misc"></A> <A NAME="s8">8. Miscellaneous.</A></H2>
+
+<P>
+<P>Any other associated stuff that didn't fit in anywhere else gets
+dumped here. It may not be relevant, and it may not be of general
+interest but it is here anyway.
+<P>
+<H2><A NAME="ss8.1">8.1 Transmit FIFO Buffers and Underrun Errors</A>
+</H2>
+
+<P>Donald wrote a nice description of what the Tx FIFO does
+and when an error occurs. Here it is:
+<P>Where the hardware supports it, my drivers have dynamic Tx FIFO
+tuning code.  A typical Ethernet chip has a Tx FIFO that holds data 
+from the bus before it is transmitted on the wire.  The way this 
+FIFO is controlled is important for performance.
+<P>Ideally you would like to start transmitting as soon as the first Tx
+packet data arrives at the chip.  The "Tx FIFO threshold" is a 
+parameter that specifies "start transmitting when N bytes have 
+arrived at the NIC chip".  This parameter is initially set for a 
+typical configuration.  But if a video card or SCSI controller is 
+doing long PCI bursts, the NIC chip will run out of buffered data 
+before it can get access to the bus again.  This causes a FIFO 
+underrun.
+<P>The driver responds to the FIFO underrun by changing the Tx FIFO
+threshold to a higher value.  If this happens enough eventually the
+chip will end up in store-and-forward mode, where it doesn't start
+transmitting until the whole packet has been transferred.
+<P>Some designs, such as the Adaptec Starfire, go one step further and
+provide an indication that the FIFO almost ran out of data.  This 
+allows the driver to tune the setting without risking a Tx error.
+<P>It should be rare to see more than one or two Tx FIFO underruns.  
+Either the chip has very coarse Tx threshold settings, or the 
+driver increases the setting in large chunks to keep the PCI 
+bursts on natural boundaries.
+<P>
+<H2><A NAME="lilo"></A> <A NAME="ss8.2">8.2 Passing Ethernet Arguments to the Kernel</A>
+</H2>
+
+<P>
+<P>Here are two generic kernel commands that can be passed to
+the kernel at boot time (<CODE>ether</CODE> and <CODE>reserve</CODE>). 
+This can be done with LILO, loadlin,
+or any other booting utility that accepts optional arguments.
+<P>For example, if the command was `blah' and it expected 3 arguments
+(say 123, 456, and 789) then, with LILO, you would use:
+<P><CODE>LILO: linux blah=123,456,789</CODE>
+<P>These boot time arguments can be made permanent so that you
+don't have to re-enter them every time. Usually this is
+as simple as adding <CODE>append="blah=123,456,789"</CODE>
+to the top of your <CODE>/etc/lilo.conf</CODE> file. See the LILO
+documentation for more details.
+<P>For more information on (and a complete list of) boot time
+arguments, please see the
+<A HREF="http://metalab.unc.edu/mdw/HOWTO/BootPrompt-HOWTO.html">BootPrompt-HOWTO</A><P>
+<H3><A NAME="ether"></A> The <CODE>ether</CODE> command</H3>
+
+<P>
+<P>The <CODE>ether=</CODE> argument is used in conjunction with
+drivers that are directly built into the kernel. The
+<CODE>ether=</CODE> argument will have <EM>absolutely no effect</EM>
+on a modular driver.  In its most generic form, it 
+looks something like this:
+<P>
+<BLOCKQUOTE><CODE>
+ether=IRQ,BASE_ADDR,PARAM_1,PARAM_2,NAME
+</CODE></BLOCKQUOTE>
+<P>All arguments are optional.  The first non-numeric argument
+is taken as the NAME.
+<P><B>IRQ:</B>
+Obvious.  An IRQ value of `0' (usually the default) means to autoIRQ.
+It's a historical accident that the IRQ setting is first rather than
+the base_addr -- this will be fixed whenever something else changes.
+<P><B>BASE_ADDR:</B>
+Also obvious.  A value of `0' (usually the default) means to
+probe a card-type-specific address list for an ethercard.
+<P><B>PARAM_1:</B>
+It was orginally used as an override value for the memory start
+for a shared-memory ethercard, like the WD80*3.
+Some drivers use the low four bits of this value to set the debug
+message level.  0 -- default, 1-7 -- level 1..7, (7 is maximum
+verbosity)  8 -- level 0 (no messages). Also, the LANCE driver
+uses the low four bits of this value to select the DMA channel.
+Otherwise it uses auto-DMA.
+<P><B>PARAM_2:</B>
+The 3c503 driver uses this to select between the internal and external
+transceivers.  0 -- default/internal, 1 -- AUI external.
+The Cabletron E21XX card also uses the low 4 bits of PARAM_2 to 
+select the output media. Otherwise it detects automatically.
+<P><B>NAME:</B>
+Selects the network device the values refer to.  The standard kernel
+uses the names `eth0', `eth1', `eth2' and `eth3' for bus-attached
+ethercards, and `atp0' for the parallel port `pocket' ethernet
+adaptor. The arcnet driver uses `arc0' as its name.
+The default setting is for a single ethercard to be probed for as
+`eth0'.  Multiple cards can only be enabled by explicitly setting up
+their base address using these LILO parameters.
+The 1.0 kernel has LANCE-based ethercards as a special case.  LILO
+arguments are ignored, and LANCE cards are always assigned
+`eth&lt;n&gt;' names starting at `eth0'.  Additional non-LANCE ethercards
+must be explicitly assigned to `eth&lt;n+1&gt;', and the usual `eth0'
+probe disabled with something like  `ether=0,-1,eth0'.
+( Yes, this is bug. )
+<P>
+<H3><A NAME="reserve"></A> The <CODE>reserve</CODE> command</H3>
+
+<P>
+<P>This next lilo command is used just like `ether=' above, ie. it is
+appended to the name of the boot select specified in lilo.conf
+<P>
+<BLOCKQUOTE><CODE>
+reserve=IO-base,extent{,IO-base,extent...}
+</CODE></BLOCKQUOTE>
+<P>In some machines it may be necessary to prevent device drivers from
+checking for devices (auto-probing) in a specific region. This may be
+because of poorly designed hardware that causes the boot to <EM>freeze</EM>
+(such as some ethercards), hardware that is mistakenly identified,
+hardware whose state is changed by an earlier probe, or merely
+hardware you don't want the kernel to initialize.
+<P>The <CODE>reserve</CODE> boot-time argument addresses this problem by specifying
+an I/O port region that shouldn't be probed. That region is reserved
+in the kernel's port registration table as if a device has already
+been found in that region. Note that this mechanism shouldn't be
+necessary on most machines. Only when there is a problem or special
+case would it be necessary to use this.
+<P>The I/O ports in the specified region are protected against
+device probes. This was put in to be used when some driver was
+hanging on a NE2000, or misidentifying some other device
+as its own.  A correct device driver shouldn't probe a reserved
+region, unless another boot argument explicitly specifies that
+it do so.  This implies that <CODE>reserve</CODE> will most often be used
+with some other boot argument. Hence if you specify a <CODE>reserve</CODE>
+region to protect a specific device, you must generally specify
+an explicit probe for that device. Most drivers ignore the port
+registration table if they are given an explicit address.
+<P>For example, the boot line
+<P>
+<BLOCKQUOTE><CODE>
+LILO: linux  reserve=0x300,32  ether=0,0x300,eth0
+</CODE></BLOCKQUOTE>
+<P>keeps all device drivers except the ethercard drivers from
+probing 0x300-0x31f.
+<P>As usual with boot-time specifiers there is an 11 parameter limit,
+thus you can only specify 5 reserved regions per <CODE>reserve</CODE> keyword.
+Multiple <CODE>reserve</CODE> specifiers will work if you have an unusually
+complicated request.
+<P>
+<H2><A NAME="modules"></A> <A NAME="ss8.3">8.3 Using the Ethernet Drivers as Modules</A>
+</H2>
+
+<P>
+<P>Most of the linux distributions now ship kernels that have
+very few drivers built-in.  The drivers are instead supplied as
+a bunch of independent dynamically loadable modules.  These
+modular drivers are typically loaded by the administrator
+with the <CODE>modprobe(8)</CODE> command, or in some cases they are
+automatically loaded by the kernel through `kerneld' (in
+2.0) or `kmod' (in 2.1) which then calls <CODE>modprobe</CODE>.
+<P>Your particular distribution may offer nice graphical
+configuration tools for setting up ethernet modules. If possible
+you should try and use them first. The description that follows
+here gives information on what underlies any fancy configuration
+program, and what these programs change.
+<P>The information that controls what modules are to be used and
+what options are supplied to each module is usually stored in
+the file <CODE>/etc/modules.conf</CODE>.  The two main options of
+interest (for ethernet cards) that will be used in this file
+are <CODE>alias</CODE> and <CODE>options</CODE>.  The <CODE>modprobe</CODE> command
+consults this file for module information.
+<P>The actual modules themselves are typically stored in a directory
+named <CODE>/lib/modules/`uname -r`/net</CODE> where the
+<CODE>uname -r</CODE> command gives the kernel version (e.g. 2.0.34).
+You can look in there to see which module matches your card.
+<P>The first thing you need in your <CODE>modules.conf</CODE> file is
+something to tell <CODE>modprobe</CODE> what driver to use for the
+<CODE>eth0</CODE> (and <CODE>eth1</CODE> and...) network interface.  You
+use the <CODE>alias</CODE> command for this.  For example, if you
+have an ISA SMC EtherEZ card which uses the <CODE>smc-ultra.o</CODE>
+driver module, you need to <CODE>alias</CODE> this driver to <CODE>eth0</CODE>
+by adding the line:
+<P>
+<PRE>
+        alias eth0 smc-ultra
+</PRE>
+<P>Important Note:  The alias above is only used by the module 
+utilities to translate a generic device name (e.g.<CODE>eth0</CODE>)
+into a hardware specific driver module name.  When the driver
+loads, it never even sees this alias; instead it will simply 
+choose the first free <CODE>ethN</CODE> (N=0,1,2,...)
+device name available. Thus, if more than one ethernet module is
+being loaded, the <CODE>ethN</CODE> assigned to the driver by the kernel
+may or may not be the same as the one given on the alias line, 
+depending on the order in which the modules have been loaded.
+If you need to ensure that a particular card is given a particular
+IP address, then read the station address and assign your
+IP address based upon that.  If you are writing your own shell 
+scripts for this, you can just parse the ifconfig output; if
+using C, then you would
+use <CODE>ioctl(ethfd, SIOCGIFHWADDR, &amp;ifreq)</CODE>.
+<P>The other thing you may need is an <CODE>options</CODE> line indicating
+what options are to be used with a particular module (or module
+alias). Continuing with the above example, if you only used the
+single <CODE>alias</CODE> line with no <CODE>options</CODE> line, the kernel would
+warn you (see <CODE>dmesg</CODE>) that autoprobing for ISA cards is not
+a good idea.  To get rid of this warning, you would add another
+line telling the module what I/O base the card is configured to,
+in this case say the hexidecimal address <CODE>0x280</CODE> for example.
+<P>
+<PRE>
+        options smc-ultra io=0x280
+</PRE>
+<P>Most ISA modules accept parameters like <CODE>io=0x340</CODE> and
+<CODE>irq=12</CODE> on the <CODE>insmod</CODE> command line. It is <EM>REQUIRED</EM>
+or at least <EM>STRONGLY ADVISED</EM> that you supply these parameters
+to avoid probing for the card. Unlike PCI and EISA devices,
+there is no real safe way to do auto-probing for most ISA devices,
+and so it should be avoided when using drivers as modules.
+<P>A list of all the options that each module accepts can be
+found in the file:
+<P><CODE>/usr/src/linux/Documentation/networking/net-modules.txt</CODE>
+<P>It is recommended that you read that to find out what options
+you can use for your particular card.
+Note that some modules support comma separated value lists for modules
+that have the capability to handle multiple devices from a single
+module, such as all the 8390 based drivers, and the PLIP driver.
+For exmple:
+<P>
+<HR>
+<PRE>
+        options 3c503 io=0x280,0x300,0x330,0x350 xcvr=0,1,0,1
+</PRE>
+<HR>
+<P>The above would have the one module controlling four
+3c503 cards, with card 2 and 4 using external
+transcievers. Don't put spaces around the `=' or commas.
+<P>Also note that a <EM>busy</EM> module can't be removed. That means
+that you will have to <CODE>ifconfig eth0 down</CODE>  (shut down the
+ethernet card) before you can remove the module(s).
+<P>The command <CODE>lsmod</CODE> will show you what modules are
+loaded, whether they are in use, and <CODE>rmmod</CODE> will remove them.
+<P>
+<H2><A NAME="ss8.4">8.4 Related Documentation</A>
+</H2>
+
+<P>
+<P>Much of this info came from saved postings from the comp.os.linux
+groups, which shows that it is a valuable resource of information.
+Other useful information came from a bunch of small files by Donald
+himself. Of course, if you are setting up an Ethernet card,
+then you will want to read the NET-2 Howto so that you can actually
+configure the software you will use.  Also, if you fancy yourself as
+a bit of a hacker, you can always scrounge some additional info
+from the driver source files as well. There is usually a paragraph
+or two in there describing any important points before any actual
+code starts..
+<P>For those looking for information that is not specific in any way
+to Linux (i.e. what is 10BaseT, what is AUI, what does a hub do, etc.)
+I strongly recommend making use of the newsgroup <EM>comp.dcom.lans.ethernet</EM>
+and/or <EM>comp.sys.ibm.pc.hardware.networking</EM>.  Newsgroup archives
+such as those at <CODE>dejanews.com</CODE> can also be an invaluable source
+of information.
+You can grab the newsgroup FAQ from RTFM (which holds all the newsgroup
+FAQs) at the following URL:
+<P>
+<A HREF="ftp://rtfm.mit.edu/pub/usenet-by-hierarchy/">Usenet FAQs</A><P>You can also have a look at the `Ethernet-HomePage' so to speak,
+which is at the following URL:
+<P>
+<A HREF="http://wwwhost.ots.utexas.edu/ethernet/ethernet-home.html">Ethernet-HomePage</A><P>
+<P>
+<H2><A NAME="copyright"></A> <A NAME="ss8.5">8.5 Disclaimer and Copyright</A>
+</H2>
+
+<P>This document is <EM>not</EM> gospel. However, it is probably the most
+up to date info that you will be able to find. Nobody is responsible
+for what happens to your hardware but yourself. If your ethercard
+or any other hardware goes up in smoke (...nearly impossible!)
+we take no responsibility. ie. THE AUTHORS ARE NOT RESPONSIBLE
+FOR ANY DAMAGES INCURRED DUE TO ACTIONS TAKEN BASED ON THE
+INFORMATION INCLUDED IN THIS DOCUMENT.
+<P>This document is Copyright (c) 1993-2000 by Paul Gortmaker.
+Permission is granted to make and distribute verbatim copies
+of this manual provided the copyright notice and this permission
+notice are preserved on all copies.
+<P>Permission is granted to copy and distribute modified versions
+of this document under the conditions for verbatim copying,
+provided that this copyright notice is included exactly as in
+the original, and that the entire resulting derived work is
+distributed under the terms of a permission notice identical
+to this one.
+<P>Permission is granted to copy and distribute translations
+of this document into another language, under the above
+conditions for modified versions.
+<P>A hint to people considering doing a translation.  First,
+translate the SGML source (available via FTP from the HowTo
+main site) so that you can then generate other output formats.
+Be sure to keep a copy of the original English SGML source that
+you translated from! When an updated HowTo is released,
+get the new SGML source for that version, and then a simple
+<CODE>diff -u old.sgml new.sgml</CODE> will show you exactly what has
+changed so that you can easily incorporate those changes into
+your translated SMGL source without having to re-read or
+re-translate everything.
+<P>If you are intending to incorporate this document into a
+published work, please make contact (via e-mail) so that
+you can be supplied with the most up to date information
+available. In the past, out of date versions of the Linux
+HowTo documents have been published, which caused the developers
+undue grief from being plagued with questions that were already
+answered in the up to date versions.
+<P>
+<H2><A NAME="ss8.6">8.6 Closing</A>
+</H2>
+
+<P>
+<P>In the early days of linux, some ten(!) years ago, there
+were not a lot of drivers and not a lot of users.  I had
+the time to follow individual driver developments, read
+about common problems in newsgroups, and answer posted
+and e-mailed questions.   Things are a lot different now.
+There are a huge number of drivers, and a huge number of
+users too, and there is no way I can keep up with each
+new development!   This is where I need your help. 
+If you have found a new driver that isn't mentioned here,
+or any glaring typos, or outdated info in this
+document, please send an e-mail. It is big, and it
+is easy to overlook stuff. If you have e-mailed about a change,
+and it hasn't been included in the next version, please don't
+hesitate to send it again, as it might have got lost amongst
+the usual sea of SPAM and junk mail I get.
+<P>Thanks!
+<P>Paul Gortmaker, <CODE>p_gortmaker @ yahoo.com</CODE>
+<HR>
+Next
+<A HREF="Ethernet-HOWTO-7.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

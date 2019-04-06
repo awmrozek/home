@@ -1,0 +1,352 @@
+<HTML
+><HEAD
+><TITLE
+>Setting up DHCP and TFTP servers</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="HOWTO Clone Disk Images on Linux Booted from a Network"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Introduction"
+HREF="introduction.html"><LINK
+REL="NEXT"
+TITLE="Preparing boot files"
+HREF="preparing.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>HOWTO Clone Disk Images on Linux Booted from a Network</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="introduction.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="preparing.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="SETTING-UP">3. Setting up DHCP and TFTP servers</H1
+><P
+>A DHCP server is required to provide IP addresses for the clients when booting Grub (BOOTP) and later when booting Linux. A TFTP server is required to make the boot images available on the network for Linux to boot. The TFTP server is also necessary to make it possible to save and restore the disk images.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN63">3.1. Setting up DHCP</H2
+><P
+>Details on DHCP are beyond the scope of this article. The <SPAN
+CLASS="QUOTE"
+>"Linux Networking HOWTO"</SPAN
+> has a chapter on DHCP.</P
+><P
+>Setting up DHCP is very easy, but if you are in a network environment administered by someone else, it's advisable to use a preexisting DHCP server. If you "own" the network then you can follow this procedure.</P
+><P
+>Install DHCP, if not installed, from the rpm package, normally found in Linux distributions:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>rpm -ihv dhcp-*.rpm
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Edit the <TT
+CLASS="FILENAME"
+>/etc/dhcpd.conf</TT
+> file to configure DHCP service. In our setup, the server has IP address 10.0.0.1 and provides IP addresses up to 253 clients. Configure <TT
+CLASS="FILENAME"
+>/etc/dhcpd.conf</TT
+> according to your environment:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>#/etc/dhcpd.conf
+server-identifier dhcp.clonedomain.com;
+default-lease-time	172800;
+max-lease-time		604800;
+option domain-name	"clonedomain.com";
+subnet 10.0.0.0 netmask 255.255.255.0 {
+	range dynamic-bootp 10.0.0.2 10.0.0.254;
+}
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Start the dhcpd server:</P
+><P
+><B
+CLASS="COMMAND"
+>/etc/rc.d/init.d/dhcpd start</B
+>.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN78">3.2. Setting up TFTP</H2
+><P
+>Setting up TFTP is almost as easy as DHCP.</P
+><P
+>First install from the rpm package:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>rpm -ihv tftp-server-*.rpm
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Create a directory for the files:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>mkdir /tftpboot
+<TT
+CLASS="PROMPT"
+># </TT
+>chown nobody:nobody /tftpboot
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The directory <TT
+CLASS="FILENAME"
+>/tftpboot</TT
+> is owned by user <TT
+CLASS="VARNAME"
+>nobody</TT
+>, because this is the default user id set up by tftpd to access the files.</P
+><P
+>Edit the file <TT
+CLASS="FILENAME"
+>/etc/xinetd.d/tftp</TT
+> to look like the following:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>service tftp
+{
+	socket_type	= dgram
+	protocol	= udp
+	wait		= yes
+	user		= root
+	server		= /usr/sbin/in.tftpd
+	server_args	= -c -s /tftpboot
+	disable		= no
+	per_source	= 11
+	cps		= 100 2
+}
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The changes from the default file are the parameter <TT
+CLASS="PARAMETER"
+><I
+>disable = no</I
+></TT
+> (to enable the service) and the server argument <TT
+CLASS="PARAMETER"
+><I
+>-c</I
+></TT
+>. This argument allows for the creation of files, which is necessary if you want to save boot or disk images. You may want to make TFTP read only in normal operation.</P
+><P
+>Then reload xinetd:</P
+><P
+><B
+CLASS="COMMAND"
+>/etc/rc.d/init.d/xinetd reload</B
+></P
+><P
+>You can use the <B
+CLASS="COMMAND"
+>tftp</B
+> command, available from the tftp (client) rpm package, to test the server. At the tftp prompt, you can issue the commands <B
+CLASS="COMMAND"
+>put</B
+> and <B
+CLASS="COMMAND"
+>get</B
+>.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN104">3.3. Using different servers</H2
+><P
+>It is possible to use different servers for DHCP and TFTP. This may be necessary if using a preexisting DHCP server. You can configure the <TT
+CLASS="PARAMETER"
+><I
+>next-server</I
+></TT
+> parameter in DHCP to point to the TFTP server or you can use the command <B
+CLASS="COMMAND"
+>tftpserver</B
+> in Grub.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="introduction.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="preparing.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Introduction</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Preparing boot files</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,463 @@
+<HTML
+><HEAD
+><TITLE
+>Building the kernel</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Network Boot and Exotic Root HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Diskless booting operation overview"
+HREF="x122.html"><LINK
+REL="NEXT"
+TITLE="Daemons setup"
+HREF="x219.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Network Boot and Exotic Root HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x122.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x219.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN150">3. Building the kernel</H1
+><P
+>First of all, build a kernel for the clients. I suggest you build it on the server, this will be useful later for modules installation. Use a zImage to reduce its size. Include everything you need, but try to use as many modules as possible, because many BOOTP client implementations are unable to load very large kernels (at least on intel x86 architectures). Also include iramdisk support, NFS protocol support, root filesystem on NFS support, support for your NIC, kernel level IP autoconfiguration via BOOTP; <EM
+>do not use modules for these!</EM
+> Then, if you plan to use the same remote root filesystem for several clients, add support for ext2fs or some other filesystem and ramdisks (16 Megabytes ramdisks will do fine on most systems). You can then modify the kernel arguments as usual (see the BootPrompt-HOWTO for information on this topic), but you will have another opportunity to modify kernel arguments later.</P
+><P
+>Then, if you plan to use BOOTP, copy the kernel zImage on the server. We will assume it resides in <TT
+CLASS="FILENAME"
+>/tftpboot</TT
+>, its name is zImage, the name of the image you want to create from this zImage for BOOTP operation is kernel, and the nfs root filesystem will reside in <TT
+CLASS="FILENAME"
+>/nfsroot</TT
+>.</P
+><P
+>Issue the following commands on the server (the mknbi package should be installed):
+
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>      <TT
+CLASS="PROMPT"
+># </TT
+>cd /tftpboot
+      <TT
+CLASS="PROMPT"
+># </TT
+>chmod 0555 zImage
+      <TT
+CLASS="PROMPT"
+># </TT
+>chown root:root zImage
+      <TT
+CLASS="PROMPT"
+># </TT
+>mknbi-linux zImage --output=kernel --rootdir=/nfsroot
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+  </P
+><P
+>If you are using LanWorks EPROMs, also issue the following commands (you need the imggen utility):
+
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>      <TT
+CLASS="PROMPT"
+># </TT
+>mv -f kernel tmpkernel
+      <TT
+CLASS="PROMPT"
+># </TT
+>imggen -a tmpkernel kernel
+      <TT
+CLASS="PROMPT"
+># </TT
+>rm -f tmpkernel
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+  </P
+><P
+>Your kernel is ready for BOOTP/DHCP/ROM operation. You of course don't need to do this if you plan to use a local drive.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN169">3.1. When the root filesystem is on a ramdisk</H2
+><P
+>It is possible to use a ramdisk for the root filesystem. In this case, the command used to modify the kernel's binary image is slightly different. If you choose to do so, you have to enable support for initial ramdisk (initrd), and you probably don't need NFS support, or you probably can compile it as a module.</P
+><P
+>Its time to give an overview of what happens when you use initrd. The full documentation for this is in your kernel source tree, in the <TT
+CLASS="FILENAME"
+>Documentation/initrd.txt</TT
+> file. I have to warn you I did never try this :).</P
+><P
+>When initrd is enabled, the boot loader first loads the kernel and the inital ramdisk into memory. Then, the ramdisk is mounted read-write as root filesystem. The kernel looks for a <TT
+CLASS="FILENAME"
+>/linuxrc</TT
+> file (a binary executable or a script beginning with #!). When <TT
+CLASS="FILENAME"
+>/linuxrc</TT
+> terminates, the traditionnal root filesystem is mounted as <TT
+CLASS="FILENAME"
+>/</TT
+>, and the usual boot sequence is performed. So, if you want to run your box entirely from ramdisk, you just have to create a link from <TT
+CLASS="FILENAME"
+>/linuxrc</TT
+> to <TT
+CLASS="FILENAME"
+>/sbin/init</TT
+>, or to write there a shell script to perform any action you like, and then shutdown the computer.</P
+><P
+>After the kernel has been compiled, you have to build a root filesystem for your installation. This is explained in the "Clients setup, creation of the root filesystem" section. I will assume here that this is already done and that the root filesystem for your clients temporarily resides in <TT
+CLASS="FILENAME"
+>/tmp/rootfs</TT
+>. You now have to create a ramdisk image. A simple way to do so is the following:
+
+      <P
+></P
+><UL
+><LI
+STYLE="list-style-type: opencircle"
+><P
+>Make sure the computer you are working on has support for ramdisks and has such a device (<TT
+CLASS="FILENAME"
+>/dev/ram0</TT
+>).</P
+></LI
+><LI
+STYLE="list-style-type: opencircle"
+><P
+>Create an empty filesystem with the appropriate size on this ramdisk:
+	    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	      <TT
+CLASS="PROMPT"
+># </TT
+>mke2fs -m0 /dev/ram0 300
+	    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	  </P
+></LI
+><LI
+STYLE="list-style-type: opencircle"
+><P
+>Mount it somewhere:
+	    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	      <TT
+CLASS="PROMPT"
+># </TT
+>mount -t ext2 /dev/ram0 /mnt
+	    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	  </P
+></LI
+><LI
+STYLE="list-style-type: opencircle"
+><P
+>Copy what you need for your new root filesystem, and create your future <TT
+CLASS="FILENAME"
+>/linuxrc</TT
+> if you did not create it in <TT
+CLASS="FILENAME"
+>/tmp/rootfs/linuxrc</TT
+>:
+	    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	      <TT
+CLASS="PROMPT"
+># </TT
+>cp -a /tmp/rootfs/* /mnt
+	    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	  </P
+></LI
+><LI
+STYLE="list-style-type: opencircle"
+><P
+>Unmount the ramdisk:
+	    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	      <TT
+CLASS="PROMPT"
+># </TT
+>umount /mnt
+	    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	  </P
+></LI
+><LI
+STYLE="list-style-type: opencircle"
+><P
+>Save the ramdisk image to some file and free it:
+	    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	      <TT
+CLASS="PROMPT"
+># </TT
+>dd if=/dev/ram0 of=initrd bs=1024 count=300
+	      <TT
+CLASS="PROMPT"
+># </TT
+>freeramdisk /dev/ram0
+	    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	  </P
+></LI
+></UL
+>
+
+      What was toled above about LanWorks PROMs is also true if you use initrd.
+
+    </P
+><P
+>Then, you have to modify the kernel image, as was told above, with the <B
+CLASS="COMMAND"
+>mknbi-linux</B
+> utility. Its invocation will slightly differ from the above, though (I will assume your just compiled zImage resides in <TT
+CLASS="FILENAME"
+>/tftpboot/zImage</TT
+> and your initial ramdisk image resides in <TT
+CLASS="FILENAME"
+>/tmp/initrd</TT
+>):
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>cd /tftpboot
+        <TT
+CLASS="PROMPT"
+># </TT
+>chmod 0555 zImage
+        <TT
+CLASS="PROMPT"
+># </TT
+>chown root:root zImage
+	<TT
+CLASS="PROMPT"
+># </TT
+>rdev zImage /dev/ram0
+        <TT
+CLASS="PROMPT"
+># </TT
+>mknbi-linux zImage --output=kernel --rootdir=/dev/ram0 /tmp/initrd
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x122.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x219.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Diskless booting operation overview</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Daemons setup</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

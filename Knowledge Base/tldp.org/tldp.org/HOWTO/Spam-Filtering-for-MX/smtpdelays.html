@@ -1,0 +1,428 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>SMTP Transaction Delays</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Techniques"
+HREF="techniques.html"><LINK
+REL="PREVIOUS"
+TITLE="Techniques"
+HREF="techniques.html"><LINK
+REL="NEXT"
+TITLE="DNS Checks"
+HREF="dnschecks.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="techniques.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 2. Techniques</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="dnschecks.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="smtpdelays"
+></A
+>2.1. SMTP Transaction Delays</H1
+><P
+>&#13;      As it turns out, one of the more effective ways of stopping spam
+      is by imposing transaction delays during an inbound SMTP
+      dialogue.  This is a primitive form of
+      <EM
+>teergrubing</EM
+>, see: <A
+HREF="http://www.iks-jena.de/mitarb/lutz/usenet/teergrube.en.html"
+TARGET="_top"
+>http://www.iks-jena.de/mitarb/lutz/usenet/teergrube.en.html</A
+>
+    </P
+><P
+>&#13;      Most spam and nearly all e-mail borne virii are delivered
+      directly to your server by way of specialized SMTP client
+      software, optimized for sending out large amounts of mail in a
+      very short time.  Such clients are commonly known as
+      <A
+HREF="gloss.html#ratware"
+><I
+CLASS="glossterm"
+>Ratware</I
+></A
+>.
+    </P
+><P
+>&#13;      In order to accomplish this task, ratware authors commonly take
+      a few shortcuts that, ahem, <SPAN
+CLASS="QUOTE"
+>"diverge"</SPAN
+> a bit
+      from the RFC 2821 specification.  One of the intrinsic traits of
+      ratware is that it is notoriously impatient, especially with
+      slow-responding mail servers.  They may issue the
+      <B
+CLASS="command"
+>HELO</B
+> or <B
+CLASS="command"
+>EHLO</B
+> command
+      before the server has presented the initial SMTP banner, and/or
+      try to pipeline several SMTP commands before the server has
+      advertised the <B
+CLASS="command"
+>PIPELINING</B
+> capability.
+    </P
+><P
+>&#13;      Certain <A
+HREF="gloss.html#mta"
+><I
+CLASS="glossterm"
+>Mail Transport Agent</I
+></A
+>s (such as Exim) automatically
+      treat such SMTP protocol violations as
+      <EM
+>synchronization errors</EM
+>, and immediately
+      drop the incoming connection.  If you happen to be using such an
+      MTA, you may already see a lot of entries to this effect in your
+      log files.  In fact, chances are that if you perform any
+      time-consuming checks (such as 
+      <A
+HREF="dnschecks.html"
+>DNS checks</A
+>) prior to presenting the initial
+      SMTP banner, such errors will occur frequently, as ratware
+      clients simply do not take the time to wait for your server to
+      come alive (Things to do, people to spam).
+    </P
+><P
+>&#13;      We can help along by imposing additional delays.  For instance,
+      you may decide to wait:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	  20 seconds before presenting the initial SMTP banner,
+	</P
+></LI
+><LI
+><P
+>&#13;	  20 seconds after the Hello (<B
+CLASS="command"
+>EHLO</B
+> or
+	  <B
+CLASS="command"
+>HELO</B
+>) greeting,
+	</P
+></LI
+><LI
+><P
+>&#13;	  20 seconds, after the <B
+CLASS="command"
+>MAIL FROM:</B
+>
+	  command, and
+	</P
+></LI
+><LI
+><P
+>&#13;	  20 seconds after each <B
+CLASS="command"
+>RCPT TO:</B
+> command.
+	</P
+></LI
+></UL
+><P
+>&#13;      Where did 20 seconds come from, you ask.  Why not a minute?  Or
+      several minutes?  After all, RFC 2821 mandates that the sending
+      host (client) should wait up to several minutes for every SMTP
+      response.  The issue is that some receiving hosts, particularly
+      those that use Exim, may perform <A
+HREF="smtpchecks.html#callback"
+>Sender Callout Verification</A
+> in
+      response to incoming mail delivery attempts.  If you or one of
+      your users send mail to such a host, it will contact the <A
+HREF="gloss.html#mx"
+><I
+CLASS="glossterm"
+>Mail Exchanger</I
+></A
+> (MX host) for your domain and start an SMTP
+      dialogue in order to validate the sender address.  The default
+      timeout of such <A
+HREF="smtpchecks.html#callback"
+>Sender Callout Verification</A
+>s is 30 seconds - if
+      you impose delays this long, the peer's sender callout
+      verification would fail, and in turn the original mail delivery
+      from you/your user might be rejected (usually with a temporary
+      failure, which means the message delivery will be retried for 5
+      days or so before the mail is finally returned to the sender).
+    </P
+><P
+>&#13;      In other words, 20 seconds is about as long as you can stall
+      before you start interfering with legitimate mail deliveries.
+    </P
+><P
+>&#13;      If you do not like imposing such delays on every SMTP
+      transaction (say, you have a very busy site and are low on
+      machine resources), you may choose to use
+      <SPAN
+CLASS="QUOTE"
+>"selective"</SPAN
+> transaction delays.  In this case, you
+      could impose the delay:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	  If there is a problem with the peer's DNS information (see
+	  <A
+HREF="dnschecks.html"
+>DNS checks</A
+>).
+	</P
+></LI
+><LI
+><P
+>&#13;	  After detecting some sign of trouble during the SMTP
+	  transaction (see <A
+HREF="smtpchecks.html"
+>SMTP checks</A
+>).
+	</P
+></LI
+><LI
+><P
+>&#13;	  Only in the highest-numbered MX host in your DNS zone,
+	  i.e. the mail exchanger with the last priority.  Often,
+	  <A
+HREF="gloss.html#ratware"
+><I
+CLASS="glossterm"
+>Ratware</I
+></A
+> specifically target these hosts,
+	  whereas legitimate MTAs will try the lower-numbered MX hosts
+	  first.
+	</P
+></LI
+></UL
+><P
+>&#13;      In fact, selective transaction delays may be a good way to
+      incorporate some less conclusive checks that we will discuss in
+      the following sections.  You probably do not wish to reject the
+      mail outright based the results from e.g. the SPEWS <A
+HREF="dnschecks.html#dnsbl"
+>blacklist</A
+>, but on the other hand, it may
+      provide a strong enough indication of trouble that you can at
+      least impose transaction delays.  After all, legitimate mail
+      deliveries are not affected, other than being subjected to a
+      slight delay.
+    </P
+><P
+>&#13;      Conversely, if you find conclusive evidence of spamming (e.g. by
+      way of certain <A
+HREF="smtpchecks.html"
+>SMTP checks</A
+>), and your server
+      can afford it, you may choose to impose an extended delay,
+      e.g. 15 minutes or so, before finally rejecting the delivery
+      <A
+NAME="AEN632"
+HREF="#FTN.AEN632"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>.
+      This is for little or no benefit other than slowing down the
+      spammer a little bit in their quest to reach as many people as
+      possible before DNS blacklists and other collaborative network
+      checks catch up.  In other words, pure altruism on your
+      side. :-)
+    </P
+><P
+>&#13;      In my own case, selective transaction delays and the resulting
+      SMTP synchronization errors account for nearly 50% of rejected
+      incoming delivery attempts.  This roughly translates into saying
+      that nearly 50% of incoming junk mail is stopped by SMTP
+      transaction delays alone.
+    </P
+><P
+>&#13;      See also <A
+HREF="qanda.html#qanda-adapt"
+><EM
+>What happens when
+      spammers adapt...</EM
+></A
+>.
+    </P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN632"
+HREF="smtpdelays.html#AEN632"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;	  Beware that while you are holding up an incoming SMTP
+	  delivery, you are also holding up a TCP socket on your
+	  server, as well as memory and other server resources.  If
+	  your server is generally busy, imposing SMTP transaction
+	  delays will make you more vulnerable to Denial-of-Service
+	  attacks.  A more <SPAN
+CLASS="QUOTE"
+>"scalable"</SPAN
+> option may be to
+	  drop the connection once you have conclusive evidence that
+	  the sender is a ratware client.
+	</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="techniques.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="dnschecks.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Techniques</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="techniques.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>DNS Checks</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Serial HOWTO: Locking Out Others</TITLE>
+ <LINK HREF="Serial-HOWTO-15.html" REL=next>
+ <LINK HREF="Serial-HOWTO-13.html" REL=previous>
+ <LINK HREF="Serial-HOWTO.html#toc14" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Serial-HOWTO-15.html">Next</A>
+<A HREF="Serial-HOWTO-13.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc14">Contents</A>
+<HR>
+<H2><A NAME="s14">14.</A> <A HREF="Serial-HOWTO.html#toc14">Locking Out Others</A></H2>
+
+<H2><A NAME="ss14.1">14.1</A> <A HREF="Serial-HOWTO.html#toc14.1">Introduction</A>
+</H2>
+
+<P> When you are using a serial port, you may want to prevent others
+from using it at the same time.  However there may be cases where you
+do want others to use it, such as sending you an important message if
+you are using a text-terminal.</P>
+<P>There are various ways of preventing others (or other processes) from
+using your serial port when you are using it (locking).  This should
+all happen automatically but it's important to know about this if it
+gives you trouble.  If a program is abnormally exited or the PC
+is abruptly turned off (by pulling the plug, etc.) your serial port
+might wind up locked.  Even if the lock remains, it's usually
+automatically removed when you want to use the serial port again.
+But in rare cases it isn't.  That's when you need to understand what
+happened.</P>
+<P>One way to implement locking is to design the kernel to handle it but
+Linux thus far has shunned this solution (with an exception involving
+the cua device which is now obsolete).  Two solutions used by Linux
+is to:
+<OL>
+<LI> create lock-files</LI>
+<LI> modify the permissions and/or owners of devices such as /dev/ttyS2</LI>
+</OL>
+</P>
+
+<H2><A NAME="lockfiles_"></A> <A NAME="ss14.2">14.2</A> <A HREF="Serial-HOWTO.html#toc14.2">Lock-Files </A>
+</H2>
+
+<P> If you use the new device-filesystem (devfs) then see the next
+section.  A lock-file is simply a file created to mean that a
+particular device is in use.  They are kept in <CODE>/var/lock</CODE>.
+Formerly they were in <CODE>/usr/spool/uucp</CODE>.  Linux lock-files are
+usually named <CODE>LCK..</CODE><EM>name</EM>, where <EM>name</EM> may be a device
+name, a process id number, a device's major and minor numbers, or a
+UUCP site name.  Most processes (an exception is getty) create these
+locks so that they can have exclusive access to devices.  For instance
+if you dial out on your modem, some lockfiles will appear to tell
+other processes that someone else is using the modem.  In older
+versions (in the 1990s) there was usually only one lockfile per
+process.  Lock files contain the PID of the process that has locked
+the device.  Note that if a process insists on using a device that is
+locked, it may ignore the lockfile and use the device anyway.  This is
+useful in sending a message to a text-terminal, etc.</P>
+<P>When a program wants to use a serial port but finds it locked with
+lock-files it should check to see if the lock-file's PID is still in
+use.  If it's not it means that the lock is stale and it's OK to go
+ahead and use the port anyway (after removing the stale lock-files).
+Unfortunately, there may be some programs that don't do this and give
+up by telling you that a device is already in use when it really isn't.</P>
+<P>If the lockfile only uses device names, the following problem could
+arise:  If the same device has two different names then two different
+processes could each use a different name for the same device.  This
+results in lockfiles with different names that actually are the same
+device.  Formerly each physical serial port was known by two different
+device names: ttyS0 and cua0.  To solve this lockfile alias problem, 3
+methods have been used.  It may be overkill since any one of these
+methods would have fixed the problem.</P>
+<P>
+<OL>
+<LI> The lock checking software was made aware of ttyS vs. cua.</LI>
+<LI> The device cua was deprecated</LI>
+<LI> Additional locks were created which use unique device numbers
+instead of names.</LI>
+</OL>
+</P>
+<P>Using alternate names such as /dev/modem for /dev/ttyS2 may cause
+problems if one program opens /dev/ttyS2 while another program opens
+/dev/modem.  This problem was supposedly fixed around 2000, but is
+still present in 2005.  For dumb terminals, lockfiles are not used
+since this would not permit someone else to send a message to your
+terminal using the write or talk program.</P>
+
+<H2><A NAME="ss14.3">14.3</A> <A HREF="Serial-HOWTO.html#toc14.3">Lock-Files if you use devfs</A>
+</H2>
+
+<P> The abandoned device-filesystem (devfs) had the /dev directory with
+subdirectories.  As of late 2001, there were problems with lockfiles.
+For example, the lockfile mechanism considered dev/usb/tts/0 and
+/dev/tts/0 to be the same device with name "0".  Ditto for all other
+devices that had the same "leaf" name.
+Also, if some applications use the old name for a device and other
+applications use the devfs name for the same  device, then the
+lockfiles will have different names.  But the serial driver should
+know they are the same.</P>
+
+<H2><A NAME="ss14.4">14.4</A> <A HREF="Serial-HOWTO.html#toc14.4">Change Owners, Groups, and/or Permissions of Device Files</A>
+</H2>
+
+<P> In order to use a device, you (or the program you run if you have
+"set user id") needs to have permission to read and write the device
+"file" in the /dev directory.  So a logical way to prevent others from
+using a device is to make yourself the temporary owner of the device
+and set permissions so that no one else can use it.  A program may do
+this for you.  A similar method can be used with the group of the
+device file.</P>
+<P>While lock files prevent other process from using the device, changing
+device file owners/permissions restricts other users (or the group)
+from using it.  One case is where the group is permitted to write to
+the port, but not to read from it.  Writing to the port might just
+mean a message sent to a text-terminal while reading means destructive
+reading.  The original process that needs to read the data may find
+data missing if another process has already read that data.  Thus a
+read can do more harm that a write since a read causes loss of data
+while a write only adds extra data.  That's a reason to allow writes
+but not reads.  This is exactly the opposite of the case for ordinary
+files where you allow others to read the file but not write (modify)
+it.  Use of a port normally requires both read and write permissions.</P>
+<P>A program that changes the device file attributes should undo these
+changes when it exits.  But if the exit is abnormal, then a device
+file may be left in such a condition that it gives the error
+"permission denied" when one attempts to use it again.</P>
+
+<HR>
+<A HREF="Serial-HOWTO-15.html">Next</A>
+<A HREF="Serial-HOWTO-13.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc14">Contents</A>
+</BODY>
+</HTML>

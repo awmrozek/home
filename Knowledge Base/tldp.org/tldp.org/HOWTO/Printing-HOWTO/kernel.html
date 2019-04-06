@@ -1,0 +1,500 @@
+<HTML
+><HEAD
+><TITLE
+>Kernel printer devices</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="The Printing HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="How to print"
+HREF="how.html"><LINK
+REL="NEXT"
+TITLE="Supported Printers"
+HREF="printers.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Printing HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="how.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="printers.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="kernel"
+></A
+>4. Kernel printer devices</H1
+><P
+>There are two completely different device drivers for the parallel
+port; which one you are using depends on your kernel version (which
+you can find out with the command <TT
+CLASS="literal"
+>uname
+   -a</TT
+>).  The driver changed in Linux 2.1.33; essentially all
+current systems will be running kernel 2.2 or later, so you'll
+probably want to skip ahead to the parport driver section.</P
+><P
+>A few details are the same for both styles of driver.  Most
+notably, many people have found that Linux will not detect their
+parallel port unless they disable "Plug and Play" in their PC BIOS.
+   (This is no surprise; the track record for PnP of non-PCI devices
+with Windows and elsewhere has been something of a disaster).</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="old-lp-device"
+></A
+>4.1. The lp device (kernels &#60;=2.1.32)</H2
+><P
+>The Linux kernel (&#60;=2.1.32), assuming you have compiled in or
+loaded the lp device (the output of <TT
+CLASS="literal"
+>cat /proc/devices</TT
+> should include the device lp if it is
+loaded), provides one or more of <EM
+>/dev/lp0</EM
+>,<EM
+>/dev/lp1</EM
+>, and <EM
+>/dev/lp2</EM
+>.
+These are NOT assigned dynamically, rather, each corresponds to a
+specific hardware I/O address.  This means that your first printer
+may be <EM
+>lp0</EM
+> or <EM
+>lp1</EM
+>
+depending on your hardware.  Just try both.</P
+><P
+>A few users have reported that their bidirectional lp ports aren't
+detected if they use an older unidirectional printer cable.  Check
+that you've got a decent cable.</P
+><P
+>One cannot run the plip and lp drivers at the same time on any
+given port (under 2.0, anyway).  You can, however, have one or the
+other driver loaded at any given time either manually, or by
+kerneld with version 2.x (and later 1.3.x) kernels.  By carefully
+setting the interrupts and such, you can supposedly run plip on
+one port and lp on the other.  One person did so by editing the
+drivers; I eagerly await a success report of someone doing so with
+only a clever command line.</P
+><P
+>There is a little utility called <TT
+CLASS="literal"
+><A
+HREF="http://www.linuxprinting.org/man/tunelp.8.html"
+TARGET="_top"
+>tunelp</A
+></TT
+> floating about with which you, as root, can tune the
+Linux 2.0 lp device's interrupt usage, polling rate, and other
+options.</P
+><P
+>When the lp driver is built into the kernel, the kernel will
+accept an <TT
+CLASS="literal"
+>lp=</TT
+> option to set
+interrupts and io addresses:<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;When the lp driver is built in to the kernel, you may use the
+LILO/LOADLIN command line to set the port addresses and interrupts
+that the driver will use.
+
+Syntax:      lp=port0[,irq0[,port1[,irq1[,port2[,irq2]]]]]
+
+For example:   lp=0x378,0   or   lp=0x278,5,0x378,7 **
+
+Note that if this feature is used, you must specify *all* the ports
+you want considered, there are no defaults.  You can disable a
+built-in driver with lp=0.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>When loaded as a module, it is possible to specify io addresses
+and interrupt lines on the insmod command line (or in<EM
+>/etc/conf.modules</EM
+> so as to affect kerneld)
+using the usual module argument syntax.  The parameters are<TT
+CLASS="literal"
+>io=port0,port1,port2</TT
+> and <TT
+CLASS="literal"
+>irq=irq0,irq1,irq2</TT
+>.  Read the man page for<EM
+><A
+HREF="http://www.linuxprinting.org/man/insmod.1.html"
+TARGET="_top"
+>insmod</A
+></EM
+> for more information on this.</P
+><P
+>**For those of you who can never find the standard port
+numbers when you need them, they are as in the second example
+above.  The other port (<EM
+>lp0</EM
+>) is at 0x3bc.
+I've no idea what interrupt it usually uses.</P
+><P
+>The source code for the Linux 2.0 parallel port driver is in
+    /usr/src/linux/drivers/char/lp.c.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="new-parport-device"
+></A
+>4.2. The parport device (kernels &#62;= 2.1.33)</H2
+><P
+>Beginning with kernel 2.1.33 (and available as a patch for kernel
+2.0.30), the lp device is merely a client of the new parport
+device.  The addition of the parport device corrects a number of
+the problems that plague the old lp device driver - it can share
+the port with other drivers, it dynamically assigns available
+parallel ports to device numbers rather than enforcing a fixed
+correspondence between I/O addresses and port numbers, and so
+forth.</P
+><P
+>The advent of the parport device has enabled a whole flock of new
+parallel-port drivers for things like Zip drives, Backpack CD-ROMs
+and disks, and so forth.  Some of these are also available in
+versions for 2.0 kernels; look around on the web.</P
+><P
+>The main difference that you will notice, so far as printing goes,
+is that parport-based kernels dynamically assign lp devices to
+parallel ports.  So what was lp1 under Linux 2.0 may well be lp0
+under Linux 2.2.  Be sure to check this if you upgrade from an
+lp-driver kernel to a parport-driver kernel.</P
+><P
+>The most popular problems with this device seems to stem from
+misconfiguration:<P
+></P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
+>The Distribution</DT
+><DD
+><P
+>Some GNU/Linux distributions don't ship with a properly setup /etc/modules.conf (or /etc/conf.modules), so the driver isn't loaded properly when you need it to be.  With a recent
+modutils, the proper magical lines from modules.conf seem to be:<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;alias /dev/printers lp             # only for devfs?
+alias /dev/lp*      lp             # only for devfs?
+alias parport_lowlevel parport_pc  # missing in Red Hat 6.0-6.1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DD
+><DT
+>The BIOS</DT
+><DD
+><P
+>Many PC BIOSes will make the parallel port into a Plug-and-Play device.  This just adds needless complexity to a
+perfectly simple device that is nearly always present; turn
+off the PnP setting for your parallel port ("LPT1" in many
+BIOSes) if your parallel port isn't detected by the Linux
+driver.  The correct setting is often called "legacy", "ISA",
+or "0x378", but probably not "disabled".</P
+></DD
+></DL
+></DIV
+></P
+><P
+>You can also read the  <A
+HREF="http://people.redhat.com/twaugh/parport/html/parportguide.html"
+TARGET="_top"
+>parport documentation</A
+> in your kernel sources, or
+look at the <A
+HREF="http://people.redhat.com/twaugh/parport/"
+TARGET="_top"
+>parport web
+site</A
+>.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="serial-devices"
+></A
+>4.3. Serial devices</H2
+><P
+>Serial devices are usually called something like<EM
+>/dev/ttyS1</EM
+> under Linux.  The utility <TT
+CLASS="literal"
+><A
+HREF="http://www.linuxprinting.org/man/stty.1.html"
+TARGET="_top"
+>stty</A
+></TT
+> will allow you to interactively view or
+set the settings for a serial port; <TT
+CLASS="literal"
+><A
+HREF="http://www.linuxprinting.org/man/setserial.8.html"
+TARGET="_top"
+>setserial</A
+></TT
+> will allow you to control a few
+extended attributes and configure IRQs and I/O addresses for
+non-standard ports.  Further discussion of serial ports under
+Linux may be found in the <A
+HREF="http://metalab.unc.edu/mdw/HOWTO/Serial-HOWTO.html"
+TARGET="_top"
+>Serial-HOWTO</A
+>.</P
+><P
+>When using a slow serial printer with flow control, you may find
+that some of your print jobs get truncated.  This may be due to
+the serial port, whose default behavior is to purge any
+untransmitted characters from its buffer 30 seconds after the port
+device is closed.  The buffer can hold up to 4096 characters, and
+if your printer uses flow control and is slow enough that it can't
+accept all the data from the buffer within 30 seconds after
+printing software has closed the serial port, the tail end of the
+buffer's contents will be lost.  If the command <TT
+CLASS="literal"
+>cat file &#62; /dev/ttyS2</TT
+> produces complete
+printouts for short files but truncated ones for longer files, you
+may have this condition.</P
+><P
+>The 30 second interval can be adjusted through the
+    "closing_wait" command-line option of setserial (version
+2.12 and later).  A machine's serial ports are usually initialized
+by a call to setserial in the rc.serial boot file.  The call for
+the printing serial port can be modified to set the
+closing_wait at the same time as it sets that port's other
+parameters.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="usb-devices"
+></A
+>4.4. USB Devices</H2
+><DIV
+CLASS="simplesect"
+><H3
+CLASS="simplesect"
+><A
+NAME="AEN308"
+></A
+>4.4.1. USB 1.1</H3
+><P
+>Linux supports USB pretty well. USB should work with any late-model 2.2 kernel, and any 2.4 kernel or newer. Of course you need kernel support for USB, either linked in or through a module (recommended). 
+<P
+></P
+><P
+><B
+>If you have a modular kernel, the following modules need to be loaded:</B
+></P
+><UL
+><LI
+><P
+>usb-core.o</P
+></LI
+><LI
+><P
+>usb-uhci.o or uhci.o or usb-ohci.o</P
+></LI
+><LI
+><P
+>printer.o</P
+></LI
+></UL
+>
+Which one of usb-uhci.o or uhci.o or usb-ohci.o you need depends on the kind of motherboard or adaptor you have. Intel and Via motherboards and Via based adaptors are UHCI (you can use either usb-uhci.o or uhci.o). You can find out which type of HCI (Host Controller Interface) you have with <B
+CLASS="command"
+>lspci -v|grep HCI</B
+></P
+></DIV
+><DIV
+CLASS="simplesect"
+><H3
+CLASS="simplesect"
+><A
+NAME="AEN320"
+></A
+>4.4.2. USB 2.0</H3
+><P
+>To get high speed transfers out of a USB 2.0 capable device you must attach it to an USB 2.0 controller and use the EHCI driver (ehci-hcd.o). A recent 2.4 kernel or higher is recommended if you want to use USB 2.0.</P
+></DIV
+><DIV
+CLASS="simplesect"
+><H3
+CLASS="simplesect"
+><A
+NAME="AEN323"
+></A
+>4.4.3. Hints</H3
+><P
+>One thing to remember is that USB devices are dynamically allocated. A USB printer gets assigned a device file (/dev/usb/lp*) when it is turned on or connected. This could mean that print jobs are sent to the wrong printer because you turned them on in a certain order. CUPS uses special Uri's containing manufacturer, model and printer serial number to keep sending the jobs to the correct physical printer.</P
+><P
+>Although most USB printers work fine on Linux, there are exceptions. For example the new MF devices from Epson (Stylus CX3200/CX5200) return garbage when one polls the IEEE-1284 ID string via IOCTL, for example 
+with the code of the CUPS "usb" backend. Whereas one can poll the ID string via an Epson-proprietary method.</P
+><P
+>Till Kamppeter has written some tools to retrieve the device ID string from USB printers. <A
+HREF="http://www.linuxprinting.org/download/printing/getusbprinterid.pl"
+TARGET="_top"
+>getusbprinterid.pl</A
+> and <A
+HREF="http://www.linuxprinting.org/download/printing/usb_id/test.c"
+TARGET="_top"
+>usb_id_test.c</A
+> are the same thing but respectively in Perl and C. As mentioned above, the new MF devices from Epson are an exception, but the "Epson proprietary method" is implemented in the ttink tool of the <A
+HREF="http://xwtools.automatix.de/"
+TARGET="_top"
+>MTink</A
+> package.</P
+><P
+>More documentation about USB is available at the <A
+HREF="http://www.linux-usb.org/"
+TARGET="_top"
+>Linux USB Website</A
+>.</P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="how.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="printers.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>How to print</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Supported Printers</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

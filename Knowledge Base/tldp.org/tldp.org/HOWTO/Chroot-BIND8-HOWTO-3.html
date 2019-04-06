@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Chroot-BIND8 HOWTO: Compiling BIND</TITLE>
+ <LINK HREF="Chroot-BIND8-HOWTO-4.html" REL=next>
+ <LINK HREF="Chroot-BIND8-HOWTO-2.html" REL=previous>
+ <LINK HREF="Chroot-BIND8-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Chroot-BIND8-HOWTO-4.html">Next</A>
+<A HREF="Chroot-BIND8-HOWTO-2.html">Previous</A>
+<A HREF="Chroot-BIND8-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="compiling"></A> <A NAME="s3">3. Compiling BIND</A></H2>
+
+<P>You should be able to find the BIND source by visiting 
+<A HREF="http://www.isc.org/bind.html">http://www.isc.org/bind.html</A>.  You need the <CODE>bind-src.tar.gz</CODE>
+package.  Be sure to get the latest version!
+<P>
+<H2><A NAME="ss3.1">3.1 Modifying Paths</A>
+</H2>
+
+<P>Things can get a bit confusing at this point, because different parts of the
+BIND package will be referring to the same directories by different names
+(depending on whether or not they're running inside the jail).  I'll try not to
+confuse you <B>too</B> much :-).
+<P>The main directory that we have to worry about here is <CODE>/var/run</CODE>, because
+its contents are required for both the main <CODE>named</CODE> daemon (inside the
+jail), and the <CODE>ndc</CODE> utility (on the outside).  We'll start by setting
+everything up to find this directory from the outside world.  To do this, we
+need to modify <CODE>src/port/linux/Makefile.set</CODE> (substitute your port's
+directory if you're not running Linux), and change the line
+<BLOCKQUOTE><CODE>
+<PRE>
+DESTRUN=/var/run
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to
+<BLOCKQUOTE><CODE>
+<PRE>
+DESTRUN=/chroot/named/var/run
+</PRE>
+</CODE></BLOCKQUOTE>
+
+While you're in there, you may want to change the other destination paths from
+<CODE>/usr</CODE> to <CODE>/usr/local</CODE>.
+<P>Now everything should be able to find that directory... except the <CODE>named</CODE>
+daemon itself, to which it's still just <CODE>/var/run</CODE> inside the jail.  We can
+get around this by making a small change in the <CODE>named</CODE> source.  In the file
+<CODE>src/bin/named/named.h</CODE>, find the line
+<BLOCKQUOTE><CODE>
+<PRE>
+#include "pathnames.h"
+</PRE>
+</CODE></BLOCKQUOTE>
+
+and add the following line immediately after it
+<BLOCKQUOTE><CODE>
+<PRE>
+#define _PATH_NDCSOCK    "/var/run/ndc"
+</PRE>
+</CODE></BLOCKQUOTE>
+
+This way, <CODE>named</CODE> will ignore our definition of <CODE>DESTRUN</CODE> over in
+<CODE>Makefile.set</CODE> and use the correct location (from its perspective in the
+chroot jail).  You will notice some warnings about redefinitions of
+_PATH_NDCSOCK when you do the build; just ignore them.
+<P>
+<H2><A NAME="ss3.2">3.2 Doing the Build</A>
+</H2>
+
+<P>You should now be able to compile BIND as normal, following the instructions in
+the <CODE>INSTALL</CODE> file.  At this stage, we only want to compile BIND, not install
+it.  Don't go too far when following the <CODE>INSTALL</CODE> file.  Essentially, it's
+just <CODE>make clean</CODE>, <CODE>make depend</CODE>, and <CODE>make</CODE>.
+<P>
+<HR>
+<A HREF="Chroot-BIND8-HOWTO-4.html">Next</A>
+<A HREF="Chroot-BIND8-HOWTO-2.html">Previous</A>
+<A HREF="Chroot-BIND8-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

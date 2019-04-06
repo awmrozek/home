@@ -1,0 +1,257 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>The Software-RAID HOWTO: Introduction</TITLE>
+ <LINK HREF="Software-RAID-HOWTO-2.html" REL=next>
+
+ <LINK HREF="Software-RAID-HOWTO.html#toc1" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-RAID-HOWTO-2.html">Next</A>
+Previous
+<A HREF="Software-RAID-HOWTO.html#toc1">Contents</A>
+<HR>
+<H2><A NAME="s1">1.</A> <A HREF="Software-RAID-HOWTO.html#toc1">Introduction</A></H2>
+
+<P><B>This HOWTO is deprecated; the Linux RAID HOWTO is maintained as a wiki by the
+linux-raid community at 
+<A HREF="http://raid.wiki.kernel.org/">http://raid.wiki.kernel.org/</A></B></P>
+<P>This HOWTO describes the "new-style" RAID present in the 2.4 and 2.6
+kernel series only. It does <EM>not</EM> describe the "old-style" RAID
+functionality present in 2.0 and 2.2 kernels.</P>
+<P>The home site for this HOWTO is 
+<A HREF="http://unthought.net/Software-RAID.HOWTO/">http://unthought.net/Software-RAID.HOWTO/</A>, where updated
+versions appear first.  The howto was originally written by Jakob
+&Oslash;stergaard based on a large number of emails between the author
+and Ingo Molnar 
+<A HREF="mailto:mingo@chiara.csoma.elte.hu">(mingo@chiara.csoma.elte.hu)</A> -- one of the RAID developers --,
+the linux-raid mailing list 
+<A HREF="mailto:linux-raid@vger.rutgers.edu">(linux-raid@vger.kernel.org)</A> and various other people. Emilio Bueso
+<A HREF="mailto:bueso@vives.org">(bueso@vives.org)</A>
+co-wrote the 1.0 version.</P>
+<P>If you want to use the new-style RAID with 2.0 or 2.2 kernels, you
+should get a patch for your kernel, from 
+<A HREF="http://people.redhat.com/mingo/">http://people.redhat.com/mingo/</A> The standard 2.2 kernels does
+not have direct support for the new-style RAID described in this
+HOWTO.  Therefore these patches are needed.  <EM>The old-style RAID
+support in standard 2.0 and 2.2 kernels is buggy and lacks several
+important features present in the new-style RAID software.</EM></P>
+<P>Some of the information in this HOWTO may seem trivial, if you know
+RAID all ready. Just skip those parts.</P>
+
+
+<H2><A NAME="ss1.1">1.1</A> <A HREF="Software-RAID-HOWTO.html#toc1.1">Disclaimer</A>
+</H2>
+
+<P>The mandatory disclaimer:</P>
+<P>All information herein is presented "as-is", with no warranties
+expressed nor implied.  If you lose all your data, your job, get hit
+by a truck, whatever, it's not my fault, nor the developers'.  Be
+aware, that you use the RAID software and this information at your own
+risk!  There is no guarantee whatsoever, that any of the software, or
+this information, is in any way correct, nor suited for any use
+whatsoever. Back up all your data before experimenting with
+this. Better safe than sorry.</P>
+
+
+<H2><A NAME="ss1.2">1.2</A> <A HREF="Software-RAID-HOWTO.html#toc1.2">What is RAID?</A>
+</H2>
+
+<P>In 1987, the University of California Berkeley, published an article entitled
+<A HREF="http://www-2.cs.cmu.edu/~garth/RAIDpaper/Patterson88.pdf">A Case for Redundant Arrays of Inexpensive Disks (RAID)</A>.
+This article described various types of disk arrays, referred to by the
+acronym RAID. The basic idea of RAID was to combine multiple small,
+independent disk drives into an array of disk drives which yields performance
+exceeding that of a Single Large Expensive Drive (SLED). Additionally,
+this array of drives appears to the computer as a single logical storage
+unit or drive.</P>
+<P>The Mean Time Between Failure (MTBF) of the array will be equal to the
+MTBF of an individual drive, divided by the number of drives in the array.
+Because of this, the MTBF of an array of drives would be too low for many
+application requirements. However, disk arrays can be made fault-tolerant
+by redundantly storing information in various ways.</P>
+<P>Five types of array architectures, RAID-1 through RAID-5, were defined by
+the Berkeley paper, each providing disk fault-tolerance and each offering
+different trade-offs in features and performance. In addition to these five
+redundant array architectures, it has become popular to refer to a
+non-redundant array of disk drives as a RAID-0 array.</P>
+<P>Today some of the original RAID levels (namely level 2 and 3) are only
+used in very specialized systems (and in fact not even supported by
+the Linux Software RAID drivers). Another level, "linear" has emerged,
+and especially RAID level 0 is often combined with RAID level 1.</P>
+
+<H2><A NAME="ss1.3">1.3</A> <A HREF="Software-RAID-HOWTO.html#toc1.3">Terms</A>
+</H2>
+
+<P>In this HOWTO the word "RAID" means "Linux Software RAID". This HOWTO
+does not treat any aspects of Hardware RAID. Furthermore, it does not
+treat any aspects of Software RAID in other operating system kernels.</P>
+<P>When describing RAID setups, it is useful to refer to the number of
+disks and their sizes. At all times the letter <B>N</B> is used to
+denote the number of active disks in the array (not counting
+spare-disks). The letter <B>S</B> is the size of the smallest drive
+in the array, unless otherwise mentioned. The letter <B>P</B> is
+used as the performance of one disk in the array, in MB/s. When used,
+we assume that the disks are equally fast, which may not always be
+true in real-world scenarios.</P>
+<P>Note that the words "device" and "disk" are supposed to mean about
+the same thing.  Usually the devices that are used to build a RAID
+device are partitions on disks, not necessarily entire disks.  But
+combining several partitions on one disk usually does not make sense,
+so the words devices and disks just mean "partitions on different disks".</P>
+
+
+<H2><A NAME="ss1.4">1.4</A> <A HREF="Software-RAID-HOWTO.html#toc1.4">The RAID levels</A>
+</H2>
+
+<P>Here's a short description of what is supported in the Linux RAID
+drivers. Some of this information is absolutely basic RAID info, but
+I've added a few notices about what's special in the Linux
+implementation of the levels.  You can safely skip this section if you
+know RAID already.</P>
+<P>The current RAID drivers in Linux supports the following
+levels:
+<UL>
+<LI><B>Linear mode</B>
+<UL>
+<LI>Two or more disks are combined into one physical device. The
+disks are "appended" to each other, so writing linearly to the RAID
+device will fill up disk 0 first, then disk 1 and so on. The disks
+does not have to be of the same size. In fact, size doesn't matter at
+all here :)</LI>
+<LI>There is no redundancy in this level. If one disk crashes you
+will most probably lose all your data.  You can however be lucky to
+recover some data, since the filesystem will just be missing one large
+consecutive chunk of data.</LI>
+<LI>The read and write performance will not increase for single
+reads/writes. But if several users use the device, you may be lucky
+that one user effectively is using the first disk, and the other user
+is accessing files which happen to reside on the second disk. If that
+happens, you will see a performance gain.</LI>
+</UL>
+</LI>
+<LI><B>RAID-0</B>
+<UL>
+<LI>Also called "stripe" mode. The devices should (but need not)
+have the same size. Operations on the array will be split on the
+devices; for example, a large write could be split up as 4 kB to disk
+0, 4 kB to disk 1, 4 kB to disk 2, then 4 kB to disk 0 again, and so
+on. If one device is much larger than the other devices, that extra
+space is still utilized in the RAID device, but you will be accessing
+this larger disk alone, during writes in the high end of your RAID
+device. This of course hurts performance.  </LI>
+<LI>Like linear, there is no redundancy in this level either. Unlike
+linear mode, you will not be able to rescue any data if a drive
+fails. If you remove a drive from a RAID-0 set, the RAID device will
+not just miss one consecutive block of data, it will be filled with
+small holes all over the device. e2fsck or other filesystem recovery
+tools will probably not be able to recover much from such a device.</LI>
+<LI>The read and write performance will increase, because reads and
+writes are done in parallel on the devices. This is usually the main
+reason for running RAID-0. If the busses to the disks are fast enough,
+you can get very close to N*P MB/sec.</LI>
+</UL>
+</LI>
+<LI><B>RAID-1</B>
+<UL>
+<LI>This is the first mode which actually has redundancy. RAID-1 can be
+used on two or more disks with zero or more spare-disks. This mode maintains
+an exact mirror of the information on one disk on the other
+disk(s). Of Course, the disks must be of equal size. If one disk is
+larger than another, your RAID device will be the size of the
+smallest disk.</LI>
+<LI>If up to N-1 disks are removed (or crashes), all data are still intact. If
+there are spare disks available, and if the system (eg. SCSI drivers
+or IDE chipset etc.) survived the crash, reconstruction of the mirror
+will immediately begin on one of the spare disks, after detection of
+the drive fault.</LI>
+<LI>Write performance is often worse than on a single
+device, because identical copies of the data written must be sent to
+every disk in the array. With large RAID-1 arrays this can be a real
+problem, as you may saturate the PCI bus with these extra copies. This
+is in fact one of the very few places where Hardware RAID solutions
+can have an edge over Software solutions - if you use a hardware RAID
+card, the extra write copies of the data will not have to go over the
+PCI bus, since it is the RAID controller that will generate the extra
+copy. Read performance is good, especially if you have multiple
+readers or seek-intensive workloads. The RAID code employs a rather
+good read-balancing algorithm, that will simply let the disk whose
+heads are closest to the wanted disk position perform the read
+operation. Since seek operations are relatively expensive on modern
+disks (a seek time of 6 ms equals a read of 123 kB at 20 MB/sec),
+picking the disk that will have the shortest seek time does actually
+give a noticeable performance improvement.</LI>
+</UL>
+</LI>
+<LI><B>RAID-4</B>
+<UL>
+<LI>This RAID level is not used very often. It can be used on three
+or more disks. Instead of completely mirroring the information, it
+keeps parity information on one drive, and writes data to the other
+disks in a RAID-0 like way.  Because one disk is reserved for parity
+information, the size of the array will be (N-1)*S, where S is the
+size of the smallest drive in the array. As in RAID-1, the disks should either
+be of equal size, or you will just have to accept that the S in the
+(N-1)*S formula above will be the size of the smallest drive in the
+array.</LI>
+<LI>If one drive fails, the parity
+information can be used to reconstruct all data.  If two drives fail,
+all data is lost.</LI>
+<LI>The reason this level is not more frequently used, is because
+the parity information is kept on one drive. This information must be
+updated <EM>every</EM> time one of the other disks are written
+to. Thus, the parity disk will become a bottleneck, if it is not a lot
+faster than the other disks.  However, if you just happen to have a
+lot of slow disks and a very fast one, this RAID level can be very useful.</LI>
+</UL>
+</LI>
+<LI><B>RAID-5</B>
+<UL>
+<LI>This is perhaps the most useful RAID mode when one wishes to combine
+a larger number of physical disks, and still maintain some
+redundancy. RAID-5 can be used on three or more disks, with zero or
+more spare-disks. The resulting RAID-5 device size will be (N-1)*S,
+just like RAID-4. The big difference between RAID-5 and -4 is, that
+the parity information is distributed evenly among the participating
+drives, avoiding the bottleneck problem in RAID-4.</LI>
+<LI>If one of the disks fail, all data are still intact, thanks to the
+parity information. If spare disks are available, reconstruction will
+begin immediately after the device failure.  If two disks fail
+simultaneously, all data are lost. RAID-5 can survive one disk
+failure, but not two or more.</LI>
+<LI>Both read and write performance usually increase, but can be hard to
+predict how much. Reads are similar to RAID-0 reads, writes can be
+either rather expensive (requiring read-in prior to write, in order to
+be able to calculate the correct parity information), or similar to
+RAID-1 writes. The write efficiency depends heavily on the amount of
+memory in the machine, and the usage pattern of the array. Heavily
+scattered writes are bound to be more expensive.</LI>
+</UL>
+</LI>
+</UL>
+</P>
+
+<H2><A NAME="ss1.5">1.5</A> <A HREF="Software-RAID-HOWTO.html#toc1.5">Requirements</A>
+</H2>
+
+<P>This HOWTO assumes you are using Linux 2.4 or later. However, it is
+possible to use Software RAID in late 2.2.x or 2.0.x Linux kernels
+with a matching RAID patch and the 0.90 version of the raidtools. Both
+the patches and the tools can be found at 
+<A HREF="http://people.redhat.com/mingo/">http://people.redhat.com/mingo/</A>. The RAID patch, the raidtools
+package, and the kernel should all match as close as possible. At
+times it can be necessary to use older kernels if raid patches are not
+available for the latest kernel.</P>
+<P>If you use and recent GNU/Linux distribution based on the 2.4 kernel
+or later, your system most likely already has a matching version of
+the raidtools for your kernel.</P>
+
+
+
+<HR>
+<A HREF="Software-RAID-HOWTO-2.html">Next</A>
+Previous
+<A HREF="Software-RAID-HOWTO.html#toc1">Contents</A>
+</BODY>
+</HTML>

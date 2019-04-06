@@ -1,0 +1,216 @@
+<HTML
+><HEAD
+><TITLE
+>mmap()</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="System calls"
+HREF="syscalls.html"><LINK
+REL="PREVIOUS"
+TITLE="close()"
+HREF="close.html"><LINK
+REL="NEXT"
+TITLE="fcntl(sg_fd, F_SETFL, oflags | FASYNC)"
+HREF="fcntl.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="close.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. System calls</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="fcntl.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="MMAP">7.6. mmap()</H1
+><DIV
+CLASS="FORMALPARA"
+><P
+><B
+>mmap(void * start, size_t length, int prot,
+int flags, int sg_fd, off_t offset). </B
+>This system call returns a pointer to the beginning of the reserved buffer
+associated with the sg file descriptor 'sg_fd'. The 'start' argument is
+a hint to the kernel and is ignored by this driver; best set it to 0.
+The 'length' argument should be less than or equal to the size of the
+reserved buffer associated with 'sg_fd'. If it exceeds the
+reserved buffer size (after 'length' has been rounded up to a page size
+multiple) then MAP_FAILED is returned and ENOMEM is placed in errno. The
+'prot' argument should either be PROT_READ or (PROT_READ | PROT_WRITE).
+The 'flags' argument should contain MAP_SHARED. In a sense, the user
+application is "sharing" data with the sg driver. The MAP_PRIVATE flag
+does not play well with compiler optimization flags such as '-O2'.
+The 'offset' argument must be set to 0 (or NULL).</P
+></DIV
+><P
+>The mmap() system call can be made multiple times on the same sg_fd.
+The munmap() system call is not required if close() is called on
+sg_fd. Mmap-ed IO is well-behaved when a process is fork()-ed
+(or the equivalent finer grained clone() system call is made).
+In the case of a fork(), 2 processes will be sharing the same memory mapped
+area together with the sg driver for a sg_fd and the last one to
+close the sg_fd (or exit) will cause the shared memory to be freed.</P
+><P
+>It is assumed that if the default reserved buffer size of 32 KB is
+not sufficient then a ioctl(SG_SET_RESERVED_SIZE) call is made
+prior to any calls to mmap(). If the required size is not a multiple
+of the kernel's page size (returned by getpagesize() system call) then
+the size passed to ioctl(SG_SET_RESERVED_SIZE) should be rounded up
+to the next page size multiple.</P
+><P
+>Mmap-ed IO is requested by setting (or or-ing in) the SG_FLAG_MMAP_IO
+constant into the flag member of the the sg_io_hdr structure prior to
+a call to write() or ioctl(SG_IO). The logic to do mmap-ed IO _assumes_
+that an appropriate mmap() call has been made by the application. In
+other words it does not check. 
+<A
+NAME="AEN477"
+HREF="#FTN.AEN477"
+>[1]</A
+></P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN477"
+HREF="mmap.html#AEN477"
+>[1]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>The sg driver does record that the mmap() system call has been invoked
+at least once on a file descriptor. This is not sufficient because the 
+given 'length' may be too short for the current IO. Also the driver is 
+unaware of munmap() calls so it could easily be tricked.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="close.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="fcntl.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>close()</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="syscalls.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>fcntl(sg_fd, F_SETFL, oflags | FASYNC)</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

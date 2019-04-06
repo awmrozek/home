@@ -1,0 +1,286 @@
+<HTML
+><HEAD
+><TITLE
+>Xterm Title Bar Manipulations</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Bash Prompt HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="ANSI Escape Sequences: Colours and Cursor Movement"
+HREF="c327.html"><LINK
+REL="PREVIOUS"
+TITLE="Cursor Movement"
+HREF="x361.html"><LINK
+REL="NEXT"
+TITLE="Xterm Title Bars and Screen"
+HREF="x395.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Bash Prompt HOWTO: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x361.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 6. ANSI Escape Sequences: Colours and Cursor Movement</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x395.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="XTERM-TITLE-BAR-MANIPULATIONS"
+></A
+>6.3. Xterm Title Bar Manipulations</H1
+><P
+>I'm not sure that these escape sequences strictly qualify as "ANSI Escape
+Sequences," but in practice their use is almost identical so I've included
+them in this chapter.&#13;</P
+><P
+>Non-printing escape sequences can be used to produce interesting effects in
+prompts.  To use these escape sequences, you need to enclose them in
+<TT
+CLASS="USERINPUT"
+><B
+>\[</B
+></TT
+> and <TT
+CLASS="USERINPUT"
+><B
+>\]</B
+></TT
+> (as discussed in
+<A
+HREF="nonprintingchars.html"
+>Section 3.4</A
+>, telling Bash to ignore this material
+while calculating the size of the prompt.  Failing to include these
+delimiters results in line editing code placing the cursor incorrectly
+because it doesn't know the actual size of the prompt.  Escape sequences
+must also be preceded by <TT
+CLASS="USERINPUT"
+><B
+>\033[</B
+></TT
+> in Bash prior to
+version 2, or by either <TT
+CLASS="USERINPUT"
+><B
+>\033[</B
+></TT
+> or
+<TT
+CLASS="USERINPUT"
+><B
+>\e[</B
+></TT
+> in later versions.  &#13;</P
+><P
+>If you try to change the title bar of your Xterm with your prompt
+when you're at the console, you'll produce garbage in your prompt.
+To avoid this, test the TERM environment variable to tell if your prompt
+is going to be in an Xterm.&#13;</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>function proml
+{
+case $TERM in
+    xterm*)
+        local TITLEBAR='\[\033]0;\u@\h:\w\007\]'
+        ;;
+    *)
+        local TITLEBAR=''
+        ;;
+esac
+
+PS1="${TITLEBAR}\
+[\$(date +%H%M)]\
+[\u@\h:\w]\
+\$ "
+PS2='&#62; '
+PS4='+ '
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This is a function that can be incorporated into
+<TT
+CLASS="FILENAME"
+>~/.bashrc</TT
+>.  The
+function name could then be called to execute the function.  The function,
+like the PS1 string, is stored in the environment.  Once the PS1 string is
+set by the function, you can remove the function from the environment with
+<TT
+CLASS="USERINPUT"
+><B
+>unset proml</B
+></TT
+>.  Since the prompt can't 
+change from being in an Xterm
+to being at the console, the TERM variable isn't tested every time the
+prompt is generated.  I used continuation markers (backslashes) in the
+definition of the prompt, to allow it to be continued on multiple lines.
+This improves readability, making it easier to modify and debug.</P
+><P
+>The first step in creating this prompt is to test if the shell we're
+starting is an xterm or not: if it is, the shell variable (${TITLEBAR}) is
+defined.  It consists of the appropriate escape sequences, and
+<TT
+CLASS="USERINPUT"
+><B
+>\u@\h:\w</B
+></TT
+>, which puts
+&#60;user&#62;@&#60;machine&#62;:&#60;working directory&#62; in the Xterm title
+bar.  This is particularly useful with minimized Xterms, making them more
+rapidly identifiable.  The other material in this prompt should be familiar
+from previous prompts we've created.  &#13;</P
+><P
+>The only drawback to manipulating the Xterm title bar like this occurs
+when you log into a system on which you haven't set up the title bar hack:
+the Xterm will continue to show the information from the previous system
+that had the title bar hack in place.&#13;</P
+><P
+>A suggestion from Charles Lepple (<TT
+CLASS="EMAIL"
+>&#60;<A
+HREF="mailto:clepple at negativezero dot
+org"
+>clepple at negativezero dot
+org</A
+>&#62;</TT
+>) on setting the window title of the Xterm and the title of the
+corresponding icon separately.  He uses this under WindowMaker because the
+title that's appropriate for an Xterm is usually too long for a 64x64 icon.
+"\[\e]1;icon-title\007\e]2;main-title\007\]".  He says to set this in the
+prompt command because <SPAN
+CLASS="QUOTE"
+>"I tried putting the string in PS1, but it
+causes flickering under some window managers because it results in setting
+the prompt multiple times when you are editing a multi-line command (at
+least under bash 1.4.x -- and I was too lazy to fully explore the reasons
+behind it)."</SPAN
+>  I had no trouble with it in the PS1 string, but didn't
+use any multi-line commands.  He also points out that it works under xterm,
+xwsh, and dtterm, but not gnome-terminal (which uses only the main title).
+I also found it to work with rxvt, but not kterm.  &#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x361.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x395.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Cursor Movement</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c327.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Xterm Title Bars and Screen</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

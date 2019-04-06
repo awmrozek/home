@@ -1,0 +1,156 @@
+
+  linux./dsp/labs.com.au <http://linux.dsplabs.com.au/>
+  <http://linux.dsplabs.com.au/feed/>
+
+------------------------------------------------------------------------
+« |mplayer| — multiple sound cards: select audio device
+<http://linux.dsplabs.com.au/mplayer-multiple-sound-cards-select-audio-device-p77/>
+
+|openSUSE 11| — beta screenshots
+<http://linux.dsplabs.com.au/opensuse-11-beta-screenshots-p80/> »
+
+
+    |avi to cd| — avi trim, avi to iso, iso to cd with cdrecord
+    <http://linux.dsplabs.com.au/avi-trim-convert-avi-to-iso-burn-iso-to-cd-cdrecord-p75/> 
+    <http://linux.dsplabs.com.au/avi-trim-convert-avi-to-iso-burn-iso-to-cd-cdrecord-p75/feed/>
+
+Have you ever come across an AVI
+<http://en.wikipedia.org/wiki/Audio_Video_Interleave> file which is just
+a few megabytes too large to fit on a CD or a DVD? Well I have… and in
+this post I'll go over a crude solution to this problem. That is, I'll
+assume that the very end of the AVI file is not that important and I'll
+simply trim it off. Of course, an alternate solution is to re-encode the
+file at a lower bit-rate. However, trimming seems just so much simpler.
+
+So, lets say we want to get rid of trailing 32 MB of a 731 MB AVI file:
+video.avi. To achieve this we can use shell`s |head| command as follows.
+
+head --bytes=-32m video.avi > trimmed.avi
+
+Now lets compare the sizes of video.avi and trimmed.avi using the
+following command.
+
+du -sh video.avi trimmed.avi
+
+Here is the output of the above command.
+
+731M    video.avi
+699M    trimmed.avi
+
+So that worked great. However, by trimming the AVI file we broke its
+internal index and we are left with a more or less raw AVI stream. You
+can still play it in mplayer <http://www.mplayerhq.hu/> like so:
+
+mplayer -fs -zoom trimmed.avi
+
+But you no longer can seek inside it, i.e. it is not possible to seek
+forward or backward. If you do try to seek then mplayer will produce the
+following error message.
+
+Cannot seek in raw AVI streams. (Index required, try with the -idx switch.)
+
+You could give mplayer the suggested -idx switch, like so
+
+mplayer -fs -zoom -idx trimmed.avi
+
+The mplayer would then rebuild the index on the fly before playback.
+This is instant on current CPUs, but can be quite slow on older
+hardware. It is also possible to fix the indexing permanently in the
+trimmed file using mencoder as follows.
+
+mencoder -idx trimmed.avi -oac copy -ovc copy -o fixed.avi
+
+Now forward and backward seeking works just fine. Ok, lets create an ISO
+image <http://en.wikipedia.org/wiki/ISO_image> containing the AVI file.
+This is done using the following command.
+
+mkisofs -r -o video.iso fixed.avi
+
+Last step is to burn the ISO to a CD. This can be done in many ways,
+I'll use a shell tool: cdrecord
+<http://www.linuxjournal.com/article/8831>. If you prefer to work with
+GUI apps then try K3b <http://k3b.plainblack.com/>. With cdrecord I'll
+have to locate my DVD+-RW device identifier first before burning the CD.
+The following command is used for this purpose.
+
+cdrecord -scanbus
+
+Here is the fragment of the output that is of interest to us.
+
+scsibus2:
+        2,0,0   200) 'HL-DT-ST' 'DVD+-RW GSA-H73N' 'B103' Removable CD-ROM
+
+Now, the following command is used to burn the ISO image to a CD.
+
+cdrecord -v dev=2,0,0 video.iso
+
+Here is a quick summary of steps involved in trimming an over-sized AVI
+file and burning its ISO to a CD.
+
+head --bytes=-32m video.avi > trimmed.avi
+mencoder -idx trimmed.avi -oac copy -ovc copy -o fixed.avi
+mkisofs -r -o video.iso fixed.avi
+DEVID=`cdrecord -scanbus 2>/dev/null |grep 'DVD.*RW' |awk '{ print $1 }'`
+cdrecord -v dev=$DEVID video.iso
+
+Enjoy!
+
+
+/Did you find the above information useful and interesting? If so,
+please support this site by using the blog directory links at the bottom
+of this page. Thanks for your support!/
+
+/If you have any Linux related problems or questions then please feel
+free to post them on our Linux Forums:
+*http://linux.dsplabs.com.au/forums*
+<http://linux.dsplabs.com.au/forums/>./
+
+
+This entry was posted on Saturday, March 29th, 2008 at 9:34 am and is
+filed under Tools <http://linux.dsplabs.com.au/category/linux/tools/>,
+Linux <http://linux.dsplabs.com.au/category/linux/>, Shell one-liners
+<http://linux.dsplabs.com.au/category/linux/shell-one-liners/>. You can
+follow any responses to this entry through the RSS 2.0
+<http://linux.dsplabs.com.au/avi-trim-convert-avi-to-iso-burn-iso-to-cd-cdrecord-p75/feed/>
+feed. You can leave a response <#respond>, or trackback
+<http://linux.dsplabs.com.au/avi-trim-convert-avi-to-iso-burn-iso-to-cd-cdrecord-p75/trackback/>
+from your own site.
+
+
+
+VPS Hosting Referral Code DZZCC3 <http://vpslink.com/?ref=DZZCC3>
+
+
+Add me to Technorati Favorites
+<http://technorati.com/faves?sub=addfavbtn&add=http://linux.dsplabs.com.au>
+Vote for me on Blog Skinny
+<http://www.blogskinny.com/vote.cfm?u=3767_615784923761>
+<http://www.miserlymonkey.com/> Vote for me on Blog Catalog
+<http://www.blogcatalog.com/directory/computers/software>
+
+
+      One Response to “|avi to cd| — avi trim, avi to iso, iso to cd
+      with cdrecord”
+
+   1. Mike <http://www.sourcesecure.net> Says:
+      April 24th, 2009 at 11:23 pm <#comment-635>
+
+      Thank you! Helped me out very much.
+
+
+      Leave a Reply
+
+Name
+
+Mail (will not be published)
+
+Website
+
+------------------------------------------------------------------------
+
+dsplabs home <http://www.dsplabs.com.au> ↔ linux blog
+<http://linux.dsplabs.com.au> ↔ linux forums
+<http://linux.dsplabs.com.au/forums>^/ new!/ ↔ travel photography
+<http://kamil.dsplabs.com.au>
+©2009 /dsp/labs.com.au
+

@@ -1,0 +1,283 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>LINUX PLIP MINI-HOWTO: FAQ.</TITLE>
+ <LINK HREF="PLIP-8.html" REL=next>
+ <LINK HREF="PLIP-6.html" REL=previous>
+ <LINK HREF="PLIP.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="PLIP-8.html">Next</A>
+<A HREF="PLIP-6.html">Previous</A>
+<A HREF="PLIP.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="s7">7. FAQ.</A></H2>
+
+<P>This section will (hopefully) solve your problems. If you have any other
+question, feel free to mail me anytime.
+<P>
+<UL>
+<LI>I get these messages at boot time (or when I load the plip module):
+<BLOCKQUOTE><CODE>
+<PRE>
+SIOCSIFADDR: No such device
+SIOCADDRT: Network is unreachable
+</PRE>
+</CODE></BLOCKQUOTE>
+
+and when I try to set up the link as written above, I get again error
+messages like:
+<BLOCKQUOTE><CODE>
+<PRE>
+SIOCSIFADDR: No such device
+SIOCSIFDSTADDR: No such device
+SIOCADDRT: Network is unreachable
+mount clntudp_create: RPC: Port Mapper failure - RPC: Unable to send
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<UL>
+<LI>The kernel, for some reason, hasn't PLIP support enabled. This could be
+due to:
+<UL>
+<LI>You didn't answer yes to "PLIP support? " during kernel configuration.</LI>
+<LI>You answered yes to "Printer support? " during kernel configuration.</LI>
+<LI>You compiled PLIP as a module, so you must load it. </LI>
+<LI>You are addressing the wrong port, i.e. you wrote for instance plip1
+instead of plip0.</LI>
+</UL>
+</LI>
+</UL>
+
+</LI>
+<LI>Is there a way to support both PLIP and LP, beside modules, perhaps with
+two parallel ports?
+<UL>
+<LI>Yes, so far there are two ways, described in the "Patches to make PLIP
+and LP live together":
+<UL>
+<LI>You can apply a patch to make the kernel support both.</LI>
+<LI>You can apply another patch to make the kernel use a parallel port
+for PLIP and another for LP. </LI>
+</UL>
+</LI>
+</UL>
+
+</LI>
+<LI>I have created the script that connects my 2 computers. I set up the
+link automatically in my rc.inet2, where I call a script that creates
+the link and enables NFS.
+My "two" hosts mounts some "one"'s directories; I have added the 
+correct entries in "two"'s /etc/fstab.
+If I boot "two" when "one" is down, "two" halts for some minutes 
+on the "mounting remote file systems...".
+<UL>
+<LI>This happens because "two" waits to mount the "one" filesystems, but
+if "one" is down you must wait until "two" is bored of waiting.
+To avoid this, you may:
+<UL>
+<LI>Comment out in rc.inet2 the command that mounts the remote filesystems</LI>
+<LI>Remove the entry in "two"'s /etc/fstab and mount the remote filesystems
+manually when and if you need.</LI>
+<LI>A better solution would be for "two" to detect upon booting whether
+"one" is up, and mount the filesystem if it is. This can be 
+accomplished by replacing the mount command in rc.d or whereever 
+with something like the following:
+
+<HR>
+<PRE>
+     if ping -c 5 one ; then
+       mount one:/.....
+     fi
+</PRE>
+<HR>
+</LI>
+</UL>
+</LI>
+</UL>
+</LI>
+<LI>My link is up, but ping fails. I receive the following message from the 
+kernel:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+      
+plip1: timed out (1, 89)
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+or similar messages.
+
+<UL>
+<LI>This means that the "your side of the link" is working, your machine
+sends the signal, but the "other side" isn't answering or your side is
+not waiting at the proper IRQ/IO Address.
+This is the most common problem and, alas, has a lot of possible reasons,
+usually bad cable or wrong IRQ and/or IO Address. The wrong IRQ is the
+source of over 60% of the problems, so it's very likely that changing it 
+will remove the problem.
+Here is a detailed list of possible reasons:
+<UL>
+<LI>The cable isn't plugged properly or is broken or is wrong. Check it, if
+possible, between two Linux hosts which already work with PLIP. If it
+is not possible, then at least test the cable with a tester. The fact 
+that the cable worked/not worked  with DOS/win95 is a good/bad omen
+but is not a proof.</LI>
+<LI>The "other side" machine has not PLIP up.</LI>
+<LI>You are linked with a notebook with a not proper parallel port, see
+below.</LI>
+<LI>You have a really cheap parallel port that is a simple "printer" port,
+so can send and not receive.</LI>
+<LI>Your parallel port is not set as (at least) bi-directional. Do it in
+the BIOS configuration. Advanced parallel port settings like EPP or
+ECP are ok. </LI>
+<LI>The parallel ports have different irq, so you have to load the plip
+module (or the lp module) with a different irq. Go back to the chapter
+"Activate the PLIP link" and choose a different irq.</LI>
+<LI>Some other device may have shared your irq (which usually is irq 7),
+it may be a sound card. Do not trust DOS programs like MSD, instead 
+try to load the plip module with a different irq.</LI>
+</UL>
+</LI>
+</UL>
+
+</LI>
+<LI>I put the right IRQ and IO Address, but it still doesn't work. I got the
+addresses from the MSD command.
+<UL>
+<LI>I got a report from MSD giving wrong port addresses. Try to use this
+program: http://www.cs.caltech.edu/&nbsp;huny/para13.zip.</LI>
+</UL>
+
+</LI>
+<LI>My link is up, and ping works. I sometimes receive the following message 
+from the kernel:
+<BLOCKQUOTE><CODE>
+<PRE>
+plip1: timed out (1, 89)   
+</PRE>
+</CODE></BLOCKQUOTE>
+
+or similar messages.
+<UL>
+<LI> This means that the other side has not answered before the timeout. 
+If all is working, you can ignore these messages: usually means that the 
+other side is much slower than yours, either due to older hardware or more 
+load. You can try to tune PLIP with the plipconfig command.</LI>
+</UL>
+
+</LI>
+<LI>I have installed the PLIP connection but if I ping I get 100% data loss.
+I connected my desktop with a notebook.
+<UL>
+<LI>Some notebook's parallel ports aren't good for PLIP, because they are
+only "printer ports", i.e. they can only transmit but not receive the
+data. So far I don't know if there is a way to make them work.
+The only hope is:
+<UL>
+<LI>Look at your notebook setup, perhaps there is a way to configure
+the parallel port as a parallel port instead of a printer port. Usually
+is called "parallel enhanced mode".</LI>
+<LI>Try plip mode 0. Alas I don't know how to do it and/or if it works
+or is still available in the last kernels.</LI>
+</UL>
+</LI>
+</UL>
+
+</LI>
+<LI>What speeds can I achieve with PLIP?
+<UL>
+<LI>This is an hard question to answer to, because there are MANY factors
+that can change deeply your performance:
+<UL>
+<LI>The CPU speed on both the sides of the link.</LI>
+<LI>The parallel port type and settings.</LI>
+<LI>The system load.</LI>
+<LI>What do you use PLIP for.</LI>
+</UL>
+
+Just to give a rough idea, you should achieve about 40Kbytes/sec, much
+faster than any serial rate and near to a low-level ethernet card.</LI>
+</UL>
+
+</LI>
+<LI>What happens if I need to ifconfig up and ifconfig down many times plip1?
+<UL>
+<LI>Seems that you need to add a -arp to the ifconfig command, except for
+the first time after each boot. I don't need, but perhaps someone does.</LI>
+</UL>
+
+</LI>
+<LI>I have read the IP numbers reserved for private networks and your 
+200.0.0.1 and 200.0.0.2 are not in these ranges. Shouldn't they be changed?
+<UL>
+<LI>Yes, they should. But as I underline since the beginning I choose these
+IP addresses only because of their simplicity, you are free to change
+them as you wish. Here is a cut from the net-2-howto:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+  
+    RFC1597 has specifically reserved some IP addresses for private
+    networks.  You should use these as they prevent anything nasty
+    happening if you accidentally get connected to the Internet. The
+    addresses reserved are:
+
+      10.0.0.0        -   10.255.255.255
+      172.16.0.0      -   172.31.255.255
+      192.168.0.0     -   192.168.255.255
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+</UL>
+
+</LI>
+<LI>Is there a way to fine tune PLIP parameters without editing the source
+code?
+<UL>
+<LI>Yes, there is. Try the /sbin/plipconfig command. See the man page for 
+more info.</LI>
+</UL>
+
+</LI>
+<LI>I'm running Debian GNU/Linux, and under Debian, the files 
+/etc/rc.d/rc.inet1 and 2 do not exist. Where must I write the plip 
+configuration commands?
+<UL>
+<LI>In Debian GNU/Linux you must edit /etc/init.d/network, where you have to 
+put all the commands that should stay in rc.inet1 and 2.</LI>
+</UL>
+
+</LI>
+<LI>I have some problems linking two hosts with PLIP. The first has the 
+latest kernel, the second still uses the 1.0.x PLIP version: is this a problem?
+<UL>
+<LI>Yes, it's much better, where is possible, to have the same PLIP 
+version on both ends. In the plip.c is written that the actual PLIP cannot 
+work with the 1.0.xx PLIP.</LI>
+</UL>
+
+</LI>
+<LI>Right now PLIP works with 4 bits, what about the 8 bit PLIP I've read
+in the kernel docs? I think is called Mode 1.
+<UL>
+<LI>This Mini-HowTo is for configuration, for technical informations please 
+read the /usr/src/linux/drivers/net/README*.PLIP files or contact the 
+author. What I know is only this: the standard PLIP uses "null printer" 
+cables and is the Mode 0 (don't confuse it with plip0, which is the 
+interface name), which uses 4 bits; Mode 1 uses 8 bits and should be 
+available already, but will need an handmade cable and will work only 
+between 2 Linux hosts. I don't know, once you got the cable, how to set up 
+the Mode 1 PLIP link; if somebody does, please let me know.</LI>
+</UL>
+</LI>
+</UL>
+<P>
+<HR>
+<A HREF="PLIP-8.html">Next</A>
+<A HREF="PLIP-6.html">Previous</A>
+<A HREF="PLIP.html#toc7">Contents</A>
+</BODY>
+</HTML>

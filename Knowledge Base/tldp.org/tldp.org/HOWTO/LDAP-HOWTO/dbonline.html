@@ -1,0 +1,421 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Creating a Database online</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="LDAP Linux HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Database Creation and Maintenance"
+HREF="dbcreation.html"><LINK
+REL="PREVIOUS"
+TITLE="Database Creation and Maintenance"
+HREF="dbcreation.html"><LINK
+REL="NEXT"
+TITLE="Creating a Database offline"
+HREF="createdboffline.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>LDAP Linux HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="dbcreation.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 5. Database Creation and Maintenance</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="createdboffline.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="DBOnline"
+></A
+>5.1. Creating a Database online</H1
+><P
+>The OpenLDAP software package comes with an utility called ldapadd, used to add
+ entries while the LDAP server is running. If you choose to create the Database online, you can
+use the ldapadd tool to add entries (you can also use other clients provided outside the OpenLDAP
+package to add entries, like the <A
+HREF="http://www.iit.edu/~gawojar/ldap/"
+TARGET="_top"
+>Ldap Browser</A
+>). 
+After adding the first entries, you can still use ldapadd  to add more entries. You should be sure 
+to set the following configuration options on your sladp.conf file before starting slapd: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>suffix &#60;dn&#62; </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>As described in the <A
+HREF="generaldbdirect.html"
+>Section 3.4</A
+>, this option says what 
+entries are to be held by this database. You should set this to the DN of the root of the 
+subtree you are trying to create. For example: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>suffix "o=TUDelft, c=NL" </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You should be sure to specify a directory where the index files should be 
+created: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>directory /usr/local/tudelft </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You need to create this directory with appropriate permissions so that slapd can 
+write to it.</P
+><P
+>You need to configure slapd so that you can connect to it as a directory user with 
+permission to add entries. You can configure the directory to support a special super-user 
+or root user just for this purpose. This is done through the following two options in the 
+database definition:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;rootdn &#60;dn&#62; 
+rootpw &#60;passwd&#62;   /* Remember to use a SHA password here !!! */ 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>These options specify a DN and password that can be used to authenticate as the
+ "superuser" entry of the database (i.e., the entry allowed to do anything). 
+The DN and password specified here will always work, regardless of whether the 
+entry named actually exists or has the password given. This solves the chicken-and-egg 
+problem of how to authenticate and add entries before any entries yet exist. </P
+><P
+><EM
+>Slapd</EM
+> natively understands if you use a SHA-1 encrypted
+password on the rootpw directive. I use a Java class that generates SHA-1 passwords, but it's
+possible to use the command <EM
+>slappasswd</EM
+> to generate the passwords:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>slappasswd -h {SHA}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>rootpw    "{SHA}5en6G6MezRroT3XKqkdPOmY/BfQ="</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>For example:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;        rootdn "cn=Manager,dc=example,dc=com"
+        rootpw "{SHA}5en6G6MezRroT3XKqkdPOmY/BfQ="</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The default output for slappasswd is to generate Secure Hash passwords {SSHA}, in this
+case you don't need to pass the -h parameter, just call slappasswd directly.</P
+><P
+>If you are using SASL as a mechanism to authenticate against LDAP, the rootpw 
+line may be discarded. Take a look on the <A
+HREF="generaldbdirect.html"
+>Section 3.4</A
+> and on the <A
+HREF="authentication.html"
+>Section 6.2</A
+> for more details.</P
+><P
+>Finally, you should make sure that the database definition contains the index 
+definitions you want: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>index {&#60;attrlist&#62; | default} [pres,eq,sub,none] </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>For example, to index the cn, sn, uid and objectclass attributes, the following 
+index configuration lines could be used. </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;index cn,sn,uid pres,eq,sub
+index objectClass pres,eq
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+><B
+CLASS="command"
+>Note:</B
+> Note that not all index types are available with all attribute types.
+Take a look on the <A
+HREF="ldbmdirect.html"
+>Section 3.6</A
+> for examples.</P
+><P
+>Once you have configured things to your liking, start up slapd, connect with 
+your LDAP client, and start adding entries. For example, to add the TUDelft 
+entry followed by a Postmaster entry using the ldapadd tool, you could create 
+a file called /tmp/newentry with the contents: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;o=TUDelft, c=NL 
+objectClass=organization 
+description=Technical University of Delft Netherlands 
+
+cn=Postmaster, o=TUDelft, c=NL 
+objectClass=organizationalRole 
+cn=Postmaster 
+description= TUDelft postmaster - postmaster@tudelft.nl </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>and then use a command like this to actually create the entry: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>ldapadd -f /tmp/newentry -x -D "cn=Manager, o=TUDelft, c=NL" -w secret </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The above command assumes that you have set rootdn to 
+"cn=Manager, o=TUDelft, c=NL" and rootpw to "secret" (maybe SHA-1 encrypted in slapd.conf). 
+If you don't want to type the password on the command line, use the -W option for the 
+ldapadd command instead of -w "password". You will be prompted to enter the password: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;ldapadd -f /tmp/newentry -x -D "cn=Manager, o=TUDelft, c=NL" -W 
+Enter LDAP Password: </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="dbcreation.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="createdboffline.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Database Creation and Maintenance</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="dbcreation.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Creating a Database offline</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

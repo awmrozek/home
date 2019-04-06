@@ -1,0 +1,343 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>( MULTIPLE IPs - DMZ segments) -  I have several EXTERNAL IP addresses that I want to
+PORTFW to several internal machines.  How do I do this?</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Frequently Asked Questions"
+HREF="faq.html"><LINK
+REL="PREVIOUS"
+TITLE="( ACCOUNTING ) -  I need to do accounting on who is using the network"
+HREF="accounting.html"><LINK
+REL="NEXT"
+TITLE="( 1:1 NAT ) - I'd like to do 1:1 NAT but I can't figure out how to do it"
+HREF="one-to-one-nat.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="accounting.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. Frequently Asked Questions</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="one-to-one-nat.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="MULTIPLE-IPS"
+></A
+>7.32. ( MULTIPLE IPs - DMZ segments) -  I have several EXTERNAL IP addresses that I want to
+PORTFW to several internal machines.  How do I do this?</H1
+><P
+>Though technically possible, DON'T do this with IP MASQ.  There are far better
+solutions for this network design.</P
+><P
+>MASQ is a 1:Many NAT setup which is the incorrect tool to perform what you are 
+looking for.  You are looking for is either Many:Many NAT solution or a Briding
+setup.  </P
+><P
+><STRONG
+>NOTE: </STRONG
+>For users out there who are thinking 
+about enabling multiple IP addresses on one internal NIC using "IP Alias" and 
+then just PORTFWeding ALL of those ports (0-65535), and and finally use 
+IPROUTE2 to maintain the proper source/destination IP pairs.  This has been 
+done SUCCESSFULLY on 2.0.x kernels and less successfully on 2.2.x kernels.  
+Regardless of success, that isn't the proper way to do it, it's a total HACK, 
+and it is not a supported MASQ configuration.  Please, give IPTABLES on the 
+2.4.x kernels a serious look or to a much lesser extent, 
+<A
+HREF="shaping.html"
+>Section 7.30</A
+> IPROUTE2 look for 2.2.x kernels.</P
+><P
+>Anyway, for forwarding external IP address to internal hosts, you basically
+have three possibilites:
+
+<P
+></P
+><UL
+><LI
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>1. Route the external IPs 
+
+   (This does NOT involve IPMASQ at all but requires special WAN addressing 
+    and routing setup from your ISP):
+
+    Internet -- Some public WAN -- Linux -- DMZ segment
+                   IP address      Server     PUBLIC IPs
+                                     |
+                                     +------ Internal net
+                                              private IPs</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+   </P
+></LI
+><LI
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>2. 1:1 NAT 
+
+   (Most easily done via IPTABLES or with IPCHAINS and IPROUTE2 but still 
+    some protocols cannot deal with NAT)
+
+    Internet -- Linux -- DMZ segment
+                Server     Private IPs natted to 1:1 PUBLIC IPs
+                   |
+                   +------ Internal net
+                            private IPs&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+   </P
+></LI
+><LI
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>3. Bridging or ProxyARP:  
+
+   The Bridging method is one of the more popular methods that many commercial 
+   firewalls do and it's very slick.  Alternatively, you can use the ProxyARP 
+   method which works well without some of the complications (or benefits of
+   bridging).  With both solutions, all public IPs can transparently flow 
+   through the Linux server to the DMZ but via firewall inspection.
+
+    Internet -- Linux -- DMZ segment
+                Server     PUBLIC IPs
+                  |
+                  +------ Internal net
+                           private IPs&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+   </P
+></LI
+></UL
+></P
+><P
+>Each of these solutions have pros and cons</P
+><P
+>Item #1: If you're lucky enough to have an ISP that will set this up for you
+(pretty rare), all you need to do is use basic 'route' commands to get this 
+running.  This is the most rebust solution and doesn't require any form of 
+IPMASQ or NAT to work.</P
+><P
+>Item #2:  1:1 NAT isn't covered in this HOWTO yet but if you need a hand, just 
+email me and I'll give you a hand.  </P
+><P
+>Item #3: ProxyARP is pretty strait forward but only works in specific
+situations and only works with Ethernet networks.  Bridging is more powerful 
+but will probably require the re-compiling of the kernel and some advanced 
+configuration.  Ultimately, neither of these solutions are IPMASQ anymore and 
+thus I can't help you set them up.  Fortunately, there are other HOWTOs out 
+there that cover this topic:
+<P
+></P
+><UL
+><LI
+><P
+>  <A
+HREF="http://www.tldp.org/HOWTO/Proxy-ARP-Subnet/index.html"
+TARGET="_top"
+>http://www.tldp.org/HOWTO/Proxy-ARP-Subnet/index.html</A
+>
+  </P
+></LI
+><LI
+><P
+>  <A
+HREF=" http://www.tldp.org/HOWTO/Adv-Routing-HOWTO/lartc.bridging.html"
+TARGET="_top"
+>http://www.tldp.org/HOWTO/Adv-Routing-HOWTO/lartc.bridging.html</A
+>
+  </P
+></LI
+><LI
+><P
+>  <A
+HREF="http://www.tldp.org/HOWTO/Ethernet-Bridge-netfilter-HOWTO.html"
+TARGET="_top"
+>http://www.tldp.org/HOWTO/Ethernet-Bridge-netfilter-HOWTO.html</A
+>
+  </P
+></LI
+><LI
+><P
+>  <A
+HREF="http://bridge.sourceforge.net/"
+TARGET="_top"
+>http://bridge.sourceforge.net/</A
+>
+  </P
+></LI
+></UL
+></P
+><P
+><STRONG
+>NOTE: </STRONG
+> If you have a bridged DSL or 
+Cablemodem connection (not PPPoE), things are a little more difficult because 
+your setup isn't routed.  No worries though, check out the 
+<A
+HREF="http://www.tldp.org/HOWTO/mini/Bridge+Firewall.html"
+TARGET="_top"
+>Bridge+Firewall Mini
+HOWTO</A
+> and the 
+<A
+HREF="http://www.tldp.org/HOWTO/mini/Bridge+Firewall+DSL.html"
+TARGET="_top"
+>Bridge+Firewall+DSL Mini HOWTO</A
+>.  These HOWTOs will teach you how to 
+get your Linux box to support multiple IP addresses on a single interface!</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="accounting.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="one-to-one-nat.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>( ACCOUNTING ) -  I need to do accounting on who is using the network</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="faq.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>( 1:1 NAT ) - I'd like to do 1:1 NAT but I can't figure out how to do it</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

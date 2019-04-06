@@ -1,0 +1,249 @@
+<HTML
+><HEAD
+><TITLE
+>Running multiple sites with different SLAs</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Cookbook"
+HREF="lartc.cookbook.html"><LINK
+REL="PREVIOUS"
+TITLE="Cookbook"
+HREF="lartc.cookbook.html"><LINK
+REL="NEXT"
+TITLE="Protecting your host from SYN floods"
+HREF="lartc.cookbook.synflood-protect.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 15. Cookbook</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.synflood-protect.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.COOKBOOK.SLA"
+></A
+>15.1. Running multiple sites with different SLAs</H1
+><P
+>You can do this in several ways. Apache has some support for this with a
+module, but we'll show how Linux can do this for you, and do so for other
+services as well. These commands are stolen from a presentation by Jamal
+Hadi that's referenced below.</P
+><P
+>Let's say we have two customers, with http, ftp and streaming audio, and we
+want to sell them a limited amount of bandwidth. We do so on the server itself.</P
+><P
+>Customer A should have at most 2 megabits, customer B has paid for 5
+megabits. We separate our customers by creating virtual IP addresses on our
+server.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip address add 188.177.166.1 dev eth0
+# ip address add 188.177.166.2 dev eth0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>It is up to you to attach the different servers to the right IP address. All
+popular daemons have support for this.</P
+><P
+>We first attach a CBQ qdisc to eth0:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc qdisc add dev eth0 root handle 1: cbq bandwidth 10Mbit cell 8 avpkt 1000 \
+  mpu 64</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>We then create classes for our customers:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc class add dev eth0 parent 1:0 classid 1:1 cbq bandwidth 10Mbit rate \
+  2MBit avpkt 1000 prio 5 bounded isolated allot 1514 weight 1 maxburst 21
+# tc class add dev eth0 parent 1:0 classid 1:2 cbq bandwidth 10Mbit rate \
+  5Mbit avpkt 1000 prio 5 bounded isolated allot 1514 weight 1 maxburst 21</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Then we add filters for our two classes:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>##FIXME: Why this line, what does it do?, what is a divisor?:
+##FIXME: A divisor has something to do with a hash table, and the number of
+##       buckets - ahu
+# tc filter add dev eth0 parent 1:0 protocol ip prio 5 handle 1: u32 divisor 1
+# tc filter add dev eth0 parent 1:0 prio 5 u32 match ip src 188.177.166.1
+  flowid 1:1
+# tc filter add dev eth0 parent 1:0 prio 5 u32 match ip src 188.177.166.2
+  flowid 1:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>And we're done.</P
+><P
+>FIXME: why no token bucket filter? is there a default pfifo_fast fallback
+somewhere?</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.synflood-protect.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Cookbook</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Protecting your host from SYN floods</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

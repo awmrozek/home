@@ -1,0 +1,262 @@
+<HTML
+><HEAD
+><TITLE
+>ASE Architecture: Observing the Server</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Sybase Adaptive Server Enterprise / SQL Server HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Basic Usage"
+HREF="usage.html"><LINK
+REL="NEXT"
+TITLE="Languages for connecting to ASE"
+HREF="lang.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Sybase Adaptive Server Enterprise / SQL Server HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="usage.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lang.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="architecture"
+></A
+>5. ASE Architecture: Observing the Server</H1
+><P
+>&#13;What follows is a brief description of the architecture of ASE and how you can peek into this a bit closer.
+In order to get an overview of what ASE is doing and how it is set up we'll use a combination of internal ASE commands and OS commands.
+</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN510"
+></A
+>5.1. Processes</H2
+><P
+>&#13;Each ASE server running on the machine will have at least one OS process, the <TT
+CLASS="filename"
+>dataserver</TT
+> binary, and may have many such running. A single server instance consists of at least one <TT
+CLASS="filename"
+>dataserver</TT
+> process. Under Sybase terminology, such <TT
+CLASS="filename"
+>dataserver</TT
+> processes that are cooperating and communicating with each other in shared memory are known as engines. For production use, one CPU on the server machine is often reserved as dedicated to host each Sybase engine. The engine may then be configured to hog this CPU, even when there is no active work it will idle loop polling for new incoming client connections to avoid context switches. Of course, this behaviour is entirely configurable and running one or more server instances on a single-CPU machine is not a problem - depending of course upon the load on these servers. As long as there is sufficient memory for each instance and they are started on different TCP ports, there is no problem having several instances on one machine - even of different versions.
+</P
+><P
+>&#13;A simple <B
+CLASS="command"
+>ps</B
+> will show you the <TT
+CLASS="filename"
+>dataserver</TT
+> processes (by default you only have one), Sybase has provided a utility named <B
+CLASS="command"
+>showserver</B
+> that will just show you the Sybase-related processes that are active. The <B
+CLASS="command"
+>sp_sysmon</B
+> stored procedure will monitor ASE for a given time interval, then dump out several pages of global performance data. The Engine section shows how active the server really is, regardless of the CPU usage shown on OS level.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN521"
+></A
+>5.2. Physical Storage</H2
+><P
+>&#13;The ASE server does I/O to the raw devices or files, these are represented internally as virtual devices. A database can reside on one or spread out on many of these virtual devices, and a virtual device can hold many databases if you want. You should locate the OS-level device files on fast disks and make sure they are not removed or messed with by other applications or sysadmins on a cleanup crusade. The path to the virtual devices are stored in the master..sysdevices table, you can list these with the <B
+CLASS="command"
+>sp_helpdevice</B
+> stored procedure.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN525"
+></A
+>5.3. Network</H2
+><P
+>&#13;The server listens for incoming connections on one or several TCP ports. You identify the server by the logical Sybase server name when you connect. This logical name is listed in the interfaces file, used by both ASE server and clients such as isql. When the ASE server is started, it finds it's name in the RUN_SERVER file, looks this up in the interfaces file, finds the master entry and starts a listener on the IP / port found there. When you start isql it also looks for the logical server name in the interfaces file, but looks for the query line instead. Normally this is the same IP and port, but it gives you the option of starting the server on several different IPs and ports and configure clients in different parts of the network to utilize different pathways to the server. JDBC does not use the interfaces file, but instead lets you use the IP and port as part of the URL.
+</P
+><P
+>&#13;You can observe the open port and established connections with <B
+CLASS="command"
+>netstat</B
+> or <B
+CLASS="command"
+>lsof -i</B
+>. It is also possible to trace the communication using <B
+CLASS="command"
+>tcpdump</B
+> or <B
+CLASS="command"
+>Ethereal</B
+>, these utilities have support for the Tabular Data Stream (TDS) protocol used in Sybase client-server connections.
+</P
+><P
+>&#13;Once a client has connected it will be visible inside ASE as a task, an internal process. These are not seen as separate OS processes, but can be listed with the <B
+CLASS="command"
+>sp_who</B
+> stored procedure.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN535"
+></A
+>5.4. Memory</H2
+><P
+>&#13;You can configure how much memory you want ASE to use down to a certain needed minimum and up to whatever your OS and your ASE version combination will allow you. Except for doing careful analysis and clever design and SQL writing, using more of the available memory is what makes databases speed up without changing hardware. By default, most of the memory you allow allocated to ASE is used for caching data to avoid disk I/O as much as possible. Another area of memory is used to cache stored procedures in a compiled form, enabling these to be readily re-used without having to read from disk as frequently. Smaller parts are reserved for various administrative memory structures needed by the server for keeping track of each user connection, each database and so on.
+</P
+><P
+>&#13;On OS level you can see this normally contiguous memory chunk with <B
+CLASS="command"
+>ipcs -m</B
+>.
+Inside ASE you can use <B
+CLASS="command"
+>sp_configure</B
+> to read and modify configuration parameters such as total memory. There are several ways of determining the efficiency of memory usage, this art is explained in the Performance and Tuning Guide.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN541"
+></A
+>5.5. Boot Process</H2
+><P
+>&#13;You start the server using the startserver utility. This will call the RUN_* file that you specify on the command line. If you open this RUN_SERVER file in a text editor you will find it simply calls the <TT
+CLASS="filename"
+>dataserver</TT
+> executable with several parameters listed in the file. These are documented in the utility guide.
+The server reads its configuration file (specified by one of the parameters) and allocates the amount of shared memory stated in that file (NOTE: this is configured in 2KB pages, not bytes), then does it's own internal distribution of this memory for various purposes. Once the memory is available, the process of initializing (you can think of it as "mounting") the virtual devices used to store databases is started. When these are verified available and OK, the databases have to go through recovery. This means reading the write-ahead transaction log and comparing any changes recorded there to the actual data stored. Transactions are redone and undone as needed to get the databases to a clean and correct state. Once the process is done the databases will be online. For the system databases the same process is applied, except for the scratchpad database tempdb which will be totally overwritten with the model template database and any remaining space zeroed out. Finally the TCP port is opened and the server is ready to accept incoming client connections.
+</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="usage.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lang.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Basic Usage</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Languages for connecting to ASE</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

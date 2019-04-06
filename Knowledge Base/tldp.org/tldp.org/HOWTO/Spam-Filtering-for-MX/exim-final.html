@@ -1,0 +1,964 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Final ACLs</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Exim Implementation"
+HREF="exim.html"><LINK
+REL="PREVIOUS"
+TITLE="Exempting Forwarded Mail"
+HREF="exim-forward.html"><LINK
+REL="NEXT"
+TITLE="Glossary"
+HREF="gloss.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="exim-forward.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix A. Exim Implementation</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="gloss.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="exim-final"
+></A
+>A.14. Final ACLs</H1
+><P
+>&#13;      OK, time to wake up!  This has been very long reading - but
+      congratulations on making it this far!
+    </P
+><P
+>&#13;      The following ACLs incorporate all of the checks we have
+      described so in this implementation.  However, some have been
+      commented out, for the following reasons:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;          <A
+HREF="exim-greylisting.html"
+>Greylisting</A
+>.  This
+          either requires additional software to be installed, or
+          fairly complex inline configuration by way of additional
+          ACLs and definitions in the Exim configuration file.
+          I highly recommend it, though.
+        </P
+></LI
+><LI
+><P
+>&#13;          <A
+HREF="exim-av.html"
+>Virus scanning</A
+>.
+          There is no <EM
+>ubiquitous</EM
+> scanner that
+          nearly everyone uses, similar to SpamAssassin for spam
+          identification.  On the other hand, the documentation that
+          comes with <TT
+CLASS="option"
+>Exiscan-ACL</TT
+> should be easy to
+          follow.
+        </P
+></LI
+><LI
+><P
+>&#13;          <A
+HREF="exim-sa.html#exim-per-user"
+>Per-user settings for
+          SpamAssassin</A
+>.  This is a trade-off that for many is
+          unacceptable, as it involves deferring mail to all but the
+          first recipient of a message.
+        </P
+></LI
+><LI
+><P
+>&#13;          <A
+HREF="exim-sign.html"
+>Envelope Sender Signatures</A
+>.
+          There are consequences, e.g. for roaming users.  Also, it
+          involves configuring routers and transports as well as
+          ACLs.  See that section for details.
+        </P
+></LI
+><LI
+><P
+>&#13;          <A
+HREF="exim-bounces.html"
+>Accepting Bounces Only for Real
+          Users</A
+>.  There are several ways of doing this, and
+          determining which users are real is specific to how mail is
+          delivered.
+        </P
+></LI
+></UL
+><P
+>&#13;      Without further ado, here comes the final result we have all
+      been waiting for.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_connect_final"
+></A
+>A.14.1. acl_connect</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used at the start of an incoming
+# connection.  The tests are run in order until the connection is
+# either accepted or denied.
+
+acl_connect:
+  # Record the current timestamp, in order to calculate elapsed time
+  # for subsequent delays
+  warn
+    set acl_m2  = $tod_epoch
+
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP).  We do
+  # this by testing for an empty sending host field.
+  # Also accept mails received over a local interface, and from hosts
+  # for which we relay mail.
+  accept
+    hosts       = : +relay_from_hosts
+
+
+  # If the connecting host is in one of several DNSbl's, then prepare
+  # a warning message in $acl_c1.  We will later add this message to
+  # the mail header.  In the mean time, its presence indicates that
+  # we should keep stalling the sender.
+  #
+
+  warn
+    !hosts      = ${if exists {/etc/mail/whitelist-hosts} \
+                              {/etc/mail/whitelist-hosts}}
+    dnslists    = list.dsbl.org : \
+                  dnsbl.sorbs.net : \
+                  dnsbl.njabl.org : \
+                  bl.spamcop.net : \
+                  dsn.rfc-ignorant.org : \
+                  sbl-xbl.spamhaus.org : \
+                  l1.spews.dnsbl.sorbs.net
+    set acl_c1  = X-DNSbl-Warning: \
+                  $sender_host_address is listed in $dnslist_domain\
+                  ${if def:dnslist_text { ($dnslist_text)}}
+
+
+  # Likewise, if reverse DNS lookup of the sender's host fails (i.e.
+  # there is no rDNS entry, or a forward lookup of the resulting name
+  # does not match the original IP address), then generate a warning
+  # message in $acl_c1.  We will later add this message to the mail
+  # header.
+  warn
+    condition   = ${if !def:acl_c1 {true}{false}}
+    !verify     = reverse_host_lookup
+    set acl_m9  = Reverse DNS lookup failed for host $sender_host_address
+    set acl_c1  = X-DNS-Warning: $acl_m9
+
+
+  # Accept the connection, but if we previously generated a message in
+  # $acl_c1, stall the sender until 20 seconds has elapsed.
+  accept
+    set acl_m2  = ${if def:acl_c1 {${eval:20 + $acl_m2 - $tod_epoch}}{0}}
+    delay       = ${if &#62;{$acl_m2}{0}{$acl_m2}{0}}s
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_helo_final"
+></A
+>A.14.2. acl_helo</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used for the HELO or EHLO command in 
+# an incoming SMTP transaction. The tests are run in order until the
+# greeting is either accepted or denied.
+
+acl_helo:
+  # Record the current timestamp, in order to calculate elapsed time
+  # for subsequent delays
+  warn
+    set acl_m2  = $tod_epoch
+
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP).  
+  # We do this by testing for an empty sending host field.
+  # Also accept mails received from hosts for which we relay mail.
+  #
+  accept
+    hosts       = : +relay_from_hosts
+
+
+  # If the remote host greets with an IP address, then prepare a reject
+  # message in $acl_c0, and a log message in $acl_c1.  We will later use
+  # these in a "deny" statement.  In the mean time, their presence indicate
+  # that we should keep stalling the sender.
+  # 
+  warn
+    condition   = ${if isip {$sender_helo_name}{true}{false}}
+    set acl_c0  = Message was delivered by ratware
+    set acl_c1  = remote host used IP address in HELO/EHLO greeting
+
+
+  # Likewise if the peer greets with one of our own names
+  # 
+  warn
+    condition   = ${if match_domain{$sender_helo_name}\
+                       {$primary_hostname:+local_domains:+relay_to_domains}\
+                       {true}{false}}
+    set acl_c0  = Message was delivered by ratware
+    set acl_c1  = remote host used our name in HELO/EHLO greeting.
+
+
+  # If HELO verification fails, we prepare a warning message in acl_c1.
+  # We will later add this message to the mail header.  In the mean time,
+  # its presence indicates that we should keep stalling the sender.
+  # 
+  warn
+    condition   = ${if !def:acl_c1 {true}{false}}
+    !verify     = helo
+    set acl_c1  = X-HELO-Warning: Remote host $sender_host_address \
+                  ${if def:sender_host_name {($sender_host_name) }}\
+                  incorrectly presented itself as $sender_helo_name
+    log_message = remote host presented unverifiable HELO/EHLO greeting.
+
+
+  # Accept the greeting, but if we previously generated a message in
+  # $acl_c1, stall the sender until 20 seconds has elapsed.
+  accept
+    set acl_m2  = ${if def:acl_c1 {${eval:20 + $acl_m2 - $tod_epoch}}{0}}
+    delay       = ${if &#62;{$acl_m2}{0}{$acl_m2}{0}}s
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_mail_from_final"
+></A
+>A.14.3. acl_mail_from</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used for the MAIL FROM: command in an
+# incoming SMTP transaction.  The tests are run in order until the
+# sender address is either accepted or denied.
+#
+
+acl_mail_from:
+  # Record the current timestamp, in order to calculate elapsed time
+  # for subsequent delays
+  warn
+    set acl_m2  = $tod_epoch
+
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP). 
+  # We do this by testing for an empty sending host field.
+  # Also accept mails received from hosts for which we relay mail.
+  #
+  # Sender verification is omitted here, because in many cases
+  # the clients are dumb MUAs that don't cope well with SMTP
+  # error responses.
+  #
+  accept
+    hosts     = : +relay_from_hosts
+
+
+  # Accept if the message arrived over an authenticated connection,
+  # from any host. Again, these messages are usually from MUAs.
+  #
+  accept
+    authenticated = *
+
+
+  # If present, the ACL variables $acl_c0 and $acl_c1 contain rejection
+  # and/or warning messages to be applied to every delivery attempt in
+  # in this SMTP transaction.  Assign these to the corresponding 
+  # $acl_m{0,1} message-specific variables, and add any warning message
+  # from $acl_m1 to the message header.  (In the case of a rejection,
+  # $acl_m1 actually contains a log message instead, but this does not
+  # matter, as we will discard the header along with the message).
+  #
+  warn
+    set acl_m0  = $acl_c0
+    set acl_m1  = $acl_c1
+    message     = $acl_c1
+
+
+  # If sender did not provide a HELO/EHLO greeting, then prepare a reject
+  # message in $acl_m0, and a log message in $acl_m1.  We will later use
+  # these in a "deny" statement.  In the mean time, their presence indicate
+  # that we should keep stalling the sender.
+  #
+  warn
+    condition   = ${if def:sender_helo_name {0}{1}}
+    set acl_m0  = Message was delivered by ratware
+    set acl_m1  = remote host did not present HELO/EHLO greeting.
+
+
+  # If we could not verify the sender address, create a warning message
+  # in $acl_m1 and add it to the mail header.  The presence of this
+  # message indicates that we should keep stalling the sender.
+  #
+  # You may choose to omit the "callout" option.  In particular, if
+  # you are sending outgoing mail through a smarthost, it will not
+  # give any useful information.
+  #
+  warn
+    condition   = ${if !def:acl_m1 {true}{false}}
+    !verify     = sender/callout
+    set acl_m1  = Invalid sender &#60;$sender_address&#62;
+    message     = X-Sender-Verify-Failed: $acl_m1
+    log_message = $acl_m1
+
+
+  # Accept the sender, but if we previously generated a message in
+  # $acl_c1, stall the sender until 20 seconds has elapsed.
+  accept
+    set acl_m2  = ${if def:acl_c1 {${eval:20 + $acl_m2 - $tod_epoch}}{0}}
+    delay       = ${if &#62;{$acl_m2}{0}{$acl_m2}{0}}s
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_rcpt_to_final"
+></A
+>A.14.4. acl_rcpt_to</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used for every RCPT command in an
+# incoming SMTP message.  The tests are run in order until the 
+# recipient address is either accepted or denied.
+
+acl_rcpt_to:
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP).  
+  # We do this by testing for an empty sending host field.
+  # Also accept mails received from hosts for which we relay mail.
+  #
+  # Recipient verification is omitted here, because in many
+  # cases the clients are dumb MUAs that don't cope well with 
+  # SMTP error responses.
+  #
+  accept
+    hosts       = : +relay_from_hosts
+
+
+  # Accept if the message arrived over an authenticated connection,
+  # from any host. Again, these messages are usually from MUAs, so
+  # recipient verification is omitted.
+  #
+  accept
+    authenticated = *
+
+
+  # Deny if the local part contains @ or % or / or | or !. These are
+  # rarely found in genuine local parts, but are often tried by people
+  # looking to circumvent relaying restrictions.
+  #
+  # Also deny if the local part starts with a dot. Empty components
+  # aren't strictly legal in RFC 2822, but Exim allows them because
+  # this is common.  However, actually starting with a dot may cause
+  # trouble if the local part is used as a file name (e.g. for a
+  # mailing list).
+  #
+  deny
+    local_parts = ^.*[@%!/|] : ^\\.
+
+
+  # Deny if we have previously given a reason for doing so in $acl_m0.
+  # Also stall the sender for another 20s first.
+  #
+  deny
+    message     = $acl_m0
+    log_message = $acl_m1
+    condition   = ${if and {{def:acl_m0}{def:acl_m1}} {true}}
+    delay       = 20s
+
+
+  # If the recipient address is not in a domain for which we are handling
+  # mail, stall the sender and reject.
+  #
+  deny
+    message     = relay not permitted
+    !domains    = +local_domains : +relay_to_domains
+    delay       = 20s
+
+
+  # If the address is in a local domain or in a domain for which are
+  # relaying, but is invalid, stall and reject.
+  #
+  deny
+    message     = unknown user
+    !verify     = recipient/callout=20s,defer_ok,use_sender
+    delay       = ${if def:sender_address {1m}{0s}}
+
+
+
+  # Drop the connection if the envelope sender is empty, but there is
+  # more than one recipient address.  Legitimate DSNs are never sent
+  # to more than one address.
+  #
+  drop
+    message      = Legitimate bounces are never sent to more than one \
+                   recipient.
+    senders      = : postmaster@*
+    condition    = $recipients_count
+    delay        = 5m
+
+
+  # --------------------------------------------------------------------
+  # Limit the number of recipients in each incoming message to one
+  # to support per-user settings and data (e.g. for SpamAssassin).
+  #
+  # NOTE: Every mail sent to several users at your site will be
+  #       delayed for 30 minutes or more per recipient.  This
+  #       significantly slow down the pace of discussion threads
+  #       involving several internal and external parties.
+  #       Thus, it is commented out by default.
+  #
+  #defer
+  #  message      = We only accept one recipient at a time - please try later.
+  #  condition    = $recipients_count
+  # --------------------------------------------------------------------
+
+
+  # Accept the mail if the sending host is matched in the ".forwarders" 
+  # file in the recipient's home directory.  Temporarily set $acl_m9 to
+  # point to this file.  If the host is found, set a flag in $acl_m0 and
+  # clear $acl_m1 to indicate that we should not reject this mail later.
+  #
+  accept
+    domains     = +local_domains
+    set acl_m9  = /home/${extract{1}{=}{${lc:$local_part}}}/.forwarders
+    hosts       = ${if exists {$acl_m9}{$acl_m9}} 
+    set acl_m0  = accept
+    set acl_m1  = 
+
+
+  # Accept the mail if the sending host is matched in the global
+  # whitelist file.  Temporarily set $acl_m9 to point to this  file. 
+  # If the host is found, set a flag in $acl_m0 and clear $acl_m1 to 
+  # indicate that we should not reject this mail later.
+  # 
+  accept
+    set acl_m9  = /etc/mail/whitelist-hosts
+    hosts       = ${if exists {$acl_m9}{$acl_m9}}
+    set acl_m0  = accept
+    set acl_m1  = 
+
+
+  # --------------------------------------------------------------------
+  # Envelope Sender Signature Check.
+  # This is commented out by default, because it requires additional
+  # configuration in the 'transports' and 'routers' sections.
+  #
+  # Accept the recipient addresss if it contains our own signature.
+  # This means this is a response (DSN, sender callout verification...)
+  # to a message that was previously sent from here.
+  #
+  #accept
+  #  domains     = +local_domains
+  #  condition   = ${if and {{match{${lc:$local_part}}{^(.*)=(.*)}}\
+  #                          {eq{${hash_8:${hmac{md5}{SECRET}{$1}}}}{$2}}}\
+  #                         {true}{false}}
+  #
+  # Otherwise, if this message claims to be a bounce (i.e. if there
+  # is no envelope sender), but if the receiver has elected to use
+  # and check against envelope sender signatures, reject it.
+  #
+  #deny
+  #  message     = This address does not match a valid, signed \
+  #                return path from here.\n\
+  #                You are responding to a forged sender address.
+  #  log_message = bogus bounce.
+  #  senders     = : postmaster@*
+  #  domains     = +local_domains
+  #  set acl_m9  = /home/${extract{1}{=}{${lc:$local_part}}}/.return-path-sign
+  #  condition   = ${if exists {$acl_m9}{true}}
+  # --------------------------------------------------------------------
+
+
+  # --------------------------------------------------------------------
+  # Deny mail for local users that do not have a mailbox (i.e. postmaster,
+  # webmaster...) if no sender address is provided.  These users do
+  # not send outgoing mail, so they should not receive returned mail.
+  #
+  # NOTE: This is commented out by default, because the condition is
+  #       specific to how local mail is delivered.  If you want to
+  #       enable this check, uncomment one and only one of the
+  #       conditions below.
+  #
+  #deny
+  #  message     = This address never sends outgoing mail. \
+  #                You are responding to a forged sender address.
+  #  log_message = bogus bounce for system user &#60;$local_part@$domain&#62;
+  #  senders     = : postmaster@*
+  #  domains     = +local_domains
+  #  set acl_m9  = ${extract{1}{=}{${lc:$local_part}}}
+  #
+  # --- Uncomment the following 2 lines if recipients have local accounts:
+  #  set acl_m9  = ${extract{2}{:}{${lookup passwd {$acl_m9}{$value}}}{0}}
+  #  !condition  = ${if and {{&#62;={$acl_m9}{500}} {&#60;${acl_m9}{60000}}} {true}}
+  # 
+  # --- Uncomment the following line if you deliver mail to Cyrus:
+  #  condition  = ${run {/usr/sbin/mbpath -q -s user.$acl_m9} {true}}
+  # --------------------------------------------------------------------
+
+
+
+  # Query the SPF information for the sender address domain, if any,
+  # to see if the sending host is authorized to deliver its mail.
+  # If not, reject the mail.
+  #
+  deny
+    message     = [SPF] $sender_host_address is not allowed to send mail \
+                  from $sender_address_domain
+    log_message = SPF check failed.
+    spf         = fail
+
+
+  # Add a SPF-Received: line to the message header
+  warn
+    message     = $spf_received
+
+
+  # --------------------------------------------------------------------
+  # Check greylisting status for this particular peer/sender/recipient.
+  # Before uncommenting this statement, you need to install "greylistd".
+  # See:  http://packages.debian.org/unstable/main/greylistd
+  #
+  # Note that we do not greylist messages with NULL sender, because
+  # sender callout verification would break (and we might not be able
+  # to send mail to a host that performs callouts).
+  #
+  #defer
+  #  message     = $sender_host_address is not yet authorized to deliver mail \
+  #                from &#60;$sender_address&#62; to &#60;$local_part@$domain&#62;. \
+  #                Please try later.
+  #  log_message = greylisted.
+  #  domains     = +local_domains : +relay_to_domains
+  #  !senders    = : postmaster@*
+  #  set acl_m9  = $sender_host_address $sender_address $local_part@$domain
+  #  set acl_m9  = ${readsocket{/var/run/greylistd/socket}{$acl_m9}{5s}{}{}}
+  #  condition   = ${if eq {$acl_m9}{grey}{true}{false}}
+  #  delay       = 20s
+  # --------------------------------------------------------------------
+
+  # Accept the recipient.
+  accept
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_data_final"
+></A
+>A.14.5. acl_data</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used for message data received via 
+# SMTP.  The tests are run in order until the recipient address 
+# is either accepted or denied.
+
+acl_data:
+  # Log some header lines
+  warn
+    logwrite    = Subject: $h_Subject:
+
+
+  # Add Message-ID if missing in messages received from our own hosts.
+  warn
+    condition   = ${if !def:h_Message-ID: {1}}
+    hosts       = +relay_from_hosts
+    message     = Message-ID: &#60;E$message_id@$primary_hostname&#62;
+
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP).  
+  # We do this by testing for an empty sending host field.
+  # Also accept mails received from hosts for which we relay mail.
+  #
+  accept
+    hosts       = : +relay_from_hosts
+
+  # Accept if the message arrived over an authenticated connection, from
+  # any host.
+  #
+  accept
+    authenticated = *
+
+
+  # Deny if we have previously given a reason for doing so in $acl_m0.
+  # Also stall the sender for another 20s first.
+  #
+  deny
+    message     = $acl_m0
+    log_message = $acl_m1
+    condition   = ${if and {{def:acl_m0}{def:acl_m1}} {true}{false}}
+    delay       = 20s
+
+
+  # enforce a message-size limit
+  #
+  deny
+    message     = Message size $message_size is larger than limit of \
+                  MESSAGE_SIZE_LIMIT
+    condition   = ${if &#62;{$message_size}{MESSAGE_SIZE_LIMIT}{yes}{no}}
+
+
+  # Deny unless the addresses in the header is syntactically correct.
+  #
+  deny
+    message     = Your message does not conform to RFC2822 standard
+    log_message = message header fail syntax check
+    !verify     = header_syntax
+
+
+  # Uncomment the following to deny non-local messages without
+  # a Message-ID:, Date:, or Subject: header.
+  #
+  # Note that some specialized MTAs, such as certain mailing list 
+  # servers, do not automatically generate a Message-ID for bounces.
+  # Thus, we add the check for a non-empty sender.
+  #
+  #deny
+  #  message     = Your message does not conform to RFC2822 standard
+  #  log_message = missing header lines
+  #  !hosts      = +relay_from_hosts
+  #  !senders    = : postmaster@*
+  #  condition   = ${if !eq {$acl_m0}{accept}{true}}
+  #  condition   = ${if or {{!def:h_Message-ID:}\
+  #                         {!def:h_Date:}\
+  #                         {!def:h_Subject:}} {true}{false}}
+
+
+  # Warn unless there is a verifiable sender address in at least
+  # one of the "Sender:", "Reply-To:", or "From:" header lines.
+  #
+  warn
+    message     = X-Sender-Verify-Failed: No valid sender in message header
+    log_message = No valid sender in message header
+    !verify     = header_sender
+
+
+
+  # --------------------------------------------------------------------
+  # Perform greylisting on messages with no envelope sender here.
+  # We did not subject these to greylisting after RCPT TO: because
+  # that would interfere with remote hosts doing sender callouts.
+  # Note that the sender address is empty, so we don't bother using it.
+  #
+  # Before uncommenting this statement, you need to install "greylistd".
+  # See:  http://packages.debian.org/unstable/main/greylistd
+  #
+  #defer
+  #  message     = $sender_host_address is not yet authorized to send \
+  #                delivery status reports to &#60;$recipients&#62;. \
+  #                Please try later.
+  #  log_message = greylisted.
+  #  senders     = : postmaster@*
+  #  condition   = ${if !eq {$acl_m0}{accept}{true}}
+  #  set acl_m9  = $sender_host_address $recipients
+  #  set acl_m9  = ${readsocket{/var/run/greylistd/socket}{$acl_m9}{5s}{}{}}
+  #  condition   = ${if eq {$acl_m9}{grey}{true}{false}}
+  #  delay       = 20s
+  # --------------------------------------------------------------------
+
+
+
+  # --- BEGIN EXISCAN configuration ---
+
+  # Reject messages that have serious MIME errors.
+  #
+  deny
+    message     = Serious MIME defect detected ($demime_reason)
+    demime      = *
+    condition   = ${if &#62;{$demime_errorlevel}{2}{1}{0}}
+
+
+  # Unpack MIME containers and reject file extensions used by worms.
+  # This calls the demime condition again, but it will return cached results.
+  # Note that the extension list may be incomplete.
+  #
+  deny
+    message     = We do not accept ".$found_extension" attachments here.
+    demime      = bat:btm:cmd:com:cpl:dll:exe:lnk:msi:pif:prf:reg:scr:vbs:url
+
+
+  # Messages larger than MESSAGE_SIZE_SPAM_MAX are accepted without
+  # spam or virus scanning
+  accept
+    condition   = ${if &#62;{$message_size}{MESSAGE_SIZE_SPAM_MAX} {true}}
+    logwrite    = :main: Not classified \
+                  (message size larger than MESSAGE_SIZE_SPAM_MAX)
+
+
+  # --------------------------------------------------------------------
+  # Anti-Virus scanning
+  # This requires an 'av_scanner' setting in the main section.
+  #
+  #deny
+  #  message  = This message contains a virus ($malware_name)
+  #  demime   = *
+  #  malware  = */defer_ok
+  # --------------------------------------------------------------------
+
+
+
+  # Invoke SpamAssassin to obtain $spam_score and $spam_report.
+  # Depending on the classification, $acl_m9 is set to "ham" or "spam".
+  #
+  # If the message is classified as spam, and we have not previously
+  # set $acl_m0 to indicate that we want to accept it anyway, pretend
+  # reject it.
+  #
+  warn
+    set acl_m9  = ham
+    # ------------------------------------------------------------------
+    # If you want to allow per-user settings for SpamAssassin,
+    # uncomment the following line, and comment out "spam = mail".
+    # We pass on the username specified in the recipient address,
+    # i.e. the portion before any '=' or '@' character, converted
+    # to lowercase.  Multiple recipients should not occur, since
+    # we previously limited delivery to one recipient at a time.
+    #
+    # spam        = ${lc:${extract{1}{=@}{$recipients}{$value}{mail}}}
+    # ------------------------------------------------------------------
+    spam        = mail
+    set acl_m9  = spam
+    condition   = ${if !eq {$acl_m0}{accept}{true}}
+    control     = fakereject
+    logwrite    = :reject: Rejected spam (score $spam_score): $spam_report
+
+
+
+  # Add an appropriate X-Spam-Status: header to the message.
+  #
+  warn
+    message     = X-Spam-Status: \
+                  ${if eq {$acl_m9}{spam}{Yes}{No}} (score $spam_score)\
+                  ${if def:spam_report {: $spam_report}}
+    logwrite    = :main: Classified as $acl_m9 (score $spam_score)
+
+
+  # --- END EXISCAN configuration ---
+
+
+  # Accept the message. 
+  #
+  accept
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="exim-forward.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="gloss.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Exempting Forwarded Mail</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="exim.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Glossary</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

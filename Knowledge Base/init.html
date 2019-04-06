@@ -1,0 +1,792 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html><head><title>Proces Init</title>
+
+
+   
+   <meta name="GENERATOR" content="Mozilla/3.01Gold (X11; I; Linux 2.0.15 i486) [Netscape]">
+   <meta name="Author" content="Krzysztof Micek"></head><body>
+
+<p><i><a href="http://rainbow.mimuw.edu.pl/SO/Linux/index10.html">Do spisu tresci tematu 10. </a></i></p>
+
+<ul>
+<ul>
+<ul>
+<ul>
+<ul>
+<p><b><font size="+2">10.4 Proces init</font></b></p>
+
+<p><b><font size="+2">Spis tresci</font></b></p>
+</ul>
+</ul>
+</ul>
+</ul>
+
+<li><a href="#Wprowadzenie">Wprowadzenie.</a></li>
+
+<li><a href="#Czym%20zajmuje%20sie%20proces%20init">Czym zajmuje sie proces init?</a></li>
+
+<li><a href="#Krotki%20opisy%20algorytmu%20init">Algorytm inita.</a></li>
+
+<li><a href="#Opis%20pliku%20/etc/inittab.">Opis pliku /etc/inittab</a></li>
+
+<li><a href="#CHILD">Struktura danych: CHILD</a></li>
+
+<li><a href="#Przykladowy%20plik%20/etc/inittab">Przykladowy plik /etc/inittab</a>
+</li>
+
+<li><a href="#Bibliografia">Bibliografia</a></li>
+
+</ul>
+
+<p>
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<ul>
+<h2><a name="Wprowadzenie"></a><b><font size="+3">10.4.1 Wprowadzenie</font></b></h2>
+</ul>
+</ul>
+</ul>
+</ul>
+
+<p>Przedostatnia instrukcja w funkcji "start_kernel()" uruchamianej
+przy inicjalizacji systemu jest powolanie nowego procesu, procesu o identyfikatorze
+1, zwanym powszechnie procesem init. Proces ten bedac caly czas w trybie
+jadra uruchamia dwa demony. Pierwszy do obslugi swap'a, drugi do opoznionego
+zapisu buforow na dysk. Nastepnie wywoluje funkcje setup(), ktora inicjalizuje
+urzadzenia i podmontowywuje do korzenia glowny system plikow. Otwiera terminal
+i ustawia na niego swoje stdin, stdout i stderr. Nastepnie wykonuje po
+kolei exec("/etc/init"); exec("/bin/init");exec("/sbin/init").
+Jezeli zaden sie nie udal, to proces init przechodzi do nieskonczonej petli,
+w ktorej: 1. uruchamia shell 2. czeka na jego zakonczenie. <br>
+Przypadek, w ktorym nie udalo sie uruchomic zadnego inita jest malo ciekawy,
+dlatego zajmiemy sie teraz przypadkiem, w ktorym nam sie to udalo. <br>
+Wersji "initow" jest dosyc duzo, wiecej niz wersji jadra. Zwiazane
+jest to z tym, ze program init nie nalezy juz do kodu jadra, jest on zwyklym
+programem, dzialajacym w trybie uzytkownika, tyle ze z identyfikatorem
+root'a. Kazdy moze latwo go sobie zmienic na inny bez zmieniania jadra,
+wystarczy dotychczasowy program init, ktory jest w jednym z katalogow /etc,
+/bin lub /sbin, zamienic na nowy o takiej samej nazwie. <br>
+Ostatnio standardem staje sie init Systemu V, dlatego dzialanie procesu
+init opisze na jego przykladzie. </p>
+
+<p>
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<h2><a name="Czym zajmuje sie proces init"></a>10.4.2 Czym zajmuje sie
+proces init. </h2>
+</ul>
+</ul>
+</ul>
+
+<p>Prace procesu init mozemy podzielic na dwie czesci. Pierwsza, ktora
+jest wykonywana podczas ladowania systemu, polega na wczytaniu pliku <a href="#Opis%20pliku%20/etc/inittab.">/etc/inittab</a>
+i uruchomieniu procesow zwiazanych z inicjacja systemu, wczytaniu poziomu
+dzialania (ang. runlevel) i uruchomieniu procesow zwiazanych z tym poziomem.
+Druga czesc to nadzorowanie pracy systemu. Praca ta polega na wznawianiu
+procesow, ktorych akcja zdefiniowana w inittabie bylo "respawn"
+, na przechwytywaniu sygnalow o zakloceniach zasilania i na uruchamianiu
+zwiazanych z nimi procesow; oraz na przejsciu na nowy poziom dzialania
+na zyczenie administratora. Przejscie to wiaze sie z zabiciem procesow,
+ktore nie sa powiazane z nowym poziomem, i uruchomieniem tych, ktore sa
+powiazane.</p>
+
+<p>
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<h2><a name="Krotki opisy algorytmu init"></a><b>10.4.3 Krotki opis algorytmu
+init. </b></h2>
+</ul>
+</ul>
+</ul>
+
+<p><b>algorytm init&nbsp;<br>
+wejscie: brak<br>
+wyjscie: brak</b></p>
+
+<p>{</p>
+
+<ul>
+<p><a href="#Obsluga%20sygnalow:">Ustaw obsluge sygnalow;<br>
+</a><b>runlevel="sysinit";</b> /* runlevel jest zmienna globalna,
+na ktorej mamy aktualny poziom dzialania */<br>
+<a href="#Czytanie%20pliku/etc/inittab">Przeczytaj plik /etc/inittab;<br>
+</a><a href="#sprwdzProcesy">Sprawdz, czy sa dzieci, ktore nalezaloby uruchomic</a>;
+/* w praktyce sprowadza sie to do uruchomienia procesow o akcji "sysinit"
+*/<br>
+<b>for ever</b> /*<a name="glowna petla"></a>glowna petla*/<br>
+{</p>
+
+<ul>
+<p><a href="#BootTransitions">Sprawdz, czy nie nalezy zmienic poziomu dzialania</a>;
+/* Poziom jest zmieniany tylko podczas inicjacji systemu, oraz po zakonczeniu
+wszystkich procesow-dzieci w poziomie dla jednego uzytkownika */<br>
+<b>if </b>(sa procesy, na ktorych zakonczenie czekamy i nie ma nieobsluzonych
+sygnalow) <b>pause()</b>;<br>
+/* pause() powoduje uspienie procesu do czasu otrzymania jakiegokolwiek
+sygnalu */<br>
+<a href="#fail">Sprawdz, czy mozna juz uruchomic dzieci, ktorych nie udalo
+sie wznowic wczesniej</a>;<br>
+<a href="#algortym:%20ProcessSignals">Przetworz sygnaly</a>;<br>
+<a href="#sprwdzProcesy">Sprawdz, czy sa dzieci, ktore nalezaloby uruchomic;<br>
+</a><b>sync()</b>; /* zapisuje bufory na dysk */</p>
+</ul>
+
+<p>}</p>
+</ul>
+
+<p>} / * init */</p>
+
+<p>
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<ul>
+<h2><a name="Opis pliku /etc/inittab."></a>10.4.4 Opis pliku /etc/inittab.</h2>
+</ul>
+</ul>
+</ul>
+</ul>
+
+<p>Kazda linia w tym pliku ma format: id:runlevels:action:process</p>
+
+<p>id to niepowtarzalny dwuliterowy identyfikator linii, runlevels to poziomy,
+przy ktorych ma byc wykonana dana akcja, action okresla wlasnie te akcje,
+a process jest linia komendy, jaka ma byc wykonana. <br>
+Mamy zdefiniowane nastepujace akcje:</p>
+
+<ul>
+<li><b>respawn</b> - proces bedzie kazdorazowo wznowiony po zakonczeniu</li>
+
+<li><b>wait</b> - proces bedzie rozpoczety tylko raz przy rozpoczeciu poziomu
+wykonania okreslonego przez runlevels, i proces init bedzie czekal na jego
+zakonczenie</li>
+
+<li><b>once</b> - tak, jak wyzej, tylko nie bedziemy czekac na jego zakonczenie</li>
+
+<li><b>boot</b> - proces bedzie rozpoczety raz, podczas przejscia do poziomu
+"boot"</li>
+
+<li><b>bootwai</b>t - jak wyzej, tyle ze bedziemy czekac na jego zakonczenie</li>
+
+<li><b>sysinit</b> - proces bedzie rozpoczety raz, podczas przejscia do
+poziomu "sysinit"</li>
+
+<li><b>powerwai</b>t - proces bedzie rozpoczety, jesli init otrzyma sygnal
+SIGPWR , mowiacy o jakichs problemach z zasilaniem, i bedziemy czekac na
+jego zakonczenie</li>
+
+<li><b>power</b> - tak jak wyzej, tylko nie czekamy na jego zakonczenie</li>
+
+<li><b>powerokwai</b>t - proces bedzie rozpoczety, jesli init otrzyma sygnal
+SIGPWR, i w pliku /etc/powerstatus bedzie slowo "OK" , co oznacza,
+ze zasilanie powrocilo. Init bedzie czekal na jego zakonczenie</li>
+
+<li><b>ctraltdel</b> - proces bedzie rozpoczety po nacisnieciu ctrl+alt+del</li>
+
+<li><b>initdefault</b> - okresla poziom, do jakiego init ma przejsc po
+skonczeniu inicjacji systemu</li>
+</ul>
+
+<p>Pole runlevels dla akcji boot, bootwait, sysinit, initdefault jest ignorowane.
+<br>
+Jezeli chodzi o znaczenie poziomow dzialania, standartowo 's' oznacza poziom
+dla jednego uzytkownika, 1,2,3,4,5,6 poziomy wieloztkownikowe, przy czym
+6 to poziom dla X-windows. Poziom 0 to zamkniecie systemu. Podkereslam,
+ze jest to standartowe ustawinie, tak na prawde to znaczenie ich definiuja
+procesy jakie sa przy nich uruchamiane. Standartowy plik /etc/inittab jest
+przedstawiony <a href="#Przykladowy%20plik%20/etc/inittab">tutaj</a>. Ale kazady
+moze zamienic go sobie jak chce i wetedy te poziomy moga miec zupelnie
+inne znaczenie. </p>
+
+<p>Krotko o kolejnosci wykonywania procesow podczas inicjalizowania systemu:<br>
+Pierwszym poziomem dzialania po rozpoczeciu pracy inita jest sysinit. Potem
+uruchamiamy procesy, ktorych akcja jest wlasnie "sysinit" i czekamy
+na ich zakonczenie .Nastepnie sprawdzamy, jaki ma byc docelowy poziom;
+sprawdzenia tego dokonuje funkcja "<a href="#GetInitDefault">GetInitDefault"</a>.
+Jesli tym poziomem jest tryb dla jednego uzytkownika (ang. single user
+mode), to po zakonczeniu poziomu sysinit od razu do niego przechodzimy,
+wpp po sysinit, a przed poziomem docelowym mamy jeszcze poziom "boot".
+W tym poziomie odpalamy procesy, ktorych akcja jest "boot" lub
+"bootwait". Po zakonczeniu procesow o akcji "bootwait"
+przechodzimy juz do docelowego poziomu. Zmiana poziomow zajmuje sie funkcja
+"<a href="#BootTransitions">BootTransitions </a>" . <br>
+Procesy o akcji "boot" to jedyne procesy, ktore moga dzialac
+we wszystkich poziomach, reszta moze dzialac tylko w poziomach okreslonych
+przez "runlevels".</p>
+
+<p>algorytm: <a name="GetInitDefault"></a><b>GetInitDefault;<br>
+</b>wejscie: brak;<br>
+wyjscie: brak;<br>
+{</p>
+
+<ul>
+<p>Sprawdz, czy w pliku inittab byla linijka o akcji "initdefault";<br>
+If (byla taka linijka) return( poziom, jaki ona definiowala);<br>
+Spytaj administratora, jaki ma byc poziom dzialania;<br>
+return ( odpowiedz administratora );</p>
+</ul>
+
+<p>} /* GetInitDefalut */</p>
+
+<p>
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<ul>
+<ul>
+<h2><a name="CHILD"></a>10.4.5 CHILD</h2>
+</ul>
+</ul>
+</ul>
+</ul>
+</ul>
+
+<p>Najwazniejsza struktura danych w programie init jest CHILD; Opisuje
+ona kazde polecenie wczytane z inittaba oraz ewentualny proces z nim zwiazany.
+<br>
+struct <b><font size="+1">CHILD</font></b> {<br>
+int flags ; ---------/* informacje o statucie dzialania procesu */<br>
+int extsta; --------/* kod wyjscia procesu */<br>
+int pid; -----------/* identyfikator procesu, lub zero jesli nie jest uruchomiony
+*/<br>
+time_t tm; --------/* czas ostatniego wznowienia */<br>
+int count; ---------/* liczba wznowien w ostatnich<a href="#TESTTIME">
+TESTTIME </a>sekundach */<br>
+char id[8]; ---------/* pole id z inittaba tego polecenia */<br>
+char[12];----------/* poziomy, przy ktorych moze dzialac ten proces */<br>
+int action; ---------/* akcja */<br>
+char process[128]; ---/* linia komendy, jaka nalezy wykonac */<br>
+CHILD * new; ------/* pole to jest wykorzystywane przy ponownym czytaniu
+inittaba do zaznaczenia procesow, ktore sie powtarzaja */<br>
+CHILD * next; -----/* wskaznik na nastepny element listy dzieci */<br>
+} /* CHILD */<br>
+Mamy zdefiniowane jeszcze trzy stale zwiazane z wykonywaniem procesow:</p>
+
+<p>define MAXSPAWN /* okresla maksymalna liczbe wznowien procesu w przeciagu
+... */<br>
+define<a name="TESTTIME"></a> TESTTIME /* tylu sekund */<br>
+define <a name="SLEEPTIME"></a>SLEEPTIME /* w przypadku przekroczenia liczby
+wznowien, czas, jaki musi minac, aby ponownie init probowal uruchomic ten
+proces */</p>
+
+<p>dygresja: W inicie, ktory opisuje, powyzsze stale sa zdefiniowane nastepujaco
+(10, 120, 300). Wystarczy wiec w przeciagu dwoch minut zalogowac sie i
+wylogowac, zeby zablokowac terminal na 5 minut.</p>
+
+<p>Jezeli chodzi o flagi w strukturze CHILD to mamy: </p>
+
+<ul>
+<li><b>RUNNING</b> - proces wlasnie sie wykonuje</li>
+
+<li><b>KILLME</b> - nalezy zabic ten proces</li>
+
+<li><b>FAILING</b> - przekroczono maksymalna liczbe wznowien tego dziecka
+i nalezy odczekac przed ponownym jego wznowieniem</li>
+
+<li><b>WAITING</b> - czekamy na zakonczenie tego procesu</li>
+
+<li><b>XECUTED</b> - dziecko bylo juz kiedys rozpoczete; jezeli chodzi
+o te flage, to jej ustawienie nie zawsze jest zgodne z prawda, tzn. jest
+ustawiona nawet wtedy, jesli proces nie byl nigdy rozpoczety. Dotyczy to
+procesow o akcji zwiazanej z obsluga problemow zwiazanych z napieciem,
+i o akcji ctraltdel. Tym procesom te flage ustawia sie na poczatku, mimo
+ze sie ich nie rozpoczyna. Takie ustawienie pomaga potem zaimplementowac
+uruchamianie procesow. </li>
+</ul>
+
+<p><br>
+Za dziecko uwazam zatem strukture, ktora powyzej przedstawilem, a nieraz
+takze proces z nia zwiazany ( jedynym wyjatkiem jest obsluga sygnalu SIGCHLD;
+tam pod pojeciem dziecko kryje sie proces, ktorego identyfikatorem ojca
+jest liczba 1( czyli dziecko w ujeciu Unixa)). Wiem, ze nie jest to najlepsze
+rozwiazanie, ale niestety nie wpadlem na lepsze, poza tym w kodzie tez
+bylo to tak nazwane (za przyklad daje nazwe struktury), tych, ktorych przyjecie
+takiej terminologii wprowadzilo w blad, z gory przepraszam.Pod pojeciem
+"proces" kryje sie zwykle "proces zwiazany z danym dzieckiem".</p>
+
+<p>
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<p><a name="Czytanie pliku/etc/inittab"></a><font size="+2">Czytanie pliku/etc/inittab;</font></p>
+</ul>
+</ul>
+</ul>
+
+<p>Zadanie to wykonuje funkcja ReadItab(). Jest ona wywolywana przy rozpoczeciu
+pracy przez inita, oraz przy przejsciu do innego poziomu dzialania. </p>
+
+<p>algorytm: <b>ReadItab<br>
+</b>wejscie: brak;<br>
+wyjscie: brak;<br>
+{</p>
+
+<ul>
+<p>while(nie przeczytales calego pliku){</p>
+
+<ul>
+<p><br>
+Przeczytaj linie i sprawdz, czy jest poprawna;<br>
+if (jest poprawna){</p>
+
+<ul>
+<p>Przydziel pamiec dla struktury <a href="#CHILD">CHILD </a>i zainicjuj
+ja;<br>
+Dodaj to dziecko do listy dzieci;<br>
+/* procesy zwiazane z obsluga problemow z napieciem, umieszcza sie na poczatku
+listy, natomiast pozostale na koncu */</p>
+</ul>
+
+<p>};</p>
+</ul>
+
+<p>};<br>
+if (bylo to ponowne czytanie inittaba){ /* oznacza to, ze przechodzimy
+na nowy poziom dzialania na polecenie administratora */</p>
+
+<p>Zabij dzieci, ktore nie powinny dzialac na nowym poziomie. <br>
+/*Zabijamy wszystkie procesy, ktorych nie ma w nowo przeczytanym inittabie,
+tzn. nie ma linijki z identyfikatorem, ktory odpowiadalby polu "id"
+w strukturze CHILD danego procesu. Zabijamy takze procesy, ktore sa w nowoprzeczytanym
+inittabie, ale pole "rlevel" ich struktury CHILD nie zawiera
+poziomu, na ktory sie przelaczamy, wyjatkiem sa procesy o akcji "boot",
+one moga dzialac zawsze. */</p>
+</ul>
+
+<p>}; /* ReadItab */</p>
+
+<p>
+</p><hr width="100%"><br>
+<a name="BootTransitions"></a>Sprawdzeniem, czy nie nalezy przejsc do innego
+poziomu zajmuje sie funkcja "<b>BootTransitions()</b>" . Jest
+ona wywolywana przy kazdym obrocie petli glownej, ale zmiany poziomu dokonuja
+sie znacznie rzadziej( przy inicjalizowaniu systemu oraz po zakonczeniu
+wszystkich naszych dzieci przy pracy na poziomie dla jednego uzytkownika
+). <br>
+algortym: <b>BootTransitions</b>;<br>
+wejscie: brak;<br>
+wyjscie: brak;<br>
+{<p></p>
+
+<ul>
+<p>for( kazde dziecko ) if ( dziecko dziala i jego akcja nie jest boot
+) return; /* nie mozemy zmienic poziomu*/ <br>
+if ( aktualny poziom to "sysinit"){ </p>
+
+<ul>
+<p>log_level=<a href="#GetInitDefault">GetInitDefault()</a>; /* zmienna
+"log_level" jest statyczna */<br>
+if (log_level=='s') /* od razu przechodzimy do decelowego poziomu */ {</p>
+
+<ul>
+<p>runlevel = 's'<br>
+return:</p>
+</ul>
+
+<p>}<br>
+else /* najpierw poziom boot */{</p>
+
+<ul>
+<p>runlevel = 'boot'; <br>
+renturn;<br>
+</p>
+</ul>
+
+<p>}</p>
+</ul>
+
+<p>} /* poziomom sysinit */;<br>
+if ( aktualnym poziomem jest boot ) runlevel=log_level; /* wartosc wczytana
+poprzednio przez "<a href="#GetInitDefault">GetInitDefault</a>"
+*/<br>
+if ( aktualnym poziomem jest 's') {</p>
+
+<ul>
+<p>runlevel=<a href="#GetInitDefault">GetInitDefault()</a>;<br>
+Odwies flagi (RUNNIGN, XECUTED, WAITING) dzieciom zwiazanym z poziomem
+'s'; /* tzn. tym, ktorych pole rlevel ich struktury <a href="#CHILD">CHILD</a>
+zawiera 's' */ </p>
+</ul>
+
+<p>}</p>
+</ul>
+
+<p>} /* BootTransitions */ <br>
+
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<p><a name="Obsluga sygnalow:"></a><b><font size="+2">Obsluga sygnalow:</font></b></p>
+</ul>
+</ul>
+</ul>
+
+<p>Proces init obsluguje sygnaly dwuetapowo. Pierwszy etap polega na zaznaczeniu
+na zmiennej globalnej "got_signlas" sygnalu, ktory przyszedl.
+Etap ten jest obslugiwany przez funkcje "signal_handler", ktora
+przechwytuje prawie wszystkie sygnaly. Wyjatkiem jest sygnal SIGCHLD (sygnal
+ten jest wysylany w przypadku smierci jakiegos naszego dziecka), ktory
+jest obslugiwany przez "chld_handler". Funkcja ta oprocz ustawienia
+odpowiedniego bitu w "got_signals" sprawdza ktore to bylo dziecko,
+i jesli byl to proces z inittaba to ustawia w jego strukturze <a href="#CHILD">CHILD
+</a>flage ZOMBIE. Drugim, zasadniczym etapem przetwarzania sygnalu jest
+wykonanie zadan odpowiadajacych danemu sygnalowi. Etapem tym zajmuje sie
+funkcja "<a href="#algortym:%20ProcessSignals">ProcessSignals</a>".</p>
+
+<p>algortym <b>Ustawienie przechwytywania sygnalow</b>;<br>
+wejscie: brak;<br>
+wyjscie: brak:<br>
+{</p>
+
+<ul>
+<p>Powiadom jadro, ze chcemy otrzymac sygnal SIGINT, jesli zostalo nacisniete
+ctrl+alt+del;<br>
+Ustaw przechwycenie sygnalu SIGCHLD przez funkcje "chld_handler";<br>
+Ustaw przechwycenie reszty sygnalow przez funkcje "signal_handlers";</p>
+</ul>
+
+<p>}; </p>
+
+<p>Przetwarzaniem sygnalow zajmuje sie funkcja "ProcessSignals".
+Funkcja ta jest wywolywana przy kazdym obrocie <a href="#glowna%20petla">petli
+glownej</a>.</p>
+
+<p><a name="algortym: ProcessSignals"></a>algorytm: <b>ProcessSignals;<br>
+</b>wejscie: brak;<br>
+wyjscie: brak:<br>
+{</p>
+
+<ul>
+<p>if( przechwycilismy SIGPWR){ /*mamy jakies problemy z zasilaniem*/</p>
+
+<ul>
+<p>Przeczytaj z pliku /etc/powerstatus co sie dzieje;<br>
+Odwies flagi XECUTED tym procesom, ktore sa zwiazane z tym zdarzeniem;<br>
+/* Odwieszenie tej flagi spowoduje, ze przy najblizszym wywolaniu funkcji
+"StartEmIfNeeded" procesy te zostana uruchomione*/<br>
+Usun sygnal SIGPWR ze zmiennej "got_signlas";</p>
+</ul>
+
+<p>};<br>
+if (przechwycilismy SIGINT) { /* nacisnieto ctr+alt+del*/</p>
+
+<ul>
+<p>Odwies flage XECUTED procesom, ktorych akcja jest ctrlaltdel; /* skutek,
+patrz wyzej */<br>
+Usun sygnal SIGINT ze zmiennej "got_signlas";</p>
+</ul>
+
+<p>};<br>
+if (przechwycilismy SIGCHLD) { /*<i> </i>wlasnie umarlo jakies nasze dziecko*/</p>
+
+<ul>
+<p>Odwies flagi RUNNING, WAIT, ZOMBIE , procesom, ktore maja ustawiona
+flage ZOMBIE.<br>
+/* flage te ustawiala funkcja "chld_handler" */<br>
+/* odwieszenie tych flag bedzie potem wykorzystywane przez funkcje "StartEmIfNeeded"*/<br>
+Usun sygnal SIGCHLD ze zmiennej "got_signlas";</p>
+</ul>
+
+<p>};<br>
+if ( przechwycilismy SIGHUP) { /*zmiana poziomu dzialania*/</p>
+
+<ul>
+<p>Przeczytaj z pliku /etc/initrunlevel, jaki ma byc nowy poziom;<br>
+Przeczytaj plik /etc/inittab; /* dziala inaczej niz za pierwszym czytaniem
+*/<br>
+Usun sygnal SIGHUP ze zmiennej "got_signlas";</p>
+</ul>
+
+<p>};</p>
+</ul>
+
+<p>};/ * ProcessSignals*/<br>
+</p>
+
+<p><a name="sprwdzProcesy"></a>Sprawdzeniem, czy sa procesy, ktore nalezaloby
+uruchomic, zajmuje sie funkcja "<a name="StartEmIfNeeded"></a><b>StartEmIfNeeded</b>".<br>
+algorytm: <b>StartEmIfNeeded</b>;<br>
+wejscie: brak;<br>
+wyjscie: brak;<br>
+{</p>
+
+<ul>
+<p>for(kazde dziecko){</p>
+
+<ul>
+<p>if ( czekamy na zakonczenie tego procesu) break;<br>
+if ( ten proces jest uruchomiony) continue;<br>
+if ( ten proces moze dzialac w aktualnym poziomie dzialania) <a href="#StartUp;">StartUp</a>(dziecko);</p>
+</ul>
+
+<p>};</p>
+</ul>
+
+<p>}; /* StartEmIfNeeded */</p>
+
+<p>Funkcja StartUp sprawdza czy dane dziecko nalezy uruchomic, jesli tak
+to wywoluje funkce Spawn. </p>
+
+<p>algorytm: <a name="StartUp;"></a><b>StartUp</b>;<br>
+wejscie: dziecko, ktore nalezy sprawdzic, czy nie nalezy go uruchomic;<br>
+wyjscie: brak;<br>
+{</p>
+
+<ul>
+<p>if (to dziecko przekroczylo maksymalna liczbe wznowien w ostatnim czasie)
+return;<br>
+switch(akcja dziecka){</p>
+
+<ul>
+<p>case SYSINIT: case BOOTWAIT: case WAIT: case POWERWAIT: <br>
+case CTRALTDEL: case POWEROKWAIT:<br>
+if ( jeszcz nie bylo wznawiane)/* uruchamiamy je teraz */ flags=flags|WAITING;<br>
+case BOOT: case POWERFAIL: case ONCE: <br>
+if (juz bylo uruchomione) return;<br>
+case RESPAWN: <br>
+Spawn(dziecko); /* uruchamiamy to dziecko */</p>
+</ul>
+
+<p>};</p>
+</ul>
+
+<p>}; /* StartUp */</p>
+
+<p>algorytm: <b>Spawn</b>; /* Uruchom proces */ <br>
+wejscie: dziecko, ktore nalezy uruchomic;<br>
+wyjscie: brak;<br>
+{ </p>
+
+<ul>
+<p>if (akcja tego dziecka jest RESPAWN) /* musimy sprawdzic, czy tym uruchomieniem
+nie przekroczym maksymalnej liczyby wznowien*/</p>
+</ul>
+
+<ul>
+<ul>
+<p>if ( wznawiamy go za czesto) { alarm(<a href="#SLEEPTIME">SLEEPTIME</a>);
+return};</p>
+</ul>
+
+<p>flags|=(RUNNING|XECUTED);<br>
+Utworzy tablice argv dla tego dziecka; /* jezeli linia komend tego dziecka
+zawiera jakies dziwne znaczki typu: ! $ | / &lt; &gt; ?, oznacza to, ze
+musimy uruchomic jakiegos shella i przekazac mu linie komend jako argument.
+Natomiast jesli nie zawiera, to kazdy wyraz z tej linii wpisujemy kolejno
+do tablicy argv */ <br>
+if ((pid =fork())==0){ /* jestesmy w procesie dziecka */</p>
+
+<ul>
+<p>setsid() /* otwiera sesje dla tego procesu */<br>
+execvp(argv[0], argv);</p>
+</ul>
+
+<p>}<br>
+else { /* Jestesmy w procesie ojca */ </p>
+
+<ul>
+<p><a href="#struct%20CHILD">CHILD</a>-&gt; pid=pid;<br>
+return;</p>
+</ul>
+
+<p>};</p>
+</ul>
+
+<p>}; /* Spawn */</p>
+
+<p><a name="fail"></a>Sprawdzeniem, czy mozna juz uruchamiac procesy, ktore
+przekroczyly maksymalna liczbe wznowien, zajmuje sie funkcja "FailCheck()".
+Jest ona wywolywana przy kazdym obrocie <a href="#glowna%20petla">glownej
+petli.<br>
+</a>algorytm: <b>FailCheck;<br>
+</b>wejscie: brak;<br>
+wyjscie: brak;<br>
+{</p>
+
+<ul>
+<p>for(kazde dziecko){</p>
+
+<ul>
+<p>if( to dziecko padlo){</p>
+
+<ul>
+<p>if ( od ostatniego wzonwienia minelo juz <a href="#SLEEPTIME">SLEEPTIME
+</a>sekund ) {</p>
+
+<ul>
+<p>CHILD-&gt;flags&amp;=~FAILING; /* odwieszenie tej flagi spowoduje ze
+przy najblizszym wywolaniu funkcji "<a href="#StartEmIfNeeded">StartEmIfNeeded</a>"
+dziecko to zostanie uruchomione */<br>
+CHILD-&gt;count=0;<br>
+CHILD-&gt;tm=aktualny_czas();</p>
+</ul>
+
+<p>}<br>
+else alrm(CHILD-&gt;tm+SLEEPTIME-aktualny_czas()) /* sprawdzimy go potem
+*/</p>
+</ul>
+
+<p>} /* to dziecko padlo */</p>
+</ul>
+
+<p>} /* for */</p>
+</ul>
+
+<p>}/ * FailCheck */</p>
+
+<p>
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<ul>
+<p><a name="Przykladowy plik /etc/inittab"></a><b><font size="+2">10.4.6
+Przykladowy plik /etc/inittab</font></b></p>
+</ul>
+</ul>
+</ul>
+</ul>
+
+<p>/*Poziom do jakiego mamy przejsc po inicjalizacji systemu. */ <br>
+<b>id:5:initdefault:</b> </p>
+
+<p>/*Uruchamiamy ten skrypt przy inicjalizacji systemu (standartowo wykonuje
+on polecenie '/sbin/fsck -a -A', ktore sprawdza czy wyszystkie systemy
+plikow aktualnie podlaczone sa poprawne, automatycznie usuwajac napotkane
+bledy ; skrypt ten podmontowywuje takze systemy plikow opisane z pliku
+/etc/fstab)*/<br>
+<b>si::sysinit:/etc/rc.d/rc.S</b></p>
+
+<p>/* Skrypt ten uruchamiamy kiedy przechodzimy do poziomu dla jednego
+uzytkownika. Standardowo odlacza on wszystkie systemy plikow i wylacza
+swap'a. */ <br>
+<b>su:S:wait:/etc/rc.d/rc.K</b> </p>
+
+<p>/* Skrypt ten uruchamiamy kiedy przechodzimy do poziomu wielouzytkownikowego.
+Standardowo inicjalizuje on siec, uruchamia on demona poczty, sprawdza
+CD i jesli jest to podlacza je do katalogu /cdrom. */<br>
+<b>rc:123456:wait:/etc/rc.d/rc.M</b> </p>
+
+<p>/* Trzech kroli powoduje wylaczenie komputera. */ <br>
+<b>ca::ctrlaltdel:/sbin/shutdown -t3 -rf now </b></p>
+
+<p>/* Co robic kiedy zanika napiecie. */ <br>
+<b>pf::powerfail:/sbin/shutdown -f +5 "THE POWER IS FAILING"
+</b></p>
+
+<p>/* Jesli napiecie wraca to: */ <br>
+<b>pg:0123456:powerokwait:/sbin/shutdown -c "THE POWER IS BACK"</b>
+</p>
+
+<p>/* Uruchamianie odpowiedniej ilosci terminali: */ <br>
+<b>c1:12345:respawn:/sbin/agetty 38400 tty1 <br>
+c2:12345:respawn:/sbin/agetty 38400 tty2 <br>
+c3:45:respawn:/sbin/agetty 38400 tty3 <br>
+c4:45:respawn:/sbin/agetty 38400 tty4 <br>
+c5:45:respawn:/sbin/agetty 38400 tty5 <br>
+c6:456:respawn:/sbin/agetty 38400 tty6 </b></p>
+
+<p>/* Poziom 6 to standardowo uruchomienie X-windows. Skrypt rc.6 wlasnie
+je uruchamia */ <br>
+<b>x1:6:wait:/etc/rc.d/rc.6 </b></p>
+
+<p>/* koniec pliku /etc/inittab */ <br>
+
+</p><hr width="100%"><p></p>
+
+<ul>
+<ul>
+<ul>
+<p><b><font size="+2">Prawda o programie init.</font></b></p>
+</ul>
+</ul>
+</ul>
+
+<p>Tak naprawde to program init dziala troche inaczej. Sa to w zasadzie
+dwa programy w jednym. Jeden jest wykonywany jezeli identyfikatorem procesu
+jest liczba 1, natomiast drugi wpp. Pierwszy program to wlasnie ten, ktory
+opisalem na tej stronie, natomiast drugi sluzy do powiadomienia "prawdziwego
+inita", ze chcemy zmienic poziom dzialania. </p>
+
+<p>algorytm: <b>Prawdziwy init</b>;<br>
+wejsie: Poziom, na ktory chcemy przejsc, lub brak jesli to ma byc proces
+o id=1. <br>
+wyjsie: brak;<br>
+{</p>
+
+<ul>
+<p>Pobierz identyfikator twojego procesu;<br>
+if (jest on rowny jeden) wykonaj <a href="#Krotki%20opisy%20algorytmu%20init">algorytm
+init<br>
+</a>else </p>
+
+<ul>
+<p>if (id uzytkownika jest rozny od zera) return; /* zmiany poziomu moze
+dokonac tylko root */<br>
+else { /* zmieniamy poziom */ </p>
+
+<ul>
+<p>Zapisz w pliku /etc/initrunlevel jaki ma byc nowy poziom;<br>
+Wyslij do "prawdziwego inita" sygnal SIGHUP; /* Patrz obsluge
+tego sygnalu przez init, <a href="#algortym:%20ProcessSignals">tutaj </a>*/
+</p>
+</ul>
+
+<p>} /* zmieniamy poziom*/ </p>
+</ul>
+
+<p>} /* else */</p>
+</ul>
+
+<p>} /* Prawdziwy init */ </p>
+
+<p>Pozwolilem sobie na takie male oszustwo, zeby opis dzialania inita bylo
+zgodny z opisem przedstawianym w wielu ksiazkach np Bacha, Stevensa. Mam
+nadzieje, ze zostanie mi to wybaczone. </p>
+
+<p>
+</p><hr width="100%"><br>
+<p></p>
+
+<ul>
+<ul>
+<ul>
+<ul>
+<p><a name="Bibliografia"></a><b><font size="+2">Bibliografia</font></b></p>
+</ul>
+</ul>
+</ul>
+</ul>
+
+<ul>
+<li>Plik zrodlowy Linuxa: init/main.c</li>
+
+<li>Plik zrodlowy Inita: init.c (System V init clone ver 2.64)</li>
+
+<li>man</li>
+</ul>
+
+<p>
+</p><hr width="100%"><i>Autor: Krzysztof Micek</i> 
+<hr width="100%"><p></p>
+
+
+</body></html>

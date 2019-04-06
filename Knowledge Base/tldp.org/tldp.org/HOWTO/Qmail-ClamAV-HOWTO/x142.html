@@ -1,0 +1,590 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Setting up Clamd and Using With Daemontools</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Qmail-Scanner and ClamAV HowTo"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="ClamAV"
+HREF="c105.html"><LINK
+REL="PREVIOUS"
+TITLE="Updating Defs"
+HREF="x130.html"><LINK
+REL="NEXT"
+TITLE="Qmail-Scanner"
+HREF="c177.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Qmail-Scanner and ClamAV HowTo</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x130.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. ClamAV</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c177.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="AEN142"
+></A
+>3.5. Setting up Clamd and Using With Daemontools</H1
+><P
+>Edit /etc/clamd.conf and make the following changes.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#vi /etc/clamd.conf</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+><TABLE
+BORDER="0"
+><TBODY
+><TR
+><TD
+>Uncomment "LogSyslog"</TD
+></TR
+><TR
+><TD
+>Uncomment "StreamSaveToDisk"</TD
+></TR
+><TR
+><TD
+>Uncomment "MaxThreads" and change value to "30"</TD
+></TR
+><TR
+><TD
+>Uncomment "User" and change value to "qscand"</TD
+></TR
+><TR
+><TD
+>Uncomment "Foreground"</TD
+></TR
+><TR
+><TD
+>Uncomment "ScanMail"</TD
+></TR
+></TBODY
+></TABLE
+><P
+></P
+><P
+>Create the clamav directory.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#mkdir -p /usr/local/clamav/bin</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now create a startup/shutdown script for clamd. Copy and paste the
+				script shown below. This script was written by Jesse D. Guardiani.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>     
+#vi /usr/local/clamav/bin/clamdctl
+
+#!/bin/sh
+
+# For Red Hat chkconfig
+# chkconfig: - 80 30
+# description: the ClamAV clamd daemon
+
+PATH=/usr/local/clamav/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/sbin
+export PATH
+
+case "$1" in
+  start)
+    echo "Starting clamd"
+    if svok /service/clamd ; then
+      svc -u /service/clamd
+    else
+      echo clamd supervise not running
+    fi  
+    if [ -d /var/lock/subsys ]; then
+      touch /var/lock/subsys/clamd
+    fi
+    ;;
+  stop)
+    echo "Stopping clamd..."
+    echo "  clamd"
+    svc -d /service/clamd
+    if [ -f /var/lock/subsys/clamd ]; then
+      rm /var/lock/subsys/clamd
+    fi
+    ;;
+  stat)
+    svstat /service/clamd
+    svstat /service/clamd/log
+    ;;
+  restart)
+    echo "Restarting clamd:"
+    echo "* Stopping clamd."
+    svc -d /service/clamd
+    echo "* Sending clamd SIGTERM and restarting."
+    svc -t /service/clamd
+    echo "* Restarting clamd."
+    svc -u /service/clamd
+    ;;
+  hup)
+    echo "Sending HUP signal to clamd."
+    svc -h /service/clamd
+    ;;
+  help)
+    cat &#60;&#60;HELP
+   stop -- stops clamd service (smtp connections refused, nothing goes out)
+  start -- starts clamd service (smtp connection accepted, mail can go out)
+   stat -- displays status of clamd service
+restart -- stops and restarts the clamd service
+    hup -- same as reload
+HELP
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|stat|restart|hup|help}"
+    exit 1
+    ;;
+esac
+
+exit 0
+
+
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Make clamdctl an executable and link to path:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#chmod 755 /usr/local/clamav/bin/clamdctl</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#chown clamav /usr/local/clamav/bin/clamdctl</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#ln -s /usr/local/clamav/bin/clamdctl /usr/local/bin</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Create the supervise directories for the clamd service:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#mkdir -p /usr/local/clamav/supervise/clamd/log</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now you must create the /usr/local/clamav/supervise/clamd/run file, or
+				just copy and paste the script shown below. This script was also created by
+				Jesse D. Guardiani:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;vi /usr/local/clamav/supervise/clamd/run
+
+#!/bin/sh
+#
+# --------------------------------------------------
+# run
+#
+# Purpose     - Start the clamd daemon/service.
+#                               
+# Author      - Jesse D. Guardiani
+# Created     - 09/10/03
+# Modified    - 09/25/03
+# --------------------------------------------------
+# This script is designed to be run under DJB's
+# daemontools package.
+#         
+#  ChangeLog
+#  ---------
+#
+#  09/25/03 - JDG
+#  --------------
+#  - Changed clamd user to qscand in compliance with
+#    the change to qmail-scanner-1.20rc3
+#
+#  09/10/03 - JDG
+#  --------------
+#  - Created
+# --------------------------------------------------
+# Copyright (C) 2003 WingNET Internet Services
+# Contact: Jesse D. Guardiani (jesse at wingnet dot net)
+# --------------------------------------------------
+
+lockfile="/tmp/clamd"   # Location of clamd lock file
+path_to_clamd="/usr/local/sbin/clamd"
+                        # Location of the clamd binary
+BAD_EXIT_CODE=1         # The exit code we use to announce that something bad has happened
+
+# The following pipeline is designed to return the pid of each
+# clamd process currently running.
+get_clam_pids_pipeline=`ps -ax | grep -E "${path_to_clamd}\$" | grep -v grep | awk '{print $1}'`
+
+
+# --------------------------------------------------
+# Generic helper functions
+# --------------------------------------------------
+
+# Basic return code error message function
+die_rcode() {
+	EXIT_CODE=$1
+	ERROR_MSG=$2
+
+	if [ $EXIT_CODE -ne '0' ]; then
+		echo "$ERROR_MSG" 1&#62;&#38;2
+		echo "Exiting!" 1&#62;&#38;2
+		exit "$BAD_EXIT_CODE"
+	fi
+}
+
+
+# --------------------------------------------------
+# Main
+# --------------------------------------------------
+
+ps_clamd=""
+ps_clamd="$get_clam_pids_pipeline"
+
+if [ -n "$ps_clamd" ]; then
+	pid_count="0"
+	for pid in $ps_clamd
+	do
+		pid_count=`expr $pid_count + 1`
+	done
+	
+	die_rcode $BAD_EXIT_CODE "Error: $pid_count clamd process(es) already running!"
+
+fi
+
+if [ -e "$lockfile" ]; then
+	rm "$lockfile"
+	exit_code="$?"
+	die_rcode $exit_code "Error: 'rm $lockfile' call failed."
+fi
+
+exec /usr/local/bin/setuidgid qscand $path_to_clamd
+
+# --
+# END /usr/local/clamav/supervise/clamd/run file.
+# --
+
+Create the /usr/local/clamav/supervise/clamd/log/run file:
+
+#vi /usr/local/clamav/supervise/clamd/log/run
+
+#!/bin/sh
+exec /usr/local/bin/setuidgid qscand /usr/local/bin/multilog t /var/log/clamd
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Make the run files executable:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#chmod 755 /usr/local/clamav/supervise/clamd/run</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#chmod 755 /usr/local/clamav/supervise/clamd/log/run</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now set up the log directories:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#mkdir -p /var/log/clamd</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>chown qscand /var/log/clamd</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Finally, link the supervise directory into /service:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#ln -s /usr/local/clamav/supervise/clamd /service</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>* Note: The clamd script will start automatically shortly after these
+				links are created. If you don't want it running, do the following:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#clamdctl stop</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>To start clamd backup, do the following</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>#clamdctl start</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x130.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c177.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Updating Defs</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c105.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Qmail-Scanner</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,1166 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux PCMCIA HOWTO: Usage and features</TITLE>
+ <LINK HREF="PCMCIA-HOWTO-5.html" REL=next>
+ <LINK HREF="PCMCIA-HOWTO-3.html" REL=previous>
+ <LINK HREF="PCMCIA-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="PCMCIA-HOWTO-5.html">Next</A>
+<A HREF="PCMCIA-HOWTO-3.html">Previous</A>
+<A HREF="PCMCIA-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Usage and features</A></H2>
+
+<H2><A NAME="ss4.1">4.1 Tools for configuring and monitoring PCMCIA devices</A>
+</H2>
+
+<P>If the modules are all loaded correctly, the output of the <CODE>lsmod</CODE>
+command should look like the following, when no cards are inserted:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Module                  Size  Used by
+ds                      5640   2 
+i82365                 15452   2 
+pcmcia_core            30012   3  [ds i82365]
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The system log should also include output from the socket driver
+describing the host controller(s) found and the number of sockets
+detected.
+<P>
+<H3>The cardmgr configuration daemon</H3>
+
+<P>The <CODE>cardmgr</CODE> daemon is responsible for monitoring
+PCMCIA sockets, 
+loading client drivers when needed, and running user-level scripts in
+response to card insertions and removals.  It records its actions in
+the system log, but also uses beeps to signal card status changes.
+The tones of the beeps indicate success or failure of particular
+configuration steps.  Two high beeps indicate that a card was
+identified and configured successfully.  A high beep followed by a low
+beep indicates that a card was identified, but could not be configured
+for some reason.  One low beep indicates that a card could not be
+identified.
+<P>The <CODE>cardmgr</CODE> daemon configures cards based on a database of known
+card types kept in <CODE>/etc/pcmcia/config</CODE>.  This file
+describes the various client drivers, then describes how to identify
+various cards, and which driver(s) belong with which cards.  The
+format of this file is described in the <CODE>pcmcia(5)</CODE> man page.
+<P>
+<H3>The socket status file, stab</H3>
+
+<P>
+<P><CODE>Cardmgr</CODE> records device information for each socket in
+<CODE>/var/lib/pcmcia/stab</CODE>.  Here is a sample
+<CODE>stab</CODE> listing: 
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Socket 0: Adaptec APA-1460 SlimSCSI
+0       scsi    aha152x_cs      0       sda     8       0
+0       scsi    aha152x_cs      1       scd0    11      0
+Socket 1: Serial or Modem Card
+1       serial  serial_cs       0       ttyS1   5       65
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>For the lines describing devices, the first field is the socket, the
+second is the device class, the third is the driver name, the fourth
+is used to number multiple devices associated with the same driver,
+the fifth is the device name, and the final two fields are the major
+and minor device numbers for this device (if applicable).  See the
+<CODE>stab</CODE> man page for more info.
+<P>In 2.4 and later kernels, hot plut PCI drivers for CardBus cards are
+not managed by <CODE>cardmgr</CODE>; they are managed by the <CODE>hotplug</CODE>
+subsystem.  See 
+<A HREF="http://linux-hotplug.sourceforge.net">http://linux-hotplug.sourceforge.net</A> for
+information about this facility.  When <CODE>cardmgr</CODE> sees a card that is
+owned by a hot plug PCI driver, it will ignore that card.  There will
+be one beep when these cards are inserted or ejected, but they will be
+identified only as a ``CardBus hotplug device'' in the system log and
+<CODE>stab</CODE> file.
+<P>
+<H3>The cardctl and cardinfo utilities</H3>
+
+<P>
+<P>The <CODE>cardctl</CODE> command can be used to check the status of a
+socket, or to see how it is configured.  It can also be used to alter
+the configuration status of a card.  Here is an example of the
+output of the ``<CODE>cardctl config</CODE>'' command:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Socket 0:
+  not configured
+Socket 1:
+  Vcc = 5.0, Vpp1 = 0.0, Vpp2 = 0.0
+  Card type is memory and I/O
+  IRQ 3 is dynamic shared, level mode, enabled
+  Speaker output is enabled
+  Function 0:
+    Config register base = 0x0800
+      Option = 0x63, status = 0x08
+    I/O window 1: 0x0280 to 0x02bf, auto sized
+    I/O window 2: 0x02f8 to 0x02ff, 8 bit
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Or ``<CODE>cardctl ident</CODE>'', to get card identification information:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Socket 0:
+  no product info available
+Socket 1:
+  product info: "LINKSYS", "PCMLM336", "A", "0040052D6400"
+  manfid: 0x0143, 0xc0ab
+  function: 0 (multifunction)
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The ``<CODE>cardctl suspend</CODE>'' and ``<CODE>cardctl resume</CODE>'' commands can
+be used to shut down a card without unloading its associated drivers.
+The ``<CODE>cardctl reset</CODE>'' command attempts to reset and reconfigure a
+card. ``<CODE>cardctl insert</CODE>'' and ``<CODE>cardctl eject</CODE>'' mimic the
+actions performed when a card is physically inserted or ejected,
+including loading or unloading drivers, and configuring or shutting
+down devices.  
+<P>If you are running X, the <CODE>cardinfo</CODE> utility produces
+a graphical display showing the current status of all PCMCIA sockets,
+similar in content to ``<CODE>cardctl config</CODE>''.  It also provides a
+graphical interface to most other <CODE>cardctl</CODE> functions.
+<P>
+<H3>Inserting and ejecting cards</H3>
+
+<P>In theory, you can insert and remove PCMCIA cards at any time.
+However, it is a good idea not to eject a card that is currently being
+used by an application program.  Kernels older than 1.1.77 would often
+lock up when serial/modem cards were ejected, but this should be fixed
+now.
+<P>Some card types cannot be safely hot ejected.  Specifically, ATA/IDE
+and SCSI interface cards are not hot-swap-safe.  This is unlikely to
+be fixed, because a complete solution would require significant
+changes to the Linux block device model.  Also, it is generally not
+safe to hot eject CardBus cards of any type.  This is likely to
+improve gradually as hot swap bugs in the CardBus drivers are found
+and fixed.  For these card types (IDE, SCSI, CardBus), it is
+recommended that you always use ``<CODE>cardctl eject</CODE>'' before
+ejecting.
+<P>
+<H3>Card Services and Advanced Power Management</H3>
+
+<P>Card Services can be compiled with support for APM
+(Advanced Power Management) if you've configured your
+kernel with APM support.  The APM kernel driver is maintained by
+Stephen Rothwell (Stephen.Rothwell@canb.auug.org.au).  The <CODE>apmd</CODE>
+daemon is maintained by Avery Pennarun (apenwarr@worldvisions.ca), with
+more information available at
+<A HREF="http://www.worldvisions.ca/~apenwarr/apmd/">http://www.worldvisions.ca/~apenwarr/apmd/</A>.  The PCMCIA
+modules will automatically be configured for APM if a compatible
+version is detected on your system.
+<P>Whether or not APM is configured, you can use ``<CODE>cardctl suspend</CODE>''
+before suspending your laptop, and ``<CODE>cardctl resume</CODE>'' after
+resuming, to cleanly shut down and restart your PCMCIA cards.  This
+will not work with a modem that is in use, because the serial driver
+isn't able to save and restore the modem operating parameters.
+<P>APM seems to be unstable on some systems.  If you experience trouble
+with APM and PCMCIA on your system, try to narrow down the problem to
+one package or the other before reporting a bug.
+<P>Some drivers, notably the PCMCIA SCSI drivers, cannot recover from a
+suspend/resume cycle.  When using a PCMCIA SCSI card, always use
+``<CODE>cardctl eject</CODE>'' prior to suspending the system.
+<P>
+<H3>Shutting down the PCMCIA system</H3>
+
+<P>To unload the entire PCMCIA package, invoke <CODE>rc.pcmcia</CODE> with:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/etc/rc.d/rc.pcmcia stop
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This script will take several seconds to run, to give all client
+drivers time to shut down gracefully.  If a device is currently in
+use, the shutdown will be incomplete, and some kernel modules may not
+be unloaded.  To avoid this, use ``<CODE>cardctl eject</CODE>'' to shut down
+all sockets before invoking <CODE>rc.pcmcia</CODE>.  The exit status of the
+<CODE>cardctl</CODE> command will indicate if any sockets could not be shut
+down.
+<P>
+<H2><A NAME="config"></A> <A NAME="ss4.2">4.2 Overview of the PCMCIA configuration scripts</A>
+</H2>
+
+<P>The following information applies to cards that are managed by
+<CODE>cardmgr</CODE>.  In 2.4 and later kernels, if the kernel PCMCIA
+subsystem is active, then CardBus cards are managed by the
+<CODE>hotplug</CODE> subsystem and the PCMCIA scripts are not used.
+<P>Each PCMCIA device has an associated ``class'' that describes how it
+should be configured and managed.  Classes are associated with device
+drivers in <CODE>/etc/pcmcia/config</CODE>.  There are currently five IO
+device classes (network, SCSI, cdrom, fixed disk, and serial) and
+two memory device classes (memory and FTL).  For each class,
+there are two
+scripts in <CODE>/etc/pcmcia</CODE>: a main configuration script
+(i.e., <CODE>/etc/pcmcia/scsi</CODE> for SCSI devices), and an options
+script (i.e., <CODE>/etc/pcmcia/scsi.opts</CODE>).  The main script for a
+device will be invoked to configure that device when a card is
+inserted, and to shut down the device when the card is removed.  For
+cards with several associated devices, the script will be invoked for
+each device.
+<P>The config scripts start by extracting some information about a device
+from the <CODE>stab</CODE> file.  Each script constructs a ``device address'',
+that uniquely describes the device it has been asked to configure, in
+the <CODE>ADDRESS</CODE> shell variable.  This is passed to the <CODE>*.opts</CODE>
+script, which should return information about how a device at this
+address should be configured.  For some devices, the device address is
+just the socket number.  For others, it includes extra information
+that may be useful in deciding how to configure the device.  For
+example, network devices pass their hardware ethernet address as part
+of the device address, so the <CODE>network.opts</CODE> script could use this
+to select from several different configurations.
+<P>The first part of all device addresses is the current PCMCIA
+``scheme''.  This parameter is used to support multiple sets of device
+configurations based on a single external user-specified variable.
+One use of schemes would be to have a ``home'' scheme, and a ``work''
+scheme, which would include different sets of network configuration
+parameters.  The current scheme is selected using the ``<CODE>cardctl
+scheme</CODE>'' command.  The default if no scheme is set is ``default''.
+<P>There are a few additional shell variables that can be used in
+<CODE>*.opts</CODE> files in addition to <CODE>ADDRESS</CODE>:
+<P>
+<DL>
+<DT><B><CODE>SOCKET</CODE>, <CODE>CLASS</CODE>, <CODE>DRIVER</CODE>, <CODE>INSTANCE</CODE>, <CODE>DEVICE</CODE>, <CODE>MAJOR</CODE>, <CODE>MINOR</CODE></B><DD><P>These correspond to individual fields from one line in the <CODE>stab</CODE>
+file.  See its man page for details.
+<DT><B><CODE>PRODID_1</CODE>, <CODE>PRODID_2</CODE>, <CODE>PRODID_3</CODE>, <CODE>PRODID_4</CODE>, <CODE>MANFID</CODE>, <CODE>FUNCID</CODE></B><DD><P>These are equivalent to the output of ``<CODE>cardctl info</CODE>'' and give
+more detailed card identification information.
+</DL>
+<P>As the <CODE>*.opts</CODE> files are just shell scripts, it is not required
+that they follow the form of the examples, which just return settings
+based on <CODE>ADDRESS</CODE>.
+<P>As a general rule, when configuring Linux for a laptop, PCMCIA devices
+should only be configured from the PCMCIA device scripts.  Do not try
+to configure a PCMCIA device the same way you would configure a
+permanently attached device.  However, some Linux distributions
+provide PCMCIA packages that are hooked into those distributions' own
+device configuration tools.  In that case, some of the following
+sections may not apply; ideally, this will be documented by the
+distribution maintainers.
+<P>
+<H2><A NAME="ss4.3">4.3 PCMCIA network adapters</A>
+</H2>
+
+<P>Linux ethernet-type network interfaces normally have names like
+<CODE>eth0</CODE>, <CODE>eth1</CODE>, and so on.  Token-ring adapters are handled
+similarly, however they are named <CODE>tr0</CODE>, <CODE>tr1</CODE>, and so on.
+The <CODE>ifconfig</CODE> command is used to
+view or modify the state of a network interface.  A peculiarity of
+Linux is that network interfaces do not have corresponding device
+files under <CODE>/dev</CODE>, so do not be surprised when you do not find
+them.
+<P>When an ethernet card is detected, it will be assigned the first free
+interface name, which will normally be <CODE>eth0</CODE>.  <CODE>Cardmgr</CODE> will
+run the <CODE>/etc/pcmcia/network</CODE> script to configure the
+interface, which normally reads network settings from
+<CODE>/etc/pcmcia/network.opts</CODE>.  The <CODE>network</CODE> and
+<CODE>network.opts</CODE> scripts will be executed only when your ethernet
+card is actually present.  If your system has an automatic network
+configuration facility, it may or may not be PCMCIA-aware.  Consult
+the documentation of your Linux distribution and the
+<A HREF="PCMCIA-HOWTO-2.html#distributions">Notes about specific Linux distributions</A>  to determine if PCMCIA network devices should be
+configured with the automatic tools, or by editing <CODE>network.opts</CODE>.
+<P>The device address passed to <CODE>network.opts</CODE> consists of four
+comma-separated fields: the scheme, the socket number, the device
+instance, and the card's hardware ethernet address.  The device
+instance is used to 
+number devices for cards that have several network interfaces, so it
+will usually be 0.  If you have several network cards used for
+different purposes, one option would be to configure the cards based
+on socket position, as in:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,0,*,*)
+    # definitions for network card in socket 0
+    ;;
+*,1,*,*)
+    # definitions for network card in socket 1
+    ;;
+esac
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Alternatively, they could be configured using their hardware
+addresses, as in:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,*,*,00:80:C8:76:00:B1)
+    # definitions for a D-Link card
+    ;;
+*,*,*,08:00:5A:44:80:01)
+    # definitions for an IBM card
+esac
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Network device parameters</H3>
+
+<P>The following parameters can be defined in <CODE>network.opts</CODE>:
+<P>
+<DL>
+<DT><B><CODE>IF_PORT</CODE></B><DD><P>Specifies the ethernet transceiver type, for certain 16-bit cards that
+do not autodetect.  See ``<CODE>man ifport</CODE>'' and ``<CODE>man mii-tool</CODE>''
+for more information.
+<DT><B><CODE>BOOTP</CODE></B><DD><P>A boolean (y/n) value: indicates if the host's IP address and routing
+information should be obtained using the BOOTP protocol, with
+<CODE>bootpc</CODE> or <CODE>pump</CODE>.
+<DT><B><CODE>DHCP</CODE></B><DD><P>A boolean (y/n) value: indicates if the host's IP address and routing
+information should be obtained from a DHCP server.  The network script
+first looks for <CODE>dhcpcd</CODE>, then <CODE>dhclient</CODE>, then <CODE>pump</CODE>.
+<DT><B><CODE>DHCP_HOSTNAME</CODE></B><DD><P>Specifies a hostname to be passed to <CODE>dhcpcd</CODE> or <CODE>pump</CODE>, for
+inclusion in DHCP messages.
+<DT><B><CODE>IPADDR</CODE></B><DD><P>The IP address for this interface.
+<DT><B><CODE>NETMASK</CODE>, <CODE>BROADCAST</CODE>, <CODE>NETWORK</CODE></B><DD><P>Basic network parameters: see the networking HOWTO for more
+information.  
+<DT><B><CODE>GATEWAY</CODE></B><DD><P>The IP address of a gateway for this host's subnet.  Packets with
+destinations outside this subnet will be routed to this gateway.
+<DT><B><CODE>DOMAIN</CODE></B><DD><P>The local network domain name for this host, to be used in creating
+<CODE>/etc/resolv.conf</CODE>.
+<DT><B><CODE>SEARCH</CODE></B><DD><P>A search list for host name lookup, to be added to
+<CODE>/etc/resolv.conf</CODE>.  <CODE>DOMAIN</CODE> and <CODE>SEARCH</CODE> are mutually
+exclusive: see ``<CODE>man resolver</CODE>'' for more information.
+<DT><B><CODE>DNS_1</CODE>, <CODE>DNS_2</CODE>, <CODE>DNS_3</CODE></B><DD><P>Host names or IP addresses for nameservers for this interface, to be
+added to <CODE>/etc/resolv.conf</CODE>
+<DT><B><CODE>MOUNTS</CODE></B><DD><P>A space-separated list of NFS mount points to be mounted for this interface.
+<DT><B><CODE>IPX_FRAME</CODE>, <CODE>IPX_NETNUM</CODE></B><DD><P>For IPX networks: the frame type and network number, passed to the
+<CODE>ipx_interface</CODE> command.
+<DT><B><CODE>NO_CHECK</CODE>, <CODE>NO_FUSER</CODE></B><DD><P>Boolean (y/n) settings for card eject policy.  If <CODE>NO_CHECK</CODE> is
+set, then ``<CODE>cardctl eject</CODE>'' will shut down a device even if
+there are open connections. If <CODE>NO_FUSER</CODE> is set, then the script
+will not check for busy NFS mounts or kill processes using those mounts.
+</DL>
+<P>For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,*,*,*)
+    IF_PORT="10base2"
+    BOOTP="n"
+    IPADDR="10.0.0.1"
+    NETMASK="255.255.255.0"
+    NETWORK="10.0.0.0"
+    BROADCAST="10.0.0.255"
+    GATEWAY="10.0.0.1"
+    DOMAIN="domain.org"
+    DNS_1="dns1.domain.org"
+    ;;
+esac
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To automatically mount and unmount NFS filesystems, first add all
+these filesystems to <CODE>/etc/fstab</CODE>, but include <CODE>noauto</CODE>
+in the mount options.  In <CODE>network.opts</CODE>, list the filesystem
+mount points in the <CODE>MOUNTS</CODE> variable.  It is especially
+important to use either <CODE>cardctl</CODE> or <CODE>cardinfo</CODE> to shut down a
+network card when NFS mounts are active.  It is not possible to
+cleanly unmount NFS filesystems if a network card is simply ejected
+without warning.
+<P>In addition to the usual network configuration parameters, the
+<CODE>network.opts</CODE> script can specify extra actions to be taken after
+an interface is configured, or before an interface is shut down.  If
+<CODE>network.opts</CODE> defines a shell function called <CODE>start_fn</CODE>, it
+will be invoked by the network script after the interface is
+configured, and the interface name will be passed to the function as its
+first (and only) argument.  Similarly, if it is defined, <CODE>stop_fn</CODE>
+will be invoked before shutting down an interface.
+<P>The transceiver type for some (mostly old) cards must be manually be
+selected using the <CODE>IF_PORT</CODE> setting.  This can either be a numeric
+value, or a keyword identifying the transceiver type.  All the network
+drivers default to either autodetect the interface if possible, or
+10baseT otherwise.  The <CODE>ifport</CODE> command can be used to check or
+set the current transceiver type.  For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ifport eth0 10base2
+# 
+# ifport eth0
+eth0    2 (10base2)
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Most modern 10/100baseT cards use a ``media independent interface''
+(MII) transceiver that automatically selects line speed and duplex
+setting.  The <CODE>mii-tool</CODE> command can be used to monitor and control
+the behavior of the MII interface.
+<P>
+<H3>Comments about specific cards</H3>
+
+<P>
+<P>
+<UL>
+<LI>With IBM CCAE and Socket EA cards, the transceiver type (10base2,
+10baseT, AUI) needs to be set when the network device is configured.
+Make sure that the transceiver type reported in the system log matches
+your connection.</LI>
+<LI>The Farallon EtherWave is actually based on the 3Com 3c589, with a
+special transceiver.  Though the EtherWave uses 10baseT-style
+connections, its transceiver requires that the 3c589 be configured in
+10base2 mode.</LI>
+<LI>If you have trouble with an IBM CCAE, NE4100, Thomas Conrad, or
+Kingston adapter, try increasing the memory access
+time with the <CODE>mem_speed=#</CODE> option to the <CODE>pcnet_cs</CODE> module.
+An example of how to do this is given in the standard <CODE>config.opts</CODE>
+file.  Try speeds of up to 1000 (in nanoseconds).</LI>
+<LI>For the New Media Ethernet adapter, on some systems, it may be
+necessary to increase the IO port access time with the
+<CODE>io_speed=#</CODE> option when the <CODE>pcmcia_core</CODE> module is loaded.
+Edit <CODE>CORE_OPTS</CODE> in the startup script  to set this option.</LI>
+<LI>The multicast support in the New Media Ethernet driver is incomplete.
+The latest driver will function with multicast kernels, but will ignore
+multicast packets.  Promiscuous mode should work properly.</LI>
+<LI>The driver used by the IBM and 3Com token ring adapters
+seems to behave very badly if the cards are not connected to a ring
+when they get initialized.  Always connect these cards to the net
+before they are powered up.  If <CODE>ifconfig</CODE> reports the hardware
+address as all 0's, this is likely to be due to a memory window
+configuration problem.</LI>
+<LI>Some Linksys, D-Link, and IC-Card 10baseT/10base2 cards have a unique
+way of selecting the transceiver type that isn't handled by the Linux
+drivers.  One workaround is to boot DOS and use the vendor-supplied
+utility to select the transceiver, then warm boot Linux.
+Alternatively, a Linux utility to perform this function is available
+at 
+<A HREF="http://pcmcia-cs.sourceforge.net/ftp/extras/dlport.c">http://pcmcia-cs.sourceforge.net/ftp/extras/dlport.c</A>.</LI>
+<LI>16-bit PCMCIA cards have a maximum performance of 1.5-2 MB/sec.  That
+means that any 16-bit 100baseT card (i.e., any card that uses the
+<CODE>pcnet_cs</CODE>, <CODE>3c574_cs</CODE>, <CODE>smc91c92_cs</CODE>, or <CODE>xirc2ps_cs</CODE>
+driver) will never achieve full 100baseT throughput.  Only CardBus
+network adapters can fully exploit 100baseT data rates.</LI>
+<LI>For WaveLAN wireless network adapters, Jean Tourrilhes
+(<CODE>jt@hpl.hp.com</CODE>) has put together a wireless HOWTO at
+<A HREF="http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/">http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/</A>.</LI>
+</UL>
+<P>
+<H3>Diagnosing problems with network adapters</H3>
+
+<P>
+<P>
+<UL>
+<LI>In 3.1.15 and later PCMCIA releases, the <CODE>test_network</CODE> script in
+the <CODE>debug-tools</CODE> subdirectory of the PCMCIA source tree will spot
+some common problems.</LI>
+<LI>Is your card recognized as an ethernet card?  Check the system log and
+make sure that <CODE>cardmgr</CODE> identifies the card correctly and starts
+up one of the network drivers.  If it doesn't, your card might still
+be usable if it is compatible with a supported card.  This will be
+most easily done if the card claims to be ``NE2000 compatible''.</LI>
+<LI>Is the card configured properly?  If you are using a supported card,
+and it was recognized by <CODE>cardmgr</CODE>, but still doesn't work, there
+might be an interrupt or port conflict with another device.  Find out
+what resources the card is using (from the system log),
+and try excluding these in <CODE>/etc/pcmcia/config.opts</CODE> to force
+the card to use something different.</LI>
+<LI>If your card seems to be configured properly, but sometimes locks up,
+particularly under high load, you may need to try changing your socket
+driver timing parameters.  See the 
+<A HREF="PCMCIA-HOWTO-2.html#startup">Startup options</A> section for more information.</LI>
+<LI>If you get ``Network is unreachable'' messages when you try to
+access the network, then the routing information specified in
+<CODE>/etc/pcmcia/network.opts</CODE> is incorrect.  This exact message is
+an absolutely foolproof indication of a routing error.  On the other
+hand, mis-configured cards will usually fail silently.</LI>
+<LI>If you are trying to use DHCP to configure your network interface, try
+testing things with a static IP address instead, to rule out a DHCP
+configuration problem.</LI>
+<LI>To diagnose problems in <CODE>/etc/pcmcia/network.opts</CODE>, start by
+trying to ping other systems on the same subnet using their IP
+addresses.  Then try to ping your gateway, and then machines on other
+subnets.  Ping machines by name only after trying these simpler tests.</LI>
+<LI>Make sure your problem is really a PCMCIA one.  It may help to see see
+if the card works under DOS with the vendor's drivers.  Double check
+your modifications to the <CODE>/etc/pcmcia/network.opts</CODE> script.
+Make sure your drop cable, ``T'' jack, terminator, etc are working.</LI>
+<LI>Use real network cables.  Don't even think about using that old phone
+cord you found in your basement.  And this means Category 5 cable for
+100baseT.  It really matters.</LI>
+</UL>
+<P>
+<H2><A NAME="ss4.4">4.4 PCMCIA serial and modem devices</A>
+</H2>
+
+<P>Linux serial devices are accessed via the <CODE>/dev/ttyS*</CODE> and
+<CODE>/dev/cua*</CODE> special device files.  In pre-2.2 kernels, the
+<CODE>ttyS*</CODE> devices were for incoming connections, such as directly
+connected terminals, and the <CODE>cua*</CODE> devices were for outgoing
+connections, such as modems.  Use of <CODE>cua*</CODE> devices is deprecated
+in current kernels, and <CODE>ttyS*</CODE> can be used for all applications.
+The configuration of a serial device can be examined and modified with
+the <CODE>setserial</CODE> command.
+<P>When a serial or modem card is detected, it will be assigned to the
+first available serial device slot.  This will usually be
+<CODE>/dev/ttyS1</CODE> (<CODE>cua1</CODE>) or <CODE>/dev/ttyS2</CODE> (<CODE>cua2</CODE>),
+depending on the number of built-in serial ports.  The <CODE>ttyS*</CODE>
+device is the one reported in <CODE>stab</CODE>.  The default
+serial device option script, <CODE>/etc/pcmcia/serial.opts</CODE>, will
+link the device file to <CODE>/dev/modem</CODE> as a convenience.  For
+pre-2.2 kernels, the link is made to the <CODE>cua*</CODE> device.
+<P>Do not try to use <CODE>/etc/rc.d/rc.serial</CODE> to configure a PCMCIA
+modem.  This script should only be used to configure non-removable
+devices.  Modify <CODE>/etc/pcmcia/serial.opts</CODE> if you want to do
+anything special to set up your modem.  Also, do not try to change the
+IO port and interrupt settings of a serial device using
+<CODE>setserial</CODE>.  This would tell the serial driver to look for the
+device in a different place, but would not change how the card's
+hardware is actually configured.  The serial configuration script
+allows you to specify other <CODE>setserial</CODE> options, as well as whether
+a line should be added to <CODE>/etc/inittab</CODE> for this port.
+<P>The device address passed to <CODE>serial.opts</CODE> has three
+comma-separated fields: the first is the scheme, the second is the
+socket number, and the third is the device instance.  The device
+instance may take several values for cards that support multiple
+serial ports, but for single-port cards, it will always be 0.  If you
+commonly use more than one modem, you may want to specify different
+settings based on socket position, as in:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,0,*)
+    # Options for modem in socket 0
+    LINK=/dev/modem0
+    ;;
+*,1,*)
+    # Options for modem in socket 1
+    LINK=/dev/modem1
+    ;;
+esac
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If a PCMCIA modem is already configured when Linux boots, it may be
+incorrectly identified as an ordinary built-in serial port.  This is
+harmless, however, when the PCMCIA drivers take control of the modem,
+it will be assigned a different device slot.  It is best to either
+parse <CODE>stab</CODE> or use <CODE>/dev/modem</CODE>, rather than
+expecting a PCMCIA modem to always have the same device assignment.
+<P>If you configure your kernel to load the basic Linux serial port
+driver as a module, you must edit <CODE>/etc/pcmcia/config</CODE> to
+indicate that this module must be loaded.  Edit the serial device
+entry to read:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+device "serial_cs"
+  class "serial" module "misc/serial", "serial_cs"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Serial device parameters</H3>
+
+<P>The following parameters can be defined in <CODE>serial.opts</CODE>:
+<DL>
+<DT><B><CODE>LINK</CODE></B><DD><P>Specifies a path for a symbolic link to be created to the ``callout''
+device (e.g., <CODE>/dev/cua*</CODE> for pre-2.2, or <CODE>/dev/ttyS*</CODE>
+for 2.2 kernels).
+<DT><B><CODE>SERIAL_OPTS</CODE></B><DD><P>Specifies options to be passed to the <CODE>setserial</CODE> command.
+<DT><B><CODE>INITTAB</CODE></B><DD><P>If specified, this will be used to construct an <CODE>inittab</CODE> entry for
+the device. 
+<DT><B><CODE>NO_CHECK</CODE>, <CODE>NO_FUSER</CODE></B><DD><P>Boolean (y/n) settings for card eject policy.  If <CODE>NO_CHECK</CODE> is
+true, then ``<CODE>cardctl eject</CODE>'' will shut down a device even if it
+is busy.  If <CODE>NO_FUSER</CODE> is true, then the script will not try to
+kill processes using an ejected device.
+</DL>
+<P>For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,*,*)
+    LINK="/dev/modem"
+    SERIAL_OPTS=""
+    INITTAB="/sbin/getty"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Comments about specific cards</H3>
+
+<P>
+<P>
+<UL>
+<LI>The Uniden Data 2000 Wireless CDPD card has some special dialing
+strings for initiating SLIP and PPP mode.  For SLIP, use ``ATDT2'';
+for PPP, "ATDT0".</LI>
+<LI>Socket IO revision H serial port cards have a faster-than-normal
+clock rate for the UART.  The card's actual baud rate is four times
+faster than the serial driver thinks it is.  To work around the
+problem, specify <CODE>SERIAL_OPTS="baud_base 460800"</CODE> in
+<CODE>/etc/pcmcia/serial.opts</CODE>.</LI>
+</UL>
+<P>
+<H3>Diagnosing problems with serial devices</H3>
+
+<P>
+<P>
+<UL>
+<LI>In 3.1.15 and later PCMCIA releases, the <CODE>test_modem</CODE> script in the
+<CODE>debug-tools</CODE> subdirectory of the PCMCIA source tree will spot some
+common problems. </LI>
+<LI>Is your card recognized as a modem?  Check the system log and
+make sure that <CODE>cardmgr</CODE> identifies the card correctly and starts up the
+<CODE>serial_cs</CODE> driver.  If it doesn't, you may need to add a new entry to
+your <CODE>/etc/pcmcia/config</CODE> file so that it will be identified properly.
+See the 
+<A HREF="PCMCIA-HOWTO-6.html#new-card">Configuring unrecognized cards</A>
+section for details.</LI>
+<LI>Is the modem configured successfully by serial_cs?  Again, check
+the system log and look for messages from the serial_cs driver.  If
+you see ``register_serial() failed'', you may have an I/O port conflict
+with another device.  Another
+tip-off of a conflict is if the device is reported to be an 8250; most
+modern modems should be identified as 16550A UART's.  If you
+think you're seeing a port conflict, edit <CODE>/etc/pcmcia/config.opts</CODE>
+and exclude the port range that was allocated for the modem.  </LI>
+<LI>Is there an interrupt conflict?  If the system log looks good,
+but the modem just doesn't seem to work, try using <CODE>setserial</CODE> to
+change the irq to 0, and see if the modem works.  This causes the
+serial driver to use a slower polled mode instead of using interrupts.
+If this seems to fix the problem, it is likely that some other device
+in your system is using the interrupt selected by serial_cs.  You
+should add a line to <CODE>/etc/pcmcia/config.opts</CODE> to exclude this
+interrupt.</LI>
+<LI>If the modem seems to work only very, very slowly, this is an almost
+certain indicator of an interrupt conflict.</LI>
+<LI>Make sure your problem is really a PCMCIA one.  It may help to see
+if the card works under DOS with the vendor's drivers.  Also, don't
+test the card with something complex like SLIP or PPP until you are
+sure you can make simple connections.  If simple things work but SLIP
+does not, your problem is most likely with SLIP, not with PCMCIA.</LI>
+<LI>If you get kernel messages indicating that the serial_cs module cannot
+be loaded, it means that your kernel does not have serial device
+support.  If you have compiled the serial driver as a module, you must
+modify <CODE>/etc/pcmcia/config</CODE> to indicate that the
+<CODE>serial</CODE> module should be loaded before <CODE>serial_cs</CODE>.</LI>
+</UL>
+<P>
+<H2><A NAME="ss4.5">4.5 PCMCIA parallel port devices</A>
+</H2>
+
+<P>The Linux parallel port driver is layered so that several high-level
+device types can share use of the same low level port driver.  Printer
+devices are accessed via the <CODE>/dev/lp*</CODE> special device files.
+The configuration of a printer device can be examined and modified with
+the <CODE>tunelp</CODE> command.
+<P>The <CODE>parport_cs</CODE> module depends on the <CODE>parport</CODE> and
+<CODE>parport_pc</CODE> drivers, which may be either compiled into the kernel
+or compiled as modules.  The layered driver structure means that any
+top-level parallel drivers (such as the plip driver, the printer
+driver, etc) must be compiled as modules.  These drivers only 
+recognize parallel port devices at module startup time, so they need
+to be loaded after any PC Card parallel devices are configured.
+<P>The device address passed to <CODE>parport.opts</CODE> has three
+comma-separated fields: the first is the scheme, the second is the
+socket number, and the third is the device instance.  The device
+instance may take several values for cards that support multiple
+parallel ports, but for single-port cards, it will always be 0.  If
+you commonly use more than one such card, you may want to specify
+different settings based on socket position, as in:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,0,*)
+    # Options for card in socket 0
+    LINK=/dev/printer0
+    ;;
+*,1,*)
+    # Options for card in socket 1
+    LINK=/dev/printer1
+    ;;
+esac
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Parallel device parameters</H3>
+
+<P>The following parameters can be defined in <CODE>parport.opts</CODE>:
+<DL>
+<DT><B><CODE>LINK</CODE></B><DD><P>Specifies a path for a symbolic link to be created to the printer
+port.
+<DT><B><CODE>LP_OPTS</CODE></B><DD><P>Specifies options to be passed to the <CODE>tunelp</CODE> command.
+<DT><B><CODE>NO_CHECK</CODE>, <CODE>NO_FUSER</CODE></B><DD><P>Boolean (y/n) settings for card eject policy.  If <CODE>NO_CHECK</CODE> is
+true, then ``<CODE>cardctl eject</CODE>'' will shut down a device even if it
+is busy.  If <CODE>NO_FUSER</CODE> is true, then the script will not try to
+kill processes using an ejected device.
+</DL>
+<P>For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,*,*,*)
+    LINK="/dev/printer"
+    LP_OPTS=""
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Diagnosing problems with parallel port devices</H3>
+
+<P>
+<P>
+<UL>
+<LI>Is there an interrupt conflict?  If the system log looks good,
+but the port just doesn't seem to work, try using <CODE>tunelp</CODE> to 
+change the irq to 0, and see if things improve.  This switches the
+driver to polling mode.  If this seems to fix the problem, it is
+likely that some other device in your system is using the interrupt
+selected by parport_cs.  You should add a line to
+<CODE>/etc/pcmcia/config.opts</CODE> to exclude this interrupt.</LI>
+<LI>If you get kernel messages indicating that the <CODE>parport_cs</CODE> module
+cannot be loaded, it means that your kernel does not have parallel
+device support.  If you have compiled the parallel driver as a module,
+you may need to modify <CODE>/etc/pcmcia/config</CODE> to indicate that the
+<CODE>parport</CODE> and <CODE>parport_pc</CODE> modules should be loaded before
+<CODE>parport_cs</CODE>. </LI>
+</UL>
+<P>
+<H2><A NAME="ss4.6">4.6 PCMCIA SCSI adapters</A>
+</H2>
+
+<P>All the currently supported PCMCIA SCSI cards are work-alikes of one
+of the following ISA bus cards: the Qlogic, the Adaptec AHA-152X, or
+the Future Domain TMC-16x0.  The PCMCIA drivers are built by linking
+some PCMCIA-specific code (in <CODE>qlogic_cs.c</CODE>, <CODE>aha152x_cs.c</CODE>, or
+<CODE>fdomain_cs.c</CODE>) with the normal Linux SCSI driver, pulled from the
+Linux kernel source tree.  The Adaptec APA1480 CardBus driver is based
+on the kernel aic7xxx PCI driver.  Due to limitations in the Linux
+SCSI driver model, only one removable card per driver is supported.
+<P>When a new SCSI host adapter is detected, the SCSI drivers will probe
+for devices.  Check the system log to make sure your devices are
+detected properly.  New SCSI devices will be assigned to the first
+available SCSI device files.  The first SCSI disk will be
+<CODE>/dev/sda</CODE>, the first SCSI tape will be <CODE>/dev/st0</CODE>, and
+the first CD-ROM will be <CODE>/dev/scd0</CODE>.
+<P>A list of SCSI devices connected to this host adapter will be shown in
+<CODE>stab</CODE>, and the SCSI configuration script,
+<CODE>/etc/pcmcia/scsi</CODE>, will be called once for each attached
+device, to either configure or shut down that device.  The default
+script does not take any actions to configure SCSI devices, but will
+properly unmount filesystems on SCSI devices when a card is removed.
+<P>The device addresses passed to <CODE>scsi.opts</CODE> are complicated, because
+of the variety of things that can be attached to a SCSI adapter.
+Addresses consist of either six or seven comma-separated fields: the
+current scheme, the
+device type, the socket number, the SCSI channel, ID, and logical unit
+number, and optionally, the partition number.  The device type will be
+``sd'' for disks, ``st'' for tapes, ``sr'' for CD-ROM devices, and
+``sg'' for generic SCSI devices.  For most setups, the SCSI channel
+and logical unit number will be 0.  For disk devices with several
+partitions, <CODE>scsi.opts</CODE> will first be called for the whole device,
+with a five-field address.  The script should set the <CODE>PARTS</CODE>
+variable to a list of partitions.  Then, <CODE>scsi.opts</CODE> will be called
+for each partition, with the longer six-field addresses.
+<P>If your kernel does not have a top-level driver (disk, tape, etc) for
+a particular SCSI device, then the device will not be configured by
+the PCMCIA drivers.  As a side effect, the device's name in
+<CODE>stab</CODE> will be something like ``sd#nnnn'' where ``nnnn''
+is a four-digit hex number.  This happens when <CODE>cardmgr</CODE> is unable
+to translate a SCSI device ID into a corresponding Linux device name.
+<P>It is possible to modularize the top-level SCSI drivers so that they
+are loaded on demand.  To do so, you need to edit
+<CODE>/etc/pcmcia/config</CODE> to tell <CODE>cardmgr</CODE> which extra modules
+need to be loaded when your adapter is configured.  For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+device "aha152x_cs"
+  class "scsi" module "scsi/scsi_mod", "scsi/sd_mod", "aha152x_cs"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>would say to load the core SCSI module and the top-level disk driver
+module before loading the regular PCMCIA driver module.
+<P>Always turn on SCSI devices before powering up your laptop, or before
+inserting the adapter card, so that the SCSI bus is properly
+terminated when the adapter is configured.  Also be very careful about
+ejecting a SCSI adapter.  Be sure that all associated SCSI devices are
+unmounted and closed before ejecting the card.  The best way to ensure
+this is to use either <CODE>cardctl</CODE> or <CODE>cardinfo</CODE> to request card
+removal before physically ejecting the card.  For now, all SCSI
+devices should be powered up before plugging in a SCSI adapter, and
+should stay connected until after you unplug the adapter and/or power
+down your laptop.
+<P>There is a potential complication when using these cards that does not
+arise with ordinary ISA bus adapters.  The SCSI bus carries a
+``termination power'' signal that is necessary for proper operation of
+ordinary passive SCSI terminators.  PCMCIA SCSI adapters do not supply
+termination power, so if it is required, an external device must
+supply it.  Some external SCSI devices may be configured to supply
+termination power.  Others, such as the Zip Drive and the Syquest
+EZ-Drive, use active terminators that do not depend on it.  In some
+cases, it may be necessary to use a special terminator block such as
+the APS SCSI Sentry 2, which has an external power supply.  When
+configuring your SCSI device chain, be aware of whether or not any of
+your devices require or can provide termination power.
+<P>
+<H3>SCSI device parameters</H3>
+
+<P>The following parameters can be defined in <CODE>scsi.opts</CODE>:
+<DL>
+<DT><B><CODE>LINK</CODE></B><DD><P>Specifies a path for a symbolic link to be created to this device.
+<DT><B><CODE>DO_FSTAB</CODE></B><DD><P>A boolean (y/n) setting: specifies if an entry should be added to
+<CODE>/etc/fstab</CODE> for this device.
+<DT><B><CODE>DO_FSCK</CODE></B><DD><P>A boolean (y/n) setting: specifies if the filesystem should be checked
+before being mounted, with ``<CODE>fsck -Ta</CODE>''.
+<DT><B><CODE>DO_MOUNT</CODE></B><DD><P>A boolean (y/n) setting: specifies if this device should be
+automatically mounted at card insertion time.
+<DT><B><CODE>FSTYPE</CODE>, <CODE>OPTS</CODE>, <CODE>MOUNTPT</CODE></B><DD><P>The filesystem type, mount options, and mount point to be used for the
+fstab entry and/or mounting the device.
+<DT><B><CODE>NO_CHECK</CODE>, <CODE>NO_FUSER</CODE></B><DD><P>Boolean (y/n) settings for card eject policy.  If <CODE>NO_CHECK</CODE> is
+true, then ``<CODE>cardctl eject</CODE>'' will shut down a device even if it
+is busy.  If <CODE>NO_FUSER</CODE> is true, then the script will not try to
+kill processes using an ejected device.
+</DL>
+<P>For example, here is a script for configuring a disk device at SCSI ID
+3, with two partitions, and a CD-ROM at SCSI ID 6:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,sd,*,0,3,0)
+    # This device has two partitions...
+    PARTS="1 2"
+    ;;
+*,sd,*,0,3,0,1)
+    # Options for partition 1:
+    #  update /etc/fstab, and mount an ext2 fs on /usr1
+    DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+    FSTYPE="ext2"
+    OPTS=""
+    MOUNTPT="/usr1"
+    ;;
+*,sd,*,0,3,0,2)
+    # Options for partition 2:
+    #  update /etc/fstab, and mount an MS-DOS fs on /usr2
+    DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+    FSTYPE="msdos"
+    OPTS=""
+    MOUNTPT="/usr2"
+    ;;
+*,sr,*,0,6,0)
+    # Options for CD-ROM at SCSI ID 6
+    PARTS=""
+    DO_FSTAB="y" ; DO_FSCK="n" ; DO_MOUNT="y"
+    FSTYPE="iso9660"
+    OPTS="ro"
+    MOUNTPT="/cdrom"
+    ;;
+esac
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Comments about specific cards</H3>
+
+<P>
+<P>
+<UL>
+<LI>The Adaptec APA-1480 CardBus card needs a large IO port window (256
+contiguous ports aligned on a 256-port boundary).  It may be necessary
+to expand the IO port regions in <CODE>/etc/pcmcia/config.opts</CODE> to
+guarantee that such a large window can be found.</LI>
+<LI>The Adaptec APA-460 SlimSCSI adapter is not supported.  This card was
+originally sold under the Trantor name, and when Adaptec merged with
+Trantor, they continued to sell the Trantor card with an Adaptec
+label.  The APA-460 is not compatible with any existing Linux driver.</LI>
+<LI>I have had one report of a bad interaction between the New Media Bus
+Toaster and a UMAX Astra 1200s scanner.  Due to the complexity of the
+SCSI protocol, when diagnosing problems with SCSI devices, it is worth
+considering that incompatible combinations like this may exist and may
+not be documented.</LI>
+</UL>
+<P>
+<H3>Diagnosing problems with SCSI adapters</H3>
+
+<P>
+<UL>
+<LI>With the <CODE>aha152x_cs</CODE> driver (used by Adaptec, New Media, and
+a few others), it seems that SCSI disconnect/reconnect support is a
+frequent source of trouble with tape drives.  To disable this ``feature,''
+add the following to <CODE>/etc/pcmcia/config.opts</CODE>:
+<BLOCKQUOTE><CODE>
+<PRE>
+module "aha152x_cs" opts "reconnect=0"
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>Also with the <CODE>aha152x_cs</CODE> driver, certain devices seem to require
+a longer startup delay, controlled via the <CODE>reset_delay</CODE> module
+parameter.  The Yamaha 4416S CDR drive is one such device.  The result
+is the device is identified successfully, then hangs the system.  In
+such cases, try:
+<BLOCKQUOTE><CODE>
+<PRE>
+module "aha152x_cs" opts "reset_delay=500"
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>Another potential source of SCSI device probe problems is probing of
+multiple LUN's.  If you see successful detection of a device, followed
+by SCSI bus timeouts when LUN 1 for that device is probed, then
+disable the kernel's <CODE>CONFIG_SCSI_MULTI_LUN</CODE> option.</LI>
+<LI>If you have compiled SCSI support as modules (<CODE>CONFIG_SCSI</CODE> is
+``m''), you may need to modify <CODE>/etc/pcmcia/config</CODE> to load the
+SCSI modules before the appropriate <CODE>*_cs</CODE> driver is loaded.</LI>
+<LI>If you get ``aborting command due to timeout'' messages when the SCSI
+bus is probed, you almost certainly have an interrupt conflict.</LI>
+<LI>If the host driver reports ``no SCSI devices found'', verify that your
+kernel was compiled with the appropriate top-level SCSI drivers for
+your devices (i.e., disk, tape, CD-ROM, and/or generic).  If a
+top-level driver is missing, devices of that type will be ignored.</LI>
+</UL>
+<P>
+<H2><A NAME="ss4.7">4.7 PCMCIA memory cards</A>
+</H2>
+
+<P>The <CODE>memory_cs</CODE> driver handles all types of memory cards, as well
+as providing direct access to the PCMCIA memory address space for
+cards that have other functions.  When loaded, it creates a
+combination of character and block devices.  See the man page for the
+module for a complete description of the device naming scheme.  Block
+devices are used for disk-like access (creating and mounting
+filesystems, etc).  The character devices are for "raw" unbuffered
+reads and writes at arbitrary locations.
+<P>The device address passed to <CODE>memory.opts</CODE> consists of two fields:
+the scheme, and the socket number.  The options are applied to the
+first common memory partition on the corresponding memory card.
+<P>Some flash memory cards, and most simple static RAM cards, lack a
+``Card Information Structure'' (CIS), which is the system PCMCIA cards
+use to identify themselves.  Normally, <CODE>cardmgr</CODE> will assume that
+any card that lacks a CIS is a simple memory card, and load the
+<CODE>memory_cs</CODE> driver.  Thus, a common side effect of a general card
+identification problem is that other types of cards may be misdetected
+as memory cards.
+<P>There is another issue to consider when handling memory cards that do
+not have CIS information.  At startup time, the PCMCIA package tries
+to use the first detected card to determine what memory regions are
+usable for PCMCIA.  The memory scan can be fooled if that card is a
+simple memory card.  If you plan to use memory cards often, it is best
+to limit the memory windows in <CODE>/etc/pcmcia/config.opts</CODE> to
+known-good regions.
+<P>The <CODE>memory_cs</CODE> driver uses a heuristic to guess the capacity of
+these cards.  The heuristic does not work for write protected cards,
+and may make mistakes in some other cases as well.  If a card is
+misdetected, its size should then be explicitly specified when using
+commands such as <CODE>dd</CODE> or <CODE>mkfs</CODE>.  The <CODE>memory_cs</CODE> module also
+has a parameter for overriding the size detection.  See the man page.
+<P>
+<H3>Memory device parameters</H3>
+
+<P>
+<P>The following parameters can be specified in <CODE>memory.opts</CODE>:
+<P>
+<DL>
+<DT><B><CODE>DO_FSTAB</CODE></B><DD><P>A boolean (y/n) setting: specifies if an entry should be added to
+<CODE>/etc/fstab</CODE> for this device.
+<DT><B><CODE>DO_FSCK</CODE></B><DD><P>A boolean (y/n) setting: specifies if the filesystem should be checked
+before being mounted, with ``<CODE>fsck -Ta</CODE>''.
+<DT><B><CODE>DO_MOUNT</CODE></B><DD><P>A boolean (y/n) setting: specifies if this device should be
+automatically mounted at card insertion time.
+<DT><B><CODE>FSTYPE</CODE>, <CODE>OPTS</CODE>, <CODE>MOUNTPT</CODE></B><DD><P>The filesystem type, mount options, and mount point to be used for the
+fstab entry and/or mounting the device.
+<DT><B><CODE>NO_CHECK</CODE>, <CODE>NO_FUSER</CODE></B><DD><P>Boolean (y/n) settings for card eject policy.  If <CODE>NO_CHECK</CODE> is
+true, then ``<CODE>cardctl eject</CODE>'' will shut down a device even if it
+is busy.  If <CODE>NO_FUSER</CODE> is true, then the script will not try to
+kill processes using an ejected device.
+</DL>
+<P>Here is an example of a script that will automatically mount memory
+cards based on which socket they are inserted into:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,0,0)
+    # Mount filesystem, but don't update /etc/fstab
+    DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+    FSTYPE="ext2" ; OPTS=""
+    MOUNTPT="/mem0"
+    ;;
+*,1,0)
+    # Mount filesystem, but don't update /etc/fstab
+    DO_FSTAB="n" ; DO_FSCK="y" ; DO_MOUNT="y"
+    FSTYPE="ext2" ; OPTS=""
+    MOUNTPT="/mem1"
+    ;;
+esac
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Using linear flash memory cards</H3>
+
+<P>The following information applies only to so-called ``linear flash''
+memory cards.  Many flash cards, including all SmartMedia and
+CompactFlash cards, actually include circuitry to emulate an IDE disk
+device.  Those cards are thus handled as IDE devices, not memory
+cards.
+<P>There are two major formats for flash memory cards: the FTL
+or ``flash translation layer'' style, and the Microsoft
+Flash File System.  The FTL format is generally more
+flexible because it allows any ordinary high-level filesystem (ext2,
+ms-dos, etc) to be used on a flash card as if it were an ordinary disk
+device.  The FFS is a completely different filesystem type.  Linux
+cannot currently handle cards formated with FFS.
+<P>To use a flash memory card as an ordinary disk-like block device,
+first create an FTL partition on the device with the
+<CODE>ftl_format</CODE> command.  This layer hides the
+device-specific details of flash memory programming and make the card
+look like a simple block device.  For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ftl_format -i /dev/mem0c0c
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Note that this command accesses the card through the ``raw'' memory
+card interface.  Once formatted, the card can be accessed as an
+ordinary block device via the <CODE>ftl_cs</CODE> driver.  For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+mke2fs /dev/ftl0c0
+mount -t ext2 /dev/ftl0c0 /mnt
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Device naming for FTL devices is tricky.  Minor device numbers have
+three parts: the card number, the region number on that card, and
+optionally, the partition within that region.  A region can either be
+treated as a single block device with no partition table (like a
+floppy), or it can be partitioned like a hard disk device.  The
+``ftl0c0'' device is card 0, common memory region 0, the entire
+region.  The ``ftl0c0p1'' through ``ftl0c0p4'' devices are primary
+partitions 1 through 4 if the region has been partitioned.
+<P>Configuration options for FTL partitions can be given in
+<CODE>ftl.opts</CODE>, which is similar in structure to <CODE>memory.opts</CODE>.
+The device address passed to <CODE>ftl.opts</CODE> consists of three or four
+fields: the scheme, the socket number, the region number, and
+optionally, the partition number.  Most flash cards have just one
+flash memory region, so the region number will generally always be
+zero.
+<P>Intel Series 100 flash cards use the first 128K flash block to store
+the cards' configuration information.  To prevent accidental erasure
+of this information, <CODE>ftl_format</CODE> will automatically detect this
+and skip the first block when creating an FTL partition.
+<P>
+<H2><A NAME="ss4.8">4.8 PCMCIA ATA/IDE card drives</A>
+</H2>
+
+<P>ATA/IDE drive support is based on the regular kernel IDE driver.  This
+includes SmartMedia and CompactFlash devices: these flash memory cards
+are set up so that they emulate an IDE interface.  The PCMCIA-specific
+part of the driver is <CODE>ide_cs</CODE>.  Be sure to use <CODE>cardctl</CODE> or
+<CODE>cardinfo</CODE> to shut down an ATA/IDE card before ejecting it, as the
+driver has not been made ``hot-swap-proof''.
+<P>The device addresses passed to <CODE>ide.opts</CODE> consist of either three
+or four fields: the current scheme, the socket number, the drive's
+serial number, and an optional partition number.  The <CODE>ide_info</CODE>
+command can be used to obtain an IDE device's serial number.  As with
+SCSI devices, <CODE>ide.opts</CODE> is first called for the entire device.  If
+<CODE>ide.opts</CODE> returns a list of partitions in the <CODE>PARTS</CODE>
+variable, the script will then be called for each partition.
+<P>
+<H3>ATA/IDE fixed-disk device parameters</H3>
+
+<P>
+<P>The following parameters can be specified in <CODE>ide.opts</CODE>:
+<P>
+<DL>
+<DT><B><CODE>DO_FSTAB</CODE></B><DD><P>A boolean (y/n) setting: specifies if an entry should be added to
+<CODE>/etc/fstab</CODE> for this device.
+<DT><B><CODE>DO_FSCK</CODE></B><DD><P>A boolean (y/n) setting: specifies if the filesystem should be checked
+before being mounted, with ``<CODE>fsck -Ta</CODE>''.
+<DT><B><CODE>DO_MOUNT</CODE></B><DD><P>A boolean (y/n) setting: specifies if this device should be
+automatically mounted at card insertion time.
+<DT><B><CODE>FSTYPE</CODE>, <CODE>OPTS</CODE>, <CODE>MOUNTPT</CODE></B><DD><P>The filesystem type, mount options, and mount point to be used for the
+fstab entry and/or mounting the device.
+<DT><B><CODE>NO_CHECK</CODE>, <CODE>NO_FUSER</CODE></B><DD><P>Boolean (y/n) settings for card eject policy.  If <CODE>NO_CHECK</CODE> is
+true, then ``<CODE>cardctl eject</CODE>'' will shut down a device even if it
+is busy.  If <CODE>NO_FUSER</CODE> is true, then the script will not try to
+kill processes using an ejected device.
+</DL>
+<P>Here is an example <CODE>ide.opts</CODE> file to mount the first partition
+of any ATA/IDE card on <CODE>/mnt</CODE>.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+case "$ADDRESS" in
+*,*,*,1)
+    DO_FSTAB="y" ; DO_FSCK="y" ; DO_MOUNT="y"
+    FSTYPE="msdos"
+    OPTS=""
+    MOUNTPT="/mnt"
+    ;;
+*,*,*)
+    PARTS="1"
+    ;;
+esac
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Diagnosing problems with ATA/IDE adapters</H3>
+
+<P>
+<UL>
+<LI>An IO port conflict may cause the IDE driver to misdetect the drive
+geometry and report ``<CODE>INVALID GEOMETRY: 0 PHYSICAL HEADS?</CODE>''.  To
+fix, try excluding the selected IO port range in
+<CODE>/etc/pcmcia/config.opts</CODE>.</LI>
+<LI>Some IDE drives violate the PCMCIA specification by requiring more
+time to spin up than the maximum allowed card setup time.  This may
+result in ``timed out during reset'' messages at card detect time.
+Adjust the <CODE>unreset_delay</CODE> and/or <CODE>unreset_limit</CODE> parameters for
+the <CODE>pcmcia_core</CODE> module to give a drive more time to spin up; see
+the <CODE>pcmcia_core</CODE> man page for parameter details.  For example:
+<BLOCKQUOTE><CODE>
+<PRE>
+CORE_OPTS="unreset_delay=400"
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>To use an ATA/IDE CD-ROM device, your kernel must be compiled with
+<CODE>CONFIG_BLK_DEV_IDECD</CODE> enabled.  This will normally be the case for
+standard kernels, however it is something to be aware of if you
+compile a custom kernel.</LI>
+<LI>A common error when using IDE drives is try to mount the wrong device
+file.  Generally, you want to mount a partition of the device, not the
+entire device (i.e., <CODE>/dev/hde1</CODE>, not <CODE>/dev/hde</CODE>).</LI>
+<LI>The Linux IDE driver may have trouble configuring certain
+removable-media drives if no media is present at insertion time.  The
+IBM Portable DriveBay has this problem.</LI>
+<LI>Some kernels will report a pair of ``drive_cmd'' errors at insertion
+time.  These errors can be ignored: they pop up when a removable IDE
+device does not accept the IDE ``door lock'' command.</LI>
+</UL>
+<P>
+<H2><A NAME="ss4.9">4.9 Multifunction cards</A>
+</H2>
+
+<P>A single interrupt can be shared by several drivers, such as the
+serial driver and an ethernet driver: in fact, the PCMCIA
+specification requires all card functions to share the same interrupt.
+Normally, all card functions are available without having to swap
+drivers.  All Linux kernels support this kind of interrupt sharing.
+<P>Simultaneous use of two card functions is ``tricky'' and various
+hardware vendors have implemented interrupt sharing in their own
+incompatible (and sometimes proprietary) ways.  The drivers for some
+cards (Ositech Jack of Diamonds, 3Com 3c562 and related cards, Linksys
+cards) properly support simultaneous access, but others (older
+Megahertz cards in particular) do not.  If you have trouble using a
+card with both functions active, try using each function in isolation.
+That may require explicitly doing an ``<CODE>ifconfig down</CODE>'' to shut
+down a network interface and use a modem on the same card.
+<P>
+<HR>
+<A HREF="PCMCIA-HOWTO-5.html">Next</A>
+<A HREF="PCMCIA-HOWTO-3.html">Previous</A>
+<A HREF="PCMCIA-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

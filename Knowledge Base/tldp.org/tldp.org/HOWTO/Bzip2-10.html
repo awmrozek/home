@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Bzip2 mini-HOWTO: Using bzip2 to recompress other compression formats</TITLE>
+ <LINK HREF="Bzip2-9.html" REL=previous>
+ <LINK HREF="Bzip2.html#toc10" REL=contents>
+</HEAD>
+<BODY>
+Next
+<A HREF="Bzip2-9.html">Previous</A>
+<A HREF="Bzip2.html#toc10">Contents</A>
+<HR>
+<H2><A NAME="s10">10. Using bzip2 to recompress other compression formats</A></H2>
+
+<P>The following perl program takes files compressed
+in other formats (.tar.gz, .tgz. .tar.Z, and .Z for this iteration) and repacks
+them for better compression.  The perl source has all kinds of neat
+documentation on what it does and how it does what it does.  This latest
+version takes files as input on the command line.  Without command line
+arguments, it tries to repack every file in the current working
+directory.
+<P>
+<PRE>
+#!/usr/bin/perl -w
+
+#######################################################
+#                                                     #
+# This program takes compressed and gzipped programs  #
+# in the current directory and turns them into bzip2  #
+# format.  It handles the .tgz extension in a         #
+# reasonable way, producing a .tar.bz2 file.          #
+#                                                     #
+#######################################################
+$counter = 0;
+$saved_bytes = 0;
+$totals_file = '/tmp/machine_bzip2_total';
+$machine_bzip2_total = 0;
+
+@raw = (defined @ARGV)?@ARGV:&lt;*>;
+
+foreach(@raw) {
+    next if /^bzip/;
+    next unless /\.(tgz|gz|Z)$/;
+    push @files, $_;
+}
+$total = scalar(@files);
+
+foreach (@files) {
+    if (/tgz$/) {
+        ($new=$_) =~ s/tgz$/tar.bz2/;
+    } else {
+        ($new=$_) =~ s/\.g?z$/.bz2/i;
+    }
+    $orig_size = (stat $_)[7];
+    ++$counter;
+    print "Repacking $_ ($counter/$total)...\n";
+    if ((system "gzip -cd $_ |bzip2 >$new") == 0) {
+        $new_size = (stat $new)[7];
+        $factor = int(100*$new_size/$orig_size+.5);
+        $saved_bytes += $orig_size-$new_size;
+        print "$new is about $factor% of the size of $_. :",($factor&lt;100)?')':'(',"\n";
+        unlink $_;
+    } else {
+        print "Arrgghh!  Something happened to $_: $!\n";
+    }
+}
+print "You've "
+    , ($saved_bytes>=0)?"saved ":"lost "
+    , abs($saved_bytes)
+    , " bytes of storage space :"
+    , ($saved_bytes>=0)?")":"("
+    , "\n"
+    ;
+
+unless (-e '/tmp/machine_bzip2_total') {
+    system ('echo "0" >/tmp/machine_bzip2_total');
+    system ('chmod', '0666', '/tmp/machine_bzip2_total');
+}
+
+
+chomp($machine_bzip2_total = `cat $totals_file`);
+open TOTAL, ">$totals_file"
+     or die "Can't open system-wide total: $!";
+$machine_bzip2_total += $saved_bytes;
+print TOTAL $machine_bzip2_total;
+close TOTAL;
+
+print "That's a machine-wide total of ",`cat $totals_file`," bytes saved.\n";
+</PRE>
+<P>
+<HR>
+Next
+<A HREF="Bzip2-9.html">Previous</A>
+<A HREF="Bzip2.html#toc10">Contents</A>
+</BODY>
+</HTML>

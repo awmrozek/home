@@ -1,0 +1,790 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>( MTU ) - IP MASQ seems to be working fine but some sites don't work.  
+This usually happens with WWW and some FTP sites.</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Frequently Asked Questions"
+HREF="faq.html"><LINK
+REL="PREVIOUS"
+TITLE="( Odd Behavior ) - When my Internet connection first comes up, nothing 
+works.  If I try again, everything then works fine.  Why is this?"
+HREF="masq-behavior.html"><LINK
+REL="NEXT"
+TITLE="( FTP ) - MASQed FTP clients don't work. "
+HREF="masqed-ftp.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="masq-behavior.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. Frequently Asked Questions</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="masqed-ftp.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="MTU-ISSUES"
+></A
+>7.15. ( MTU ) - IP MASQ seems to be working fine but some sites don't work.  
+This usually happens with WWW and some FTP sites.</H1
+><P
+>Depending on what Linux kernel version you are running on the MASQ server, 
+some will people disagree on the real problem.  The two following arguments 
+have valid points, are inter-related, and users from each camp continue to 
+debate this to this day.  
+
+<P
+></P
+><UL
+><LI
+><P
+>   With modern 2.4.x Linux systems, most users point their finger at the 
+   adminstrators of these remote broken sites (typically SSL-encrypted WWW
+   sites, etc.) or your MASQ server's upstream router run by your ISP.  The
+   main though it that these machines are either filtering or not properly 
+   responding to SOME or ALL FORMS of ICMP packets (specifically ICMP Code 3 
+   Type 4 - Fragmentation Needed) messages due to a fray of misplaced security 
+   paranoia.  
+   </P
+><P
+>   What does that all mean?  Basically, say your machine is connected to the 
+   Internet with a MTU of 1492 bytes (Maximum Transmission Unit -- the maximum 
+   packet size your computer can transmit) which is common for PPPoE users.  
+   At the same time, the remote WWW/FTP site is connected to the Internet at a 
+   MTU of 1500 bytes.  The way that TCP/IP works is that when a TCP connection 
+   is being negotiated for your HTTP / FTP  connection, the remote side will 
+   try to verify that a 1500 byte packet can reach your computer via the 
+   initial TCP "SYN" packet.  
+   </P
+><P
+>   Since the packet is too big for your connection, your upstream router (run 
+   by your ISP) will send a ICMP 3:4 (fragmentation needed) packet back to the 
+   remote WWW / FTP server.  Within this packet is a recommended smaller MTU 
+   size to retry with.  The problem is that either your local upstream router, 
+   some router between you and the remote server, or the remote HTTP / FTP 
+   server is either misconfigured or has a firewall in front of it that is 
+   BLOCKing these ICMP packets.
+   </P
+></LI
+><LI
+><P
+>  The final UNCOMMON possibility is a debatable 2.0 / 2.2 kernel bug in the 
+  IPMASQ code.  Some users point their finger to the fact that IPMASQ might 
+  have problems with ICMP packets that have the DF or "Don't Fragment" bit set.  
+  Basically, when a MASQ box connects to the Internet with an MTU of anything 
+  less than 1500, some packets will have the DF field set.  Though changing 
+  the MTU of the MASQ server's Internet link to 1500 seemingly fixes the 
+  problem, the possible bug is still there.  What is believed to be happening 
+  in these older kernels is that the MASQ code is not properly re-writing the 
+  return IP addresses of the ICMP 3 Sub 4 code packets back to the originating 
+  MASQed computer.  Because of this, these critical packets get dropped.  
+  </P
+></LI
+></UL
+></P
+><P
+>No worries though.  A there are several perfectly good ways to fix this
+nasty MTU problem:
+
+<P
+></P
+><UL
+><LI
+><P
+>   Enable PMTU clamping in PPPoE
+  </P
+><P
+>   This solution is mostly for modern 2.4.x and 2.2.x kernel users connected 
+   to the Internet via a PPPoE DSL or Cablemodem connections.  This solution 
+   allows for changes to be done ONLY on the MASQ server itself and not on all 
+   of the internal MASQ clients.
+  </P
+></LI
+><LI
+><P
+>   Enable PMTU clamping via IPTABLES
+  </P
+><P
+>   This solution is only modern 2.4.x kernel users connected via ANY type
+   of Internet connection.  This solution allows for changes to be done ONLY on 
+   the MASQ server itself and not on all of the internal MASQ clients.
+  </P
+></LI
+><LI
+><P
+>   Change your MASQ server's Internet Link MTU
+  </P
+><P
+>This solution will work for any Linux kernel version but is is NOT a 
+   solution if you have a PPPoE connection for DSL or Cablemodem users.  
+  </P
+><P
+>   It should be noted that some users will balk at this solution because it 
+   can hurt some latency specific programs like TELNET and Internet games but 
+   the impact is only slight.  On the other hand, most HTTP and FTP traffic 
+   will SPEED UP!  
+  </P
+></LI
+><LI
+><P
+>   Change the MTU of all internal MASQed machines
+  </P
+><P
+>   This solution requires the most work as you have to make minor changes to 
+   ALL of the internal IPMASQed machines.  Basically, you would be changing the 
+   MTU on all of the internal machines to match the MTU of your MASQ server's
+   Internet connection.  Fortunately, this solution is usually bulletproof 
+   where as some of the other solutions mentioned in this section might rarely
+   not work.  
+  </P
+></LI
+></UL
+></P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2620"
+></A
+>7.15.1. Enabling PMTU Clamping for PPPoE and some PPP Users:</H2
+><P
+>  For those users who use PPPoE clients for (DSL / Cablemodem) or PPP (Dialup), 
+  your Internet connection is NOT "eth0" (for example) but usually "ppp0".   
+  In addition to this, your Internet link's MTU or Maximum Transmission Unit 
+  (largest packet you can transmit over the Internet) isn't 1500 bytes but 
+  1492.  The 1492 byte MTU comes from the link size of Ethernet (1518 bytes) - 
+  Ethernet MAC overhead (18) = 1500.  Then you subtract the PPPoE header (8 
+  bytes) == MTU of 1492.  This overhead isn't a big deal but sometimes ISPs or 
+  remote Internet sites do stupid things to break PPPoE or non-1500 byte MTU 
+  connected machines.   
+  </P
+><P
+>  You can find more info about this topic on the web.  Specifically, here is 
+  good presentaion on the topic:
+  <A
+HREF="http://www.phildev.net/mss/mss-talk.pdf"
+TARGET="_top"
+>mss-talk presentation 
+  (PDF)</A
+>.  Here is the entire 
+  <A
+HREF="http://www.phildev.net/mss/lisa.html"
+TARGET="_top"
+>Write
+  up and other good info</A
+>
+  </P
+><P
+>  To enable clamping in both the RP or PPPd PPPoE clients, add the following 
+  line to your /etc/ppp/pppoe.conf file:
+
+  <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13;  # - If you have a computer acting as a gateway for a LAN, choose "1412".
+  #   The setting of 1412 is safe for either setup, but uses slightly more
+  #   CPU power.
+  #
+  CLAMPMSS=1412
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2628"
+></A
+>7.15.2. Clamping the MSS via IPTABLES:</H2
+><P
+> As mentioned above for PPPoE users, some ISPs and WWW sites filter critical
+ ICMP packets like MTU Path Discovery.  Because of this, many users might find
+ more Internet sites work but others hang or work poorly.  Fortunately, 
+ recent IPTABLES have added PMTU Clamping support which should help you.  If 
+ your using IPTABLES and think you're hitting this issue, try adding the 
+ following line to the end of your rc.firewall-iptables ruleset.  It should be noted
+ that there is no PMTU clamping support in IPCHAINS.
+
+ <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; iptables -I FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+ </P
+><P
+> If this line causes an error when you re-run the rc.firewall-iptables* firewall 
+ rulesets, you might need to upgrade your version of IPTABLES which includes 
+ the "TCPMSS" IPTABLES module.
+ </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2633"
+></A
+>7.15.3. Changing the External MTU of the MASQ server:</H2
+><P
+> This solution usually only applies to DIALUP users since PPPoE users cannot 
+ INCREASE their MTU because of PPPoE's header overhead.</P
+><P
+> To use this solution, first see what your current MTU for your Internet link 
+ is.  To do so, run "/bin/ifconfig" on the MASQ server.  Look at the lines 
+ that corresponds to your Internet connection and look for the MTU (for
+ example, ppp0).  This NEEDs to be set to 1500.  Usually, Ethernet links 
+ will default to 1500 for Ethernet but serial / DIALUP modem PPP links might 
+ default to 576.</P
+><P
+><P
+></P
+><UL
+><LI
+><P
+>   To change the MTU on a standard Ethernet link to your bridged or routed 
+   DSL, Cablemodem, etc. connection, you need to edit the correct network 
+   startup scripts for your Linux distribution.  Please see the 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#TrinityOS"
+TARGET="_top"
+>   TrinityOS - Section 16</A
+> document for network optimizations.
+  </P
+></LI
+><LI
+><P
+>   To change the MTU issue on a PPP (not PPPoE) Internet link, edit your 
+   "/etc/ppp/options" file and towards the top, add the following text on two 
+   seperate lines, add: 
+
+   <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13;   mtu 1500
+   mru 1500
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>   Save these new changes and then restart PPP.  Like shown above, verify that 
+   your PPP link has the correct MTU and MTU.  
+  </P
+><P
+>   CUA Users: Lastly, though this isn't a common problem, some Linux 2.0.x 
+   kernel users have found a MTU solution to the following problem.  With PPP 
+   users, verify what port is your PPPd code connecting to.  Is it a /dev/cua* 
+   port or a /dev/ttyS* port?  It NEEDS to be a /dev/ttyS* port as the 
+   /dev/cua* device ststem has been deprecated and it breaks some things in 
+   very odd ways.
+  </P
+></LI
+></UL
+></P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2647"
+></A
+>7.15.4. Changing the MTU of various operating systems:</H2
+><P
+>If you reconfigure ALL of your MASQed PCs to use the SAME MTU as your external 
+Internet link's MTU (for example, 1492 for PPPoE users), everything should 
+work fine and this method is sometimes the MOST EFFECTIVE way of fixing things.  
+This is including ALL of the solutions mentioned above.  But doing things this 
+way can be a lot of work if there are lots of internal MASQed machines or be
+even impossible to do if you don't have administrative access to all the 
+internal MASQed machines. </P
+><P
+>Follow these simple steps for your respective operating system:  </P
+><P
+>The follow examples utilize an MTU of 1492 for typical PPPoE connections for 
+some DSL and Cablemodem users.  It is recommended to use the HIGHEST values 
+possible for all connections that are 128Kb/s and faster.  
+It should be noted that some PPPoE ISPs might require an MTU setting of 1460 
+(not 1492) for proper connectivity due to additional overhead in the ISP's 
+internal network.  </P
+><P
+>The only real reason to use smaller MTUs than 1492 or 1460 is to lower your
+Internet link's latency but at the cost of throughput.  Please see 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/PPP/ppp-performance.html#mtu"
+TARGET="_top"
+>http://www.ecst.csuchico.edu/~dranch/PPP/ppp-performance.html#mtu</A
+>
+for more details on this topic.</P
+><P
+>If you know how to make similar changes like these to other 
+OSes like OS/2, MacOS, etc. please email <A
+HREF="mailto:dranch@trinnet.net"
+TARGET="_top"
+>David Ranch</A
+> so it can be included in the HOWTO.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2656"
+></A
+>7.15.4.1. Changing the MTU on Linux:</H3
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>------------------------------------------
+1. The setting of MTU can vary from Linux distribution to distribution.  
+
+   For Redhat: You need to edit the various "ifconfig" statements in 
+               the /sbin/ifup script
+
+   For Slackware: You need to edit the various "ifconfig" statements in 
+                  the /etc/rc.d/rc1.inet
+
+2. Here is one good, any-distribution-will-work example, edit the 
+   /etc/rc.d/rc.local file and put the following at the END of the file: 
+
+        echo "Changing the MTU of ETH0"
+        /sbin/ifconfig eth0 mtu 1492
+
+     Replace "eth0" with the interface name that is the machine's upstream 
+     connection which is connected to the Internet.
+
+3. For advanced options like "TCP Receive Windows" and such, detailed examples
+   on how to edit the respective networking scripts for your specific Linux
+   distro, etc., please see Chapter 16 of 
+   http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#trinityos 
+------------------------------------------</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2660"
+></A
+>7.15.4.2. Changing the MTU on MS Windows 2000</H3
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>------------------------------------------
+1. Making ANY changes to the Registry is inheritantly risky but
+   with a backup copy, you should be safe.  Proceed at your 
+   OWN RISK.
+
+2. Goto Start--&#62;Run--&#62;RegEdit
+
+3. Registry--&#62;Export Registry File--&#62;Save a copy of your registry
+   to a reliable place
+
+4. Navigate down to the key:
+
+   [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Inter
+faces\&#60;ID for Adapter&#62;
+
+   Each ID Adapter has default keys for DNS, TCP/IP address, Default Gateway, 
+   subnet mask, etc. Find the key one that is for your network card.
+
+5. Create the following Entry:
+
+      type=DWORD
+      name="MTU"				(Do NOT include the quotes)
+      value=1492 (Decimal)      (Do NOT include the text "(Decimal)")
+
+http://support.microsoft.com/support/kb/articles/Q120/6/42.asp?LN=EN-US&#38;SD=gn&#38;FR=0
+
+
+ *** If you know how to also change the MSS, TCP Window Size, and the
+ *** TTL parameters in NT 2000, please email dranch@trinnet.net as I 
+ *** would love to add it to the HOWTO.
+
+5. Reboot to let the changes take effect.
+------------------------------------------</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2664"
+></A
+>7.15.4.3. Changing the MTU on MS Windows NT 4.x</H3
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>------------------------------------------
+1. Making ANY changes to the Registry is inheritantly risky but
+   with a backup copy, you should be safe.  Proceed at your 
+   OWN RISK.
+
+2. Goto Start--&#62;Run--&#62;RegEdit
+
+3. Registry--&#62;Export Registry File--&#62;Save a copy of your registry
+   to a reliable place
+
+4. Create the following keys in the Registry trees, choose two
+   possible Registry trees.  Multiple entries are for various 
+   network devices like DialUp Networking (ppp), Ethernet NICs, 
+   PPTP VPNs, etc.
+
+   http://support.microsoft.com/support/kb/articles/Q102/9/73.asp?LN=EN-US&#38;SD=gn&#38;FR=0
+
+
+   [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Parameters\Tcpip]
+                     and
+   [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\&#60;Adapter-name&#62;\Parameters\Tcpip]
+
+      Replace "&#60;Adapter-Name&#62;" with the respective name of your uplink LAN NIC 
+      interface
+
+         type=DWORD
+         name="MTU"              (Do NOT include the quotes)
+         value=1492 (Decimal)    (Do NOT include the text "(Decimal&#62;")
+
+       (Do NOT include the quotes)
+
+
+ *** If you know how to also change the MSS, TCP Window Size, and the
+ *** TTL parameters in NT 4.x, please email dranch@trinnet.net as I 
+ *** would love to add it to the HOWTO.
+
+5. Reboot to make the changes take effect.
+------------------------------------------</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2668"
+></A
+>7.15.4.4. Changing the MTU on MS Windows 98:</H3
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>------------------------------------------
+1. Making ANY changes to the Registry is inheritantly risky but
+   with a backup copy, you should be safe.  Proceed at your OWN RISK.
+
+2. Goto Start--&#62;Run--&#62;RegEdit
+
+3. You should make a backup copy of your Registry before doing anything.  To
+   do this, copy the "user.dat" and "system.dat" files from the \WINDOWS 
+   directory and put them into a safe place.  It should be noted that the
+   previously mentioned method of using "Regedit: Registry--&#62;Export Registry 
+   File--&#62;Save a copy of your registry" would only perform Registry MERGES 
+   and NOT do a replacement.
+
+4. Search though each of the Registry trees that end in "n" (e.g. 0007) 
+   and have a Registry entry called "IPAddress" which has the IP address
+   of your NIC.  Under that key, add the following:
+
+   From http://support.microsoft.com/support/kb/articles/q158/4/74.asp
+
+     [Hkey_Local_Machine\System\CurrentControlset\Services\Class\NetTrans\000n]
+         type=STRING
+         name="MaxMTU"            (Do NOT include the quotes)
+         value=1492 (Decimal)     (Do NOT include the text "(Decimal)")
+
+
+5. You can also change the "TCP Receive Window" which sometimes
+   increases network performance SUBSTANTIALLY.  If you notice your
+   throughput has DECREASED, put these items BACK to their original 
+   settings and reboot.
+
+     [HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\MSTCP]
+
+        type=STRING
+        name="DefaultRcvWindow"    (Do NOT include the quotes)
+        value=32768 (Decimal)      (Do NOT include the text "(Decimal&#62;")
+
+        type=STRING
+        name="DefaultTTL"          (Do NOT include the quotes)
+        value=128 (Decimal)        (Do NOT include the text "(Decimal&#62;")
+
+
+6. Reboot to let the changes take effect.
+------------------------------------------</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2672"
+></A
+>7.15.4.5. Changing the MTU on MS Windows 95:</H3
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>------------------------------------------
+1. Making ANY changes to the Registry is inheritantly risky but
+   with a backup copy, you should be safe.  Proceed at your OWN RISK.
+
+2. Goto Start--&#62;Run--&#62;RegEdit
+
+3. You should make a backup copy of your Registry before continuing.  To
+   do this, copy the "user.dat" and "system.dat" files from the \WINDOWS 
+   directory and put them into a safe place.  It should be noted that the
+   previously mentioned method of using "Regedit: Registry--&#62;Export Registry 
+   File--&#62;Save a copy of your registry" would only do Registry MERGES and NOT 
+   do a replacement.
+
+4. Search through each of the Registry trees that end in "n" (e.g. 0007) 
+   and have a Registry entry called "IPAddress", which has the IP address
+   of your NIC.  Under that key, add the following:
+
+   From http://support.microsoft.com/support/kb/articles/q158/4/74.asp
+
+     [Hkey_Local_Machine\System\CurrentControlset\Services\Class\NetTrans\000n]
+
+         type=DWORD
+         name="MaxMTU"           (Do NOT include the quotes)
+         value=1492 (Decimal)    (Do NOT include the text "(Decimal)")
+
+         type=DWORD
+         name="MaxMSS"           (Do NOT include the quotes)
+         value=1450 (Decimal)    (Do NOT include the text "(Decimal&#62;")
+
+
+5. You can also change the "TCP Receive Window" which sometimes
+   increases network performance SUBSTANTIALLY.  If you notice your
+   throughput has DECREASED, put these items BACK to their original 
+   settings and reboot.
+
+     [HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\MSTCP]
+        type=DWORD
+        name="DefaultRcvWindow"   (Do NOT include the quotes)
+        value=32768 (Decimal)     (Do NOT include the text "(Decimal&#62;")
+
+        type=DWORD
+        name="DefaultTTL"         (Do NOT include the quotes)
+        value=128 (Decimal)       (Do NOT include the text "(Decimal&#62;")
+
+
+6. Reboot to let the changes take effect.
+------------------------------------------</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="masq-behavior.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="masqed-ftp.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>( Odd Behavior ) - When my Internet connection first comes up, nothing 
+works.  If I try again, everything then works fine.  Why is this?</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="faq.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>( FTP ) - MASQed FTP clients don't work.</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,294 @@
+<HTML
+><HEAD
+><TITLE
+>The Intermediate queueing device (IMQ)</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Queueing Disciplines for Bandwidth Management"
+HREF="lartc.qdisc.html"><LINK
+REL="PREVIOUS"
+TITLE="Classifying packets with filters"
+HREF="lartc.qdisc.filters.html"><LINK
+REL="NEXT"
+TITLE="Load sharing over multiple interfaces"
+HREF="lartc.loadshare.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.qdisc.filters.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 9. Queueing Disciplines for Bandwidth Management</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.loadshare.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.IMQ"
+></A
+>9.7. The Intermediate queueing device (IMQ)</H1
+><P
+>The Intermediate queueing device is not a qdisc but its usage is tightly bound
+to qdiscs. Within linux, qdiscs are attached to network devices and everything
+that is queued to the device is first queued to the qdisc. From this concept,
+two limitations arise:</P
+><P
+>1. Only egress shaping is possible (an ingress qdisc exists, but its
+possibilities are very limited compared to classful qdiscs).</P
+><P
+>2. A qdisc can only see traffic of one interface, global limitations can't be
+placed.</P
+><P
+>IMQ is there to help solve those two limitations. In short, you can put 
+everything you choose in a qdisc. Specially marked packets get intercepted
+in netfilter NF_IP_PRE_ROUTING and NF_IP_POST_ROUTING hooks and pass through
+the qdisc attached to an imq device. An iptables target is used for marking
+the packets.</P
+><P
+>This enables you to do ingress shaping as you can just mark packets coming in from somewhere and/or treat interfaces as classes to set global limits.
+You can also do lots of other stuff like just putting your http traffic in a
+qdisc, put new connection requests in a qdisc, ...</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN944"
+></A
+>9.7.1. Sample configuration</H2
+><P
+>The first thing that might come to mind is use ingress shaping to give yourself
+a high guaranteed bandwidth. ;)
+Configuration is just like with any other interface:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>tc qdisc add dev imq0 root handle 1: htb default 20
+
+tc class add dev imq0 parent 1: classid 1:1 htb rate 2mbit burst 15k
+
+tc class add dev imq0 parent 1:1 classid 1:10 htb rate 1mbit
+tc class add dev imq0 parent 1:1 classid 1:20 htb rate 1mbit
+
+tc qdisc add dev imq0 parent 1:10 handle 10: pfifo
+tc qdisc add dev imq0 parent 1:20 handle 20: sfq
+
+tc filter add dev imq0 parent 10:0 protocol ip prio 1 u32 match \
+		ip dst 10.0.0.230/32 flowid 1:10</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+In this example u32 is used for classification. Other classifiers should work as
+expected.
+Next traffic has to be selected and marked to be enqueued to imq0.
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>iptables -t mangle -A PREROUTING -i eth0 -j IMQ --todev 0
+
+ip link set imq0 up</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The IMQ iptables targets is valid in the PREROUTING and POSTROUTING chains of
+the mangle table. It's syntax is 
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>IMQ [ --todev n ]	n : number of imq device</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+An ip6tables target is also provided.</P
+><P
+>Please note traffic is not enqueued when the target is hit but afterwards.
+The exact location where traffic enters the imq device depends on the
+direction of the traffic (in/out).
+These are the predefined netfilter hooks used by iptables:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>enum nf_ip_hook_priorities {
+        NF_IP_PRI_FIRST = INT_MIN,
+        NF_IP_PRI_CONNTRACK = -200,
+        NF_IP_PRI_MANGLE = -150,
+        NF_IP_PRI_NAT_DST = -100,
+        NF_IP_PRI_FILTER = 0,
+        NF_IP_PRI_NAT_SRC = 100,
+        NF_IP_PRI_LAST = INT_MAX,
+};</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>For ingress traffic, imq registers itself with NF_IP_PRI_MANGLE + 1 priority
+which means packets enter the imq device directly after the mangle PREROUTING
+chain has been passed.</P
+><P
+>For egress imq uses NF_IP_PRI_LAST which honours the fact that packets dropped
+by the filter table won't occupy bandwidth.</P
+><P
+>The patches and some more information can be found at the
+<A
+HREF="http://luxik.cdi.cz/~patrick/imq/"
+TARGET="_top"
+>imq site</A
+>.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.filters.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.loadshare.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Classifying packets with filters</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Load sharing over multiple interfaces</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

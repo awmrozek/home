@@ -1,0 +1,324 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>The one true way</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="CompaqT1500-Linux HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="The Compaq way"
+HREF="compaq.html"><LINK
+REL="NEXT"
+TITLE="Editing FLASH image and other tools"
+HREF="x131.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>CompaqT1500-Linux HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="compaq.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x131.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="DEBIAN"
+></A
+>4. The one true way</H1
+><P
+>We use the debian 'potato' (2.2) release as an example. The procedure should 
+  be similar no matter which distribution you choose, providing it will run on 
+  a 2.0.35 kernel.</P
+><P
+>Create the directories for the kernel and file system on your server, mount 
+  and copy the files from the Compaq CD. Unpack the file system (Here I use some 
+  pre-made tar balls of the debian release, here is not the place to discuss further):</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>mkdir /exports/T1500 
+mkdir /exports/T1500/root 
+mkdir /exports/T1500/tftpboot</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>mount /cdrom
+cp /cdrom/product/vmlinux /exports/T1500/tftpboot
+CD /exports/T1500/root
+tar zxvf /tmp/base2_2.tgz 
+tar zxvf /tmp/telnetd*.tgz</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Configure DHCP by adding a section like this to your /etc/dhcpd.conf
+  Change the ethernet address to that of your T1500.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Group {
+   #little black box
+   host box {
+   	 hardware ethernet 00:80:64:10:1d:1c;
+     fixed-address box.house;
+     option host-name "box";
+     server-name "192.168.1.1";
+     filename "/exports/T1500/tftpboot/vmlinux";
+     option root-path "192.168.1.1:/exports/T1500/root";
+     }
+   }</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Configure a new host in DNS</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>db.192.168.1.1:
+   52 in ptr box.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>db.house:
+   box in a 192.168.1.52</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Export the root file system by adding</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>/exports/T1500/root box(rw,no_root_squash)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>to /etc/exports </P
+><P
+>Configuring tftp by adding/altering a line to /etc/inetd.conf</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>tftp dgram udp wait root /usr/sbin/tcpd in.tftpd /exports/T1500/tftpboot</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now restart inetd,dhcpd,nfs and named</P
+><P
+>Configure the file system by setting the root password to 'pass', exposing telnetd</P
+><P
+>/exports/T1500/root/etc/passwd, alter 1st line: root:Z/U2u32VhNJoA:0:0:,,,:/root:/bin/bash</P
+><P
+>/exports/T1500/root/etc/inetd.conf, add: telnet stream tcp nowait root /usr/sbin/tcpd in.telnetd</P
+><P
+>Append remote terminals to /etc/securetty to allow remote root access.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>tty1
+tty2
+tty3
+tty4
+tty5
+tty6
+tty7
+tty8
+tty9
+tty10
+tty11
+tty12
+ttyp0
+ttyp1
+ttyp2
+ttyp3</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Select network booting on the T1500 and reboot it.</P
+><P
+>Once it has booted, you should be able to telnet into the T1500. At ths point, 
+you shoudl configure SSH, and close the telnet hole in inetd.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="compaq.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x131.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>The Compaq way</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Editing FLASH image and other tools</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

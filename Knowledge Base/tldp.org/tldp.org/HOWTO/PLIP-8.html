@@ -1,0 +1,116 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>LINUX PLIP MINI-HOWTO: Patches to make PLIP and LP live together.</TITLE>
+ <LINK HREF="PLIP-9.html" REL=next>
+ <LINK HREF="PLIP-7.html" REL=previous>
+ <LINK HREF="PLIP.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="PLIP-9.html">Next</A>
+<A HREF="PLIP-7.html">Previous</A>
+<A HREF="PLIP.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8. Patches to make PLIP and LP live together.</A></H2>
+
+<P>The best way to make PLIP and LP live together is to use kernel modules: you
+can load plip.o and unload it when you need to print or vice versa.
+If you do really need to use both PLIP and LP, try the following patches.
+<P>
+<H2><A NAME="ss8.1">8.1 PLIP and LP together on the same port.</A>
+</H2>
+
+<P>If for some reason you wish PLIP and LP supported directly by the kernel, 
+you can try these patches.
+<P>You must modify the following pieces of code, but <EM>backup</EM> the files
+before:
+<P>
+<HR>
+<PRE>
+******** modifications to linux/drivers/char/lp.c ***********************
+struct lp_struct lp_table[] = {
+        { 0x3bc, 0, 0, LP_INIT_CHAR, LP_INIT_TIME, LP_INIT_WAIT, NULL,
+NULL, },
+/*      { 0x378, 0, 0, LP_INIT_CHAR, LP_INIT_TIME, LP_INIT_WAIT, NULL,
+NULL, },
+        { 0x278, 0, 0, LP_INIT_CHAR, LP_INIT_TIME, LP_INIT_WAIT, NULL,
+NULL, },
+*/
+};
+#define LP_NO 1
+
+******** modifications to linux/drivers/net/Space.c ********************
+#if defined(PLIP) || defined(CONFIG_PLIP)
+    extern int plip_init(struct device *);
+    static struct device plip2_dev = {
+        &quot;plip2&quot;, 0, 0, 0, 0, 0x278, 2, 0, 0, 0, NEXT_DEV, plip_init, };
+    static struct device plip1_dev = {
+        &quot;plip1&quot;, 0, 0, 0, 0, 0x378, 7, 0, 0, 0, &amp;plip2_dev, plip_init, };
+/*    static struct device plip0_dev = {
+        &quot;plip0&quot;, 0, 0, 0, 0, 0x3BC, 5, 0, 0, 0, &amp;plip1_dev, plip_init, };
+*/
+#   undef NEXT_DEV
+#   define NEXT_DEV     (&amp;plip1_dev)
+#endif  /* PLIP */
+</PRE>
+<HR>
+<P>Of course there is the standard disclaimer: <EM>I received these patches and
+I put them "as I got them". This means that you try them at your own risk.</EM>
+Anyway, your biggest trouble should be only restore the original files and
+recompile.
+<P>
+<H2><A NAME="ss8.2">8.2 PLIP and LP on different ports.</A>
+</H2>
+
+<P>If you have at least 2 parallel ports you can try these patches, that
+should allow you to use PLIP on a port and LP on the other.
+<P>
+<OL>
+<LI>Comment out one line in kernel source file, drivers/char/lp.c.
+
+<HR>
+<PRE>
+struct lp_struct lp_table[] = {
+{ 0x3bc, 0, 0, LP_INIT_CHAR, LP_INIT_TIME, LP_INIT_WAIT, NULL, NULL, },
+{ 0x378, 0, 0, LP_INIT_CHAR, LP_INIT_TIME, LP_INIT_WAIT, NULL, NULL, },
+/* { 0x278, 0, 0, LP_INIT_CHAR, LP_INIT_TIME, LP_INIT_WAIT, NULL, NULL, }, */
+}; 
+    3 -> 2
+</PRE>
+<HR>
+
+</LI>
+<LI>Kernel configuration
+
+<BLOCKQUOTE><CODE>
+<PRE>
+PLIP (parallel port) support (CONFIG_PLIP) [n] y
+
+Parallel Printer support [y] y
+</PRE>
+</CODE></BLOCKQUOTE>
+
+</LI>
+<LI>Kernel message at startup
+
+<BLOCKQUOTE><CODE>
+<PRE>
+lp1 at 0x0378, using polling driver
+.....
+NET3 PLIP version 2.0 gniibe@mri.co.jp
+plip2: Parallel port at 0x278, using assigned IRQ 5.
+</PRE>
+</CODE></BLOCKQUOTE>
+
+</LI>
+</OL>
+<P>Again the standard disclaimer, like section 8.1.
+<P>
+<P>
+<HR>
+<A HREF="PLIP-9.html">Next</A>
+<A HREF="PLIP-7.html">Previous</A>
+<A HREF="PLIP.html#toc8">Contents</A>
+</BODY>
+</HTML>

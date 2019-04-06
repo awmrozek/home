@@ -1,0 +1,403 @@
+<HTML
+><HEAD
+><TITLE
+>Classifying packets with filters</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Queueing Disciplines for Bandwidth Management"
+HREF="lartc.qdisc.html"><LINK
+REL="PREVIOUS"
+TITLE="Classful Queueing Disciplines"
+HREF="lartc.qdisc.classful.html"><LINK
+REL="NEXT"
+TITLE="The Intermediate queueing device (IMQ)"
+HREF="lartc.imq.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.qdisc.classful.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 9. Queueing Disciplines for Bandwidth Management</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.imq.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.QDISC.FILTERS"
+></A
+>9.6. Classifying packets with filters</H1
+><P
+>To determine which class shall process a packet, the so-called 'classifier
+chain' is called each time a choice needs to be made. This chain consists of
+all filters attached to the classful qdisc that needs to decide.</P
+><P
+>To reiterate the tree, which is not a tree:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>                    root 1:
+                      |
+                    _1:1_
+                   /  |  \
+                  /   |   \
+                 /    |    \
+               10:   11:   12:
+              /   \       /   \
+           10:1  10:2   12:1  12:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>When enqueueing a packet, at each branch the filter chain is consulted for a
+relevant instruction. A typical setup might be to have a filter in 1:1 that
+directs a packet to 12: and a filter on 12: that sends the packet to 12:2.</P
+><P
+>You might also attach this latter rule to 1:1, but you can make efficiency
+gains by having more specific tests lower in the chain.</P
+><P
+>You can't filter a packet 'upwards', by the way. Also, with HTB, you should
+attach all filters to the root!</P
+><P
+>And again - packets are only enqueued downwards! When they are dequeued,
+they go up again, where the interface lives. They do NOT fall off the end of
+the tree to the network adaptor!</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN894"
+></A
+>9.6.1. Some simple filtering examples</H2
+><P
+>As explained in the Classifier chapter, you can match on literally anything,
+using a very complicated syntax. To start, we will show how to do the
+obvious things, which luckily are quite easy.</P
+><P
+>Let's say we have a PRIO qdisc called '10:' which contains three classes, and
+we want to assign all traffic from and to port 22 to the highest priority
+band, the filters would be:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth0 protocol ip parent 10: prio 1 u32 match \ 
+  ip dport 22 0xffff flowid 10:1
+# tc filter add dev eth0 protocol ip parent 10: prio 1 u32 match \
+  ip sport 80 0xffff flowid 10:1
+# tc filter add dev eth0 protocol ip parent 10: prio 2 flowid 10:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>What does this say? It says: attach to eth0, node 10: a  priority 1 u32
+filter that matches on IP destination port 22 *exactly* and send it to band
+10:1. And it then repeats the same for source port 80. The last command says
+that anything unmatched so far should go to band 10:2, the next-highest
+priority.</P
+><P
+>You need to add 'eth0', or whatever your interface is called, because each
+interface has a unique namespace of handles.</P
+><P
+>To select on an IP address, use this:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth0 parent 10:0 protocol ip prio 1 u32 \ 
+  match ip dst 4.3.2.1/32 flowid 10:1
+# tc filter add dev eth0 parent 10:0 protocol ip prio 1 u32 \
+  match ip src 1.2.3.4/32 flowid 10:1
+# tc filter add dev eth0 protocol ip parent 10: prio 2      \
+  flowid 10:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This assigns traffic to 4.3.2.1 and traffic from 1.2.3.4 to the highest
+priority queue, and the rest to the next-highest one.</P
+><P
+>You can concatenate matches, to match on traffic from 1.2.3.4 and from port
+80, do this:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth0 parent 10:0 protocol ip prio 1 u32 match ip src 4.3.2.1/32
+  match ip sport 80 0xffff flowid 10:1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="LARTC.FILTERING.SIMPLE"
+></A
+>9.6.2. All the filtering commands you will normally need</H2
+><P
+>Most shaping commands presented here start with this preamble:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth0 parent 1:0 protocol ip prio 1 u32 ..</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+These are the so called 'u32' matches, which can match on ANY part of a
+packet.
+<P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>On source/destination address</DT
+><DD
+><P
+>Source mask 'match ip src 1.2.3.0/24', destination mask 'match ip dst
+4.3.2.0/24'. To match a single host, use /32, or omit the mask.</P
+></DD
+><DT
+>On source/destination port, all IP protocols</DT
+><DD
+><P
+>Source: 'match ip sport 80 0xffff', 'match ip dport 0xffff'</P
+></DD
+><DT
+>On ip protocol (tcp, udp, icmp, gre, ipsec)</DT
+><DD
+><P
+>Use the numbers from /etc/protocols, for example, icmp is 1: 'match ip
+protocol 1 0xff'. </P
+></DD
+><DT
+>On fwmark</DT
+><DD
+><P
+>You can mark packets with either ipchains and have that mark survive routing
+across interfaces. This is really useful to for example only shape traffic on
+eth1 that came in on eth0. Syntax: 
+# tc filter add dev eth1 protocol ip parent 1:0 prio 1 handle 6 fw flowid 1:1
+Note that this is not a u32 match!</P
+><P
+>You can place a mark like this:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># iptables -A PREROUTING -t mangle -i eth0 -j MARK --set-mark 6</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+The number 6 is arbitrary.</P
+><P
+>If you don't want to understand the full tc filter syntax, just use
+iptables, and only learn to select on fwmark.</P
+></DD
+><DT
+>On the TOS field</DT
+><DD
+><P
+>To select interactive, minimum delay traffic:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev ppp0 parent 1:0 protocol ip prio 10 u32 \
+      match ip tos 0x10 0xff \
+     flowid 1:4</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Use 0x08 0xff for bulk traffic.</P
+></DD
+></DL
+></DIV
+></P
+><P
+>For more filtering commands, see the Advanced Filters chapter.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.classful.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.imq.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Classful Queueing Disciplines</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>The Intermediate queueing device (IMQ)</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

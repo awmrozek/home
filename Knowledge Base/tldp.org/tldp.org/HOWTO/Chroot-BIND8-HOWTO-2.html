@@ -1,0 +1,243 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Chroot-BIND8 HOWTO: Preparing the Jail</TITLE>
+ <LINK HREF="Chroot-BIND8-HOWTO-3.html" REL=next>
+ <LINK HREF="Chroot-BIND8-HOWTO-1.html" REL=previous>
+ <LINK HREF="Chroot-BIND8-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Chroot-BIND8-HOWTO-3.html">Next</A>
+<A HREF="Chroot-BIND8-HOWTO-1.html">Previous</A>
+<A HREF="Chroot-BIND8-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Preparing the Jail</A></H2>
+
+<H2><A NAME="ss2.1">2.1 Creating a User</A>
+</H2>
+
+<P>As mentioned in the introduction, it's not a good idea to run BIND as root.  So,
+before we begin, let's create a separate user for BIND.  Note that you should
+never use an existing generic user like <CODE>nobody</CODE> for this purpose.
+However, some distributions, such as SuSE and Linux Mandrake have started
+providing a specific user (generally called <CODE>named</CODE>); you can simply adapt
+this user for our purposes, if you like.
+<P>This requires adding a line something like the following to <CODE>/etc/passwd</CODE>:
+<BLOCKQUOTE><CODE>
+<PRE>
+named:x:200:200:Nameserver:/chroot/named:/bin/false
+</PRE>
+</CODE></BLOCKQUOTE>
+
+And one like this to <CODE>/etc/group</CODE>:
+<BLOCKQUOTE><CODE>
+<PRE>
+named:x:200:
+</PRE>
+</CODE></BLOCKQUOTE>
+
+This creates a user and group called <CODE>named</CODE> for BIND.  Make sure that the
+UID and GID (both 200 in this example) are unique on your system.  The shell is
+set to <CODE>/bin/false</CODE> because this user will never need to log in.
+<P>
+<H2><A NAME="ss2.2">2.2 Directory Structure</A>
+</H2>
+
+<P>Now, we must set up the directory structure that we will use for the chroot jail
+in which BIND will live.  This can be anywhere on your filesystem; the truly
+paranoid may even want to put it on a separate volume.  I shall assume that you
+will use <CODE>/chroot/named</CODE>.  Let's start by creating the following directory
+structure:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/chroot
+  +-- named
+       +-- bin
+       +-- dev
+       +-- etc
+       |    +-- namedb
+       +-- lib
+       +-- var
+            +-- run
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss2.3">2.3 Placing the BIND Data</A>
+</H2>
+
+<P>Assuming that you have already done a conventional installation of BIND and are
+using it, you will already have an existing <CODE>named.conf</CODE> and zone files.
+These files must now be moved (or copied, to be safe) into the chroot jail, so
+that BIND can get at them.  <CODE>named.conf</CODE> goes in <CODE>/chroot/named/etc</CODE>,
+and the zone files can go in <CODE>/chroot/named/etc/namedb</CODE>.  For example:
+<BLOCKQUOTE><CODE>
+<PRE>
+# cp -p /etc/named.conf /chroot/named/etc/
+
+# cp -a /var/named/* /chroot/named/etc/namedb/
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>BIND will likely need to write to the <CODE>namedb</CODE> directory, and probably some
+of the files in it.  For example, if your DNS serves as a slave for a zone, it
+will have to update that zone file.  Also, BIND can dump statistical
+information, and does so in this directory.  For that reason, you should
+probably make the <CODE>named</CODE> user the owner of this directory and its contents:
+<BLOCKQUOTE><CODE>
+<PRE>
+# chown -R named:named /chroot/named/etc/namedb
+</PRE>
+</CODE></BLOCKQUOTE>
+
+BIND will also need to write to the <CODE>/var/run</CODE> directory, to put its
+pidfile and ndc socket there, so let's allow it to do so:
+<BLOCKQUOTE><CODE>
+<PRE>
+# chown named:named /chroot/named/var/run
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss2.4">2.4 System Support Files</A>
+</H2>
+
+<P>Once BIND is running in the chroot jail, it will not be able to access files
+outside the jail <B>at all</B>.  However, it needs to access a few key files, such
+as the system's C library.  Exactly what libraries are required will depend on
+your flavour of UNIX.  For most modern Linux systems, the following commands
+will be sufficient to put the necessary libraries in place:
+<BLOCKQUOTE><CODE>
+<PRE>
+# cd /chroot/named/lib
+# cp -p /lib/libc-2.*.so .
+# ln -s libc-2.*.so libc.so.6
+# cp -p /lib/ld-2.*.so .
+# ln -s ld-2.*.so ld-linux.so.2
+</PRE>
+</CODE></BLOCKQUOTE>
+
+As an alternative, you could simply build statically-linked versions of the BIND
+binaries to put in your chroot jail.  You should also copy <CODE>ldconfig</CODE> into
+the jail, and run it to create an <CODE>etc/ld.so.cache</CODE> for the jail environment.
+The following commands could take care of this:
+<BLOCKQUOTE><CODE>
+<PRE>
+# cp /sbin/ldconfig /chroot/named/bin/
+# chroot /chroot/named /bin/ldconfig -v
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>BIND needs one more system file in its jail:  good ol' <CODE>/dev/null</CODE>.  Again,
+the exact command necessary to create this device node may vary from system to
+system; check your <CODE>/dev/MAKEDEV</CODE> script to be sure.  Some systems may also
+require <CODE>/dev/zero</CODE>.  For most Linux systems, we can use the following
+command:
+<BLOCKQUOTE><CODE>
+<PRE>
+# mknod /chroot/named/dev/null c 1 3
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Finally, you need a couple extra files in the <CODE>/etc</CODE> directory inside the
+jail.  In particular, you must copy <CODE>/etc/localtime</CODE> (this sometimes known
+as <CODE>/usr/lib/zoneinfo/localtime</CODE> on some systems) in there so that BIND
+logs things with the right time on them, and you must make a simple <CODE>group</CODE>
+file with the <CODE>named</CODE> group in it.  The following two commands will take
+care of this:
+<BLOCKQUOTE><CODE>
+<PRE>
+# cp /etc/localtime /chroot/named/etc/
+
+# echo 'named:x:200:' > /chroot/named/etc/group
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Keep in mind that the GID, 200 in this example, must match the one you defined
+in the real <CODE>/etc/group</CODE> above.
+<P>
+<H2><A NAME="logging"></A> <A NAME="ss2.5">2.5 Logging</A>
+</H2>
+
+<P>Unlike a conventional jailbird, BIND can't just scribble its log entries on the
+walls :-).  Normally, BIND logs through <CODE>syslogd</CODE>, the system logging daemon.
+However, this type of logging is performed by sending the log entries to the
+special socket <CODE>/dev/log</CODE>.  Since this is outside the jail, BIND can't use
+it any more.  Fortuantely, there are a couple options to work around this.
+<P>
+<H3>The Ideal Solution</H3>
+
+<P>The ideal solution to this dilemma requires a reasonably recent version of
+<CODE>syslogd</CODE> which supports the <CODE>-a</CODE> switch introduced by OpenBSD.
+Check the manpage for your <CODE>syslogd(8)</CODE> to see if you have such a
+version.
+<P>If you do, all you have to do is add the switch ``<CODE>-a
+/chroot/named/dev/log</CODE>'' to the command line when you launch <CODE>syslogd</CODE>.
+On systems which use a full SysV-init (which includes most Linux distributions),
+this is typically done in the file <CODE>/etc/rc.d/init.d/syslog</CODE>.  For example,
+on my Red Hat Linux system, I changed the line
+<BLOCKQUOTE><CODE>
+<PRE>
+daemon syslogd -m 0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to
+<BLOCKQUOTE><CODE>
+<PRE>
+daemon syslogd -m 0 -a /chroot/named/dev/log
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>On Caldera OpenLinux systems, they use a daemon launcher called <CODE>ssd</CODE>,
+which reads configuration from <CODE>/etc/sysconfig/daemons/syslog</CODE>.  You
+simply need to modify the options line to look like this:
+<BLOCKQUOTE><CODE>
+<PRE>
+OPTIONS_SYSLOGD="-m 0 -a /chroot/named/dev/log"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Similarly, on SuSE systems, I'm told that the best place to add this switch
+is in the <CODE>/etc/rc.config</CODE> file.  Changing the line
+<BLOCKQUOTE><CODE>
+<PRE>
+SYSLOGD_PARAMS=""
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to read
+<BLOCKQUOTE><CODE>
+<PRE>
+SYSLOGD_PARAMS="-a /chroot/named/dev/log"
+</PRE>
+</CODE></BLOCKQUOTE>
+
+should do the trick.
+<P>Once you've figured out how to make this change for your system, simply
+restart <CODE>syslogd</CODE>, either by killing it and launching it again (with
+the extra parameters), or by using the SysV-init script to do it for you:
+<BLOCKQUOTE><CODE>
+<PRE>
+# /etc/rc.d/init.d/syslog stop
+# /etc/rc.d/init.d/syslog start
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Once it's been restarted, you should see a ``file'' in <CODE>/chroot/named/dev</CODE>
+called <CODE>log</CODE>, that looks something like this:
+<P>
+<PRE>
+srw-rw-rw-   1 root     root            0 Mar 13 20:58 log
+</PRE>
+<P>
+<H3>The Other Solutions</H3>
+
+<P>If you have an older <CODE>syslogd</CODE>, then you'll have to find another way to do
+your logging.  There are a couple programs out there, such as <CODE>holelogd</CODE>,
+which are designed to help by acting as a ``proxy'' and accepting log entries
+from the chrooted BIND and passing them out to the regular <CODE>/dev/log</CODE>
+socket.
+<P>Alteratively, you can simply configure BIND to log to files instead of going
+through syslog.  See the BIND documentation for more details if you choose to go
+this route.
+<P>
+<HR>
+<A HREF="Chroot-BIND8-HOWTO-3.html">Next</A>
+<A HREF="Chroot-BIND8-HOWTO-1.html">Previous</A>
+<A HREF="Chroot-BIND8-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

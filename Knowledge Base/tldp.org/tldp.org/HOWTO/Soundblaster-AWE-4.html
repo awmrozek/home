@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Sound Blaster AWE 32/64 HOWTO: Testing the Sound Driver</TITLE>
+ <LINK HREF="Soundblaster-AWE-5.html" REL=next>
+ <LINK HREF="Soundblaster-AWE-3.html" REL=previous>
+ <LINK HREF="Soundblaster-AWE.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Soundblaster-AWE-5.html">Next</A>
+<A HREF="Soundblaster-AWE-3.html">Previous</A>
+<A HREF="Soundblaster-AWE.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Testing the Sound Driver</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss4.1">4.1 <CODE>/proc/devices, /dev/sndstat</CODE></A>
+</H2>
+
+<P>
+<P>If you have built-in sound support, you will get some useful information at
+boot time. If you have sound support installed as a loadable module, you can
+get the same information (perhaps after removing the sound module with
+<CODE>modprobe -r sound</CODE> first) with
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# modprobe -a sound trace_init=1
+Sound initialization started
+
+&lt;Sound Blaster 16 (4.13)> at 0x220 irq 5 dma 1,5
+&lt;Sound Blaster 16> at 0x330 irq 5 dma 0
+&lt;Yamaha OPL3 FM> at 0x388
+Sound initialization complete
+AWE32 Sound Driver v0.3.3e (DRAM 2048k)
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you have a <CODE>/proc</CODE> virtual file system, you can look for the sound device
+with
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# cat /proc/devices
+Character devices:
+[...]
+14 sound
+[...]
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Next make sure you have the correct devices installed under <CODE>/dev/</CODE>. Please
+look at the Sound HOWTO for details. Then ask <CODE>/dev/sndstat</CODE> about the status of
+the sound module:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# cat /dev/sndstat
+Sound Driver:3.5.4-960630 (Sat Oct 11 19:35:14 CEST 1997 root,
+Linux flora 2.0.29 #1 Sat Oct 11 19:12:56 CEST 1997 i586 unknown)
+Kernel: Linux flora 2.0.29 #1 Sat Oct 11 19:36:23 CEST 1997 i586
+Config options: 0
+
+Installed drivers:
+Type 1: OPL-2/OPL-3 FM
+Type 2: Sound Blaster
+Type 7: SB MPU-401
+
+Card config:
+Sound Blaster at 0x220 irq 5 drq 1,5
+SB MPU-401 at 0x330 irq 5 drq 0
+OPL-2/OPL-3 FM at 0x388 drq 0
+
+Audio devices:
+0: Sound Blaster 16 (4.13)
+
+Synth devices:
+0: Yamaha OPL-3
+1: AWE32 Driver v0.3.3e (DRAM 2048k)
+
+Midi devices:
+0: Sound Blaster 16
+
+Timers:
+0: System clock
+
+Mixers:
+0: Sound Blaster
+1: AWE32 Equalizer
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you don't have an output like this, perhaps there is an error in your
+configuration. Go on and see what doesn't work, then go back to step 
+<A HREF="Soundblaster-AWE-3.html#isapnp">Getting Started</A>, checking everything.
+<P>
+<P>
+<H2><A NAME="ss4.2">4.2 Output - The Raw Audio Device</A>
+</H2>
+
+<P>
+<P>Try to get an <CODE>.au</CODE> file (Sun workstation) or a raw sample file, and do 
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# cat bell.au > /dev/audio
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>resp.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# cat sample > /dev/dsp
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You should hear the content of the file via the <CODE>Audio Device 0: Sound
+Blaster 16 (4.3)</CODE>.
+<P>
+<P>
+<H2><A NAME="ss4.3">4.3 Output - The OPL-2/OPL-3 Synthesis</A>
+</H2>
+
+<P>
+<P>If you want to use the OPL-2/OPL-3 FM synthesis to play MIDI-Files with your
+sound card, try the program <CODE>playmidi</CODE> (see Appendix B). Start it with
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# playmidi -f dance.mid
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>or
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# playmidi -4 dance.mid
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The former will give you OPL-2, the latter OPL-3 MIDI music. If you are
+embarrassed about the sound, don't blame playmidi: It is the FM synthesis
+that sounds bad.
+<P>Imagine you would only have the OSS/Free Sound Driver: Than this is the
+quality of MIDI Music you can achieve (apart from software synthesis).
+Fortunately, you have a SB AWE, and you can use the Wave Table capabilities
+with the AWE Sound Driver Extension.
+<P>
+<P>
+<H2><A NAME="ss4.4">4.4 Output - The Wave Table Synthesis</A>
+</H2>
+
+<P>
+<P>The AWE Driver Extension comes with special tools (<CODE>awesfx</CODE>) to make use of the
+EMU 8000 Wave Table synthesis. First, you have to load a Sound Font Bank on
+your card - even if you want to use the ROM samples! You can get the files
+from your Windows installation - look for files ending in <CODE>*.sfb</CODE> or
+<CODE>*.sf2</CODE>.
+<P>The ROM samples can be loaded with <CODE>SYNTHGM.SBK</CODE>, real samples are in
+<CODE>SYNTHGS.SBK</CODE> and <CODE>SYNTHMT.SBK</CODE>, as well as in
+<CODE>SAMPLE.SBK</CODE>. You can get other
+Sound Font Banks via ftp or www, try the EMU Homepage, the web site from
+Creative Labs, and look out for the Chaos samples, they are really good (be
+sure to check out the AWE Driver Web Site).
+<P>Try to load the standard GM (ROM) set with
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# sfxload -i synthgm.sbk
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>and then play a midi file that comes with your SB AWE:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# drvmidi dance.mid
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H2><A NAME="mixing"></A> <A NAME="ss4.5">4.5 Mixing</A>
+</H2>
+
+<P>
+<P>Get your favorite mixer program and start it. Start a raw audio
+sample and two MIDI files at the same time, and try out the mixer settings.
+Play a bit, it should be very easy. Here a list of the devices and how they
+are called:
+<P>
+<DL>
+<DT><B>Yamaha OPL-3</B><DD><P>Synth or FM
+<DT><B>AWE32 Driver</B><DD><P>Synth or FM (does anyone know a mixer were the last
+two are separated from each other?)
+<DT><B>Sound Blaster 16 (4.13)</B><DD><P>PCM or DSP
+<DT><B>PC Speaker (still alive)</B><DD><P>Spkr
+</DL>
+<P>Other mixer settings refer to the CD ROM, possibly connected to the
+sound card, to Master Volume, Bass, Treble and Recording Level of the
+different input lines. You can specify which lines should be recorded.
+<P>
+<H2><A NAME="ss4.6">4.6 Input - Sampling with the Raw Audio Device</A>
+</H2>
+
+<P>
+<P>You can record different sources: a connected CD ROM, a microphone connected
+to <CODE>mic</CODE>, and any that you can connect to <CODE>line in</CODE>. Set the
+mixer in the appropriate position. Play a sound and record into a file,
+reading from the Raw Audio Device, for example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# cdplay
+# dd bs=8k count=5 &lt;/dev/dsp >music.au
+5+0 records in
+5+0 records out
+# cat music.au >/dev/dsp
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>records and plays five seconds of audio from the input device.
+<P>
+<H2><A NAME="ss4.7">4.7 The MIDI Port</A>
+</H2>
+
+<P>
+<P>Sorry, no information about MIDI port yet!
+<P>
+<HR>
+<A HREF="Soundblaster-AWE-5.html">Next</A>
+<A HREF="Soundblaster-AWE-3.html">Previous</A>
+<A HREF="Soundblaster-AWE.html#toc4">Contents</A>
+</BODY>
+</HTML>

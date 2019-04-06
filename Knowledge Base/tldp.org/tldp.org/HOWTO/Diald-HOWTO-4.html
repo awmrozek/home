@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Diald Howto: Note about authentication</TITLE>
+ <LINK HREF="Diald-HOWTO-5.html" REL=next>
+ <LINK HREF="Diald-HOWTO-3.html" REL=previous>
+ <LINK HREF="Diald-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Diald-HOWTO-5.html">Next</A>
+<A HREF="Diald-HOWTO-3.html">Previous</A>
+<A HREF="Diald-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Note about authentication</A></H2>
+
+<P>
+<P>When you connect to an Internet Services Provider, it is usually
+necesary that you send an username and a password. This can be
+accomplished using several methods; the exact method that you use is
+determined by your provider.
+<P>Added to the three shown options, you can use a link without
+authentication, (generally when the remote end is also yours).
+<P>
+<H2><A NAME="ss4.1">4.1 Username and password - Login and password prompts.</A>
+</H2>
+
+<P>
+<P>Actually, this is not an usual authentication method to access the
+Internet through an ISP.
+<P>Identification is made before <CODE>pppd</CODE> is started, and it is the dialer,
+usually <CODE>chat</CODE>, who sends the login name and the password. This
+data is sent in plaintext, so this method should not be considered secure.
+<P>An example script for <CODE>chat</CODE> where you can see how to specify username
+and password to be sent before running <CODE>pppd</CODE> would look something like
+this:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ABORT BUSY
+ABORT "NO CARRIER"
+ABORT VOICE
+ABORT "NO DIALTONE" 
+ABORT "NO ANSWER"
+"" ATZ
+OK ATDT_TelephoneNumber_
+CONNECT \d\c
+ogin _Username_
+assword _Password_
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The last 2 lines define username and password, and when to send it (after
+receiving «ogin» and «assword» respectively.  The chat script only needs
+to see parts of the words «login» and «password» and so we don't check the
+first letter of each.  This is so that we don't need to worry about
+uppercase/lowercase characters.
+<P>Suppose that this script is called <CODE>provider</CODE>, and it is saved into
+the <CODE>/etc/chatscripts</CODE> directory. Then, you can run it with:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/usr/sbin/chat -v -f /etc/chatscripts/provider
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss4.2">4.2 PAP - Password Authentication Protocol</A>
+</H2>
+
+<P>
+<P>If the provider you are using requires PAP as the authentication protocol,
+during the LCP negotiation in PPP this protocol will be asked to use this
+protocol. When the phone call is connected after using <CODE>chat</CODE>,
+<CODE>pppd</CODE> is started. In this scenario, pppd will send the username and
+the password, which it will look for in the <CODE>/etc/ppp/pap-secrets</CODE>
+file. This file must have read and write permissions only for <CODE>root</CODE>
+only, so that nobody else can read the passwords inside it.
+<P>PAP is not very secure, as the password is sent in plaintext, so can be
+read by somebody that monitors your transmission line.
+<P>Simple example of <CODE>/etc/ppp/pap-secrets</CODE>:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+_Username_ * _Password_
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss4.3">4.3 CHAP - Challenge Authentication Protocol</A>
+</H2>
+
+<P>
+<P>If the provider you are using requires CHAP as the authentication protocol,
+during the LCP negotiation in PPP this protocol will be asked to use this
+protocol. When the phone call is connected after using <CODE>chat</CODE>,
+<CODE>pppd</CODE> is started. In this scenario, pppd will send the username and
+the password, which it will look for in the <CODE>/etc/ppp/chap-secrets</CODE>
+file. This file must have read and write permissions only for <CODE>root</CODE>
+only, so that nobody else can read the passwords inside it.
+<P>CHAP is more secure than PAP, as the password is never sent through the
+transmission line in plaintext. The authentication server sends a random
+identifier (the challenge), that the client must encrypt with its
+password, and then send back to the server.
+<P>Simple example of <CODE>/etc/ppp/chap-secrets</CODE>:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+_Username_ * _Password_
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Sometimes an ISP uses PAP and other times CHAP, so it is common to define
+your username and password in both files.
+<P>
+<HR>
+<A HREF="Diald-HOWTO-5.html">Next</A>
+<A HREF="Diald-HOWTO-3.html">Previous</A>
+<A HREF="Diald-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

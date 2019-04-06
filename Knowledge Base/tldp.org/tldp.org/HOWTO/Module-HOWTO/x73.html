@@ -1,0 +1,404 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Introduction to Linux Loadable Kernel Modules</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Loadable Kernel Module HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Preface"
+HREF="x64.html"><LINK
+REL="NEXT"
+TITLE="Making Loadable Kernel Modules"
+HREF="x126.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Loadable Kernel Module HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x64.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x126.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN73"
+></A
+>2. Introduction to Linux Loadable Kernel Modules</H1
+><P
+>If you want to add code to a Linux kernel, the most basic way to do
+that is to add some source files to the kernel source tree and
+recompile the kernel.  In fact, the kernel configuration process
+consists mainly of choosing which files to include in the kernel to be
+compiled.</P
+><P
+>But you can also add code to the Linux kernel while it is running.  A
+chunk of code that you add in this way is called a loadable kernel
+module.  These modules can do lots of things, but they typically are
+one of three things: 1) device drivers; 2) filesystem drivers; 3)
+system calls.  The kernel isolates certain functions, including these,
+especially well so they don't have to be intricately wired into the
+rest of the kernel.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN77"
+></A
+>2.1. Terminology</H2
+><P
+>Loadable kernel modules are often called just kernel modules or just
+modules, but those are rather misleading terms because there are lots
+of kinds of modules in the world and various pieces built into the
+base kernel can easily be called modules.  We use the term loadable
+kernel module or LKM for the particular kinds of modules this HOWTO is
+about.</P
+><P
+>Some people think of LKMs as outside of the kernel.  They speak of
+LKMs communicating with the kernel.  This is a mistake; LKMs (when
+loaded) are very much part of the kernel.  The correct term for the
+part of the kernel that is bound into the image that you boot, i.e.
+all of the kernel <EM
+>except</EM
+> the LKMs, is "base
+kernel."  LKMs communicate with the base kernel.</P
+><P
+>In some other operating systems, the equivalent of a Linux LKM is
+called a "kernel extension."</P
+><P
+>Now what is "Linux"?  Well, first of all, the name is used for
+two entirely different things, and only one of them is really relevant
+here:
+<P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>The kernel and related items distributed as a package by Linus Torvalds.</P
+></LI
+><LI
+><P
+>A class of operating systems that traditionally are based on the Linux
+kernel.</P
+></LI
+></OL
+></P
+><P
+>Only the first of these is really useful in discussing LKMs.  But even
+choosing this definition, people are often confused when it comes to
+LKMs.  Is an LKM part of Linux or not?  Though an LKM is always part
+of the kernel, it is part of Linux if it is distributed in the Linux
+kernel package, and not otherwise.  Thus, if you have loaded into your
+kernel a device driver LKM that came with your device, you can't,
+strictly speaking, say that your kernel is Linux.  Rather, it's a
+slight extension of Linux.
+
+As you might expect, it is commonplace to use the name "Linux"
+approximately -- Lots of variations on Linux are in use and are widely
+distributed, and referred to as "Linux."  In this document, 
+though, we will stick to the strictest definition in the interest of 
+clarity.&#13;</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN90"
+></A
+>2.2. History of Loadable Kernel Modules</H2
+><P
+>LKMs did not exist in Linux in the beginning.  Anything we use an LKM
+for today was built into the base kernel at kernel build time instead.
+LKMs have been around at least since Linux 1.2 (1995).</P
+><P
+>Device drivers and such were always quite modular, though.  When LKMs
+were invented, only a small amount of work was needed on these modules
+to make them buildable as LKMs.  However, it had to be done on each
+and every one, so it took some time.  Since about 2000, virtually
+everything that makes sense as an LKM has at least had the option of
+being an LKM.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="THECASE"
+></A
+>2.3. The Case For Loadable Kernel Modules</H2
+><P
+>You often have a choice between putting a module into the kernel by
+loading it as an LKM or binding it into the base kernel.  LKMs have a 
+lot of advantages over binding into the base kernel and I recommend
+them wherever possible.</P
+><P
+>One advantage is that you don't have to rebuild your kernel as often.
+This saves you time and spares you the possibility of introducing an
+error in rebuilding and reinstalling the base kernel.  Once you have a
+working base kernel, it is good to leave it untouched as long as
+possible.</P
+><P
+>Another advantage is that LKMs help you diagnose system problems.  A
+bug in a device driver which is bound into the kernel can stop your
+system from booting at all.  And it can be really hard to tell which
+part of the base kernel caused the trouble.  If the same device driver
+is an LKM, though, the base kernel is up and running before the device
+driver even gets loaded.  If your system dies after the base kernel is
+up and running, it's an easy matter to track the problem down to the
+trouble-making device driver and just not load that device driver
+until you fix the problem.</P
+><P
+>LKMs can save you memory, because you have to have them loaded
+only when you're actually using them.  All parts of the base kernel stay
+loaded all the time.  And in real storage, not just virtual storage.</P
+><P
+>LKMs are much faster to maintain and debug.  What would require a full
+reboot to do with a filesystem driver built into the kernel, you can
+do with a few quick commands with LKMs.  You can try out different
+parameters or even change the code repeatedly in rapid succession,
+without waiting for a boot.</P
+><P
+>LKMs are not slower, by the way, than base kernel modules.  Calling
+either one is simply a branch to the memory location where it resides.
+<A
+NAME="AEN102"
+HREF="#FTN.AEN102"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></P
+><P
+>Sometimes you <EM
+>have</EM
+> to build something into the
+base kernel instead of making it an LKM.  Anything that is necessary
+to get the system up far enough to load LKMs must obviously be built
+into the base kernel.  For example, the driver for the disk drive that
+contains the root filesystem must be built into the base kernel.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN107"
+></A
+>2.4. What LKMs Can't Do</H2
+><P
+>There is a tendency to think of LKMs like user space programs.  They
+do share a lot of their properties, but LKMs are definitely not user
+space programs.  They are part of the kernel.  As such, they have free
+run of the system and can easily crash it.  </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN110"
+></A
+>2.5. What LKMs Are Used For</H2
+><P
+>There are six main things LKMs are used for:
+
+<P
+></P
+><UL
+><LI
+><P
+>Device drivers.  A device driver is designed for a specific piece of
+hardware.  The kernel uses it to communicate with that piece of
+hardware without having to know any details of how the hardware works.
+For example, there is a device driver for ATA disk drives.  There is
+one for NE2000 compatible Ethernet cards.  To use any device, the
+kernel must contain a device driver for it.</P
+></LI
+><LI
+><P
+>Filesystem drivers.  A filesystem driver interprets the contents of a
+filesystem (which is typically the contents of a disk drive) as files
+and directories and such.  There are lots of different ways of storing
+files and directories and such on disk drives, on network servers, and
+in other ways.  For each way, you need a filesystem driver.  For
+example, there's a filesystem driver for the ext2 filesystem type used
+almost universally on Linux disk drives.  There is one for the MS-DOS
+filesystem too, and one for NFS.</P
+></LI
+><LI
+><P
+>System calls.  User space programs use system calls to get services
+from the kernel.  For example, there are system calls to read a file,
+to create a new process, and to shut down the system.  Most system
+calls are integral to the system and very standard, so are always
+built into the base kernel (no LKM option).  But you can invent a
+system call of your own and install it as an LKM.  Or you can decide
+you don't like the way Linux does something and override an existing
+system call with an LKM of your own.</P
+></LI
+><LI
+><P
+>Network drivers.  A network driver interprets a network protocol.  It
+feeds and consumes data streams at various layers of the kernel's
+networking function.  For example, if you want an IPX link in your
+network, you would use the IPX driver.</P
+></LI
+><LI
+><P
+>TTY line disciplines.  These are essentially augmentations of device
+drivers for terminal devices.</P
+></LI
+><LI
+><P
+>Executable interpreters.  An executable interpreter loads and runs an
+executable.  Linux is designed to be able to run executables in
+various formats, and each must have its own executable interpreter.</P
+></LI
+></UL
+></P
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN102"
+HREF="x73.html#AEN102"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>For the pedantic, see <A
+HREF="x627.html#MEMALLOC"
+>Section 10.7</A
+>.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x64.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x126.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Preface</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Making Loadable Kernel Modules</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

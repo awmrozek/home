@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Chroot-BIND8 HOWTO: Installing Your Shiny New BIND</TITLE>
+ <LINK HREF="Chroot-BIND8-HOWTO-5.html" REL=next>
+ <LINK HREF="Chroot-BIND8-HOWTO-3.html" REL=previous>
+ <LINK HREF="Chroot-BIND8-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Chroot-BIND8-HOWTO-5.html">Next</A>
+<A HREF="Chroot-BIND8-HOWTO-3.html">Previous</A>
+<A HREF="Chroot-BIND8-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="installing"></A> <A NAME="s4">4. Installing Your Shiny New BIND</A></H2>
+
+<P>I should mention that if you have an existing installation of BIND, such as from
+an RPM, you should probably remove it before installing the new one.  On Red Hat
+systems, this probably means removing the packages <CODE>bind</CODE> and
+<CODE>bind-utils</CODE>, and possibly <CODE>bind-devel</CODE> and <CODE>caching-nameserver</CODE>, if
+you have them.
+<P>You may want to save a copy of the init script (e.g.,
+<CODE>/etc/rc.d/init.d/named</CODE>), if any, before doing so; it'll be useful later
+on.
+<P>
+<H2><A NAME="ss4.1">4.1 Installing the Tools Outside the Jail</A>
+</H2>
+
+<P>This is the easy part :-).  Just run <CODE>make install</CODE> and let it take care of
+it for you.  You may want to <CODE>chmod 000 /usr/local/sbin/named</CODE> afterwards,
+to make sure you don't accidentally run the non-chrooted copy of BIND.  (This
+is <CODE>/usr/sbin/named</CODE> if you didn't tell it to go in <CODE>/usr/local/sbin</CODE>
+like I suggested.)
+<P>
+<H2><A NAME="ss4.2">4.2 Installing the Binaries in the Jail</A>
+</H2>
+
+<P>Only two parts of the package have to live inside the chroot jail:  the main
+<CODE>named</CODE> daemon itself, and <CODE>named-xfer</CODE>, which it uses for zone transfers.
+You can simply copy them in from the source tree:
+<BLOCKQUOTE><CODE>
+<PRE>
+# cp src/bin/named/named /chroot/named/bin
+
+# cp src/bin/named-xfer/named-xfer /chroot/named/bin
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss4.3">4.3 Setting up the Init Script</A>
+</H2>
+
+<P>If you have an existing init script from your distribution, it would probably be
+best simply to modify it to run <CODE>/chroot/named/bin/named</CODE>, with the
+appropriate switches.  The switches are... <I>(drumroll please...)</I>
+<UL>
+<LI><CODE>-u named</CODE>, which tells BIND to run as the user <CODE>named</CODE>, rather than
+<CODE>root</CODE>.</LI>
+<LI><CODE>-g named</CODE>, to run BIND under the group <CODE>named</CODE> too, rather than
+<CODE>root</CODE> or <CODE>wheel</CODE>.</LI>
+<LI><CODE>-t /chroot/named</CODE>, which tells BIND to chroot itself to the jail
+that we've set up.</LI>
+</UL>
+<P>The following is the init script I use with my Red Hat 6.0 system.  As you can
+see, it is almost exactly the same as the way it shipped from Red Hat.  I have
+also modified the <CODE>ndc restart</CODE> command so that it restarts the server
+properly, and keeps it chrooted.  You should probably do the same in your init
+script, even if you don't copy this one.
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+#!/bin/sh
+#
+# named           This shell script takes care of starting and stopping
+#                 named (BIND DNS server).
+#
+# chkconfig: 345 55 45
+# description: named (BIND) is a Domain Name Server (DNS) \
+# that is used to resolve host names to IP addresses.
+# probe: true
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Check that networking is up.
+[ ${NETWORKING} = "no" ] &amp;&amp; exit 0
+
+[ -f /chroot/named/bin/named ] || exit 0
+
+[ -f /chroot/named/etc/named.conf ] || exit 0
+
+# See how we were called.
+case "$1" in
+  start)
+        # Start daemons.
+        echo -n "Starting named: "
+        daemon /chroot/named/bin/named -u named -g named -t /chroot/named
+        echo
+        touch /var/lock/subsys/named
+        ;;
+  stop)
+        # Stop daemons.
+        echo -n "Shutting down named: "
+        killproc named
+        rm -f /var/lock/subsys/named
+        echo
+        ;;
+  status)
+        /usr/local/sbin/ndc status
+        exit $?
+        ;;
+  restart)
+        /usr/local/sbin/ndc -n /chroot/named/bin/named "restart -u named -g named -t /chroot/named"
+        exit $?
+        ;;
+  reload)
+        /usr/local/sbin/ndc reload
+        exit $?
+        ;; 
+  probe)
+        # named knows how to reload intelligently; we don't want linuxconf
+        # to offer to restart every time
+        /usr/local/sbin/ndc reload >/dev/null 2>&amp;1 || echo start
+        exit 0
+        ;;
+  
+  *)
+        echo "Usage: named {start|stop|status|restart}"
+        exit 1
+esac
+
+exit 0
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>On Caldera OpenLinux systems, you simply need to modify the variables defined
+at the top, and it will apparently take care of the rest for you:
+<BLOCKQUOTE><CODE>
+<PRE>
+NAME=named
+DAEMON=/chroot/named/bin/$NAME
+OPTIONS="-t /chroot/named -u named -g named"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss4.4">4.4 Configuration Changes</A>
+</H2>
+
+<P>You will also have to add or change a few options in your <CODE>named.conf</CODE> to
+keep the various directories straight.  In particular, you should add (or
+change, if you already have them) the following directives in the <CODE>options</CODE>
+section:
+<BLOCKQUOTE><CODE>
+<PRE>
+directory "/etc/namedb";
+pid-file "/var/run/named.pid";
+named-xfer "/bin/named-xfer";
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Since this file is being read by the <CODE>named</CODE> daemon, all the paths are of
+course relative to the chroot jail.
+<P>Some people have also reported having to add an extra block to their
+<CODE>named.conf</CODE> to get <CODE>ndc</CODE> working properly:
+<BLOCKQUOTE><CODE>
+<PRE>
+controls {
+    unix "/var/run/ndc" perm 0600 owner 0 group 0;
+};
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="Chroot-BIND8-HOWTO-5.html">Next</A>
+<A HREF="Chroot-BIND8-HOWTO-3.html">Previous</A>
+<A HREF="Chroot-BIND8-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

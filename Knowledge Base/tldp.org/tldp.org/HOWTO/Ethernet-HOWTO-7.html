@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Ethernet-Howto: Technical Information</TITLE>
+ <LINK HREF="Ethernet-HOWTO-8.html" REL=next>
+ <LINK HREF="Ethernet-HOWTO-6.html" REL=previous>
+ <LINK HREF="Ethernet-HOWTO.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ethernet-HOWTO-8.html">Next</A>
+<A HREF="Ethernet-HOWTO-6.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="tech-intro"></A> <A NAME="s7">7. Technical Information</A></H2>
+
+<P>
+<P>For those who want to understand a bit more about how the card
+works, or play with the present drivers, this
+information should be useful. If you do not fall into this category,
+then perhaps you will want to skip this section.
+<P>
+<H2><A NAME="data-xfer"></A> <A NAME="ss7.1">7.1 Programmed I/O vs. Shared Memory vs. DMA</A>
+</H2>
+
+<P>
+<P>If you can already send and receive back-to-back packets, you just
+can't put more bits over the wire. Every modern ethercard can receive
+back-to-back packets. The Linux DP8390 drivers (wd80x3, SMC-Ultra,
+3c503, ne2000, etc) come pretty close to
+sending back-to-back packets (depending on the current interrupt
+latency) and the 3c509 and AT1500 hardware have no problem at all
+automatically sending back-to-back packets.
+<P>
+<P>
+<H3>Programmed I/O (e.g. NE2000, 3c509)</H3>
+
+<P>
+<P>Pro: Doesn't use any constrained system resources,
+just a few I/O registers, and has no 16M limit.
+<P>Con: Usually the slowest transfer rate, the CPU is waiting
+the whole time, and interleaved packet access is usually
+difficult to impossible.
+<P>
+<H3>Shared memory (e.g. WD80x3, SMC-Ultra, 3c503)</H3>
+
+<P>
+<P>Pro: Simple, faster than programmed I/O, and allows random
+access to packets. Where possible,
+the linux drivers compute the checksum of
+incoming IP packets as they are copied off the card, resulting in
+a further reduction of CPU usage vs. an equivalent PIO card.
+<P>Con: Uses up memory space (a big one for DOS users, essentially
+a non-issue under Linux), and it still ties up the CPU.
+<P>
+<H3>Bus Master Direct Memory Access (e.g. LANCE, DEC 21040) </H3>
+
+<P>
+<P>Pro: Frees up the CPU during the data transfer, can string
+together buffers, can require little or no CPU time lost on
+the ISA bus.  Most of the bus-mastering linux drivers now use
+a `copybreak' scheme where large packets are put directly into
+a kernel networking buffer by the card, and small packets are
+copied by the CPU which primes the cache for subsequent
+processing.
+<P>Con: (Only applicable to ISA bus cards)
+Requires low-memory buffers and a DMA channel for
+cards. Any bus-master will have problems with other bus-masters
+that are bus-hogs, such as some primitive SCSI adaptors. A few
+badly-designed motherboard chipsets have problems with
+ISA bus-masters. 
+<P>
+<H2><A NAME="ss7.2">7.2 Performance Implications of Bus Width</A>
+</H2>
+
+<P>
+<P>The ISA bus can do 5.3MB/sec (42Mb/sec), which sounds like more than
+enough for 10Mbps ethernet. In the case of the 100Mbps cards, you
+clearly need a faster bus to take advantage of the network bandwidth.
+a 33MHz 32 bit PCI bus can do 133MB/sec which isn't enough for GigE.
+<P>
+<H3>ISA Eight bit and ISA 16 bit Cards</H3>
+
+<P>
+<P>You probably will have a hard time buying a new ISA ethercard
+anymore, but you can probably still find some surplus or
+obsolete cards suitable for ``home-ethernet'' systems.
+If you want to really go retro, you can even use an old
+half slot 8 bit ISA card, but note most of them are 10Base-2.
+<P>Some 8 bit cards that will provide adequate performance for
+light to average use are the wd8003, the 3c503 and the ne1000.
+The 3c501 provides poor performance, and these poor 15 year
+old relics of the XT days should be avoided. (Send them to
+Alan, he collects them...)
+<P>The 8 bit data path doesn't hurt performance that much, as you
+can still expect to get about 500 to 800kB/s ftp download speed
+to an 8 bit wd8003 card (on a fast ISA bus) from a fast host.
+And if most of your net-traffic is going to remote sites, then
+the bottleneck in the path will be elsewhere, and the only speed
+difference you will notice is during net activity on your local
+subnet.
+<P>
+<H3>32 Bit PCI (VLB/EISA) Ethernet Cards</H3>
+
+<P>
+<P>Obviously a 32 bit interface to the computer is a must for
+100Mbps and higher networks.  If you get into GigE, then
+the 133 megabyte/sec PCI bus (for 33MHz 32 bit PCI) will still
+be your limiting factor.
+<P>But an older 10Mbs network 
+doesn't really  require a 32 bit interface.
+See 
+<A HREF="#data-xfer">Programmed I/O vs. ...</A> as to why
+having a 10Mbps ethercard on an 8MHz ISA bus is really not a
+bottleneck. Even though having a slow ethercard on a fast bus won't
+necessarily mean faster transfers, it will usually mean reduced
+CPU overhead, which is good for multi-user systems.
+<P>
+<H2><A NAME="ss7.3">7.3 Performance Implications of Zero Copy</A>
+</H2>
+
+<P>
+<P>As network data is sent or received, you can easily imagine
+it being copied to/from the application into kernel memory
+and from there being copied to/from the card memory.  All
+this data movement takes time and CPU resources.  As hinted
+above in the Bus Master DMA section, a properly designed card
+can cut down on all this copying, and the most ideal case
+would be zero copy of course.  With some of the modern PCI
+cards, zero copy is possible by simply pointing the card at
+the data and essentially saying "get it yourself."  If maximum
+performance with minimum server load is important to you then
+check to see if your hardware and driver will support zero copy.
+<P>
+<H2><A NAME="ss7.4">7.4 Performance Implications of Hardware Checksums</A>
+</H2>
+
+<P>
+<P>There is no guarantee that your data will travel from 
+computer A to computer B without being corrupted.  To
+make sure the data is OK, the sender adds up all the
+numbers that make up your data, and sends this checksum
+along as well. The receiver recomputes this checksum
+and compares it to the one the sender computed. If the
+two don't match, the receiver knows that the data has
+been corrupted and it will reject the bad data.
+<P>Computing these sums takes time and extra load on the 
+main computer.  Some of the more fancy cards have the
+ability to do these Rx and/or Tx sums in hardware, which 
+allows the main CPU to offload this task to the card.  
+<P>Cards that require a data copy don't benefit as much from 
+hardware checksums, since the sum operation can be combined 
+into the copy for only a minimal additional overhead.
+Hence hardware Tx checksums are only used in zero copy 
+(i.e. applications using <CODE>sendfile()</CODE>) situations,
+and so hardware Rx checksums are currently more useful.
+<P>Note that a reasonable computer can saturate a 100BaseT
+link even when doing the copy and checksum itself, so
+zerocopy/hw-checksum will only show up as decreased CPU use.
+You would have to go to GigE to see a speed increase.
+<P>
+<H2><A NAME="ss7.5">7.5 Performance Implications of NAPI (Rx interrupt mitigation)</A>
+</H2>
+
+<P>
+<P>When a card receives a packet from the network, what
+usually happens is that the card asks the CPU for attention
+by raising an interrupt. Then the CPU determines who caused
+the interrupt, and runs the card's driver interrupt handler 
+which will in turn read the card's interrupt status to determine 
+what the card wanted, and then in this case, run the receive
+portion of the card's driver, and finally exits.
+<P>Now imagine you are getting lots of Rx data, say 10 thousand
+packets per second all the time on some server.  You can
+imagine that the above IRQ run-around into and out of the Rx
+portion of the driver adds up to a lot of overhead.
+A lot of CPU time could be saved by essentially turning off
+the Rx interrupt and just hanging around in the Rx portion
+of the driver, since it knows there is pretty much a steady
+flow of Rx work to do.  This is the basic idea of NAPI.
+<P>As of 2.6 kernels, some drivers have a config option to
+enable NAPI. There is also some documentation in the 
+<CODE>Documentation/networking</CODE> directory that comes with
+the kernel.
+<P>
+<P>
+<HR>
+<A HREF="Ethernet-HOWTO-8.html">Next</A>
+<A HREF="Ethernet-HOWTO-6.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc7">Contents</A>
+</BODY>
+</HTML>

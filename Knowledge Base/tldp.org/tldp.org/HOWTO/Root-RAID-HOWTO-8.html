@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root RAID HOWTO cookbook: Appendix A. - Bohumil Chalupa's md0 shutdown</TITLE>
+ <LINK HREF="Root-RAID-HOWTO-9.html" REL=next>
+ <LINK HREF="Root-RAID-HOWTO-7.html" REL=previous>
+ <LINK HREF="Root-RAID-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Root-RAID-HOWTO-9.html">Next</A>
+<A HREF="Root-RAID-HOWTO-7.html">Previous</A>
+<A HREF="Root-RAID-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="Appendix-A"></A> <A NAME="s8">8. Appendix A. - Bohumil Chalupa's md0 shutdown</A></H2>
+
+<P>Bohumil Chalupa's post to the linux raid list on the work 
+around for the raid1 + 5 mdstop problem. His solution does not 
+address the possibility of the raid device being corrupt at shutdown.
+So I have added a simple status comparison to a good reference
+status at boot.  This allows the operator to intervene if something
+is wrong with a disk in the array. The description of this is in the
+main body of this document.
+<PRE>
+> From: Bohumil Chalupa &lt;bochal@apollo.karlov.mff.cuni.cz>
+>  
+> I can now boot initrd and use linuxrc to start the RAID1 array,
+> then successfully switch root to /dev/md0.
+> 
+> I don't know, however, any way how to cleanly _stop_ the array.
+ 
+Well. I have to answer myself :-)
+ 
+> Date: Mon, 29 Dec 1997 02:21:38 -0600 (CST)
+> From: Edward Welbon &lt;welbon@bga.com>
+> Subject: Re: dismounting root raid device
+> 
+> For md devices other than raid0, there is probably state that needs to
+> be saved that is only known once all writes have completed.  Such state
+> of course can't be saved to root once it is mounted readonly.  In that
+> case, you would have to be able to mount a writeable filesystem "X"
+> on the readonly root and be able to write to "X" (I recall doing this
+> during "rescue" operations, but not as an automated procedure).
+> 
+> The filesystem "X" would presumably be a boot device from which the raid
+> (during linuxrc exection via initrd) would pickup it's initial state from.
+> Fortunately raid0 isn't required to write out any state (though it would
+> be pleasant to be able to write the check sums to mdtab after an mdstop).
+> Eventually, I will fiddle with this but it doesn't seem difficult though
+> the "devil" is always in the "details".
+ 
+Yes, that's it.
+I had this idea in mind for some time already, but had no time to try it.
+Yesterday I did, and it works. 
+
+With my RAID1 (mirror), I don't save any checksums or raid superblock data.
+I only save an information on the "real" boot partition, that the root md
+volume was remounted readonly during shutdown. Then, during boot, the
+linuxrc script runs mkraid --only-superblock  when it finds this
+information; otherwise, it runs ckraid.
+This means, that the raid superblock information is not updated during
+shutdown; it's updated at the boot time. 
+It is not very clean, I'm afraid,  :-(   but it works.
+
+I'm using Slackware and initrd.md by Edward Welbon to boot the root raid
+device. 
+As far as I remember now, the only modified files are
+mkdisk and linuxrc, and /etc/rc.d/rc.6 shutdown script.
+And lilo.conf, of course.
+
+I'm appending the important parts.
+
+Bohumil Chalupa
+
+--------------- my.linuxrc follows -----------------
+#!/bin/sh
+# we need /proc
+/bin/mount /proc 
+# start up the md0 device. let the /etc/rc.d scripts get the rest of them
+# we should do as little as possible here
+# ________________________________________
+# root raid1 shutdown test &amp; recreation
+# /start must be created on the rd image in my.mkdisk
+echo "preparing md0: mounting /start"
+/bin/mount /dev/sda2 /start -t ext2
+echo "reading saved md0 state from /start"
+if [ -f /start/root.raid.ok ]; then
+ echo "raid ok, modyfying superblock"
+ rm /start/root.raid.ok
+ /sbin/mkraid /etc/raid1.conf -f --only-superblock
+else
+ echo "raid not clean, runing ckraid --fix"
+ /sbin/ckraid --fix /etc/raid1.conf
+fi
+echo "unmounting /start"
+/bin/umount /start
+# _________________________________________
+#
+echo "adding md0 for root file system"
+/sbin/mdadd /dev/md0 /dev/sda1 /dev/sdb1 
+echo "starting md0"
+/sbin/mdrun -p1 /dev/md0
+# tell kernel we want to switch to /dev/md0 as root device, the 0x900 value
+# is arrived at via 256*major_device_number + minor_device number.
+echo "setting real-root-dev"
+/bin/echo 0x900>/proc/sys/kernel/real-root-dev
+#  unmount /proc so that the ram disk can be deallocated.
+echo "unmounting /proc"
+/bin/umount /proc
+/bin/echo "We are hopefully ready to mount /dev/md0 (major 9, minor 0) as
+root"
+exit
+--------------- end of my.linuxrc ----------------------------------
+
+
+----------- extract from /etc/rc.d/rc.6 follows -----------------
+  # Turn off swap, then unmount local file systems.
+  echo "Turning off swap."
+  swapoff -a
+  echo "Unmounting local file systems."
+  umount -a -tnonfs
+  # Don't remount UMSDOS root volumes:
+  if [ ! "`mount | head -1 | cut -d ' ' -f 5`" = "umsdos" ]; then
+    mount -n -o remount,ro /
+  fi
+
+  # Save raid state
+  echo "Saving RAID state"
+  /bin/mount -n /dev/sda2 /start -t ext2
+  touch /start/root.raid.ok
+  /bin/umount -n /start
+
+-------------- end of excerpt from rc.6 ------------------------
+
+
+------------------ part of my.mkdisk follows ----------------------
+#
+#  now we have the filesystem ready to be populated, we need to 
+#  get a few important directories.  I had endless trouble till
+#  I created a pristine mtab.  In my case, it is convenient that
+#  /etc/mdtab is copied over, this way I can activate md with
+#  a simple "/sbin/mdadd -ar" in linuxrc.
+#
+cp -a $ROOT/etc $MOUNTPNT 2>cp.stderr 1>cp.stdout
+rm -rf $MOUNTPNT/etc/mtab
+rm -rf $MOUNTPNT/etc/ppp*
+rm -rf $MOUNTPNT/etc/termcap
+rm -rf $MOUNTPNT/etc/sendmail*
+rm -rf $MOUNTPNT/etc/rc.d
+rm -rf $MOUNTPNT/etc/dos* 
+cp -a $ROOT/sbin $ROOT/dev $ROOT/lib $ROOT/bin $MOUNTPNT 2>>cp.stderr
+1>>cp.stdout
+# _____________________________________________________________________
+#  RAID: will need mkraid and ckraid
+cp -a $ROOT/usr/sbin/mkraid $ROOT/usr/sbin/ckraid $MOUNTPNT/sbin
+2>>cp.stderr 1>>cp.stdout
+# ---------------------------------------------------------------------
+#  it seems that init wont come out to play unless it has utmp.   this can
+#  probably be pruned back alot.  no telling what the real bug was 8-).
+#
+mkdir $MOUNTPNT/var $MOUNTPNT/var/log $MOUNTPNT/var/run $MOUNTPNT/initrd
+touch $MOUNTPNT/var/run/utmp $MOUNTPNT/etc/mtab
+chmod a+r $MOUNTPNT/var/run/utmp $MOUNTPNT/etc/mtab
+ln -s /var/run/utmp $MOUNTPNT/var/log/utmp
+ln -s /var/log/utmp $MOUNTPNT/etc/utmp
+ls -lstrd $MOUNTPNT/etc/utmp $MOUNTPNT/var/log/utmp $MOUNTPNT/var/run/utmp
+#
+#  since I wanted to change the mount point, I needed this though
+#  I suppose that I could have done a "mkdir /proc" in linuxrc.
+#
+mkdir $MOUNTPNT/proc
+chmod 555 $MOUNTPNT/proc
+#
+#  ------------------------------------------------------
+#  we'll mount the real boot device to /start temporarily
+#  to check the root raid state saved at shutdown time
+#
+mkdir $MOUNTPNT/start
+#  -------------------------------------------------------
+#
+#  need linuxrc  (it is, after all, the point of this exercise).
+#
+if [ -x ./my.linuxrc ]; then
+  cp -a ./my.linuxrc $MOUNTPNT/linuxrc
+  chmod 777 $MOUNTPNT/linuxrc
+else
+   ln -s /bin/sh $MOUNTPNT/linuxrc
+fi
+#
+----------------- part of my.mkdisk ends -----------------
+</PRE>
+<P>
+<HR>
+<A HREF="Root-RAID-HOWTO-9.html">Next</A>
+<A HREF="Root-RAID-HOWTO-7.html">Previous</A>
+<A HREF="Root-RAID-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

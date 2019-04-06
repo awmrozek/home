@@ -1,0 +1,550 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Requirements for IP Masquerade on Linux 2.4.x</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Background Knowledge"
+HREF="ipmasq-background2.0.html"><LINK
+REL="PREVIOUS"
+TITLE="How does IP Masquerade Work?"
+HREF="ipmasq-background2.5.html"><LINK
+REL="NEXT"
+TITLE="Requirements for IP Masquerade on Linux 2.2.x "
+HREF="kernel-2.2.x-requirements.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="ipmasq-background2.5.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 2. Background Knowledge</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="kernel-2.2.x-requirements.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="KERNEL-2.4.X-REQUIREMENTS"
+></A
+>2.6. Requirements for IP Masquerade on Linux 2.4.x</H1
+><P
+><SPAN
+CLASS="QUOTE"
+>" <EM
+>** Please refer to <A
+HREF="http://ipmasq.webhop.net/"
+TARGET="_top"
+>IP 
+Masquerade Resource</A
+> for the latest information. **</EM
+> "</SPAN
+> </P
+><P
+></P
+><UL
+><LI
+><P
+>The newest 2.4.x kernels are now using both a completely new TCP/IP network
+stack as well as a new NAT sub-system called NetFilter.  Within this NetFilter
+suite of tools, we now have a tool called IPTABLES for the 2.4.x kernels much 
+like there was IPCHAINS for the 2.2.x kernels and IPFWADM for the 2.0.x kernels.
+The new IPTABLES system is far more powerful (combines several functions into 
+one place like true NAT functionality), offers better security (stateful 
+inspection), and better performance with the new 2.4.x TCP/IP stack.  But this 
+new suite of tools can be a bit complicated in comparison to older generation 
+kernels.  Hopefully, if you follow along with this HOWTO carefully, setting up
+IPMASQ won't be too bad.  If you find anything unclear, downright wrong, etc. 
+please email David about it.</P
+><P
+><STRONG
+>Unlike</STRONG
+> the migration to IPCHAINS from 
+IPFWADM, the new NetFilter tool has kernel modules that can actually 
+support older IPCHAINS and IPFWADM rulesets with minimal changes.  So 
+re-writing your old MASQ or firewall ruleset scripts is not longer required.  
+<STRONG
+>BUT..</STRONG
+> with the 2.4.x kernels, you cannot
+use the old 2.2.x MASQ modules like ip_masq_ftp, ip_masq_irc, etc. 
+<STRONG
+>AND</STRONG
+> IPCHAINS is incompatible with the 
+new IPTABLES modules like ip_conntrack_ftp, etc.  So, what does this mean?
+It basically means that if you want to use IPMASQ or PORTFW functionality under 
+a 2.4.x kernel, you shouldn't use IPCHAINS rules but IPTABLES ones instead.  
+Please also keep in mind that there might be several benefits in performing a 
+full ruleset re-write to take advantage of the newer IPTABLES features like 
+stateful tracking, etc. but that is dependant upon how much time you have to 
+migrate your old rulesets.  Please see <A
+HREF="ipchains-on-2.4.x.html"
+>Section 7.40</A
+> for
+additional details.</P
+></LI
+></UL
+><P
+>Some new 2.4.x functionalities include the following:</P
+><P
+><STRONG
+>PROs:</STRONG
+>
+
+<P
+></P
+><UL
+><LI
+><P
+>   Lots of new protocols modules like: amanda, eggdrop, ipsec, ipv6, portscan,
+   pptp, quota, rsh, talk, and tftp 
+  </P
+></LI
+><LI
+><P
+>   TRUE 1:1 NAT functionality for those who have TCP/IP addresses and subnets 
+   to use (no more iproute2 commands)</P
+></LI
+><LI
+><P
+>Stateful application level (FTP, IRC, etc.) and stateful protocol level 
+(TCP/UDP/ICMP) network traffic inspection </P
+></LI
+><LI
+><P
+>Built-in PORT Forwarding (no more ipmasqadm or ipportfw commands)</P
+></LI
+><LI
+><P
+>The built-in PORTFW'ing support works for both external and internal 
+traffic.  This means that users that have PORTFW for external traffic and 
+REDIR for internal port redirection do not need to use two tools any more!</P
+></LI
+><LI
+><P
+>PORT Forwarding of FTP traffic to internal hosts is now completely supported
+and is handled in the conn_trak_ftp module</P
+></LI
+><LI
+><P
+>Full Policy-Based routing features (source-based TCP/IP address routing)</P
+></LI
+><LI
+><P
+>Compatibility with Linux's FastRoute feature for significantly faster packet 
+forwarding (a.k.a Linux network switching).</P
+><P
+>Note that this feature is still not compatible with packet filtering 
+for strong firewall rulesets.</P
+></LI
+><LI
+><P
+>Fully supports TCP/IP v4, v6, and even DECnet (ack!)</P
+></LI
+><LI
+><P
+>Supports wildcard interface names like "ppp*" for serial interfaces like 
+ppp0, ppp1, etc</P
+></LI
+><LI
+><P
+>Supports filtering on both input and output INTERFACES (not just IP addresses)</P
+></LI
+><LI
+><P
+>Source Ethernet MAC filtering</P
+></LI
+><LI
+><P
+>Denial of Service (DoS) packet rate limiting</P
+></LI
+><LI
+><P
+>Packet REJECTs now have user-selectable return ICMP messages</P
+></LI
+><LI
+><P
+>Variable levels of logging (different packets can go to different SYSLOG 
+levels)</P
+></LI
+><LI
+><P
+>Other features like traffic mirroring, securing traffic per login, etc. </P
+></LI
+></UL
+>&#13;</P
+><P
+>&#13;<STRONG
+>CONs:</STRONG
+>
+
+<P
+></P
+><UL
+><LI
+><P
+>Netfilter is an entirely new architechure thus most of the older 2.2.x 
+MASQ kernel modules written to make non-NAT friendly network applications
+work through IPMASQ need to be re-written for the 2.4.x kernels.  Because of 
+this, if you specifically need functionality from some of these modules
+(see below), you should stay with a 2.2.x kernel until these modules have 
+been either ported or the application has been updated to use NAT-friendly
+protocols.  If you are curious on the porting status of a given module, 
+please email the author of the module and NOT David or Ambrose.  We don't 
+code.. we just document.  :-)</P
+><P
+>Here is the status of the known IP Masq kernel modules or patches as found 
+on the <A
+HREF="http://ipmasq.webhop.net"
+TARGET="_top"
+>IPMASQ WWW site's Application 
+Support Matrix</A
+>.  In addition, you should also setup out the 
+<A
+HREF="http://www.netfilter.org/documentation/pomlist/pom-summary.html"
+TARGET="_top"
+>Netfilter Patch-o-Matic</A
+> URL as well.  If you have the time and 
+knowledge to help in the porting of code, your efforts would be highly 
+appreciated:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> Status   = Module name =      Description and notes
+---------   -----------   ----------------------------------
+ Ported     CuSeeme      Used for Video conferencing
+
+NotPorted   DirectPlay    Used for online Microsoft-based games
+
+ Ported        FTP        Used for file transfers
+                          - NOTEs:  Built into the kernel and
+                                    fully supports PORTFWed FTP
+
+ReWritten     H.323       Used for Video conferencing
+
+NotPorted      ICQ        Used for Instant messaging
+                          * No longer required for modern ICQ clients
+
+ Ported        Irc        Used for Online chat rooms
+
+ Ported      Quake        Used for online Quake games
+
+ Ported       PPTP        Allow for multiple clients to the same server
+
+NotPorted   Real Audio    Used for Streaming video / audio
+                          * No longer required for modern RealVideo clients
+
+NotPorted    VDO Live     Used for Streaming audio?</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Documentation on how to perform MASQ module porting is available at 
+<A
+HREF="http://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO.html"
+TARGET="_top"
+>http://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO.html</A
+>.  If you have the time and knowledge, your talent would highly be 
+appreciated in porting these modules.</P
+></LI
+></UL
+></P
+><P
+>If you'd like to read up more on NetFilter and IPTables, please see:
+<A
+HREF="http://www.netfilter.org/documentation/index.html#HOWTO"
+TARGET="_top"
+>http://www.netfilter.org/documentation/index.html#HOWTO</A
+> 
+
+and more specifically <A
+HREF="http://www.netfilter.org/documentation/HOWTO//NAT-HOWTO.html"
+TARGET="_top"
+>http://www.netfilter.org/documentation/HOWTO//NAT-HOWTO.html</A
+> </P
+><P
+><STRONG
+>Linux 2.4.x IP Masquerade requirements include:</STRONG
+></P
+><P
+></P
+><UL
+><LI
+><P
+>   Any decent computer hardware.  See <A
+HREF="faq-hardware.html"
+>Section 7.2</A
+> for more 
+   details.
+  </P
+></LI
+><LI
+><P
+>    The 2.4.x kernel source is available from <A
+HREF="http://www.kernel.org/"
+TARGET="_top"
+>    http://www.kernel.org/</A
+>. 
+   </P
+><P
+>    NOTE: Most modern Linux distributions, 
+    <A
+HREF="masq-supported-distributions.html"
+>Section 7.1</A
+>, that 
+    natively come with 2.4.x kernels are typically modular kernels and have 
+    all the IP Masquerade functionality already included.  In such cases, 
+    there is no need to compile a new Linux kernel.  If you are UPGRADING your 
+    kernel, you should be aware of other programs that might be required and/or 
+    need to be upgraded as well (mentioned later in this HOWTO).
+   </P
+></LI
+><LI
+><P
+>   The program "iptables" version 1.2.4 or newer ( 1.2.7a or newer is highly 
+   recommended ) archive available from 
+   <A
+HREF="http://www.netfilter.org/"
+TARGET="_top"
+>   http://www.netfilter.org/</A
+>
+
+   <P
+></P
+><UL
+><LI
+><P
+>     NOTE #1:  All versions of IPTABLES less than 1.2.3 have a FTP module issue
+     that can bypass any existing firewall rulesets.  ALL IPTABLES users are
+     highly recommended to upgrade to the newest version.  The URL is above.
+     </P
+><P
+>     NOTE #2:  All versions of IPTABLES less than 1.2.2 have a FTP "port" security 
+     vulnerability in the ip_conntrack_ftp module.  All IPTABLES users are highly 
+     recommended to upgrade to the newest version.  The URL is above.
+     </P
+></LI
+><LI
+><P
+>     This tool, much like the older IPCHAINS and IPFWADM tools enables the various
+     Masquerding code, more advanced forms of NAT, packet filtering, etc.  It also
+     makes use of additional MASQ modules like the FTP and IRC modules.  Additional 
+     information on version requirements for the newest IPTABLES howto, etc. is 
+     located at the 
+     <A
+HREF="http://www.netfilter.org/"
+TARGET="_top"
+>Unreliable IPTABLES HOWTOs</A
+>
+     page.
+     </P
+></LI
+></UL
+>&#13;</P
+></LI
+><LI
+><P
+>Loadable kernel modules, preferably 2.1.121 or higher, are available from 
+<A
+HREF="http://home.pi.se/blox/modutils/index.html"
+TARGET="_top"
+>http://home.pi.se/blox/modutils/index.html </A
+> or 
+<A
+HREF="ftp://ftp.kernel.org/pub/linux/utils/kernel/modutils "
+TARGET="_top"
+>ftp://ftp.kernel.org/pub/linux/utils/kernel/modutils</A
+>
+  </P
+></LI
+><LI
+><P
+>A properly configured and running TCP/IP network running on the Linux machine
+as covered in 
+<A
+HREF="http://www.tldp.org/HOWTO/Net-HOWTO/index.html"
+TARGET="_top"
+>Linux NET HOWTO</A
+> and the 
+<A
+HREF="http://www.tldp.org/LDP/nag2/index.html"
+TARGET="_top"
+>Network Administrator's Guide</A
+> .  Also check out the 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#TrinityOS"
+TARGET="_top"
+>TrinityOS</A
+> document which is also authored by David Ranch.  TrinityOS is a 
+very comprehensive guide for Linux networking.  Some topics include IP MASQ, security, 
+DNS, DHCP, Sendmail, PPP, Diald, NFS, IPSEC-based VPNs, and performance sections, 
+to name a few.  There are over Fifty sections in all!</P
+></LI
+><LI
+><P
+>Connectivity to the Internet for your Linux host covered in 
+<A
+HREF="http://www.tldp.org/HOWTO/ISP-Hookup-HOWTO.html"
+TARGET="_top"
+>Linux ISP 
+Hookup HOWTO</A
+>, <A
+HREF="http://www.tldp.org/HOWTO/PPP-HOWTO/index.html"
+TARGET="_top"
+>Linux PPP HOWTO</A
+>, and 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#TrinityOS"
+TARGET="_top"
+>TrinityOS</A
+>.  Other helpful HOWTOs could include: 
+<A
+HREF="http://www.tldp.org/HOWTO/mini/DHCP/index.html"
+TARGET="_top"
+>Linux DHCP 
+mini-HOWTO</A
+>, 
+<A
+HREF="http://www.tldp.org/HOWTO/Cable-Modem/index.html"
+TARGET="_top"
+>Linux Cable Modem mini-HOWTO</A
+> and 
+<A
+HREF="http://www.tldp.org/HOWTO/DSL-HOWTO/index.html"
+TARGET="_top"
+>http://www.tldp.org/HOWTO/DSL-HOWTO/index.html</A
+></P
+></LI
+><LI
+><P
+>Know how to configure, compile, and install a new Linux kernel as described in 
+the <A
+HREF="http://www.tldp.org/HOWTO/Kernel-HOWTO/index.html"
+TARGET="_top"
+>Linux Kernel 
+HOWTO</A
+>.  This HOWTO does cover kernel compiling but only for IP
+Masquerade related options.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="ipmasq-background2.5.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="kernel-2.2.x-requirements.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>How does IP Masquerade Work?</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="ipmasq-background2.0.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Requirements for IP Masquerade on Linux 2.2.x</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

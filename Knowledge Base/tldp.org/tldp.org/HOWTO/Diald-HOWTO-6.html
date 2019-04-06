@@ -1,0 +1,447 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Diald Howto: Connecting a standalone computer to an ISP using a modem and PPP</TITLE>
+ <LINK HREF="Diald-HOWTO-7.html" REL=next>
+ <LINK HREF="Diald-HOWTO-5.html" REL=previous>
+ <LINK HREF="Diald-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Diald-HOWTO-7.html">Next</A>
+<A HREF="Diald-HOWTO-5.html">Previous</A>
+<A HREF="Diald-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Connecting a standalone computer to an ISP using a modem and PPP</A></H2>
+
+<P>
+<P>When configuring <EM>Diald</EM> to connect your computer to an ISP, the next
+steps will be necesary:
+<UL>
+<LI>Getting the <EM>Diald</EM> package installed. The quickest way is to
+install the package that comes with your GNU/Linux distribution.</LI>
+<LI>Configure DNS resolver (<CODE>/etc/resolv.conf</CODE> file).</LI>
+<LI>Check that you can call an ISP. If your GNU/Linux distribution
+includes an utility to configure a connection, the quickest way will be to
+use it (pppconfig in Debian, kppp if you use KDE, etc). If you are having
+problems connecting to an ISP, the PPP-Howto (<CODE>
+<A HREF="http://www.linuxdoc.org/HOWTO/PPP-HOWTO.html">http://www.linuxdoc.org/HOWTO/PPP-HOWTO.html</A></CODE>), Modem-Howto
+(<CODE>
+<A HREF="http://www.linuxdoc.org/HOWTO/Modem-HOWTO.html">http://www.linuxdoc.org/HOWTO/Modem-HOWTO.html</A></CODE>) and
+Serial-Howto (<CODE>
+<A HREF="http://www.linuxdoc.org/HOWTO/Serial-HOWTO.html">http://www.linuxdoc.org/HOWTO/Serial-HOWTO.html</A></CODE>) documents
+can help you.</LI>
+<LI>Configure username and password in the <CODE>/etc/ppp/pap-secrets</CODE>
+and <CODE>/etc/ppp/chap-secrets</CODE> files, as mentioned in previous
+sections.</LI>
+</UL>
+<P>And finally, going into <EM>Diald</EM>:
+<P>
+<UL>
+<LI>Prepare the <EM>Diald</EM> configuration file
+(<CODE>/etc/diald/diald.options</CODE> for version 0.16.5 and
+<CODE>/etc/diald/diald.conf</CODE> for later versions).</LI>
+<LI>Prepare filters file <CODE>/etc/diald/standard.filter</CODE>,
+or better, leave that file as is, and modify a copy of it that you can
+call <CODE>/etc/diald/personal.filter</CODE>.</LI>
+<LI>Prepare the script to make the call
+(<CODE>/etc/diald/diald.connect</CODE> with execute permissions for root) and
+instruction file for <CODE>chat</CODE> (<CODE>/etc/chatscripts/provider</CODE>), that
+will be used by the previous script.</LI>
+<LI>Prepare scripts to be run when the link goes up and down
+(<CODE>/etc/diald/ip-up</CODE> and <CODE>/etc/diald/ip-down</CODE>) if you want to
+use it (both must have execute permissions for root).</LI>
+<LI>Prepare script to set and delete routes
+(<CODE>/etc/diald/addroute</CODE> and <CODE>/etc/diald/delroute</CODE>) if you
+want (both must have execute permissions for root). This step is not necesary
+if you only use a single <EM>Diald</EM> instance.</LI>
+<LI>Finally, start the <CODE>diald</CODE> daemon
+(«<CODE>/etc/init.d/diald start</CODE>» in Debian,
+«<CODE>/etc/rc.d/init.d/diald start</CODE>» in RedHat).
+Normally, <EM>Diald</EM> package installation process prepares the scripts to
+run <EM>Diald</EM> when the computer boot up in the /etc/rcX.d directories.</LI>
+</UL>
+<P>If you make any change in the <EM>Diald</EM> config file when it is running,
+it is necesary to restart it («<CODE>/etc/init.d/diald restart</CODE>» in
+Debian, «<CODE>/etc/rc.d/init.d/diald restart</CODE>» in RedHat).
+<P>
+<H2><A NAME="ss6.1">6.1 /etc/diald/diald.options or diald.conf file</A>
+</H2>
+
+<P>
+<P>In this example file you must check for:
+<UL>
+<LI>Comm port where your modem is connected. Option <CODE>device</CODE>.</LI>
+<LI>Comm port speed to talk with modem. Option <CODE>speed</CODE>.</LI>
+<LI>User name to be used in ppp. Option <CODE>pppd-options</CODE>.</LI>
+<LI>Retry counters and timers.</LI>
+<LI>Enabled connection hours. Options <CODE>restrict</CODE>.</LI>
+<LI>Decide if you want to use the <CODE>ip-up</CODE> and <CODE>ip-down</CODE> scripts.
+Options <CODE>ip-up</CODE> and <CODE>ip-down</CODE>.</LI>
+<LI>Decide if you want to use the <CODE>addroute</CODE> and <CODE>delroute</CODE>
+scripts. Options <CODE>addroute</CODE> and <CODE>delroute</CODE>. Generally it is not
+needed to modify this scripts, but if you use more than one instance of
+<EM>Diald</EM> or have a complex configuration, you need it.</LI>
+<LI>Decide if you use the standar or personal filter file. Options
+<CODE>include</CODE>.</LI>
+</UL>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+##########################
+# /etc/diald/diald.options
+
+# Device where your modem is connected
+device /dev/ttyS0
+
+# Log file
+accounting-log /var/log/diald.log
+
+# Monitoring queue
+#fifo /var/run/diald/diald.fifo
+
+# Debug activation
+# Activating debug reduces performance
+#debug 31
+
+# We use PPP as encapsulator
+mode ppp
+
+# Local IP (when you connect this address is automatically modified
+# with the ip assigned by your ISP if you use the dinamic option).
+local 127.0.0.5
+
+# Remote IP (when you connect this address is automatically modified
+# with the ip of the remote server that receives our call).
+remote 127.0.0.4
+
+# Subnet mask for the wan link
+netmask 255.255.255.0
+
+# The IP addresses will be asigned when connection starts.
+dynamic 
+
+# If link goes down by remote end, start it again only if there is
+# outgoing packets.
+two-way
+
+# When link is up, route directly to the real ppp interface, not the proxy
+# interface. Not to do this is a performance lost of about 20 per cent.
+# There are old kernels that do not support reroute. See diald manual for
+# more information
+reroute
+
+# Diald will set up the default route the the SLIP interface used as proxy
+defaultroute
+
+# Script to set up personalized routes
+#addroute "/etc/diald/addroute"
+#delroute "/etc/diald/delroute"
+
+# Scripts to execute when the link is up and ready or down and closed.
+# In Diald versions 0.9x there is another option called ip-goingdown that
+# can be used to run commands when the link is going to be down but is
+# still up.
+ip-up /etc/diald/ip-up
+#ip-down /etc/diald/ip-down
+
+# Scripts used to connect or disconnect the interface
+connect "/etc/diald/diald.connect"
+#disconnect "/etc/diald/diald.disconnect"
+
+# Use UUCP lock to signal the device is being used
+#lock
+
+# We connect over a modem. WARNING: Do not especify this options in the
+# ppp options file, because they will conflict with the diald options. To
+# see what ppp options that you can not use in the pppd-options option,
+# see the diald man page and search for pppd-options
+modem
+crtscts
+speed 115200
+
+# Some timers and retry options
+# See Diald man page for more information
+connect-timeout 120
+redial-timeout 60
+start-pppd-timeout 120
+died-retry-count 0
+redial-backoff-start 4
+redial-backoff-limit 300
+dial-fail-limit 10
+
+# Options to be passed to pppd
+# This options can be included in the /etc/ppp/options file, that are the
+# default options for pppd, but if you need to use different
+# configurations of diald for more than one instance, you must put it here
+# noauth - do not ask remote for authenticaion.
+#          "Infov&iacute;a Plus" (Spain) do not identify to our machine
+# user - our username and isp. Ask your isp for the sintaxis. Some isps,
+#        do not need the @isp
+pppd-options noauth user usuario@isp
+
+# Hour restriccions.
+# This section must be before filters.
+# The restrict command is experimental, and can change in other versions
+# of diald. Check the man page. (this example has been checked for 0.16,
+# but i think it runs in later versions).
+# Example: only use in the night from monday to friday, and all day in
+# saturday and sunday.
+restrict 8:00:00 18:00:00 1-5 * *
+down
+restrict * * * * *
+
+# No special tarificaion considerations
+# (first seconds included in the setup cost, tarify unit in seconds,
+# time in seconds to check if it is good to go down)
+#impulse 0,0,0
+# Bononet Noche (Spain-Telef&oacute;nica) is billed in seconds after the 160
+# first seconds
+impulse 160,0,0
+# if it would be billed in minuttes and the first 10 will be billed
+# always:
+#impulse 600,60,10
+
+# Standar filters
+#include /etc/diald/standard.filter
+# or personal filters
+include /etc/diald/personal.filter
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss6.2">6.2 Personal filters file</A>
+</H2>
+
+<P>
+<P>Manipulation of this file must be done very carefully. This file is used
+to decide when and why to start up the line, maintain it, bring down the
+line or ignore a packet, depending on the traffic type.
+<P>Generally, the <EM>Diald</EM> standar filter file is sufficient for most
+cases, but perhaps, it may be too restrictive or not restrictive enough in
+some situations. The <CODE>personal.filter</CODE> file that is shown has some
+corrections over the original from the 0.16 version.
+<P>In next versions of this document, other commented more restrictive
+examples will be included.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# /etc/diald/personal.filter
+# Filter rules shown are the same as in the standard.filter with the
+# following changes:
+#
+# Change 10 to 4 minuttes in "any other tcp conection".
+# Added "ignore tcp tcp.fin" to ignore the FIN ACK packets.
+# Ignore icmp packets (ping and traceroute don't fire up the interface).
+#
+
+# This is a pretty complicated set of filter rules.
+# (These are the rules I use myself.)
+#
+# I've divided the rules up into four sections.
+# TCP packets, UDP packets, ICMP packets and a general catch all rule
+# at the end.
+
+ignore icmp any
+
+#------------------------------------------------------------------------------
+# Rules for TCP packets.
+#------------------------------------------------------------------------------
+# General comments on the rule set:
+#
+# In general we would like to treat only data on a TCP link as significant
+# for timeouts. Therefore, we try to ignore packets with no data.
+# Since the shortest possible set of headers in a TCP/IP packet is 40 bytes,
+# any packet with length 40 must have no data riding in it.
+# We may miss some empty packets this way (optional routing information
+# and other extras may be present in the IP header), but we should get
+# most of them. Note that we don't want to filter out packets with
+# tcp.live clear, since we use them later to speedup disconnects
+# on some TCP links.
+#
+# We also want to make sure WWW packets live even if the TCP socket
+# is shut down. We do this because WWW doesn't keep connections open
+# once the data has been transfered, and it would be annoying to have the link
+# keep bouncing up and down every time you get a document.
+#
+# Outside of WWW the most common use of TCP is for long lived connections,
+# that once they are gone mean we no longer need the network connection.
+# We don't neccessarily want to wait 10 minutes for the connection
+# to go down when we don't have any telnet's or rlogin's running,
+# so we want to speed up the timeout on TCP connections that have
+# shutdown. We do this by catching packets that do not have the live flag set.
+
+# --- start of rule set proper ---
+
+# When initiating a connection we only give the link 15 seconds initially.
+# The idea here is to deal with possibility that the network on the opposite
+# end of the connection is unreachable. In this case you don't really
+# want to give the link 10 minutes up time. With the rule below
+# we only give the link 15 seconds initially. If the network is reachable
+# then we will normally get a response that actually contains some
+# data within 15 seconds. If this causes problems because you have a slow
+# response time at some site you want to regularly access, you can either
+# increase the timeout or remove this rule.
+accept tcp 15 tcp.syn
+
+# Keep named xfers from holding the link up
+ignore tcp tcp.dest=tcp.domain
+ignore tcp tcp.source=tcp.domain
+
+# (Ack! SCO telnet starts by sending empty SYNs and only opens the
+# connection if it gets a response. Sheesh..)
+accept tcp 5 ip.tot_len=40,tcp.syn
+
+# keep empty packets from holding the link up (other than empty SYN packets)
+ignore tcp ip.tot_len=40,tcp.live
+
+# Modification by Andres Seco to ignore the FIN ACK packets.
+ignore tcp tcp.fin
+
+# make sure http transfers hold the link for 2 minutes, even after they end.
+# NOTE: Your /etc/services may not define the tcp service www, in which
+# case you should comment out the following two lines or get a more
+# up to date /etc/services file. See the FAQ for information on obtaining
+# a new /etc/services file.
+accept tcp 120 tcp.dest=tcp.www
+accept tcp 120 tcp.source=tcp.www
+# Same for https
+accept tcp 120 tcp.dest=tcp.443
+accept tcp 120 tcp.source=tcp.443
+
+# Once the link is no longer live, we try to shut down the connection
+# quickly. Note that if the link is already down, a state change
+# will not bring it back up.
+keepup tcp 5 !tcp.live
+ignore tcp !tcp.live
+
+# an ftp-data or ftp connection can be expected to show reasonably frequent
+# traffic.
+accept tcp 120 tcp.dest=tcp.ftp
+accept tcp 120 tcp.source=tcp.ftp
+
+#NOTE: ftp-data is not defined in the /etc/services file provided with
+# the latest versions of NETKIT, so I've got this commented out here.
+# If you want to define it add the following line to your /etc/services:
+# ftp-data        20/tcp
+# and uncomment the following two rules.
+#accept tcp 120 tcp.dest=tcp.ftp-data
+#accept tcp 120 tcp.source=tcp.ftp-data
+
+# If we don't catch it above, give the link 10 minutes up time.
+#accept tcp 600 any
+# Modificacion de Andres Seco. Solo dejar 4 minutos mas.
+accept tcp 240 any
+
+# Rules for UDP packets
+#
+# We time out domain requests right away, we just want them to bring
+# the link up, not keep it around for very long.
+# This is because the network will usually come up on a call
+# from the resolver library (unless you have all your commonly
+# used addresses in /etc/hosts, in which case you will discover
+# other problems.)
+# Note that you should not make the timeout shorter than the time you
+# might expect your DNS server to take to respond. Otherwise
+# when the initial link gets established there might be a delay
+# greater than this between the initial series of packets before
+# any packets that keep the link up longer pass over the link.
+
+# Don't bring the link up for rwho.
+ignore udp udp.dest=udp.who
+ignore udp udp.source=udp.who
+# Don't bring the link up for RIP.
+ignore udp udp.dest=udp.route
+ignore udp udp.source=udp.route
+# Don't bring the link up for NTP or timed.
+ignore udp udp.dest=udp.ntp
+ignore udp udp.source=udp.ntp
+ignore udp udp.dest=udp.timed
+ignore udp udp.source=udp.timed
+# Don't bring up on domain name requests between two running nameds.
+ignore udp udp.dest=udp.domain,udp.source=udp.domain
+# Bring up the network whenever we make a domain request from someplace
+# other than named.
+accept udp 30 udp.dest=udp.domain 
+accept udp 30 udp.source=udp.domain
+# Do the same for netbios-ns broadcasts
+# NOTE: your /etc/services file may not define the netbios-ns service
+# in which case you should comment out the next three lines.
+ignore udp udp.source=udp.netbios-ns,udp.dest=udp.netbios-ns
+accept udp 30 udp.dest=udp.netbios-ns
+accept udp 30 udp.source=udp.netbios-ns
+# keep routed and gated transfers from holding the link up
+ignore udp tcp.dest=udp.route
+ignore udp tcp.source=udp.route
+# Anything else gest 2 minutes.
+accept udp 120 any
+
+# Catch any packets that we didn't catch above and give the connection
+# 30 seconds of live time.
+accept any 30 any
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss6.3">6.3 Making the call</A>
+</H2>
+
+<P>
+<P><CODE>/etc/diald/diald.connect</CODE> file (it must have execute permission):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/usr/sbin/chat -f /etc/chatscripts/provider
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><CODE>/etc/chatscripts/provider</CODE> file. In this example file you must
+check the destination phone number:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ABORT BUSY
+ABORT "NO CARRIER"
+ABORT VOICE
+ABORT "NO DIALTONE" 
+ABORT "NO ANSWER"
+"" ATZ
+OK ATDT123456789
+CONNECT \d\c
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss6.4">6.4 Connection start script</A>
+</H2>
+
+<P>
+<P>It must have execute permission.
+<P>This script can be used to many tasks (synchronize time, send the queued
+mail, get incoming mail, etc.).
+<P>In the example, a message is sent to <CODE>root</CODE> with data passed to the
+script (interface, subnet mask, local ip address, remote ip address and
+cost for routing):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+
+iface=$1
+netmask=$2
+localip=$3
+remoteip=$4
+metric=$5
+
+# Set the time and date
+# netdate ntp.server.somecountry
+
+# Run the mail queue
+# runq
+
+echo `date` $1 $2 $3 $4 $5 | mail -s "diald - conecting" root@localhost
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="Diald-HOWTO-7.html">Next</A>
+<A HREF="Diald-HOWTO-5.html">Previous</A>
+<A HREF="Diald-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

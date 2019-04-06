@@ -1,0 +1,329 @@
+<HTML
+><HEAD
+><TITLE
+>Serial printers under lpd</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="The Printing HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="On-screen previewing of printable things."
+HREF="previewing.html"><LINK
+REL="NEXT"
+TITLE="What's missing?"
+HREF="development.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Printing HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="previewing.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="development.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="serial"
+></A
+>17. Serial printers under lpd</H1
+><P
+>Serial printers are rather tricky under lpd.</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="serial-printcap"
+></A
+>17.1. Setting up in printcap</H2
+><P
+>Lpd provides five attributes which you can set in<EM
+>/etc/printcap</EM
+> to control all the settings of
+the serial port a printer is on.  Read the <EM
+><A
+HREF="http://www.linuxprinting.org/man/printcap.5.html"
+TARGET="_top"
+>printcap</A
+></EM
+> man page and note the meanings of<EM
+>br#</EM
+>, <EM
+>fc#</EM
+>,<EM
+>xc#</EM
+>, <EM
+>fs#</EM
+> and<EM
+>xs#</EM
+>.  The last four of these attributes
+are bitmaps indicating the settings for use the port.  The<EM
+>br#</EM
+> attribute is simply the baud rate, eg
+    `<TT
+CLASS="literal"
+>br#9600</TT
+>'.</P
+><P
+>It is very easy to translate from <A
+HREF="http://www.linuxprinting.org/man/stty.1.html"
+TARGET="_top"
+>stty</A
+> settings to printcap flag settings. If you need to,
+see the man page for stty now.</P
+><P
+>Use stty to set up the printer port so that you can cat a file to
+it and have it print correctly. Here's what `<EM
+>stty
+    -a</EM
+>' looks like for my printer port:<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;dina:/usr/users/andy/work/lpd/lpd# stty -a &#60; /dev/ttyS2
+speed 9600 baud; rows 0; columns 0; line = 0;
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = &#60;undef&#62;;
+eol2 = &#60;undef&#62;; start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R; werase = ^W;
+lnext = ^V; min = 1; time = 0;
+-parenb -parodd cs8 hupcl -cstopb cread -clocal -crtscts
+-ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr 
+-igncr -icrnl ixon -ixoff -iuclc -ixany -imaxbel
+-opost -olcuc -ocrnl -onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 
+bs0 vt0 ff0
+-isig -icanon -iexten -echo -echoe -echok -echonl -noflsh -xcase
+-tostop -echoprt -echoctl -echoke</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+The only changes between this and the way the port is initialized
+at bootup are <TT
+CLASS="literal"
+>-clocal</TT
+>, <TT
+CLASS="literal"
+>-crtscts</TT
+>, and <TT
+CLASS="literal"
+>ixon</TT
+>. Your port may well be different
+depending on how your printer does flow control.</P
+><P
+>You actually use stty in a somewhat odd way.  Since stty operates
+on the terminal connected to it's standard input, you use it to
+manipulate a given serial port by using the `<TT
+CLASS="literal"
+>&#60;</TT
+>' character as above.</P
+><P
+>Once you have your stty settings right, so that `<EM
+>cat
+file &#62; /dev/ttyS2</EM
+>' (in my case) sends the file to
+the printer, look at the file
+    /usr/src/linux/include/asm-i386/termbits.h. This contains a lot of
+    #defines and a few structs (You may wish to cat this file to
+the printer (you do have that working, right?) and use it as
+scratch paper).  Go to the section that starts out</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>/* c_cflag bit meaning */
+#define CBAUD   0000017</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>This section lists the meaning of the <EM
+>fc#</EM
+>
+and <EM
+>fs#</EM
+> bits. You will notice that the
+names there (after the baud rates) match up with one of the lines
+of stty output. Didn't I say this was going to be easy?</P
+><P
+>Note which of those settings are preceded with a - in your stty
+output. Sum up all those numbers (they are octal). This represents
+the bits you want to clear, so the result is your<EM
+>fc#</EM
+> capability.  Of course, remember that
+you will be setting bits directly after you clear, so you can just
+use `<TT
+CLASS="literal"
+>fc#0177777</TT
+>' (I do).</P
+><P
+>Now do the same for those settings (listed in this section) which
+do not have a - before them in your stty output. In my example the
+important ones are CS8 (0000060), HUPCL (0002000), and CREAD
+    (0000200). Also note the flags for your baud rate (mine is
+0000015). Add those all up, and in my example you get
+0002275. This goes in your <EM
+>fs#</EM
+> capability
+    (`<TT
+CLASS="literal"
+>fs#02275</TT
+>' works fine in my
+example).</P
+><P
+>Do the same with set and clear for the next section of the include
+file, "c_lflag bits". In my case I didn't have to set
+anything, so I just use `<TT
+CLASS="literal"
+>xc#0157777</TT
+>' and `<TT
+CLASS="literal"
+>xs#0</TT
+>'.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN2276"
+></A
+>17.2. Older serial printers that drop characters</H2
+><P
+>Jon Luckey points out that some older serial printers with
+ten-cent serial interfaces and small buffers<EM
+>really</EM
+> mean stop when they say so with flow
+control.  He found that disabling the FIFO in his Linux box's
+16550 serial port with <TT
+CLASS="literal"
+><A
+HREF="http://www.linuxprinting.org/man/setserial.8.html"
+TARGET="_top"
+>setserial</A
+></TT
+> corrected the problem of dropped
+characters (you apparently just specify the UART type as an 8250
+to do this).</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="previewing.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="development.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>On-screen previewing of printable things.</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>What's missing?</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,1720 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html><head><title>10.5 Bash</title>
+
+
+   
+   <meta name="GENERATOR" content="Mozilla/3.01Gold (Win16; I) [Netscape]"></head><body>
+
+<p><i><a href="http://rainbow.mimuw.edu.pl/SO/Linux/index10.html">Do spisu tresci tematu 10</a></i> </p>
+
+<h1 align="center">10.5 Interpretator polecen - Bash <br>
+<br>
+<br>
+<br>
+</h1>
+
+<h2 align="center">Spis tresci </h2>
+
+<ul>
+<li><a href="#WPROWADZENIE">Wprowadzenie</a> </li>
+
+<li><a href="#ALGORYTMY">Ogolne algorytmy dzialania Basha:</a> <a href="#ALGORYTMY-GLOWNY">glowna
+procedura</a>, <a href="#ALGORYTMY-INICJALIZACJA%20WSTEPNA">inicjalizacja
+wstepna</a>, <a href="#ALGORYTMY-PARAMETRY">analiza parametrow</a>, <a href="#ALGORYTMY-INICJALIZACJA">inicjalizacja</a>
+</li>
+
+<li><a href="#PARSER">Parser</a> </li>
+
+<li><a href="#WEJSCIE">Obsluga wejscia:</a> <a href="#WEJSCIE-STRUKTURY%20DANYCH">struktury
+danych,</a> <a href="#WEJSCIE-TWORZENIE">tworzenie,</a> <a href="#WEJSCIE-OTWIERANIE">otwieranie/zamykanie,</a>
+<a href="#WEJSCIE-OPERACJE">operacje</a> </li>
+
+<li><a href="#POLECENIA">Wykonywanie polecen:</a> <a href="#POLECENIA-STRUKTURY">struktury
+danych</a>, <a href="#POLECENIA-REALIZACJA">realizacja,</a> <a href="#POLECENIA-FOR">FOR</a>,
+<a href="#POLECENIA-WHILE">WHILE</a>, <a href="#POLECENIA-IF">IF</a>, <a href="#POLECENIA-POLECENIE%20PROSTE">polecenie
+proste,</a> <a href="#POLECENIA-POLECENIE%20ZEWNETRZNE">polecenie zewnetrzne</a></li>
+
+<li><a href="#SRODOWISKO">Obsluga zmiennych srodowiskowych:</a> <a href="#SRODOWISKO-STRUKTURY-DANYCH">struktury
+danych,</a> <a href="#SRODOWISKO-INICJALIZACJA">inicjalizacja,</a> <a href="#SRODOWISKO-FUNKCJE">funkcje</a>
+</li>
+
+<li><a href="#WYRAZENIA">Obliczanie wyrazen arytmetycznych </a></li>
+
+<li><a href="#BUILTINS">Polecenia wbudowane:</a> <a href="#BUILTINS-STRUKTURA">struktury
+danych i obsluga,</a> <a href="#BUILTINS-PRZYKLADY">przyklady</a> </li>
+
+<li><a href="#CIEKAWE%20ROZWIAZANIA">Ciekawe rozwiazania</a> </li>
+
+<li><a href="http://rainbow.mimuw.edu.pl/SO/Linux/Temat10/bash.htm#BIBLIOGRAFIA">Bibliografia</a> </li>
+</ul>
+
+<p>
+</p><hr><p></p>
+
+<h2 align="center"><a name="WPROWADZENIE"></a>Wprowadzenie </h2>
+
+<p>Bash jest dzialajacym w srodowisku Unixowym interpretatorem polecen.
+Nazwa jest akronimem z ang. <i>Bourne Again SHell </i>(Steve Bourne to
+autor poprzednika Basha - programu sh). </p>
+
+<p>Bash obsluguje standardowe konstrukcje sh, takie jak <tt>for, while,
+case, </tt>czy <tt>if</tt>.. Umozliwia wykonywanie skryptow w taki sam
+sposob jak zwyklych polecen. Dostepne sa wczesniej wpisane polecenia (tzw.
+historia) i rozbudowane funkcje edycji linii polecen. Zawiera tez liczne
+wbudowane polecenia (ang. <i>builtins</i>), pozwalajace m.in. na kontrole
+procesow, obliczanie wartosci wyrazen arytmetycznych, definiowanie aliasow
+itd.<br>
+
+</p><hr><p></p>
+
+<h2 align="center"><a name="ALGORYTMY"></a>Ogolne algorytmy dzialania Basha
+</h2>
+
+<p><br>
+<a name="ALGORYTMY-GLOWNY"></a></p>
+
+<h3>Glowna procedura</h3>
+
+<p>Oto jak w najwiekszym skrocie wyglada dzialanie jednego egzemplarza
+interpretatora. Algorytm jest niemal identyczny dla dowolnego zrodla polecen,
+niezaleznie czy jest nim skrypt, argument wywolania, czy tez palce uzytkownika.
+Niewielkie modyfikacje obejmuja glownie sposob wczytywania i wykonywania
+polecen. </p>
+
+<p>Ogolne algorytmy wiekszosci wyroznionych procedur opisane sa ponizej.
+</p>
+
+<pre>{
+   <b>wykonaj wstepna inicjalizacje;
+   obsluz parametry wywolania;
+   inicjalizuj;
+   wczytaj startowe pliki inicjalizacyjne;
+   </b>while (nie koniec) {
+      if (<b>wczytaj polecenie</b>)
+         if (jest polecenie do wykonania) {
+             <b>wykonaj polecenie;
+</b>             <b>posprzataj;
+             </b>}
+      else koniec;
+      }
+<b>   zakoncz dzialanie;
+</b>}</pre>
+
+<p><br>
+<a name="ALGORYTMY-INICJALIZACJA WSTEPNA"></a></p>
+
+<h3>Przebieg inicjalizacji wstepnej </h3>
+
+<p>Oto schemat czynnosci podejmowanych przez interpretator zaraz po uruchomieniu.
+Wiekszosc podejmowanych tu akcji ma na celu dostosowanie sie Basha do otoczenia,
+w ktorym dziala. </p>
+
+<pre>{
+<b>   zapamietaj id uzytkownika;
+   </b>if (uid uzytkownika != euid uzytkownika || gid uzytkownika != egid uzytkownika)
+<b>      ustaw tryb uprzywilejowany;
+   </b>if (zdefiniowano zmienna srodowiskowa POSIXLY_CORRECT lub POSIX_PEDANTIC)
+<b>      ustaw tryb zgodnosci ze standardem Posix;
+   inicjalizuj lokalne zmienne robocze;
+   </b>if (nazwa wywolania jest "sh")
+<b>      ustaw tryb maksymalnej zgodnosci z sh;
+</b>}</pre>
+
+<p><br>
+<a name="ALGORYTMY-PARAMETRY"></a></p>
+
+<h3>Analiza parametrow wywolania </h3>
+
+<p>Po dokonaniu wstepnych czynnosci inicjalizacyjnych Bash przystepuje
+do analizy parametrow wywolania. Uwzgledniane sa zarowno pelne nazwy opcji,
+jak i flagi. </p>
+
+<pre>{
+   arg_index = 1;
+   while (arg_index != argc&nbsp;&amp;&amp;&nbsp;argv[arg_index] zaczyna sie od '-') {
+      for (i=0; i&lt;liczba dlugich nazw opcji; i++)
+         if (argv[arg_index] rowny dlugiej nazwie[i])
+            if (typ opcji==Int)
+               <b>ustaw wartosc opcji na 1;
+</b>            else
+               <b>ustaw wartosc opcji na nastepny parametr;
+</b>         else <b>koniec dlugich nazw opcji;
+</b>      arg_index++;
+      }
+   <b>ustaw opcje jednoliterowe;
+   </b>if (ustawiono opcje wykonania polecenia podanego jako parametr)
+      <b>ustaw odpowiedni parametr jako zrodlo polecen;
+   </b>if (spelnione warunki interakcji)
+<b>      ustaw flage interakcji z uzytkownikiem;
+</b>}</pre>
+
+<p><br>
+<a name="ALGORYTMY-INICJALIZACJA"></a></p>
+
+<h3>Wlasciwa inicjalizacja </h3>
+
+<p>Tutaj wykonywana jest rzeczywista, ciezka praca inicjalizacyjna. Tworzone
+i/lub inicjalizowane sa struktury do przechowywania najrozniejszych informacji.
+Ostatecznie ustalane jest zrodlo wykonywanych pozniej polecen. Ustawiane
+sa zmienne srodowiskowe - np. dla znaku zachety (ang. <i>prompt</i>), badane
+mozliwosci edycyjne terminala (koncowki?) itd. </p>
+
+<pre>{
+<b>   ustaw buforowanie stdout i stderr;
+   inicjalizuj i sortuj tablice wbudowanych polecen;
+   ustaw przechwytywanie i obsluge sygnalow;
+   wypelnij strukture informacji o uzytkowniku i komputerze;
+   wlacz funkcje obslugujaca tylde (katalog domowy) w sciezkach;
+   inicjalizuj srodowisko;
+   utworz struktury do przechowywania plikow;
+   rozpocznij obsluge procesow;
+   utworz ogolne struktury do wczytywania polecen;
+   </b>if (terminal == emacs)
+      <b>ustaw brak edycji linii;
+
+
+   ustaw znaki zachety;
+   wczytaj startowe pliki inicjalizacyjne; 
+   </b>if (jest juz polecenie do wykonania)&nbsp;{
+      <b>wykonaj polecenie;
+      zakoncz dzialanie;
+      </b>}
+   if (tryb interakcji z uzytkownikiem)
+      <b>ustaw obsluge poczty;
+   wczytaj historie;
+   </b>if (podano plik jako parametr) 
+      if (plik istnieje &amp;&amp; jest skryptem)
+         <b>ustaw plik jako zrodlo polecen;
+   </b>else
+      <b>ustaw buforowane wejscie jako zrodlo polecen;
+   przypisz reszte parametrow do zmiennych srodowiskowych $1...$n;
+</b>}<b> </b></pre>
+
+<p>
+</p><hr><p></p>
+
+<h2 align="center"><a name="PARSER"></a>Parser </h2>
+
+<p>Analiza wpisywanych przez uzytkownika polecen zajmuje sie parser wygenerowany
+na podstawie odpowiedniej gramatyki przez <b>FLEXa</b> i <b>Bisona</b>.
+Nie bedziemy sie tu zajmowac dokladna analiza parsera, zwlaszcza, ze ma
+on ponad 4000 linii, a spora jego czesc to automat skonczony i mnostwo
+wypelnionych liczbami tablic. Sami autorzy Basha przyznaja, ze parser jest
+bardzo duzy i malo efektywny, w zwiazku z czym zapowiadaja, ze w wolnej
+chwili napisza go recznie. Parser Basha jest na tyle skomplikowany, ze
+na jednej z poswieconych Unixowi konferencji Tom Duff stwierdzil:&nbsp;<i>Nikt
+nie wie, jaka naprawde jest gramatyka Basha. Niewiele daje nawet analiza
+samych zrodel.</i> </p>
+
+<p>Parser jest slabo odgraniczony od reszty programu. Wywolywany jest w
+wielu miejscach, on sam rowniez wielokrotnie korzysta z procedur Basha
+(przykladami moze byc chociazby czesc operacji na napisach czy tez obliczanie
+wyrazen arytmetycznych). Komunikacja miedzy parserem a reszta interpretatora
+odbywa sie glownie przez zmienne globalne - wiekszosc funkcji parsera nie
+zwraca zadnych istotnych parametrow. </p>
+
+<p>Glownym zadaniem parsera jest odczytanie polecen uzytkownika z wejscia
+i utworzenie z nich struktury <tt>COMMAND</tt> (opisanej ponizej). Na zmiennej
+<tt>global_command</tt> (typu <tt>COMMAND)</tt>&nbsp;parser zapamietuje strukture
+analizowanych polecen. </p>
+
+<p>Wejscie dla parsera jest dostarczane przez Basha i jego obsluga jest
+niemal niezalezna od rzeczywistego zrodla danych. Po odpowiedniej dla danego
+typu wejscia inicjalizacji (<tt>with_input_from_stdin(), <a href="#with_input_from_buffered_stream">with_input_from_buffered_stream</a>(),
+with_input_from_string()</tt>) dalej parser uzywa wylacznie ogolnych funkcji
+odczytu danych. </p>
+
+<p>Do odczytu danych ze standardowego wejscia uzywana jest biblioteka <tt>readline</tt>
+umozliwiajaca edycje linii danych i obslugujaca wiele klawiszy edycyjnych
+w roznych standardach (m.in. emacs i vi), a takze zapewniajaca obsluge
+historii. <br>
+
+</p><hr><p></p>
+
+<h2 align="center"><a name="WEJSCIE"></a>Obsluga wejscia<br>
+</h2>
+
+<p>Wczytywanie polecen Basha na najnizszym poziomie odbywa sie poprzez
+buforowany strumien z synchronizacja. Mechanizm ten moze dzialac w polaczeniu
+z plikami, mozna tez go uzywac do emulowania czytania znakow z wejscia
+i zwracania ich poprzez odpowiedniki <tt>getc()</tt> i <tt>ungetc().</tt>
+Funkcje i struktury danych obslugujace strumienie zdefiniowane sa w plikach
+<b>INPUT.C</b> oraz <b>INPUT.H</b>. </p>
+
+<p><br>
+<a name="WEJSCIE-STRUKTURY DANYCH"></a></p>
+
+<h3>Struktury danych</h3>
+
+<p>Dwie istotne struktury to <tt>BUFFERED_STREAM</tt> oraz <tt>BASH_INPUT</tt>
+korzystajaca z unii <tt>INPUT_STREAM</tt>. Pierwsza jest nieco podobna
+do standardowej struktury <tt>FILE</tt>, ale ma swoje wlasne buforowanie
+i synchronizacje. Zdefiniowana jest rowniez tablica strumieni <tt>buffers[]</tt>
+skladajaca sie z <tt>BUFFERED_STREAM</tt>.</p>
+
+<pre>typedef struct BSTREAM {
+   int  b_fd;
+   char *b_buffer;              /* bufor przechowujacy otrzymane znaki */
+   int  b_size;                 /* wielkosc bufora (maksymalnie 8kB) */
+   int  b_used;                 /* ile bufora zajete */
+   int  b_flag;                 /* flagi - B_EOF, B_ERROR&nbsp;lub B_UNBUF  */
+   int  b_inputp;               /* wskaznik bufora - indeks */
+} <b>BUFFERED_STREAM</b>;</pre>
+
+<p>Druga przechowuje dane potrzebne bezposrednio do obslugi wejscia. Zawiera
+m.in. dwa wskazniki do funkcji (typ <tt>Function</tt> to funkcja bez parametru
+zwracajaca znak) - pierwsza z nich ma sluzyc do pobierania znaku, druga
+do zwracania. Jak widac z ponizszej unii, miejscem, z ktorego Bash pobiera
+znaki, moze byc plik, zwykly strumien znakow lub wlasnie strumien buforowany.</p>
+
+<pre>typedef union {
+   FILE *file;          /* odczyt z pliku */
+   char *string;        /* odczyt z ciagu znakow */
+   int buffered_fd;     /* odczyt z buforowanego strumienia, zdefiniowanego wyzej */
+} <b>INPUT_STREAM</b>;
+
+typedef struct {
+   int type;
+   char *name;
+   INPUT_STREAM location;
+   Function *getter;
+   Function *ungetter;
+} <b>BASH_INPUT</b>;</pre>
+
+<p><br>
+<a name="WEJSCIE-TWORZENIE"></a></p>
+
+<h3>Tworzenie strumienia</h3>
+
+<p><a name="make_buffered_stream"></a>Do utworzenia nowego strumienia na
+najnizszym poziomie sluzy funkcja <tt>make_buffered_stream()</tt>, ktora
+przydziela pamiec dla strumienia i inicjuje pola jego struktury. Nie powinna
+byc wywolywana z zewnatrz, jest raczej przeznaczona do wykorzystania przez
+inne funkcje. Jej argumentami sa: deskryptor dla tworzonego strumienia,
+bufor i jego rozmiar, przy czym pamiec dla bufora musi byc zaalokowana
+wczesniej. Funkcja zwraca wskaznik do utworzonej struktury.</p>
+
+<pre>static BUFFERED_STREAM* make_buffered_stream (int fd, char *buffer, 
+                                              int bufsize)
+{
+  BUFFERED_STREAM *bp;
+   <b>zaalokuj pamiec;
+</b>   <b>zniszcz stary i wstaw nowy element do buffers[fd];
+</b>   <b>bp-&gt;b_fd = fd;
+   bp-&gt;b_buffer = buffer;
+   bp-&gt;b_size = bufsize;
+   bp-&gt;b_used = 0;
+   bp-&gt;b_inputp = 0;
+   bp-&gt;b_flag = 0;
+</b>   if (bufsize == 1)
+      <b>bp-&gt;b_flag |= B_UNBUFF;
+</b>   return (bp);
+}</pre>
+
+<p><br>
+<a name="copy_buffered_stream"></a></p>
+
+<p>Utworzone strumienie mozna kopiowac funkcja <tt>copy_buffered_stream()
+</tt>o nastepujacym naglowku: </p>
+
+<p><tt>static BUFFERED_STREAM * copy_buffered_stream (BUFFERED_STREAM *bp)</tt>;</p>
+
+<p>Przydziela ona tylko pamiec dla nowej struktury, kopiuje pola i zwraca
+wskaznik do nowo utworzonej kopii, albo <tt>NULL</tt> jezeli <tt>bp</tt>
+jest pustym wskaznikiem.</p>
+
+<p>Mozliwe jest rowniez duplikowanie deskryptorow podobnie, jak robi to
+funkcja <tt>dup2(fd1, fd2).</tt> Sluzy do tego funkcja <tt>duplicate_buffered_stream()</tt>.
+Jezeli docelowy strumien istnieje, jest niszczony, a nastepnie do nowo
+utworzonego kopiowany jest strumien zrodlowy.</p>
+
+<pre>duplicate_buffered_stream (int fd1, int fd2) 
+{
+   if (fd1 == fd2)
+      return 0;
+   <b>m = max (fd1, fd2);
+</b>   <b>zniszcz stary i</b> <b>wstaw nowy element do buffers[fd];
+</b>   if (strumien istnieje w tablicy)
+      <b>free_buffered_stream (strumien);
+</b>   <b>buffers[fd2] = <a href="#copy_buffered_stream">copy_buffered_stream </a>(buffers[fd1]);
+</b>   if (buffers[fd2])
+      <b>buffers[fd2]-&gt;b_fd = fd2;
+</b>   if (fd2 uzywane jako wejscie dla Basha) { 
+      /* w tablicy moze nie istniec taki element */
+      if (!buffers[fd2])
+         <b><a href="#fd_to_bs">fd_to_buffered_stream </a>(fd2);
+</b>      }
+   return (fd2);
+}</pre>
+
+<p>Kolejna funkcja przyporzadkowuje deskryptorowi pliku strumien buforowany.
+Nazywa sie ona <tt>fd_to_buffered_stream()</tt> i w razie potrzeby tworzy
+oraz zwraca strumien dla zadanego deskryptora, albo <tt>NULL </tt>w przypadku
+niemoznosci utworzenia go.</p>
+
+<pre><a name="fd_to_bs"></a>BUFFERED_STREAM* fd_to_buffered_stream (int fd) 
+{
+   if (i-wezel dla fd nie istnieje) {
+      <b>close (fd);
+</b>      return (<b>(BUFFERED_STREAM *)NULL</b>);
+      }
+   if (nie mozna wykonac seek na strumieniu)
+      <b>rozmiar = 1;
+</b>   else
+      <b>ustaw rozmiar bufora;
+</b>   <b>przydziel pamiec dla bufora wewnetrznego;
+</b>   return (<b><a href="#make_buffered_stream">make_buffered_stream </a>(fd, bufor, rozmiar)</b>);
+}</pre>
+
+<p><br>
+<a name="WEJSCIE-OTWIERANIE"></a></p>
+
+<h3>Otwieranie / zamykanie strumienia</h3>
+
+<p>Wykorzystujac powyzsze funkcje mozna otworzyc strumien podobnie jak
+plik, podajac jego nazwe. Sluzy do tego funkcja <tt>open_buffered_stream(),
+</tt>zwracajaca wskaznik do strumienia:</p>
+
+<pre>BUFFERED_STREAM* open_buffered_stream (char *file) 
+{
+   <b>fd = open (file, O_RDONLY);
+</b>   if (fd == -1)
+      return (<b>(BUFFERED_STREAM *)NULL</b>);
+   return (<b><a href="#fd_to_bs">fd_to_buffered_stream </a>(fd)</b>);
+}</pre>
+
+<p>Otwiera ona plik (ktory musi wczesniej istniec) do czytania i tworzy
+strukture strumienia powiazana z deskryptorem tego pliku.</p>
+
+<p>Z kolei do zamykania strumienia sluzy odpowiednik bibliotecznej funkcji
+<tt>close()</tt> funkcja o nazwie <tt>close_buffered_fd(),</tt> zwracajaca
+wynik wykonania <tt>close(),</tt> jezeli strumien dla danego deskryptora
+nie istnieje, a wynik otrzymany z wywolania<tt> <a href="#close_buffered_stream">close_buffered_stream</a>()</tt>
+w przeciwnym przypadku.</p>
+
+<pre>int close_buffered_fd (int fd)
+{
+   if (nie ma strumienia odpowiadajacego fd)
+      return (<b>close (fd)</b>);
+   return (<b>close_buffered_stream (buffers[fd])</b>);
+}</pre>
+
+<p><a name="close_buffered_stream"></a>Funkcja <tt>close_buffered_stream()</tt>
+zwalnia pamiec przydzielona strumieniowi oraz zamyka zwiazany z nim deskryptor
+pliku: </p>
+
+<pre>int close_buffered_stream (BUFFERED_STREAM *bp)
+{
+   if (!bp)
+      return (0);
+   <b>fd = bp-&gt;b_fd;
+</b>   <b>zwolnij pamiec zajeta przez strumien;
+</b>   return (<b>close (fd)</b>);
+}</pre>
+
+<p><br>
+<a name="WEJSCIE-OPERACJE"></a></p>
+
+<h3>Operacje na strumieniu</h3>
+
+<p><a name="b_fill_buffer"></a>Funkcja <tt>b_fill_buffer()</tt> czyta znaki
+az do zapelnienia bufora podanego jako parametr i zwraca pierwszy znak
+z bufora albo koniec pliku:</p>
+
+<pre>static int b_fill_buffer (BUFFERED_STREAM *bp) 
+{
+   do {
+      <b>bp-&gt;b_used = read (bp-&gt;b_fd, bp-&gt;b_buffer, bp-&gt;b_size);
+</b>      } while (bp-&gt;b_used &lt; 0 &amp;&amp; errno == EINTR);
+   if (bp-&gt;b_used &lt;= 0) {     /* w buforze nic nie ma */
+      <b>bp-&gt;b_buffer[0] = 0;
+</b>      if (bp-&gt;b_used == 0)    /* nic nie przeczytano */
+         <b>bp-&gt;b_flag |= B_EOF;
+</b>      else                    /* read() zwrocil blad */
+          <b>bp-&gt;b_flag |= B_ERROR;
+</b>      return (EOF);
+   }
+<b>   ustaw poczatek bufora;
+</b>   return (<b>pierwszy znak z bufora</b>);    
+}</pre>
+
+<p><br>
+<a name="getc"></a></p>
+
+<p>Do wczytania jednego znaku sluzy odpowiednik <tt>getc()</tt> - udajace
+funkcje dosc nieladnie zdefiniowane makro z parametrem bedacym strumieniem,
+ktore zwraca pierwszy znak z bufora i przesuwa wskaznik lub, jezeli bufor
+jest pusty, wywoluje funkcje<tt> <a href="#b_fill_buffer">b_fill_buffer</a>():
+</tt></p>
+
+<pre>#define bufstream_getc(bp) \
+   (bp-&gt;b_inputp == bp-&gt;b_used || !bp-&gt;b_used) \
+                 ? b_fill_buffer (bp) \
+                 : bp-&gt;b_buffer[bp-&gt;b_inputp++]</pre>
+
+<p><br>
+<a name="ungetc"></a></p>
+
+<p>Istnieje oczywiscie rowniez odpowiednik ungetc() wykonujacy odwrotna
+operacje: wpisujacy znak z powrotem do bufora i przesuwajacy wskaznik bufora
+w druga strone. Jest to funkcja <tt>bufstream_ungetc()</tt>, ktorej parametry
+to znak do zwrocenia i strumien:</p>
+
+<pre>static int bufstream_ungetc(int c, BUFFERED_STREAM *bp) 
+{
+   if (c == EOF || bp-&gt;b_inputp == 0)
+      return (EOF);
+   <b>bp-&gt;b_buffer[--bp-&gt;b_inputp] = c;
+</b>   return (c);
+}</pre>
+
+<p>Funkcja <tt>sync_buffered_stream()</tt> przesuwa w tyl wskaznik w pliku
+o deskryptorze <tt>bfd</tt>, aby zsynchronizowac jego pozycje w pliku z
+tym, co dotad zostalo przeczytane:</p>
+
+<pre>int sync_buffered_stream (int bfd)
+{
+   BUFFERED_STREAM *bp;
+
+   <b>bp = buffers[bfd];
+</b>   if (!bp)
+      return (-1);
+<b>   chars_left = bp-&gt;b_used - bp-&gt;b_inputp; </b>/* ile znakow do odczytania */
+   if (chars_left)              
+      /* o tyle cofany jest wskaznik w pliku */
+<b>      lseek (bp-&gt;b_fd, -chars_left, SEEK_CUR);
+</b>   /* co oznacza, ze w buforze z powrotem nic nie ma */
+<b>   bp-&gt;b_used = bp-&gt;b_inputp = 0; 
+</b>   return (0);
+}</pre>
+
+<p>Uzywana przez Basha funkcja <tt>with_input_from_buffered_stream()</tt>
+wiaze wejscie z plikiem o deskryptorze bedacym parametrem, czytanie odbywa
+sie przez buforowany strumien. Wywoluje inicjujaca wejscie/wyjscie funkcje
+parsera <tt>init_yy_io()</tt> podajac jej w miejsce wskaznikow do funkcji
+pobierajacych i zwracajacych znak funkcje bedace nieco obudowanymi (nawiasami
+{ } i inna nazwa) wywolaniami<tt> <a href="#getc">bufstream_getc</a>()</tt>
+i<tt> <a href="#ungetc">bufstream_ungetc</a>()</tt>:</p>
+
+<pre><a name="with_input_from_buffered_stream"></a>void with_input_from_buffered_stream (int bfd, char *name) {
+   INPUT_STREAM location;
+
+<b>   location.buffered_fd = bfd;
+</b>   /* upewnij sie, ze strumien istnieje */
+<b>   <a href="#fd_to_bs">fd_to_buffered_stream </a>(bfd);
+   init_yy_io (buffered_getchar, buffered_ungetchar, st_bstream, 
+               name, location);
+</b>}</pre>
+
+<p>
+</p><hr><p></p>
+
+<h2 align="center"><a name="POLECENIA"></a>Wykonywanie polecen </h2>
+
+<p><br>
+<a name="POLECENIA-STRUKTURY"></a></p>
+
+<h3>Struktury danych </h3>
+
+<p>Podstawowa struktura przechowujaca informacje o pojedynczym poleceniu
+jest struktura <tt>COMMAND</tt>. Jej definicja wyglada nastepujaco: </p>
+
+<pre>typedef struct command {
+  enum command_type type;       /* typ polecenia (por. tabela ponizej) */
+  int flags;                    /* dodatkowe flagi */
+  int line;                     /* numer linii, w ktorej rozpoczyna sie polecenie */
+  REDIRECT *redirects;          /* przeadresowania dla niektorych polecen */
+  union {                       /* dodatkowe dane dla poszczegolnych polecen */
+    struct for_com *For;
+    struct case_com *Case;
+    struct while_com *While;
+    struct if_com *If;
+    struct connection *Connection;
+    struct simple_com *Simple;
+    struct function_def *Function_def;
+    struct group_com *Group;
+    struct select_com *Select;
+  } value;
+} <b>COMMAND;</b></pre>
+
+<p>Pole <tt>redirects</tt> to struktura zawierajaca informacje o przeadresowaniach.
+Okresla ona: typ przeadresowania (wejscie, wyjscie, wejscie/wyjscie, dolaczenie
+do pliku itd.), przeadresowywany deskryptor oraz nazwe pliku lub deskryptor,
+na ktory ma sie odbyc przeadresowanie. </p>
+
+<p>Najciekawszym i najwazniejszym polem struktury <tt>COMMAND</tt>&nbsp;jest
+unia <tt>value</tt>, przechowujaca dane odpowiednie dla danego polecenia.
+Ponizsza tabela przedstawia wszystkie obslugiwane przez Basha rodzaje polecen
+i odpowiadajace im parametry. </p>
+
+<center><table border="1">
+<tbody><tr>
+<td nowrap="nowrap">
+<center><p><b>Rodzaj polecenia</b></p></center>
+</td>
+
+<td>
+<center><p><b>Parametr</b></p></center>
+</td>
+
+<td>
+<center><p><b>Lista parametrow</b> </p></center>
+</td>
+
+<td>
+<center><p><b>Polecenie</b></p></center>
+</td>
+</tr>
+
+<tr>
+<td>CONNECTION</td>
+
+<td><tt>connector <br>
+</tt>- polaczenie </td>
+
+<td><br>
+</td>
+
+<td><tt>first, second</tt> - <br>
+polaczone polecenia </td>
+</tr>
+
+<tr>
+<td>CASE</td>
+
+<td><tt>word</tt> <br>
+-- warunek </td>
+
+<td><tt>clauses</tt> - lista kolejnych<br>
+warunkow i polecen do<br>
+wykonania </td>
+
+<td><tt>action </tt>(w <tt>clauses</tt>) <br>
+- do wykonania gdy <br>
+warunek spelniony </td>
+</tr>
+
+<tr>
+<td>FOR, SELECT</td>
+
+<td><tt>name <br>
+</tt>- zmienna </td>
+
+<td><tt>maplist </tt>- lista parametrow<br>
+do podstawienia na zmienna </td>
+
+<td><tt>action </tt>- do wykonania<br>
+dla kazdego podstawienia </td>
+</tr>
+
+<tr>
+<td>IF</td>
+
+<td><tt>test <br>
+</tt>- warunek </td>
+
+<td><br>
+</td>
+
+<td><tt>true_case</tt> - gdy warunek<br>
+spelniony, <tt>false_case<br>
+</tt>- gdy nie spelniony </td>
+</tr>
+
+<tr>
+<td>WHILE</td>
+
+<td><tt>test <br>
+</tt>- warunek </td>
+
+<td><br>
+</td>
+
+<td><tt>action </tt>- do wykonywania<br>
+dopoki warunek spelniony </td>
+</tr>
+
+<tr>
+<td>SIMPLE</td>
+
+<td><br>
+</td>
+
+<td><tt>words </tt>- argumenty dla<br>
+funkcji exec </td>
+
+<td><br>
+</td>
+</tr>
+
+<tr>
+<td>FUNCTION_DEF</td>
+
+<td><tt>name <br>
+</tt>- nazwa </td>
+
+<td><br>
+</td>
+
+<td><tt>command </tt>- struktura <br>
+typu COMMAND</td>
+</tr>
+
+<tr>
+<td>GROUP</td>
+
+<td><br>
+</td>
+
+<td><br>
+</td>
+
+<td><tt>command </tt>- struktura <br>
+typu COMMAND</td>
+</tr>
+</tbody></table></center>
+
+<p>Niektore z opisanych w tabeli typow polecen wymagaja krotkiego komentarza:
+</p>
+
+<dl>
+<dt><b><tt>CONNECTION</tt></b> </dt>
+
+<dd>struktura umozliwiajaca przechowywanie polecen polaczonych srednikiem
+lub spojnikiem logicznym. </dd>
+
+<dt><b><tt>FUNCTION_DEF</tt></b> </dt>
+
+<dd>tutaj przechowywane sa funkcje zdefiniowane przez uzytkownika; po wczytaniu
+definicji funkcji Bash analizuje ja jak normalne polecenie i utworzona
+w ten sposob strukture <tt>COMMAND</tt>&nbsp;przechowuje na zmiennej <tt>command</tt>
+</dd>
+
+<dt><b><tt>GROUP</tt></b> </dt>
+
+<dd>struktura grupujaca polecenia w strukturze <tt>command </tt>umozliwiajaca
+wspoluzytkowanie laczy (ang. <i>pipes</i>) przez grupe polecen </dd>
+
+<dt><b><tt>SIMPLE</tt></b> </dt>
+
+<dd>podstawowa struktura, zawierajaca informacje o bezposrednio wykonywanych
+poleceniach </dd>
+</dl>
+
+<p><br>
+<a name="POLECENIA-REALIZACJA"></a></p>
+
+<h3>Realizacja</h3>
+
+<p>Sam proces wykonywania polecenia przebiega w nastepujacy sposob: po
+wczytaniu linii polecenia w petli <tt>reader_loop()</tt> wywolywana jest
+funkcja <tt>execute_command()</tt> z parametrem typu <tt>COMMAND</tt>.
+Funkcja ta nie jest zbyt skomplikowana: inicjalizuje zmienne, przydzielajac
+w razie potrzeby pamiec, a nastepnie wola funkcje <tt>execute_command_internal(),</tt>
+zapamietuje wartosc zwrocona przez nia i zwraca ja, zwolniwszy najpierw
+zaalokowana pamiec. </p>
+
+<p>Funkcja<tt> execute_command_internal()</tt> wykonuje wiekszosc prac
+zwiazanych z ogolna obsluga wykonania polecen. Jej argumenty sa nastepujace:</p>
+
+<ul>
+<li><tt>command</tt> jest tym samym, co parametr funkcji <tt>execute_command()</tt>
+</li>
+
+<li><tt>asynchronous</tt> rozne od zera oznacza wykonanie polecenia w tle
+</li>
+
+<li><tt>pipe_in</tt> i <tt>pipe_out</tt> to deskryptory plikow informujace
+o wejsciu i wyjsciu; wartosc <tt>NO_PIPE</tt> oznacza, ze bedziemy uzywac
+stdin/stdout </li>
+
+<li><tt>fds_to_close</tt> to deskryptory plikow, ktore maja zostac zamkniete
+po wykonaniu <tt>fork()</tt></li>
+</ul>
+
+<p>Zwracana jest jedna z dwoch wartosci : <tt>EXECUTION_FAILURE</tt> lub
+<tt>EXECUTION_SUCCESS</tt> (ta druga rowniez po wykonaniu pustego polecenia).
+</p>
+
+<p>Sam algorytm wyglada nastepujaco :</p>
+
+<pre><a name="execute_command_internal"></a>int execute_command_internal (COMMAND* command, int asynchronous, 
+                              int pipe_in, int pipe_out, 
+                              struct fd_bitmap *fds_to_close)
+{
+   if (parametr command pusty lub wykonujemy break albo continue) 
+      return (EXECUTION_SUCCESS);
+   if (polecenie ma byc jawnie wykonane przez kopie interpretatora albo stdin/stdout
+          zostalo przeadresowane i poleceniem jest instrukcja for..., while...
+          itp. badz grupa instrukcji) {
+      <b><a href="#make_child">make_child</a>();
+</b>      if (proces potomny) {
+         <b>ustaw obsluge sygnalow;
+         wykonaj ewentualne przeadresowanie;
+         zamknij deskryptory fds_to_close;
+</b>         if (polecenie jest poleceniem prostym) 
+<b>            ustaw odpowiednie flagi;
+</b>            /* byc moze nie trzeba bedzie robic kolejnego forka */
+<b>         exec_result = execute_command_internal
+           (command, asynchronous, NO_PIPE, NO_PIPE, fds_to_close);
+</b>         exit (exec_result);
+      }
+      else {
+<b>         zamknij lacza pipe_in, pipe_out;
+</b>         if (jestesmy czescia lacza) return (EXECUTION_SUCCESS);
+         if (nie ma lacza lub jestesmy ostatnim elementem) {
+<b>           czekaj na potomka;
+</b>           return (wartosc zwrocona przez potomka);
+         }
+      }
+   }
+<b>   wykonaj ewentualne przeadresowanie;
+</b>   switch (typ polecenia) {
+      case cm_for:
+<b>        exec_result = <a href="#POLECENIA-FOR">execute_for_command </a>(command-&gt;value.For);
+</b>        break;
+      case cm_case:
+<b>        exec_result = execute_case_command (command-&gt;value.Case);
+</b>        break;
+      case cm_while:
+<b>        exec_result = <a href="#POLECENIA-WHILE">execute_while_command </a>(command-&gt;value.While);
+</b>        break;
+      case cm_until:
+<b>        exec_result = <a href="#POLECENIA-WHILE">execute_until_command </a>(command-&gt;value.While);
+</b>        break;
+      case cm_if:
+<b>        exec_result = <a href="#POLECENIA-IF">execute_if_command </a>(command-&gt;value.If);
+</b>        break;
+      case cm_group: /* przypadek "{...}" */
+        if (wykonanie asynchroniczne) {
+<b>          ustaw flage jawnego wywolania kopii interpretatora;
+          exec_result = execute_command_internal
+             (command, 1, pipe_in, pipe_out, fds_to_close);
+</b>        }
+        else 
+<b>           exec_result = execute_command_internal
+              (command-&gt;value.Group-&gt;command,
+               asynchronous, pipe_in, pipe_out, fds_to_close);
+</b>      case cm_simple_command:
+        if (byl potrzebny fork() do tego polecenia) 
+<b>           czekaj na potomka;
+        exec_result = <a href="#POLECENIA-POLECENIE%20PROSTE">execute_simple_command</a> (command-&gt;value.Simple,
+           pipe_in, pipe_out, asynchronous, fds_to_close);
+</b>      case cm_connection:
+        switch (command-&gt;value.Connection-&gt;connector) {
+           case '&amp;':
+<b>             wykonaj konieczne przeadresowanie;
+</b>             /* pierwsze polecenie jawnie asynchroniczne */
+<b>             exec_result = execute_command_internal
+                (command-&gt;value.Connection-&gt;first, 1,
+                 pipe_in, pipe_out, fds_to_close);
+             usun inf. o przeadresowaniu;
+             exec_result = execute_command_internal
+                (command-&gt;value.Connection-&gt;second, asynchronous,
+                 pipe_in, pipe_out, fds_to_close);
+</b>           case ';':
+<b>             execute_command (command-&gt;value.Connection-&gt;first);
+             exec_result = execute_command_internal
+                (command-&gt;value.Connection-&gt;second, asynchronous,
+                 pipe_in, pipe_out, fds_to_close);
+</b>           case '|':
+<b>             zainicjuj lacze dla procesow;
+             execute_command_internal
+                (command-&gt;value.Connection-&gt;first, asynchronous,
+                 prev, fildes[1], fd_bitmap);
+</b>             /* fildes[1] i prev to nowe deskryptory we/wy dla polecenia */
+<b>             prev = fildes[0];
+</b>             /* wykonaj to, co po prawej stronie lacza */
+<b>             exec_result = execute_command_internal
+                (command-&gt;value.Connection-&gt;second, asynchronous,
+                 prev, pipe_out, fds_to_close);
+</b>           case AND_AND: /* "&amp;&amp;" */
+           case OR_OR:   /* "||" */
+             if (asynchronicznie) {
+                /* tym razem wymuszane jest utworzenie kopii interpretatora */
+<b>                exec_result = execute_command_internal
+                   (command, 1, pipe_in, pipe_out, fds_to_close);
+</b>             }
+<b>             exec_result = execute_command
+                (command-&gt;value.Connection-&gt;first);
+</b>             if (exec_result == 0 dla || lub 1 dla &amp;&amp;)
+<b>                exec_result = execute_command
+                   (command-&gt;value.Connection-&gt;second);
+</b>        }
+   }
+<b>   wykonaj porzadki w strukturach i deskryptorach;
+</b>   return (ostatnia wartosc exec_result);
+}</pre>
+
+<p>Jak widac, algorytm ten jest dosyc skomplikowany; tworcy Basha umiescili
+w nim kilka sprytnych rozwiazan, ktore wymagaja nieco dluzszego komentarza.
+Otoz po pierwsze tworzenie procesu potomnego realizowane jest przez specjalna
+funkcje <a name="make_child"></a><tt>make_child(),</tt> ktora tworzy oczywiscie
+proces potomny wywolujac <tt>fork(),</tt> ale przedtem wykonuje kilka innych
+czynnosci. Najpierw ustawia obsluge sygnalow <tt>SIGCHLD</tt> i <tt>SIGINT</tt>,
+potem wola funkcje <tt>making_children(),</tt> ta zas tworzy lacze,
+aby usekwencyjnic <tt>fork().</tt> Potem nastepuje samo wywolanie <tt>fork()</tt>
+i rodzic ustawia potomkowi swoje sygnaly, przechwytuje od niego informacje
+o bledach i ustawia procesom potomnym te sama grupe, aby mogly korzystac
+z lacza. Na koniec dodaje utworzone procesy do tablicy dzialajacych procesow
+(<tt>job_array</tt>), ktora stanowi czesc aparatu Bashowego zarzadzania
+procesami. Obsluga konstrukcji skladniowych typu FOR, IF itp. odbywa sie
+w odpowiadajacych im funkcjach. Czesc z nich jest dosyc podobna i malo
+interesujaca, wiec ponizej nie opisujemy ich wszystkich.</p>
+
+<h3><br>
+<a name="POLECENIA-FOR"></a><br>
+FOR</h3>
+
+<p>Funkcja <tt>execute_for_command()</tt> wykonuje petle FOR przebiegajac
+kolejne wartosci zmiennej sterujacej i wykonujac dla kazdej z nich zawartosc
+petli.</p>
+
+<p>Algorytm jest nastepujacy:</p>
+
+<pre>int execute_for_command (FOR_COM *for_command) 
+{
+<b>   sprawdz poprawnosc nazwy zmiennej sterujacej;
+   loop_level++;
+   rozwin liste wartosci dla zmiennej sterujacej;
+</b>   while (lista niepusta) {
+<b>      przypisz wartosc z listy na zmienna sterujaca;
+      retval = execute_command (for_command-&gt;action);
+      sprawdz, czy nie trzeba wykonac "break" lub "continue";
+      wez nastepny element z listy;
+</b>   }
+   if (zdefiniowana odpowiednia flaga) 
+<b>      przywroc poprzednia wartosc zmiennej;
+   loop_level--;
+</b>   return (retval);
+}</pre>
+
+<p><br>
+<a name="POLECENIA-WHILE"></a></p>
+
+<h3>WHILE&nbsp;i UNTIL</h3>
+
+<p>Polecenia WHILE i UNTIL obslugiwane sa w zasadzie jedna funkcja wolana
+przez <tt>execute_command_while()</tt> i <tt>execute_command_until().</tt>
+Ta funkcja to <tt>execute_while_or_until (WHILE_COM *while_command, int
+type),</tt> gdzie drugi parametr to flaga: while albo until.</p>
+
+<pre>int execute_while_or_until (WHILE_COM *while_command, int type)
+{
+<b>   loop_level++;
+   body_status = EXECUTION_SUCCESS;
+</b>   while (1) {
+<b>      return_value = execute_command (while_command-&gt;test);
+</b>      if (while i zwrocono wartosc falsz)
+         break;
+      if (until i zwrocono wartosc prawda)
+         break;
+<b>      body_status = execute_command (while_command-&gt;action);
+      sprawdz, czy nie trzeba wykonac "break" lub "continue";
+</b>   }
+<b>   loop_level--;
+</b>   return (body_status);
+}</pre>
+
+<p><br>
+<a name="POLECENIA-IF"></a></p>
+
+<h3>IF</h3>
+
+<p>Obsluga polecenia IF...THEN...ELSE jest bardzo prosta:</p>
+
+<pre>execute_if_command (IF_COM *if_command)
+{
+<b>   return_value = execute_command (if_command-&gt;test);
+</b>   if (zwrocono wartosc prawda)
+      return (<b>execute_command (if_command-&gt;true_case)</b>);
+   else
+      return (<b>execute_command (if_command-&gt;false_case)</b>);
+}</pre>
+
+<p><br>
+<a name="POLECENIA-POLECENIE PROSTE"></a></p>
+
+<h3>Polecenie proste</h3>
+
+<p>Godna uwagi jest funkcja <tt>execute_simple_command()</tt> wykonujaca
+polecenia proste, gdyz to ona dopiero moze wywolac jakies konkretne polecenie:
+wbudowane, z dysku lub zdefiniowana funkcje. Oto algorytm:</p>
+
+<pre>execute_simple_command (SIMPLE_COM *simple_command, int pipe_in,
+                        int pipe_out, int async,
+                        struct fd_bitmap *fds_to_close)
+{
+   if (sa jakies polecenia) {
+      if (polecenie zwiazane z kontrola zadan) {
+         if (asynchronicznie)
+<b>            wykonaj w tle;
+</b>         else
+<b>            wykonaj pierwszoplanowo;
+</b>         return (wynik wykonania);
+      }
+      if (zadanie do wznowienia) {
+<b>         wznow zadanie;
+</b>         return (wynik wznowienia);
+      }
+      /* w takim razie polecenie wbudowane lub funkcja uzytkownika */
+      /* albo tez polecenie zewnetrzne */
+      if (funkcja albo polecenie wbudowane) {
+         if (przeadresowanie lub asynchronicznie) {
+<b>            <a href="#make_child">make_child</a>();
+</b>            if (proces potomny) <b>wykonaj polecenie w kopii interpretatora</b>;
+<b>            zwroc wartosc rodzicowi;
+</b>            else {
+<b>               zamknij lacza;
+</b>               return (zwrocona wartosc);
+            }
+         }
+         else {
+<b>            wykonaj funkcje lub polecenie wbudowane;
+</b>            return (zwrocona wartosc);
+         }
+      }
+      / * jest to polecenie zewnetrzne */
+<b>      <a href="#POLECENIA-POLECENIE%20ZEWNETRZNE">execute_disk_command</a>();
+</b>      return (zwrocona wartosc);
+   }
+   else if (konieczne przeadresowanie lub wykonanie asynchroniczne) {
+   /* polecenie po rozwinieciu puste, wiec wykonujemy tylko przeadresowanie
+      i konczymy */
+<b>      <a href="#make_child">make_child</a>();
+</b>      if (proces potomny) {
+<b>         wykonaj przeadresowanie;
+</b>         exit (EXECUTION_SUCCESS);
+      }
+      else {
+<b>         zamknij lacza;
+</b>         return (EXECUTION_SUCCESS);
+      }
+   }
+   else {
+   /* jesli polecenie po rozwinieciu puste, chcemy mimo to wykonac
+      przeadresowanie, gdyz uzytkownik moze oczekiwac efektow ubocznych */
+      if (nie udalo sie wykonac przeadresowania)
+         return (EXECUTION_FAILURE);
+      else
+         return (EXECUTION_SUCCESS);
+   }
+}</pre>
+
+<p><br>
+<a name="POLECENIA-POLECENIE ZEWNETRZNE"></a></p>
+
+<h3>Polecenie zewnetrzne</h3>
+
+<p>Jezeli ostatecznie polecenie okazuje sie byc funkcja, to wolana jest
+znowu<tt> <a href="#execute_command_internal">execute_command_internal</a>(),</tt>
+ktora tym razem wykona zawartosc funkcji, natomiast wykonywanie polecen
+wbudowanych omowione jest w innym miejscu. Dlatego tu ograniczymy sie do
+opisania funkcji <tt>execute_disk_command(),</tt> ktorej zadaniem jest
+(prawie) ostateczne wykonanie polecenia : </p>
+
+<pre>static void execute_disk_command (WORD_LIST *words, REDIRECT *redirects,
+                                  char *command_line, int pipe_in,
+                                  int pipe_out, int async,
+
+                                  struct fd_bitmap *fds_to_close, int nofork)
+/* nofork oznacza, ze nie ma lacz i wystarczy sam exec, bez dodatkowego
+   fork() */
+{
+   if (nieustawiona zm. PATH i sciezka nie jest absolutna)
+<b>      znajdz polecenie w tablicy mieszajacej;
+</b>   if (nie znaleziono i sciezka nie jest absolutna) {
+<b>      wyszukaj polecenie w miejscach wskazanych przez PATH;
+</b>      if (znalezione)
+<b>         dodaj do tablicy mieszajacej;
+</b>      }
+   if (nie trzeba robic fork() ani przeadresowan)
+
+<b>      pid = 0;
+</b>   else
+<b>      pid = <a href="#make_child">make_child</a> (polecenie, asynchronicznie);
+</b>   if (pid == 0) {
+<b>      ustaw obsluge sygnalow;
+      wykonaj ewentualne przeadresowanie;
+      przygotuj argumenty;
+      zamknij deskryptory wymagajace zamkniecia;
+</b>      if (nie znaleziono wczesniej polecenia) {
+<b>         wypisz komunikat o bledzie;
+</b>         exit (kod bledu);
+      }
+      exit (<b><a href="#shell_execve">shell_execve</a> (polecenie, argumenty, srodowisko)</b>)
+   }
+   else {
+<b>       zamknij lacza od strony rodzica;
+       zwolnij pamiec zajeta przez polecenie;
+</b>   }
+}</pre>
+
+<p>Nawet w wypadku, gdy polecenia nie znaleziono, wykonywany jest w tej
+funkcji <tt>fork(). </tt>Ma to na celu przeadresowanie ewentualnych komunikatow
+o bledach. </p>
+
+<p><br>
+<a name="shell_execve"></a>Ostatnia funkcja wywolujaca juz bezposrednio
+<tt>execve()</tt> jest <tt>shell_execve()</tt>:</p>
+
+<pre>int shell_execve (char *command, char **args, char **env) 
+{
+   if (nazwa nie jest plikiem wykonywalnym)
+      if (nazwa oznacza katalog) {
+<b>         wypisz komunikat o bledzie;
+</b>         return (kod bledu);
+      }
+      else
+<b>         blad wykonania;
+</b>   else {
+      if (plik jest pusty)
+         return (EXECUTION_SUCCESS);
+      if (plik jest skryptem)
+         return (<b><a href="#execute_shell_script">execute_shell_script</a>()</b>);
+   }
+<b>   za arg[0] podstaw nazwe interpretatora;
+   execve (nazwa interpretatora, argumenty, srodowisko);
+</b>}</pre>
+
+<p>Jako ciekawostke warto zauwazyc fakt, ze sprawdzenie, czy plik jest
+binarny, odbywa sie przez zbadanie jego pierwszych 30 znakow. Jesli znaki
+sa kodami ASCII, to jezeli dwoma pierwszymi znakami sa "#!",
+mamy do czynienia z wykonywalnym skryptem. </p>
+
+<p><br>
+<a name="execute_shell_script"></a>Ostatnia funkcja zwiazana z wykonywaniem
+polecen to <tt>execute_shell_script().</tt> Jej pierwszy i drugi argument
+moze byc niezrozumialy - sa to kolejno linia pobrana wczesniej przy sprawdzaniu
+rodzaju pliku w<tt> <a href="#shell_execve">shell_execve</a>()</tt> i jej
+dlugosc, ktora nie moze przekroczyc 80 znakow. Format polecenia powinien
+byc nastepujacy : <tt>"#! interpretator [argument]"</tt>.<tt> </tt></p>
+
+<pre>static int execute_shell_script (unsigned char *sample, int sample_len,
+                                 char *command, char **args, char **env) 
+{
+<b>   odczytaj nazwe interpretatora;
+   utworz argumenty, arg[0] = nazwa interpretatora;
+</b>   return (<b><a href="#shell_execve">shell_execve</a> (nazwa interpretatora, argumenty, srodowisko)</b>);
+}</pre>
+
+<p>
+</p><hr><p></p>
+
+<h2 align="center"><a name="SRODOWISKO"></a>Obsluga zmiennych srodowiskowych</h2>
+
+<p><br>
+<a name="SRODOWISKO-STRUKTURY-DANYCH"></a></p>
+
+<h3>Struktury danych </h3>
+
+<p>Pojedyncze zmienne i funkcje zdefiniowane w srodowisku Basha przechowywane
+sa w strukturze <tt>variable</tt>, ktorej definicja wyglada nastepujaco:
+</p>
+
+<pre>typedef struct variable *DYNAMIC_FUNC ();
+
+typedef struct variable {
+  char *name;                    /* Nazwa zmiennej lub funkcji. */
+  char *value;                   /* Wartosc zmiennej lub wartosc zwracana przez funkcje */
+  DYNAMIC_FUNC *dynamic_value;   /* Funkcja obliczajaca wartosc dla zmiennych dynamicznych */
+  DYNAMIC_FUNC *assign_func;     /* Funkcja wywolywana przy przypisaniu wartosci na zmienna */                                   
+  int attributes;                /* Atrybuty (eksportowana, niewidoczna itd.) */
+  int context;                   /* Zasieg zmiennej lub funkcji */
+  struct variable *prev_context; /* Wartosc w poprzednim zasiegu */
+} <b>SHELL_VAR</b>;</pre>
+
+<p>Oto nieco szerszy opis znaczenia niektorych pol tej struktury: </p>
+
+<dl>
+<dt><b><tt>dynamic_value</tt></b> </dt>
+
+<dd>funkcja zwracajaca wartosc zmiennej dynamicznej, tj. takiej, ktora
+zmienia sie w czasie nie tylko w wyniku przypisania jej nowej wartosci;
+przykladami takich zmiennych sa:&nbsp;<tt>$SECONDS</tt> i <tt>$RANDOM</tt> </dd>
+
+<dt><b><tt>assign_func</tt></b> </dt>
+
+<dd>funkcja wywolywana, gdy wartosc zmiennej jest zmieniana w wyniku wywolania
+funkcji <tt>bind_variable</tt> </dd>
+</dl>
+
+<p>Zmienne srodowiskowe przechowywane sa w tablicy mieszajacej z metoda
+lancuchowa (ang. <i>hash with chaining</i>). Tablice mieszajace uzywane
+sa zreszta do przechowywania wielu roznych struktur Basha. </p>
+
+<p><br>
+<a name="SRODOWISKO-INICJALIZACJA"></a></p>
+
+<h3>Inicjalizacja </h3>
+
+<p>Zmienne srodowiskowe sa inicjalizowane przy inicjalizacji samego Basha.
+Srodowisko pobierane jest z otoczenia przez funkcje <tt>main</tt> i jako
+jedyny parametr przekazywane funkcji <tt>initialize_shell_variables(char**
+env)</tt>, ktora wykonuje inicjalizacje. Przekazywane srodowisko ma postac
+tablicy napisow postaci <tt>nazwa_zmiennej=wartosc</tt> lub <tt>nazwa_funkcji=()
+{definicja_funkcji}</tt>. </p>
+
+<p>Inicjalizacja srodowiska rozpoczyna sie od utworzenia odpowiednich tablic
+mieszajacych (jednej dla zmiennych i jednej dla funkcji) i zdekodowania
+przekazanego srodowiska wedlug nastepujacego algorytmu: </p>
+
+<pre>{
+   for (i=0; i&lt;liczba napisow w przekazanym srodowisku; i++) {
+      <b>rozdziel napis[i] na nazwe i wartosc;
+</b>      if (wartosc zawiera fragment "()&nbsp;{") {     /* definicja funkcji */
+         <b>przepisz nazwe i definicje do nowego napisu;
+         wywolaj parser dla napisu tak, jak dla polecenia uzytkownika;
+         </b>if (funkcja o tej nazwie nie zostala zdefiniowana)
+            <b>zglos blad;
+         </b>}
+      else
+        <b>przypisz wartosc do zmiennej nazwa
+</b>      }
+}</pre>
+
+<p>Nastepnie sprawdzane jest istnienie niektorych zmiennych srodowiskowych.
+Jesli nie sa zdefiniowane, Bash tworzy je ustawiajac im domyslne wartosci.
+Zmienne te to: </p>
+
+<ul>
+<li><tt>PWD</tt>&nbsp;- biezacy katalog; wartosc ustawiana domyslnie na katalog,
+z ktorego wywolano Basha </li>
+
+<li><tt>PATH</tt> - przeszukiwana sciezka; domyslnie ustawiana na wartosc
+zmiennej <tt>DEFAULT_PATH_VALUE</tt> </li>
+
+<li><tt>TERM</tt> - typ terminala; domyslnie "dumb" </li>
+
+<li><tt>PS1, PS2, PS4</tt> - znaki zachety </li>
+
+<li><tt>HOSTTYPE, OSTYPE</tt> - typ komputera i systemu operacyjnego; domyslnie
+ustawiane na analogiczne stale Basha</li>
+
+<li><tt>MAILCHECK</tt> - czestotliwosc sprawdzania poczty; domyslnie 60
+sekund </li>
+
+<li><tt>SHLVL</tt> - poziom biezacego interpretatora (przydatny przy kolejnych
+wywolaniach); domyslnie 0 </li>
+
+<li><tt>PPID</tt> - pid rodzica interpretatora </li>
+
+<li><tt>HOME</tt> - katalog domowy uzytkownika </li>
+</ul>
+
+<p>Kolejna czynnoscia jest ustawienie kilku zmiennych okreslajacych parametry
+samego Basha. Ustawiane sa: </p>
+
+<ul>
+<li><tt>BASH</tt> - nazwa interpretatora wraz ze sciezka </li>
+
+<li><tt>BASH_VERSION</tt> - wersja Basha </li>
+
+<li><tt>HISTORY_SIZE</tt> - liczba pamietanych polecen </li>
+
+<li><tt>HISTFILE </tt>- nazwa pliku zawierajacego historie </li>
+</ul>
+
+<p><br>
+<a name="SRODOWISKO-FUNKCJE"></a></p>
+
+<h3>Funkcje do obslugi srodowiska </h3>
+
+<p>Wiele funkcji do obslugi srodowiska jest bardzo podobnych do siebie
+i najprawdopodobniej zostaly zdefiniowane w kilku wersjach dla oszczedzenia
+autorom pisania kilku linijek w innych miejscach kodu, opisane wiec zostana
+tu tylko te najwazniejsze. </p>
+
+<p>Do wyszukiwania zmiennych i funkcji sluzy caly zestaw funkcji zaczynajacych
+sie od <tt>FIND_. </tt>Wszystkie one przeszukuja odpowiednia tablice mieszajaca,
+sprawdzajac, czy jest w niej zmienna lub funkcja o poszukiwanej nazwie.
+Prawie wszystkie funkcje <tt>FIND_ </tt>wywoluja funkcje <tt>FIND_VARIABLE
+</tt>lub <tt>FIND_FUNCTION, </tt>zas wszystkie bez wyjatku posrednio lub
+bezposrednio korzystaja z funkcji <tt>LOOKUP,</tt> ktora dostaje poszukiwana
+nazwe, a zwraca odpowiedni element tablicy mieszajacej (lub <tt>NULL</tt>
+gdy nazwy nie ma). <br>
+Tworzenie nowych zmiennych i zmienianie wartosci istniejacych tez opiera
+sie na funkcji <tt>LOOKUP</tt>. Przy ustawianiu wartosci sprawdzane jest,
+czy nazwa juz jest zdefiniowana, i wowczas modyfikowana jest odpowiednia
+wartosc, zas w przeciwnym razie do tablicy mieszajacej dodawany jest odpowiedni
+element. W wypadku tworzenia/zmieniania funkcji przekazywana wartoscia
+jest struktura <tt>COMMAND</tt> - taka jak przy wykonywaniu polecen. Do
+policzenia wartosci zmiennej wolana jest funkcja <tt>evalexp</tt>, obliczajaca
+wartosc wyrazenia arytmetycznego i opisana szczegolowo ponizej. </p>
+
+<p>Co ciekawe, przy kazdej zmiennej pamietane jest, ile razy byla ona znajdowana
+w tablicy mieszajacej, informacja ta nie jest jednak nigdzie wykorzystywana
+(mozna by np. na jej podstawie dynamicznie modyfikowac listy w tablicy
+mieszajacej, przesuwajac czesciej uzywane zmienne na poczatek). <br>
+
+</p><hr><p></p>
+
+<h2 align="center"><a name="WYRAZENIA"></a>Obliczanie wyrazen arytmetycznych
+</h2>
+
+<p>Funkcje sluzace do obliczania wartosci wyrazen zawarte sa w module <b>EXPR.C</b>.
+Zaimplementowano tam rekurencyjny parser, ktory jednoczesnie wykonuje samo
+obliczanie. Tworcy Basha tym razem nie skorzystali z <b>Bisona</b> i parser
+zostal napisany recznie.</p>
+
+<p>Przy obliczaniu wartosci wyrazen Bash posluguje sie arytmetyka <b>long
+int</b> bez sprawdzania nadmiaru. Obslugiwane sa nastepujace operatory,
+uporzadkowane malejaco wedlug priorytetu:<br>
+<br>
+<tt>-, +</tt> (jako operatory unarne)<br>
+<tt>!, ~<br>
+*, /, %<br>
++, -<br>
+&lt;&lt;, &gt;&gt;<br>
+&lt;=, &gt;=, &lt;, &gt;<br>
+==, !=<br>
+&amp;<br>
+^<br>
+|<br>
+&amp;&amp;<br>
+||<br>
+=<br>
+<br>
+</tt>Oczywiscie podwyrazenia zawarte w nawiasach ( ) maja wyzszy priorytet
+od wszystkich wymienionych operatorow. Obliczanie wartosci odbywa sie od
+lewej, z wyjatkiem operatora przypisania "=". W tym przypadku,
+tak jak w C, wartosc jest obliczana od prawej strony.</p>
+
+<p>W pliku <b>EXPR.C</b> zdefiniowana jest nastepujaca struktura, sluzaca
+do<br>
+przechowywania informacji o wyrazeniu :</p>
+
+<pre>typedef struct {
+  int curtok, lasttok;    /* biezacy i poprzedni leksem (ang. <i>token</i>) */
+  char *expression, *tp;  /* wyrazenie i pozycja leksemu w jego tekscie */
+  int tokval;             /* wartosc leksemu ... */
+  char *tokstr;           /* ... oraz jego reprezentacja tekstowa */
+} <b>EXPR_CONTEXT</b>;</pre>
+
+<p>Elementy typu <tt>EXPR_CONTEXT</tt> sa przechowywane na stosie, zdefiniowanym
+tak :<br>
+<br>
+<tt>static EXPR_CONTEXT **expr_stack;<br>
+<br>
+<br>
+<a name="pushexp"></a></tt>Do operacji na stosie sluza funkcje <tt>pushexp()</tt>
+i <tt>popexp().</tt> Dwie zmienne informujace o polozeniu wyrazenia i wielkosci
+stosu to :<br>
+<br>
+<tt>static int expr_depth = 0;<br>
+static int expr_stack_size = 0; <br>
+<br>
+</tt>Ograniczenie na glebokosc stosu jest standardowo ustawione na 10.<br>
+<br>
+Kilka innych istotnych zmiennych globalnych, uzywanych dalej w algorytmach
+:<br>
+<br>
+<tt>static int curtok = 0; /* aktualny leksem */<br>
+static int lasttok = 0; /* poprzedni leksem */<br>
+static int tokval = 0; /* wartosc akt. leksemu */<br>
+<br>
+<br>
+<a name="eval_exp"></a></tt>Za samo obliczenie wartosci jest odpowiedzialna
+funkcja <tt>evalexp (char* expr).</tt> Wywoluje ja (miedzy innymi)&nbsp;posrednio
+poprzez funkcje sluzace do zastepowania i rozwijania ciagow tekstowych
+parser wygenerowany przez <b>Bisona</b>. Jej ogolny algorytm wyglada nastepujaco:
+</p>
+
+<pre>long evalexp (char* expr) {
+   if (blad w obsludze stosu) {
+<b>      wyczysc stos;
+      zwolnij przydzielona pamiec;
+</b>   }
+   <b><a href="#pushexp">pushexp</a>();</b> /* za pierwszym razem zapamietywana jest losowa wartosc */
+<b>   pobierz nastepny leksem;
+   val = <a href="#expassign">expassign</a>();
+</b>   if (zostal jeszcze leksem) <b>wypisz komunikat o bledzie skladni;
+   <a href="#pushexp">popexp</a>();
+</b>   return (val);
+}</pre>
+
+<p><br>
+<a name="readtok"></a>Do pobierania leksemu sluzy funkcja <tt>readtok()</tt>:
+</p>
+
+<pre>static void readtok() {
+<b>   usun biale znaki i wez nastepny znak z aktualnej pozycji;
+</b>   if (poczatek identyfikatora) {
+<b>      tokval = wartosc identyfikatora;
+      lasttok = curtok;
+      curtok = identyfikator;
+</b>   }
+   else if (poczatek liczby) {
+<b>      tokval = wartosc liczbowa;
+      lasttok = curtok;
+      curtok = liczba;
+</b>   }
+   else {  /* w takim razie operator typu "==", "=", "+=" itp. */
+<b>      odczytaj operator;
+      lasttok = curtok;
+      curtok = odpowiedni leksem dla odczytanego operatora;
+</b>   }
+}</pre>
+
+<p>Jak juz zostalo to powiedziane wczesniej, obliczanie wartosci wyrazenia
+odbywa sie w sposob rekurencyjny.<tt> <a href="#eval_exp">evalexp</a>()</tt>
+jest pierwsza funkcja w ciagu wywolan. Wola ona funkcje<tt> <a href="#expassign">expassign</a>(),</tt>
+ktora z kolei wchodzi glebiej korzystajac z <tt>explor().</tt> Na kolejnych
+poziomach zaglebienia sa wywolywane funkcje odpowiadajace uporzadkowanym
+wedlug rosnacego priorytetu operatorom. Ich hierarchia wyglada dalej tak:</p>
+
+<pre><tt>explor()</tt> (dla "||") ---&gt; <tt>expland()</tt> ("&amp;&amp;")        ---&gt; <tt>expbor()</tt> ("|") -    --&gt; 
+<tt>expbxor()</tt>("^")      ---&gt; <tt>expband()</tt> ("&amp;")         ---&gt;<tt> <a href="#exp5">exp5</a>()</tt> ("==", "!=") ---&gt; 
+<tt>exp4()</tt> ("&gt;" itd.)   ---&gt; <tt>expshift()</tt> ("&gt;&gt;", "&lt;&lt;") ---&gt; <tt>exp3()</tt> ("+", "-")   ---&gt; 
+<tt>exp2()</tt> ("*" itd.)   ---&gt;<tt> <a href="#exp1">exp1</a>()</tt> ("!", "~")       ---&gt;<tt> <a href="#exp0">exp0</a>()</tt> ("-", "+" unarne i nawiasy).</pre>
+
+<p>Z wyjatkiem<tt> <a href="#expassign">expassign</a>()</tt> i<tt> <a href="#exp0">exp0</a>()
+</tt>funkcje te sa bardzo podobne, dlatego oprocz tych wymienionych przed
+chwila opiszemy dokladnie tylko dwie z pozostalych -<tt> <a href="#exp5">exp5</a>()
+</tt>obslugujaca operatory porownania oraz<tt> <a href="#exp1">exp1</a>(),</tt>
+ktora obsluguje dwa operatory unarne: negacji i negacji bitowej. Przedstawiony
+mechanizm zostal zastosowany rowniez we wszystkich pozostalych funkcjach.
+</p>
+
+<p><b>Istotna uwaga</b> : przed wywolaniem funkcji bedacej nizej w hierarchii
+odczytywany jest leksem przy uzyciu<tt> <a href="#readtok">readtok</a>().</tt>
+Dzieje sie tak, gdyz te funkcje zakladaja, ze aktualny leksem jest juz
+odczytanym pierwszym skladnikiem wyrazenia.</p>
+
+<p><br>
+<a name="expassign"></a>Na poczatek funkcja obslugujaca operatory przypisania
+zwyklego oraz przypisan typu "+=", "*=" itd.:</p>
+
+<pre>static long expassign () {
+   <b>value = explor();</b> /* wartosc dla lewej strony */
+   if (aktualny leksem to operator "=" lub "op=") {
+      if (poprzedni leksem != zmienna)
+<b>         komunikat o bledzie;
+</b>      if (operator typu "op=") {
+<b>         zapamietaj op;
+         lvalue = value;
+</b>      }
+<b>      zapamietaj nazwe zmiennej, na ktora przypisujemy;
+      <a href="#readtok">readtok</a>();
+</b>      <b>value = <a href="#expassign">expassign</a>();</b> /* wartosc prawej strony */
+      if (operator typu "op=") {
+         switch (op) {
+            case mnozenie:
+<b>               lvalue *= value;
+</b>               break;
+            case dzielenie:
+<b>               lvalue /= value;
+</b>               break;
+            case modulo:
+<b>               lvalue %= value;
+</b>               break;
+            case plus:
+<b>               lvalue += value;
+</b>               break;
+            case minus:
+<b>               lvalue -= value;
+</b>               break;
+            case przes. bitowe w lewo:
+<b>               lvalue &lt;&lt;= value
+</b>               break;
+            case przes. bitowe w prawo:
+<b>               lvalue &gt;&gt;= value
+</b>               break;
+            case bitowy AND:
+<b>               lvalue &amp;= value;
+</b>               break;
+            case bitowy OR:
+<b>               lvalue |= value;
+</b>               break;
+            default:
+<b>               komunikat o bledzie;
+</b>         }
+<b>         value = lvalue;
+</b>      }
+<b>      zamien value na string i zapamietaj;
+</b>   }
+   return (value);
+}</pre>
+
+<p>Przy pierwszym wywolaniu<tt> <a href="#expassign">expassign</a>()</tt>
+funkcja <tt>explor()</tt> oblicza wartosc wyrazenia stojacego po lewej
+stronie ewentualnego przypisania i jezeli rzeczywiscie jest przypisanie,
+to tym wyrazeniem powinna byc zmienna. Dla prawej strony wolana jest rekurencyjnie
+funkcja<tt> <a href="#expassign">expassign</a>(),</tt> ktora znowu wywola
+na poczatku <tt>explor()</tt> i jesli nie ma przypisania postaci "a=b=c",
+to zwroci obliczona wartosc, ktora zostanie przypisana na nasza poczatkowa
+zmienna.</p>
+
+<p><br>
+Oto obiecane wczesniej funkcje wolane pomiedzy<tt> <a href="#expassign">expassign</a>()</tt>
+i<tt> <a href="#exp0">exp0</a>()</tt>:</p>
+
+<pre><a name="exp5"></a>static long exp5 () {
+   <b>val1 = exp4 ();</b> /* zejdz nizej */
+   while (aktualny leksem to operator "==" lub "!=") {
+<b>      <a href="#readtok">readtok</a> ();
+      val2 = exp4 ();
+</b>      if (aktualny leksem to operator "==")
+<b>         val1 = (val1 == val2);
+</b>      else if (operator "!=")
+<b>         val1 = (val1 != val2);
+</b>   }
+   return (val1);
+}
+
+<a name="exp1"></a>static long exp1 () {
+  if (aktualny leksem to operator "!") {
+<b>     <a href="#readtok">readtok</a> ();
+     val = !exp1 ();
+</b>  }
+  else if (aktualny leksem to operator "~") {
+<b>     <a href="#readtok">readtok</a> ();
+     val = ~exp1 ();
+</b>  }
+  else
+     <b>val = <a href="#exp0">exp0</a> ();</b> /* ta funkcja nie ma nic do roboty, zejdz nizej */
+  return (val);
+}</pre>
+
+<p><br>
+Na samym dole hierarchii wywolan znajduje sie funkcja <tt>exp0()</tt>:
+</p>
+
+<pre><a name="exp0"></a>static long exp0 () {
+  if (aktualny leksem to operator unarny "-") {
+<b>     <a href="#readtok">readtok</a> ();
+     val = - exp0 ();
+</b>  }
+  else if (aktualny leksem to operator "+") {
+<b>     <a href="#readtok">readtok</a> ();
+     val = exp0 ();
+</b>  }
+  else if (aktualny leksem to lewy nawias) {
+<b>     <a href="#readtok">readtok</a> ();
+     val = <a href="#expassign">expassign</a> ();</b> /* licz od poczatku dla wnetrza nawiasu */
+     if (aktualny leksem rozny od prawego nawiasu)
+<b>        komunikat o bledzie: ("missing `)'");
+</b>     <b><a href="#readtok">readtok</a> ();</b> /* pomijamy prawy nawias */
+  }
+  else if ((aktualny leksem to liczba) || (aktualny leksem to zmienna))
+  {
+<b>     val = tokval;
+     <a href="#readtok">readtok</a> ();
+</b>  }
+  else /* blad w skladni wyrazenia */
+<b>     komunikat o bledzie;
+</b>  return (val);
+}</pre>
+
+<p>Ta funkcja zwraca dla leksemu oznaczajacego pojedyncza zmienna albo
+liczbe jego wartosc, oprocz tego obsluguje tez operatory jednoargumentowe
+"+" i "-". Jezeli napotka nawias, to poniewaz nawias
+ma najwyzszy priorytet, rekurencyjnie liczy wartosc tego, co jest pomiedzy
+nawiasami i zwraca te wartosc. </p>
+
+<p>
+</p><hr><p></p>
+
+<h2 align="center"><a name="BUILTINS"></a>Polecenia wbudowane</h2>
+
+<p><br>
+<a name="BUILTINS-STRUKTURA"></a></p>
+
+<h3>Struktury danych i obsluga</h3>
+
+<p>Do przechowywania informacji o wbudowanych poleceniach sluzy struktura
+builtin, bardzo podobna do definicji funkcji uzytkownika (<tt>FUNCTION_DEF</tt>)
+w strukturze <tt>COMMAND</tt>: </p>
+
+<pre>struct builtin {
+  char *name;                   /* Nazwa polecenia */
+  Function *function;           /* Funkcja realizujaca polecenie */
+  int flags;                    /* Jedna z flag ponizej */
+  char **long_doc;              /* Pelny opis polecenia */
+  char *short_doc;              /* Krotki opis polecenia */
+};
+
+/* Flagi */
+#define BUILTIN_ENABLED 0x1     /* Polecenie jest dostepne */
+#define STATIC_BUILTIN  0x2     /* Polecenie nie ladowane dynamicznie */
+#define SPECIAL_BUILTIN 0x4     /* Polecenie specjalne */</pre>
+
+<p>Polecenia wbudowane przechowywane sa w tablicy <tt>shell_builtins</tt>.
+Poniewaz ich liczba i nazwy nie zmieniaja sie w czasie dzialania Basha,
+mozna je posortowac przy inicjalizacji (o dziwo autorzy nie napisali wlasnej
+funkcji sortujacej - uzywaja standardowej bibliotecznej funkcji <tt>qsort()</tt>)
+i nastepnie wyszukiwac binarnie wedlug nazwy. Nie ma wiec potrzeby stosowania
+tablicy mieszajacej.</p>
+
+<p>Obsluga polecen wbudowanych jest bardzo prosta - gdy trzeba wykonac
+jakies polecenie, na podstawie jego nazwy wyszukiwany jest adres odpowiedniej
+funkcji, ktora nastepnie jest wywolywana. Odpowiednie parametry dla niej
+sa czytane z wejscia i w razie potrzeby przeksztalcane na liczby (przeznaczone
+do tego funkcje - np. <tt>get_numeric_arg()</tt> lub <tt>read_octal()</tt>
+znajduja sie w pliku <b>BUILTINS/COMMON.C</b>).</p>
+
+<p><br>
+<a name="BUILTINS-PRZYKLADY"></a></p>
+
+<h3>Przyklady</h3>
+
+<p><b>HELP</b> - wyswietl krotki opis wszystkich dostepnych w Bashu polecen
+pasujacych do podanego wzorca (lub wszystkich, gdy nie podano wzorca).</p>
+
+<p>Algorytm <tt>help_builtin (WORD_LIST* wzorzec)</tt>:</p>
+
+<pre>{
+   if (nie podano wzorca) 
+      for (i=0; i&lt;liczba polecen wbudowanych; i++) {
+          if (polecenie wbudowane[i] jest niedostepne)
+              <b>wypisz gwiazdke;
+          wypisz polecenie wbudowane[i] i jego krotki opis;
+</b>          }
+   else {
+      <b>wypisz kolejne slowa wzorca;
+      </b>while (wzorzec niepusty)  {
+         for (i=0; i&lt;liczba polecen wbudowanych; i++) 
+            if (polecenie wbudowane[i] pasuje do aktualnego wzorca) {
+<b>               wypisz polecenie wbudowane[i] i jego krotki opis;
+               wypisz pelny opis polecenia[i]
+</b>               }
+         <b>nastepny wzorzec;
+</b>         }
+      }
+}
+</pre>
+
+<p><br>
+<b>ENABLE</b> - z opcja -n czyni podane polecenia Basha niedostepnymi,
+bez opcji - udostepnia je.</p>
+
+<p>Algorytm <tt>enable_builtin (WORD_LIST* argumenty)</tt>:</p>
+
+<pre><tt>{</tt> 
+<b><tt>   odczytaj opcje;</tt></b> 
+<tt>   if (nie podano nazw polecen) 
+<b>      wypisz polecenia (podano opcje -n) ? niedostepne : dostepne;</b></tt> 
+<tt>   else 
+      while (nazwa polecenia) {</tt> 
+<tt><b>         ustaw/wyczysc flage BUILTIN_ENABLED polecenia nazwa;
+</b>         if (blad) 
+<b>            wypisz ("To nie jest polecenie wbudowane");</b></tt> 
+<tt>         }</tt> 
+<tt>}</tt>
+</pre>
+
+<p><br>
+<b>: (DWUKROPEK) </b>- polecenie nic nie robi i zwraca 0</p>
+
+<p>Algorytm <tt>colon_builtin (char* ignorowane)</tt>:</p>
+
+<pre>{ 
+   return 0; 
+}
+</pre>
+
+<p><br>
+<b>ECHO </b>- wypisz podane argumenty na ekranie. Opcja -n blokuje wypisywanie
+znaku konca linii, opcja -e powoduje interpretowanie znakow specjalnych
+(takich jak \a, \n czy \b).</p>
+
+<p>Algorytm <tt>echo_builtin (WORD_LIST* argumenty)</tt>:</p>
+
+<pre>{ 
+<b>   odczytaj opcje;</b> 
+   if (bez opcji -e) 
+      while (argument) { 
+<b>         wypisz argument znak po znaku ignorujac znaki specjalne;</b> 
+<b>         nastepny argument; 
+</b>         }
+   else
+<b>      wypisz liste argumentow;</b> 
+   if (bez opcji -n) 
+<b>      wypisz znak konca linii;</b> 
+}</pre>
+
+<p>
+</p><hr><p></p>
+
+<h2 align="center"><a name="CIEKAWE ROZWIAZANIA"></a>Ciekawe rozwiazania
+</h2>
+
+<p>W tym rozdziale przedstawiamy odpowiedz na standardowe pytanie: <i>jakie
+sa najciekawsze rozwiazania i struktury danych?</i>, przy czym przez <b>najciekawsze</b>
+niekoniecznie rozumiemy <b>warte stosowania</b>. </p>
+
+<h3>abstrakcja wejscia </h3>
+
+<p>Wejscie jest calkiem niezle odizolowane od reszty programu - wiekszosc
+funkcji majacych cos wspolnego z wejsciem dziala na uogolnionej strukturze
+i wola ogolne funkcji obslugi. </p>
+
+<h3>obliczanie wyrazen </h3>
+
+<p>Sprytne uzycie kilkunastu funkcji obslugujacych wyrazenia o kolejnych
+priorytetach oraz uzycie rekurencji pozwolily na obliczanie wartosci wyrazen
+bez potrzeby tworzenia dodatkowych rozbudowanych struktur. </p>
+
+<h3>przenosnosc </h3>
+
+<p>Autorzy stosuja wiele metod, trickow, zaklec itd. by uczynic Basha naprawde
+przenosnym i niezaleznym od wersji Unixa, a nawet od systemu operacyjnyego.
+Badane sa m.in. kolejnosc bajtow w licznach wielobajtowych (ang. <i>little-endian,
+big-endian</i>),<i> </i>liczba i nazwy sygnalow, zgodnosc ze standardem
+POSIX, mozliwosci kontroli procesow, maksymalna dlugosc sciezki itd. itp.
+Wszystkie te informacje znajdowane sa automatycznie przez Basha, bez potrzeby
+jakiejkolwiek ingerencji uzytkownika. </p>
+
+<h3>setjmp i longjmp </h3>
+
+<p>Autorzy Basha namietnie stosuja te dwie instrukcje wszedzie gdzie tylko
+sie da. Cala obsluga bledow i nie tylko implementowana jest za pomoca skakania
+po calym kodzie funkcji (czesto majacej kilkaset linii). Dosc skutecznie
+utrudnia to analize kodu. Ale byc moze programowanie duzych programow w
+Linuxie bez <b>goto<tt> </tt></b>jest niemozliwe (samo goto z etykietami
+tez oczywiscie wystepuje wielokrotnie). </p>
+
+<h3>struktura polecen </h3>
+
+<p>Dosc elegancko przechowywana jest struktura polecen. Drzewo polecen,
+uzywane nie tylko do natychmiastowego wykonywania zadan uzytkownika, ale
+takze np. do przechowywania definicji funkcji, jest struktura elastyczna
+i przejrzysta. </p>
+
+<h3>tablice mieszajace </h3>
+
+<p>Uzycie tablic mieszajacych do przechowywania wszystkich niemal wiekszych
+zestawow danych, ktore wymagaja czegos wiecej niz sekwencyjne przeszukiwanie
+jest godne pochwaly. Tablice mieszajace sa szybkie, implementacja nawet
+w linuxowym C dosc czytelna, zas rezygnacja ze struktur typu <i>lista cykliczna
+polaczona z drzewem AVL</i>, ktore i tak sa zazwyczaj przeszukiwane sekwencyjnie
+<i>na wszelki wypadek</i> niewatpliwie usprawnia program. </p>
+
+<h3>zagadki </h3>
+
+<p>Aczkolwiek zagadki w rodzaju <i>Czy ta funkcja powinna znajdowac sie
+tutaj?</i> albo <i>Nie wierze, ze ten fragment jest kiedykolwiek wykonywany</i>
+sa wspolne dla calego kodu Linuxa, w Bashu wystepuja w duzym natezeniu.
+Od czasu do czasu autorzy zaskakuja przyjetym rozwiazaniem:&nbsp;<i>Otworz skrypt,
+ale najpierw zmien nasz deskryptor na duzy losowy, z nadzieja, ze w skrypcie
+nie znajdzie sie taki sam.</i> <br>
+
+</p><hr><p></p>
+
+<h2 align="center"><a name="BIBLIOGRAFIA"></a>Bibliografia </h2>
+
+<ol>
+<li>Pliki zrodlowe Basha (dostepne w formie spakowanej pod adresem ftp://ftp.icm.edu.pl./pub/gnu/bash)
+</li>
+
+<li>Chet Ramey Bash: The GNU shell (plik dolaczony do dokumentacji Basha)
+<br>
+</li>
+</ol>
+
+<p>
+</p><hr><i>Autorzy: Przemyslaw Kubacki i Michal Rudolf </i>
+<hr><p></p>
+
+
+</body></html>

@@ -1,0 +1,562 @@
+<HTML
+><HEAD
+><TITLE
+>IPSec</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="SSL Certificates HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Using Certificates in Applications"
+HREF="c244.html"><LINK
+REL="PREVIOUS"
+TITLE="Securing Code"
+HREF="x330.html"><LINK
+REL="NEXT"
+TITLE="Global PKI"
+HREF="c398.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>SSL Certificates HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x330.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. Using Certificates in Applications</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c398.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN341">3.5. IPSec</H1
+><P
+>IPSec is a new protocol that sits on top of IP that provides ad-hoc encrypted links between 2 hosts on the Internet. The IPSec implementation is mandatory for IPv6 and can be added to IPv4. If IPSec is part of IPv6, it does not mean that it is deployed by network managers. IPSec is not simple to implement due to the difficulty of having mechanisms to exchange keys automatically between machines. DNS can help, but it is not mainstream, and well known Certificate Authorities do not yet deliver adequate certification facilities for a wide deployement in the enterprise.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN344">3.5.1. FreeS/WAN</H2
+><P
+><A
+HREF="http://www.freswan.org/"
+TARGET="_top"
+>FreeS/WAN</A
+> is a popular implementation of IPSec for GNU/Linux. At its current version (1.9.7) it needs to be patched to incorporate X.509 capability. You can find a patched version on <A
+HREF="http://www.freeswan.ca/"
+TARGET="_top"
+>this site</A
+>. Some GNU/Linux distrubutions have applied the patch for you so check your package. The advantage of this version is that you can use openssl to create certificates to use with FreeS/WAN and DNS CERT records, but more specifically you can interact with the Microsoft Implementation of IPSec. For more information check <A
+HREF="http://www.natecarlson.com/linux/ipsec-x509.php"
+TARGET="_top"
+>Nate's page</A
+>.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN350">3.5.1.1. FreeS/WAN gateway machine</H3
+><P
+>Generate a certificate with the CN beeing the fully qualified domain name of your IPSec gateway: host.example.com. Do not forget to sign the certificate. You have two files newcert.pem and newreq.pem. The file newreq.pem contains the private key and some extra information therefore needs to be edited to contain only the private key. Delete everything outside the --BEGIN RSA PRIVATE KEY-- and --END RSA PRIVATE KEY--. Move the files to the appropriate locations on your gateway machine. Make sure that you do that securely. On my distribution all configuration files for FreeS/WAN are located in /etc/freeswan, it could be different in yours.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>mv newreq.pem /etc/freeswan/ipsec.d/private/host.example.com.key
+mv newcert.pem /etc/freeswan/ipsec.d/host.example.com.pem</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Copy also your root certificate to the FreeS/WAN configuration directory. Copy only the certificate, not the key.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>mv cacert.pem /etc/freeswan/ipsec.d/cacerts</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Generate a certificate revocation list or copy yours to the right location.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl ca -genrcl -out /etc/freeswan/ipsec.d/crls/crl.pem</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Still on the gateway machine, configure the ipsec.secrets file by including the line:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>: RSA host.example.com.key &#8220;password&#8221;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The password being the one used to generate the key pair. Configure ipsec.conf as following:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>config setup
+interfaces=%defaultroute
+klipsdebug=none
+plutodebug=none
+plutoload=%search
+plutostart=%search
+uniqueids=yes
+conn %default
+keyingtries=1
+compress=yes
+disablearrivalcheck=no
+authby=rsasig
+leftrsasigkey=%cert
+rightrsasigkey=%cert
+conn roadwarrior-net
+leftsubnet=&#60;your_subnet&#62;/&#60;your_netmask&#62;
+also=roadwarrior
+conn roadwarrior
+right=%any
+left%defaultroute
+leftcert=host.example.com.pem
+auto=add
+pfs=yes</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>As you can see there are 2 connections beeing established, one to the gateway machine and one to the network behind the gateway machine. This is particulary useful if you are operating some kind of firewall/NAT on your gateway machine. The configuration is such that anybody with a valid certificate will be able to connect to the gateway machine.</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN363">3.5.1.2. FreeS/WAN client machine</H3
+><P
+>The procedure is similar, you need to generate a certificate for the client machine with the CN being the fully qualified domain name of the client machine, for instance clienthost.example.com. This certificate must be signed by the same signing authorithy as the gateway certificate. This is how the link will be authorised.</P
+><P
+>As with the gateway copy the following files securely to the configuration directories:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>mv newreq.pem /etc/freeswan/ipsec.d/private/clienthost.example.com.key
+mv newcert.pem /etc/freeswan/ipsec.d/clienthost.example.com.pem</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Copy also your root certificate to the FreeS/WAN configuration directory. Copy only the certificate, not the key.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>mv cacert.pem /etc/freeswan/ipsec.d/cacerts</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Generate a certificate revocation list or copy yours to the right location.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl ca -genrcl -out /etc/freeswan/ipsec.d/crls/crl.pem</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Finally you need to copy also the certificate (not the private key) of your gateway machine</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>mv host.example.com.pem /etc/fresswan/ipsec.d/host.example.com.pem</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Similarly edit your ipsec.secrets file to load the client private key</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>: RSA clienthost.example.com.key &#8220;password&#8221;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>and edit the ipsec.conf as follows to enable the connection:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>config setup
+interfaces=%defaultroute
+klipsdebug=none
+plutodebug=none
+plutoload=%search
+plutostart=%search
+uniqueids=yes
+conn %default
+keyingtries=0
+compress=yes
+disablearrivalcheck=no
+authby=rsasig
+leftrsasigkey=%cert
+rightrsasigkey=%cert
+conn roadwarrior-net
+left=(ip of host)
+leftsubnet=(gateway_host_subnet)/(gateway_host_netmask)
+also=roadwarrior
+conn roadwarrior
+left=(ip of host)
+leftcert=host.example.com.pem
+right=%defaultroute
+rightcert=clienthost.example.com.pem
+auto=add
+pfs=yes</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now you can start the VPN link</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>ipsec auto --up roadwarrior
+ipsec auto --up roadwarrior-net</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>To start the link automatically, replace in the configuration file 'auto=add' by 'auto=start'</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN381">3.5.1.3. MS Windows 2000/XP client machine</H3
+><P
+>The procedure is the same as for the FreeS/WAN client. Generate a certificate with a CN of winhost.example.com, but you will have to convert this certificate into a .p12 file. Follow the procedure in the chapter &#8220;Using this certificate with MS-Outlook&#8221; but ensure that the .p12 file is bundled with the root CA certificate: winhost.example.com.p12</P
+><P
+>Additionally note the output of:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl x509 -in cacert.pem -noout -subject</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Copy this file securely to the MS-Windows machine.</P
+><P
+>You know need to install Marcus Muller's <A
+HREF="http://vpn.ebotis.de/"
+TARGET="_top"
+>ipsec.exe utility</A
+> in for instance c:\ipsec directory.</P
+><P
+>Open Microsoft Management Console (MMC), in 'Add/Remove Snap-in' click on 'Add' then click on 'Certificates', then 'Add' Select 'Computer Account', and 'Next'. Select 'Local computer', and 'Finish'. Click on 'IP Security Policy Management', and 'Add'. Select 'Local Computer', and 'Finish' click 'Close' then 'OK'</P
+><P
+>Now you can add the .p12 certificate</P
+><P
+>Click the plus arrow by 'Certificates (Local Computer)' then right-click 'Personal', and click 'All Tasks' then 'Import' click 'Next'. Type the path to the .p12 file (or browse and select the file), and click 'Next'. Type the export password, and click 'Next'. Select 'Automatically select the certificate store based on the type of certificate', and click 'Next'. Click 'Finish', and say yes to any prompts that pop up. Exit the MMC, and save it as a file so you don't have to re-add the Snap In each time.</P
+><P
+>Install ipsecpol.exe (Windows 2000) or ipseccmd.exe (Windows XP) as described in the documentation for the ipsec utility. Edit your ipsec.conf (on the windows machine), replacing the "RightCA" with the output of the 'openssl x509 -in cacert.pem -noout -subject'; reformatted as below (you need to change the /'s to commas, and change the name of some of the fields -- just follow the example below):</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>conn roadwarrior 
+left=%any 
+right=(ip_of_remote_system) 
+rightca="C=FJ, ST=Fiji, L=Suva, O=SOPAC, OU=ICT, CN=SOPAC Root"
+network=auto 
+auto=start 
+pfs=yes
+conn roadwarrior-net 
+left=%any 
+right=(ip_of_remote_system) 
+rightsubnet=(your_subnet)/(your_netmask)
+rightca="C=FJ, ST=Fiji, L=Suva, O=SOPAC, OU=ICT, CN=SOPAC Root" 
+network=auto 
+auto=start 
+pfs=yes</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Start the link</P
+><P
+>Run the command 'ipsec.exe'. Here's example output:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>C:\ipsec&#62;ipsec 
+IPSec Version 2.1.4 (c) 2001,2002 Marcus Mueller 
+Getting running Config ... 
+Microsoft's Windows XP identified 
+Host name is: (local_hostname) 
+No RAS connections found. 
+LAN IP address: (local_ip_address) 
+Setting up IPSec ...
+Deactivating old policy... 
+Removing old policy...
+Connection roadwarrior: 
+MyTunnel : (local_ip_address)
+MyNet : (local_ip_address)/255.255.255.255 
+PartnerTunnel: (ip_of_remote_system) 
+PartnerNet : (ip_of_remote_system)/255.255.255.255 
+CA (ID) : C=FJ, ST=Fiji, L=Suva, O=SOPAC, OU=ICT, CN=SOPAC Root... 
+PFS : y 
+Auto : start 
+Auth.Mode : MD5 
+Rekeying : 3600S/50000K 
+Activating policy...
+Connection roadwarrior-net: 
+MyTunnel : (local_ip_address) 
+MyNet : (local_ip_address)/255.255.255.255 
+PartnerTunnel: (ip_of_remote_system) 
+PartnerNet : (remote_subnet)/(remote_netmask) 
+CA (ID) : C=FJ, ST=Fiji, L=Suva, O=SOPAC, OU=ICT, CN=SOPAC Root... 
+PFS : y 
+Auto : start 
+Auth.Mode : MD5 
+Rekeying : 3600S/50000K 
+Activating policy...
+C:\ipsec&#62;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now, ping your gateway host. It should say 'Negotiating IP Security' a few times, and then give you ping responses. Note that this may take a few tries; from a T1 hitting a VPN server on a cable modem, it usually takes 3-4 pings. Do the same for the internal network on the remote end, and you should be up!</P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x330.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c398.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Securing Code</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c244.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Global PKI</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

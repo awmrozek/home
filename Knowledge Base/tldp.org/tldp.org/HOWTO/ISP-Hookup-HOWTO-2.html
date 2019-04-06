@@ -1,0 +1,402 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>ISP-Hookup-HOWTO: How do I connect to the rest of the world?</TITLE>
+ <LINK HREF="ISP-Hookup-HOWTO-3.html" REL=next>
+ <LINK HREF="ISP-Hookup-HOWTO-1.html" REL=previous>
+ <LINK HREF="ISP-Hookup-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="ISP-Hookup-HOWTO-3.html">Next</A>
+<A HREF="ISP-Hookup-HOWTO-1.html">Previous</A>
+<A HREF="ISP-Hookup-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. How do I connect to the rest of the world?</A></H2>
+
+<P>It will be assumed that we have installed the essential
+networking software modules from your Linux distribution, and
+that you have set up which serial port that is to be used for the
+<!--
+/dev/modem
+-->
+ /dev/modem.
+<P>The default configuration will usually only allow direct access
+to /dev/modem as user <CODE>root</CODE>.
+<P>To connect to ISP shell accounts directly, and to experiment with
+connection sequences, you may use the 
+<!--
+minicom
+-->
+
+minicom program.  It is pretty straight forward to
+use.
+<P>
+<H2><A NAME="ss2.1">2.1 The basic configuration</A>
+</H2>
+
+<P>Configuration of the machine for use on the net should be done as
+user <CODE>root</CODE>.  Before proceeding any further, ensure that
+the file 
+<!--
+/etc/hosts.deny
+-->
+
+/etc/hosts.deny contains the following line:
+<BLOCKQUOTE><CODE>
+<PRE>
+ALL: ALL
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You would normally want to allow yourself, so add the following
+line to 
+<!--
+/etc/hosts.allow
+-->
+
+/etc/hosts.allow:
+<BLOCKQUOTE><CODE>
+<PRE>
+ALL: LOCAL
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Or if you insist:
+<BLOCKQUOTE><CODE>
+<PRE>
+ALL: 127.0.0.1
+</PRE>
+</CODE></BLOCKQUOTE>
+
+For the following, note that it is meant for those connected via
+PPP and with a dynamic IP address. If you
+have the benefit of a fixed connection, there will be some
+differences.
+<P>It is nice to have a name connected to the machine, a name that
+the dynamic IP user really can select as he or she pleases.  Put
+the name in 
+<!--
+/etc/HOSTNAME
+-->
+
+/etc/HOSTNAME:
+<BLOCKQUOTE><CODE>
+<PRE>
+roderick
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The next step is to set up the name server in
+<!--
+/etc/resolv.conf
+-->
+ /etc/resolv.conf:
+<BLOCKQUOTE><CODE>
+<PRE>
+search .
+nameserver 193.212.1.0
+&lt;nidx>nameserver
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The name server must be specified by a numeric IP
+address, and will be different from ISP to ISP. If required, you
+can have up to three different servers, each on a separate line.
+They will be requested in the sequence in which they are listed.
+<P>If you want to be able to use names like <CODE>somemachine</CODE> as
+an abbreviation for <CODE>somemachine.acme.xz</CODE>, you must
+replace the first line with:
+<BLOCKQUOTE><CODE>
+<PRE>
+search acme.xz
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+search
+-->
+<P>A certain minimum of configuration will also be required in
+<!--
+/etc/hosts
+-->
+ /etc/hosts.  Most users will
+be able to manage with:
+<BLOCKQUOTE><CODE>
+<PRE>
+127.0.0.1       localhost
+0.0.0.0         roderick
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+localhost
+-->
+ Those with a fixed IP-address will
+obviously replace 0.0.0.0 with that.
+<P>Likewise, a minimum 
+<!--
+/etc/networks
+-->
+
+/etc/networks is:
+<BLOCKQUOTE><CODE>
+<PRE>
+loopback        127.0.0.0
+localnet        0.0.0.0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+loopback
+-->
+ 
+<!--
+localnet
+-->
+<P>You should also set your external mail domain in
+<!--
+/etc/mailname
+-->
+ /etc/mailname:
+<BLOCKQUOTE><CODE>
+<PRE>
+acme.xz
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The username and password at the ISP must be specified in
+<!--
+/etc/ppp/pap-secrets
+-->
+
+/etc/ppp/pap-secrets
+<BLOCKQUOTE><CODE>
+<PRE>
+dirk * PrettySecret
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>For those ISPs using CHAP instead of PAP
+the filename is 
+<!--
+/etc/ppp/chap-secrets
+-->
+
+/etc/ppp/chap-secrets.
+<P>Finally, the nitty gritty regarding the connection procedure
+itself must be specified before PPP can be initiated.  This is
+done in 
+<!--
+/etc/ppp/chatscript
+-->
+
+/etc/ppp/chatscript:
+<BLOCKQUOTE><CODE>
+<PRE>
+TIMEOUT 5
+"" ATZ
+OK ATDT12345678
+ABORT "NO CARRIER"
+ABORT BUSY
+ABORT "NO DIALTONE"
+ABORT WAITING
+TIMEOUT 45
+CONNECT ""
+TIMEOUT 5
+"name:" ppp
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+OK
+-->
+ 
+<!--
+ATDT
+-->
+ 
+<!--
+ATZ
+-->
+
+<!--
+TIMEOUT
+-->
+ 
+<!--
+ABORT
+-->
+ 
+<!--
+CONNECT
+-->
+
+Details here may have to be tuned somewhat.  The phone number in
+the third line must of course be set as required.  Some users may
+need to replace the <CODE>ATZ</CODE> modem initialization string with
+something more tailored for the modem being used.  The last line
+specifies that one is expecting a prompt that ends with
+<CODE>name:</CODE>, and that the response should be
+<CODE>ppp</CODE> when it arrives.  Other systems may have
+other login procedures.
+<P>To actually initiate a call, the PPP protocol may be
+initiated by issuing the following command:
+<BLOCKQUOTE><CODE>
+<PRE>
+exec pppd connect \
+     'chat -v -f /etc/ppp/chatscript' \
+      -detach crtscts modem defaultroute \
+      user dirk \
+      /dev/modem 38400
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+pppd
+-->
+ 
+<!--
+chat
+-->
+ 
+<!--
+connect
+-->
+
+<!--
+/etc/ppp/chatscript
+-->
+ 
+<!--
+detach
+-->
+
+<!--
+crtscts
+-->
+ 
+<!--
+modem
+-->
+ 
+<!--
+defaultroute
+-->
+
+<!--
+/dev/modem
+-->
+ We should now be on-air, and stay up
+until the program is killed by typing a ctrl-C.  
+<!--
+ctrl-
+C
+-->
+ Any messages concerning the connection will be appended
+to the system logs. To read them, try:
+<BLOCKQUOTE><CODE>
+<PRE>
+tail /var/adm/messages
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+tail
+-->
+ 
+<!--
+/var/adm/messages
+-->
+ or
+<BLOCKQUOTE><CODE>
+<PRE>
+dmesg
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<!--
+dmesg
+-->
+<P>As long as PPP is up, you will have direct access to the
+Internet and may use programs like ftp,
+ncftp, rlogin, telnet,
+finger etc.  All these programs should be part of
+the network package.
+<P>Further information concerning PPP is also available from:
+<P><CODE>
+<A HREF="file:/usr/lib/ppp/README.linux">/usr/lib/ppp/README.linux</A></CODE>
+<P><CODE>
+<A HREF="file:/usr/lib/ppp/README.linux-chat">/usr/lib/ppp/README.linux-chat</A></CODE>
+<P>Finally, an additional word about security The file
+<!--
+/etc/inetd.conf
+-->
+ /etc/inetd.conf lists
+all services that your machine will offer externally. With the
+<!--
+/etc/hosts.deny
+-->
+ /etc/hosts.deny file we
+have made, no external access will be allowed.  For those who
+need it, access must be allowed explicitly in
+<!--
+/etc/hosts.allow
+-->
+ /etc/hosts.allow.
+Local traffic may be allowed by:
+<BLOCKQUOTE><CODE>
+<PRE>
+ALL: LOCAL
+</PRE>
+</CODE></BLOCKQUOTE>
+
+See also <CODE>man 5 hosts_access</CODE>.  
+<!--
+hosts_access
+-->
+<P>A final minor issue: A certain confusion exists regarding the
+names of the POP protocols. A definition in
+<!--
+/etc/services
+-->
+ /etc/services compatible
+with just about everything is:
+<BLOCKQUOTE><CODE>
+<PRE>
+pop2            109/tcp         pop-2           # PostOffice V.2
+pop3            110/tcp         pop-3 pop       # PostOffice V.3
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><B>ALT:</B> Instead of 
+<!--
+chatscript
+-->
+
+chatscript, one might use the much more flexible
+<!--
+dip
+-->
+ dip.  But not in connection with
+<!--
+diald
+-->
+ diald.
+<P><B>ALT:</B> Those fortunate enough to have a permanent
+TCP/IP connection via e.g. an Ethernet may
+safely ignore anything about PPP and rather start
+concentrating about setting up their network card.
+<P><B>ALT:</B> Others may not have the possibility of using PPP,
+but may be able to use SLIP instead, for which there
+is support in much the same manner as for PPP. Another
+possibility is UUCP Others again may have to rely on
+exchange of news and email be means of SOUP A
+description for the latter case may be found in:
+<P><CODE>
+<A HREF="ftp://ftp.sol.no/user/bjorn/Linux-offline.tgz">ftp://ftp.sol.no/user/bjorn/Linux-offline.tgz</A></CODE>
+<P>The TERM program is also an option. Refer to the
+<I>Term-HOWTO</I>.
+<P>
+<HR>
+<A HREF="ISP-Hookup-HOWTO-3.html">Next</A>
+<A HREF="ISP-Hookup-HOWTO-1.html">Previous</A>
+<A HREF="ISP-Hookup-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

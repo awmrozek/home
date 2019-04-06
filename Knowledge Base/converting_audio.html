@@ -1,0 +1,582 @@
+
+  Howto:convert aac/mp4 to wav/mp3/ogg on Linux
+
+
+      From Linux Multimedia Wiki
+
+Jump to: navigation <#column-one>, search <#searchInput>
+
+m4a is the file extension for the proprietary audio format mostly used
+by that iTunes thingy. A conversion to more player friendly (usb
+mp3player for example) formats like mp3 or ogg only works, if the aac's
+aren't DRM protected. For the conversion you need the following tools
+installed:
+
+    * mplayer (with faad2 support compiled in!)
+    * faad2
+    * for mp3: lame
+    * for ogg: oggenc (vorbis-tools) 
+
+
+    Contents
+
+    * 1 aac/m4a/mp4/any to ogg <#aac.2Fm4a.2Fmp4.2Fany_to_ogg>
+    * 2 aac/m4a to mp3 <#aac.2Fm4a_to_mp3>
+    * 3 aac/m4a to wav <#aac.2Fm4a_to_wav>
+    * 4 wav to mp3 <#wav_to_mp3>
+    * 5 mp3 to wav <#mp3_to_wav>
+    * 6 aac2ogg script <#aac2ogg_script>
+    * 7 aac2mp3 script <#aac2mp3_script>
+    * 8 aac2mp3 - faster <#aac2mp3_-_faster>
+    * 9 ogg2mp3 <#ogg2mp3>
+    * 10 Set the Tags on .mp3 Files After Conversion
+      <#Set_the_Tags_on_.mp3_Files_After_Conversion>
+    * 11 Convert m4a to mp3, setting tag information
+      <#Convert_m4a_to_mp3.2C_setting_tag_information>
+    * 12 aac/m4a/mp4/rm/ram/any to mp3
+      <#aac.2Fm4a.2Fmp4.2Frm.2Fram.2Fany_to_mp3>
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=1>]
+  aac/m4a/mp4/any to ogg
+
+Adjust the *.mp4 wildcard according to your needs. mplayer can play most
+formats, including video. You can also add some options to oggenc. Pick
+the "-q5" value to choose a matching file size. There is no use in using
+a -q setting which will result in larger .ogg files - transcoding to ogg
+cannot increase the audio quality, and usually ogg achieves better
+quality at a slightly lower bitrate already. So make smaller oggs than
+your input files were!
+
+for nam in *.mp4; do nice mplayer -ao pcm "$nam" -ao pcm:file="$nam.wav" && nice oggenc -q5 "$nam.wav" -o "$(basename "$nam" .mp4).ogg"; rm "$nam.wav"; done
+
+mplayer will print information such as
+
+AUDIO: 44100 Hz, 2 ch, s16le, 191.8 kbit/13.59% (ratio: 23978->176400)
+Selected audio codec: [faad] afm: faad (FAAD AAC (MPEG-2/MPEG-4 Audio) decoder)
+
+so this was a 192 kbit mp4 file. Oggenc -q5 will be somewhere around 160
+kbit, so thats appropriate. File size decreased from 9 to 8 MB.
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=2>]
+  aac/m4a to mp3
+
+Simplest, using FAAD for a single file
+
+ faad -w inputfile.aac | lame - outputfile.mp3
+
+From that, use same techniques as below...
+
+Note: Version 2.1 on Fedora Core 6 and version 2.5 on Fedora 7 doesn't
+seem to work correctly with the "-w" option. I've been trying to get
+this working the entire evening but no luck so far.
+
+MW writes: Note 2: I also found the -w option didn't work with faad, but
+a workaround is to use
+
+ faad -o - inputfile.m4a | lame - outputfile.mp3
+
+Note 3: On Debian/Kubuntu the following script worked.
+
+ for a in *.m4a ; do faad -f 2 -w "$a"  | lame -r - "$a.mp3" ; done
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=3>]
+  aac/m4a to wav
+
+In case you only want to convert a single file:
+
+mplayer -ao pcm inputfile.m4a -ao pcm:file="outfile.wav"
+
+or - if you want to use faad:
+
+faad inputfile.aac
+
+If you want to convert all files in a directory, you can use this little
+script:
+
+#!/bin/bash
+# 
+# m4a2wav
+# 
+for i in *.m4a; do
+   # out=$(echo $i | sed -e 's/.m4a//g')
+    mplayer -ao pcm "$i" -ao pcm:file="${i%.m4a}.wav"
+done
+
+This also seems to work for converting all aac/m4a files in a directory
+(please note that this will also search sub-directories):
+
+find -name '*.m4a' -exec faad '{}' ';'
+
+Note: the inputfiles shouldn't contain spaces (maybe we should sed those
+away too in the script? :))
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=4>]
+  wav to mp3
+
+Now we can convert the wav's to mp3 or ogg or whatever we like. For
+example to convert to mp3 we can use this second script:
+
+#!/bin/bash 
+# 
+# wav2mp3
+# 
+for i in *.wav; do
+    #out=$(ls $i | sed -e 's/.wav//g')
+    #out=$(echo $i | sed -e 's/.wav$//')
+    #lame -h -b 192 "$i" "$out.mp3"
+    lame -h -b 192 "$i" "${i%.wav}.mp3"
+done
+
+That's it ;)
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=5>]
+  mp3 to wav
+
+Now we can convert mp3 to wav.
+
+mpg123 -w output.wav input.mp3
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=6>]
+  aac2ogg script
+
+There is also a python script available at
+http://www.samsix.com/scripts/aac2ogg for converting to ogg vorbis with
+tags intact. It will also automatically determine the bitrate of the
+original file and use an appropriate quality setting to match. This is
+based on the perl script http://zarb.org/~zerodogg/scripts/aac2ogg.
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=7>]
+  aac2mp3 script
+
+Ok here is a little script that does all that in one step. THX to Nico
+for a good working one, and BIG thanks to Reto L. for a new improved
+version that comes with switches for program paths, bitrate and more
+useful options! see 'aac2mp3 -h' for a help text ;)
+
+#!/bin/bash
+
+#
+# $Id: aac2mp3,v 1.2 2005/08/22 15:32:34 rali Exp $
+#
+
+#
+# Convert one or more AAC/M4A files to MP3.  Based on a script example
+# I found at: http://gimpel.gi.funpic.de/Howtos/convert_aac/index.html
+#
+
+ME=`basename ${0}`
+
+AAC2WAV="/usr/bin/mplayer"
+WAV2MP3="/usr/bin/lame"
+
+EXT="m4a"
+BITRATE="192"
+
+do_usage() {            # explanatory text
+  echo "usage: ${ME} [-b nnn] [-e ext] [-f] [-c] [-r] [-v] [-h] [file list]"
+  echo "       Convert music from AAC format to MP3"
+  echo "  -l /path/app  Specify the location of lame(1)"
+  echo "  -m /path/app  Specify the location of mplayer(1)"
+  echo "  -b nnn        bitrate for mp3 encoder to use"
+  echo "  -e ext        Use .ext rather than .m4a extension"
+  echo "  -f            Force overwrite of existing file"
+  echo "  -c            Delete original AAC|M4A file(s)"
+  echo "  -s            Keep intermediate .wav file(s)"
+  echo "  -v            Verbose output"
+  echo "  -h            This information"
+  exit 0
+  }
+
+do_error() {
+  echo "$*"
+  exit 1
+  }
+
+file_overwrite_check() {
+  if [ "$FORCE" != "yes" ]
+  then
+    test -f "${1}" && do_error "${1} already exists."
+  else
+    test -f "${1}" && echo "  ${1} is being overwritten."
+  fi
+  }
+
+create_wav() {  # use mplayer(1) to convert from AAC to WAV
+  file_overwrite_check "${2}"
+
+  test $VERBOSE && echo -n "Creating intermediate WAV file"
+
+  ${AAC2WAV} -really-quiet -ao pcm "${1}" -ao pcm:file="${2}"
+  if [ $? -ne 0 ]
+  then
+    echo ""
+    echo "Conversion to WAV (${AAC2WAV}) failed."
+    do_cleanup
+    do_error "Exiting"
+  fi
+
+  test $VERBOSE && echo ".  OK"
+  }
+
+create_mp3() {  # use lame(1) to convert from WAV to MP3
+  file_overwrite_check "${2}"
+
+  test $VERBOSE && echo -n "Creating output MP3 file"
+
+  ${WAV2MP3} -h -b ${BITRATE} -S "${1}" "${2}"
+  if [ $? -ne 0 ]
+  then
+    echo ""
+    echo "Conversion to MP3 (${WAV2MP3}) failed."
+    do_cleanup
+    do_error "Exiting"
+  fi
+
+  test $VERBOSE && echo ".  OK"
+  }
+
+do_cleanup() {  # Delete intermediate and (optionally) original file(s)
+  test $VERBOSE && echo -n "Deleting intermediate file"
+  test ${SAVEWAV} || rm -f "${2}"
+  test ${RMM4A}   && rm -f "${1}"
+  test $VERBOSE && echo ".  OK"
+  }
+
+do_set_bitrate() {
+  test $VERBOSE && echo -n "Setting output bitrate to: $1 kbps"
+  BITRATE=$1
+  test $VERBOSE && echo ".  OK"
+  }
+
+GETOPT=`getopt -o l:m:b:e:cfhrv -n ${ME} -- "$@"`
+if [ $? -ne 0 ]
+then
+  do_usage
+fi
+
+eval set -- "$GETOPT"
+
+while true
+do
+  case "$1" in
+    -l) LAME=$2 ; shift ; shift ;;
+    -m) MPLAYER=$2 ; shift ; shift ;;
+    -b) do_set_bitrate $2 ; shift ; shift ;;
+    -e) EXT=$2 ; shift ; shift ;;
+    -f) FORCE="yes" ; shift ;;
+    -c) RMM4A="yes" ; shift ;;
+    -s) SAVEWAV="yes" ; shift ;;
+    -v) VERBOSE="yes" ; shift ;;
+    -h) do_usage ;;
+    --) shift ; break ;;
+     *)  do_usage ;;
+  esac
+done
+
+test -f $LAME    || do_error "$LAME not found. Use \"-l\" switch."
+test -f $MPLAYER || do_error "$MPLAYER not found. Use \"-m\" switch."
+
+if [ $# -eq 0 ]
+then                    # Convert all files in current directory
+  for IFILE in *.${EXT}
+  do
+    if [ "${IFILE}" == "*.${EXT}" ]
+    then
+      do_error "No files with extension ${EXT} in this directory."
+    fi
+
+    OUT=`echo "${IFILE}" | sed -e "s/\.${EXT}//g"`
+
+    create_wav "${IFILE}"   "${OUT}.wav"
+    create_mp3 "${OUT}.wav" "${OUT}.mp3"
+    do_cleanup "${IFILE}"   "${OUT}.wav"
+
+  done
+else                    # Convert listed files
+  for IFILE in "$*"
+  do
+    test -f "${IFILE}" || do_error "${IFILE} not found."	 
+
+    OUT=`echo "${IFILE}" | sed -e "s/\.${EXT}//g"`	 
+
+    create_wav "${IFILE}" "${OUT}.wav"	 
+    create_mp3 "${OUT}.wav" "${OUT}.mp3"	 
+    do_cleanup "${IFILE}" "${OUT}.wav"	 
+  done	 
+fi	 
+exit 0
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=8>]
+  aac2mp3 - faster
+
+This script based on script above, is more faster because this use
+ffmpeg to convert. ffmpeg convert directly to mp3, and not create a
+intermediate wav file. You will have to compile ffmpeg with the LAME
+enabled, check ./configure --help of ffmpeg to enable proper libs.
+
+#!/bin/bash
+#
+# $Id: aac2mp3,v 1.2  03/30/2008 10:00 Daniel Tavares (dantavares@gmail.com) - 
+# Based on Script -  rali Exp $
+#
+#
+# Convert one or more AAC/M4A files to MP3.  Based on a script example
+# I found at: http://gimpel.gi.funpic.de/Howtos/convert_aac/index.html
+#
+ME=`basename ${0}`
+FFMPEG="/usr/bin/ffmpeg"
+EXT="mp4"
+BITRATE="128"
+do_usage() {            # explanatory text
+ echo "usage: ${ME} [-b nnn] [-e ext] [-f] [-c] [-r] [-v] [-h] [file list]"
+ echo "       Convert music from AAC format to MP3"
+ echo "  -m /path/app  Specify the location of ffmpeg(1)"
+ echo "  -b nnn        bitrate for mp3 encoder to use"
+ echo "  -e ext        Use .ext rather than .m4a extension"
+ echo "  -f            Force overwrite of existing file"
+ echo "  -c            Delete original AAC|M4A file(s)"
+ echo "  -v            Verbose output"
+ echo "  -h            This information"
+ echo ""
+ echo "For recursive directory, use: find -name '*.${EXT}' -exec ${ME} "{}" [args] \;"
+ exit 0
+ }
+do_error() {
+ echo "$*"
+ exit 1
+ }
+file_overwrite_check() {
+ if [ "$FORCE" != "yes" ]
+ then
+   test -f "${1}" && do_error "${1} already exists."
+ else
+   test -f "${1}" && echo "  ${1} is being overwritten."
+ fi
+ }
+create_mp3() {  # use ffmpeg(1) to convert from AAC to MP3
+ file_overwrite_check "${2}"
+ test $VERBOSE && echo -n "Converting file: ${1}"
+ ${FFMPEG} -v 5 -y -i "${1}" -acodec libmp3lame -ac 2 -ab ${BITRATE}k "${2}";
+ if [ $? -ne 0 ]
+ then
+   echo ""
+   echo "Error!"
+   do_cleanup
+   do_error "Exiting"
+ fi
+ test $VERBOSE && echo ".  OK"
+ }
+do_cleanup() {  # Delete intermediate and (optionally) original file(s)
+ test ${RMM4A} && rm -f "${1}"
+ test $VERBOSE && echo ".  OK"
+ }
+do_set_bitrate() {
+ test $VERBOSE && echo -n "Setting bitrate to: $1 kbps"
+ BITRATE=$1
+ test $VERBOSE && echo ".  OK"
+ }
+GETOPT=`getopt -o l:m:b:e:cfhrv -n ${ME} -- "$@"`
+if [ $? -ne 0 ]
+then
+ do_usage
+fi
+eval set -- "$GETOPT"
+while true
+do
+ case "$1" in
+   -m) FFMPEG=$2 ; shift ; shift ;;
+   -b) do_set_bitrate $2 ; shift ; shift ;;
+   -e) EXT=$2 ; shift ; shift ;;
+   -f) FORCE="yes" ; shift ;;
+   -c) RMM4A="yes" ; shift ;;
+   -v) VERBOSE="yes" ; shift ;;
+   -h) do_usage ;;
+   --) shift ; break ;;
+    *)  do_usage ;;
+ esac
+done
+test -f $FFMPEG || do_error "$FFMPEG not found. Use \"-m\" switch."
+if [ $# -eq 0 ]
+then                    # Convert all files in current directory
+ for IFILE in *.${EXT}
+ do
+   if [ "${IFILE}" == "*.${EXT}" ]
+   then
+     do_error "Not found ${EXT} in this folder."
+   fi
+   OUT=`echo "${IFILE}" | sed -e "s/\.${EXT}//g"`
+   create_mp3 "${IFILE}" "${OUT}.mp3"
+   do_cleanup "${IFILE}" 
+ done
+else                    # Convert listed files
+ for IFILE in "$*"
+ do
+   test -f "${IFILE}" || do_error "${IFILE} not found."	 
+   OUT=`echo "${IFILE}" | sed -e "s/\.${EXT}//g"`	 
+   create_mp3 "${IFILE}" "${OUT}.mp3"
+   do_cleanup "${IFILE}" 	
+ done	 
+fi	 
+exit 0
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=9>]
+  ogg2mp3
+
+cf. http://forums.gentoo.org/viewtopic-t-463068-highlight-.html for my
+bash script
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=10>]
+  Set the Tags on .mp3 Files After Conversion
+
+This little script is handy to set the artist, album, and song
+information on all the .mp3 files in a directory, after you have
+converted them from some other format, or because the tags are screwed
+up, causing your mp3 player to sort the songs incorrectly.
+
+#!/bin/bash
+# tagmp3
+# Tags every .mp3 in the directory with the band and
+# album names, and creates a song title by stripping
+# the .mp3 extension from the file name.
+# Call like this:
+# tagmp3 bandname albumname
+for i in *.mp3; do
+    SONG=`basename "$i" .mp3`
+    id3v2 --album "$2" --artist "$1" --song "$SONG" "$i"
+done
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=11>]
+  Convert m4a to mp3, setting tag information
+
+This script converts all the .m4a files in a directory to .mp3, setting
+the artist and album info to the values you specify on the command line,
+and setting the title info using the file name. Glues together several
+of the above scripts
+
+#!/bin/bash
+# m4a2mp3
+# Convert all m4a to mp3, assign tags, delete intermediary
+# wav files
+# Tags every .mp3 in the directory with the band and
+# album names, and creates a song title by stripping
+# the .mp3 extension from the file name.
+# Call like this:
+# m4a2mp3 bandname albumname
+m4a2wav
+wav2mp3
+tagmp3 "$1" "$2"
+rm *.wav
+
+
+  [edit
+  </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit&section=12>]
+  aac/m4a/mp4/rm/ram/any to mp3
+
+Using mplayer and lame :
+
+#! /bin/bash
+#
+# Converts an Audio file to a MP3 and adds an ID3 tag.
+#
+# Usage: audio2mp3 infile [outfile]
+#
+IFS=";" title_author=(`mplayer -vc null -vo null -ao pcm:fast -ao pcm "$1" -ao pcm:file="$1.wav" 2>&1 | awk -F: 'BEGIN { ORS = ";" } ; $1 ~ /name|author/ { print $2 }'`)
+author=${title_author[0]}
+title=${title_author[1]}
+echo "Author: $author"
+echo "Title: $title"
+lame "$1".wav "$2" --tt "$title" --ta "$author"
+rm "$1".wav
+
+Enjoy ;-)
+
+Retrieved from
+"http://gimpel.gi.funpic.de/wiki/index.php/Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux"
+Category </wiki/index.php/Special:Categories>: Howto
+</wiki/index.php/Category:Howto>
+
+
+          Views
+
+    * Page </wiki/index.php/Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux>
+    * Discussion
+      </wiki/index.php/Talk:Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux>
+    * Edit
+      </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=edit>
+    * History
+      </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&action=history>
+
+
+          Personal tools
+
+    * Log in / create account
+      </wiki/index.php?title=Special:UserLogin&returnto=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux>
+
+</wiki/index.php/Main_Page>
+
+
+          Navigation
+
+    * Main Page </wiki/index.php/Main_Page>
+    * Multimedia Links </wiki/index.php/Multimedia_Links>
+    * Howtos </wiki/index.php/Category:Howto>
+
+
+          wiki stuff
+
+    * Recent changes </wiki/index.php/Special:RecentChanges>
+    * Random page </wiki/index.php/Special:Random>
+    * Help </wiki/index.php/Help:Contents>
+
+
+          Search
+
+ 
+
+
+          Toolbox
+
+    * What links here
+      </wiki/index.php/Special:WhatLinksHere/Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux>
+    * Related changes
+      </wiki/index.php/Special:RecentChangesLinked/Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux>
+    * Special pages </wiki/index.php/Special:SpecialPages>
+    * Printable version
+      </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&printable=yes>
+    * Permanent link
+      </wiki/index.php?title=Howto:convert_aac/mp4_to_wav/mp3/ogg_on_Linux&oldid=62>
+
+Powered by MediaWiki <http://www.mediawiki.org/>
+GNU Free Documentation License 1.3 <http://www.gnu.org/copyleft/fdl.html>
+
+    * This page was last modified on 23 October 2009, at 19:09.
+    * This page has been accessed 37,918 times.
+    * Content is available under GNU Free Documentation License 1.3
+      <http://www.gnu.org/copyleft/fdl.html>.
+    * Privacy policy </wiki/index.php/Linux_Multimedia_Wiki:Privacy_policy>
+    * About Linux Multimedia Wiki
+      </wiki/index.php/Linux_Multimedia_Wiki:About>
+    * Disclaimers </wiki/index.php/Linux_Multimedia_Wiki:General_disclaimer>
+

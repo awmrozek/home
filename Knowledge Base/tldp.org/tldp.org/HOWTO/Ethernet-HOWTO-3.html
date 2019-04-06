@@ -1,0 +1,166 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Ethernet-Howto: Performance Tips</TITLE>
+ <LINK HREF="Ethernet-HOWTO-4.html" REL=next>
+ <LINK HREF="Ethernet-HOWTO-2.html" REL=previous>
+ <LINK HREF="Ethernet-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ethernet-HOWTO-4.html">Next</A>
+<A HREF="Ethernet-HOWTO-2.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="perf"></A> <A NAME="s3">3. Performance Tips</A></H2>
+
+<P>Here are some tips that you can use if you are suffering
+from low ethernet throughput, or to gain a bit more
+speed on those ftp transfers.
+<P>The <CODE>ttcp.c</CODE> program is a good test for measuring
+raw throughput speed. Another common trick is to do
+a <CODE>ftp> get large_file /dev/null</CODE> where
+<CODE>large_file</CODE> is &gt; 1MB and residing in the buffer
+cache on the Tx'ing machine. (Do the `get' at least
+twice, as the first time will be priming the buffer
+cache on the Tx'ing machine.) You want the file in
+the buffer cache because you are not interested in
+combining the file access speed from the disk into
+your measurement. Which is also why you send the
+incoming data to <CODE>/dev/null</CODE> instead of onto
+the disk.
+<P>
+<H2><A NAME="ss3.1">3.1 General Concepts</A>
+</H2>
+
+<P>Even an 8 bit card is able to receive back-to-back packets
+without any problems. The difficulty arises when the computer
+doesn't get the Rx'd packets off the card quick enough to
+make room for more incoming packets. If the computer does not
+quickly clear the card's memory of the packets already received,
+the card will have no place to put the new packet.
+<P>In this case
+the card either drops the new packet, or writes over top of
+a previously received packet. Either one seriously interrupts
+the smooth flow of traffic by causing/requesting re-transmissions
+and can seriously degrade performance by up to a factor of 5!
+<P>Cards with more onboard memory are able to ``buffer'' more
+packets, and thus can handle larger bursts of
+back-to-back packets without dropping packets.
+This in turn means that the card does not require as low
+a latency from the the host computer with respect to pulling
+the packets out of the buffer to avoid dropping packets.
+<P>Most 8 bit cards have an 8kB buffer, and most 16 bit cards have
+a 16kB buffer. Most Linux drivers will reserve 3kB of that
+buffer (for two Tx buffers), leaving only 5kB of
+receive space for an 8 bit card. This is room enough for
+only three full sized (1500 bytes) ethernet packets.
+<P>
+<H2><A NAME="ss3.2">3.2 ISA Cards and ISA Bus Speed</A>
+</H2>
+
+<P>As mentioned above, if the packets are removed from the card
+fast enough, then a drop/overrun condition won't occur even
+when the amount of Rx packet buffer memory is small. The
+factor that sets the rate at which packets are removed from
+the card to the computer's memory is the speed of the data path
+that joins the two -- that being the ISA bus speed. (If the
+CPU is a dog-slow 386sx-16, then this will also play a role.)
+<P>The recommended ISA bus clock is about 8MHz, but many
+motherboards and peripheral devices can be run at higher
+frequencies. The clock frequency for the ISA bus can usually
+be set in the CMOS setup, by selecting a divisor of the
+mainboard/CPU clock frequency. Some ISA and PCI/ISA
+mainboards may not have this option, and so you are stuck
+with the factory default.
+<P>For example, here are some receive speeds as measured by
+the TTCP program on a 40MHz 486, with an  8 bit WD8003EP
+card, for different ISA bus speeds.
+<P>
+<HR>
+<PRE>
+        ISA Bus Speed (MHz)     Rx TTCP (kB/s)
+        -------------------     --------------
+        6.7                     740
+        13.4                    970
+        20.0                    1030
+        26.7                    1075
+</PRE>
+<HR>
+<P>You would be hard pressed to do better than 1075kB/s with
+<EM>any</EM> 10Mb/s ethernet card, using TCP/IP. However, don't expect
+every system to work at fast ISA bus speeds. Most systems will
+not function properly at speeds above 13MHz. (Also, some
+PCI systems have the ISA bus speed fixed at 8MHz, so that
+the end user does not have the option of increasing it.)
+<P>In addition to faster transfer speeds, one will usually also
+benefit from a reduction in CPU usage due to the shorter
+duration memory and I/O cycles. (Note that hard disks and
+video cards located on the ISA bus will also usually experience
+a performance increase from an increased ISA bus speed.)
+<P>Be sure to back up your data prior to experimenting with
+ISA bus speeds in excess of 8MHz, and thouroughly test
+that all ISA peripherals are operating properly after
+making any speed increases.
+<P>
+<H2><A NAME="ss3.3">3.3 Setting the TCP Rx Window</A>
+</H2>
+
+<P>
+<P>Once again, cards with small amounts of onboard RAM and
+relatively slow data paths between the card and the computer's
+memory run into trouble. The default TCP Rx
+window setting is 32kB, which means that a fast computer on
+the same subnet as you can dump 32k of data on you without
+stopping to see if you received any of it okay.
+<P>Recent versions of the <CODE>route</CODE> command have the ability
+to set the size of this window on the fly. Usually it is only
+for the local net that this window must be reduced, as computers
+that are behind a couple of routers or gateways are `buffered'
+enough to not pose a problem. An example usage would be:
+<P>
+<HR>
+<PRE>
+        route add &lt;whatever> ... window &lt;win_size>
+</PRE>
+<HR>
+<P>where <CODE>win_size</CODE> is the size of the window you wish to
+use (in bytes). An 8 bit 3c503 card on an ISA bus operating
+at a speed of 8MHz or less would work well with a window
+size of about 4kB. Too large a window will cause overruns
+and dropped packets, and a drastic reduction in ethernet
+throughput. You can check the operating status by doing
+a <CODE>cat /proc/net/dev</CODE> which will display any
+dropped or overrun conditions that occurred.
+<P>
+<H2><A NAME="ss3.4">3.4 Increasing NFS performance</A>
+</H2>
+
+<P>Some people have found that using 8 bit
+cards in NFS clients causes poorer than expected performance,
+when using 8kB (native Sun) NFS packet size.
+<P>The possible reason for this could be due to the difference
+in on board buffer size between the 8 bit and the 16 bit cards.
+The maximum ethernet packet size is about 1500 bytes. Now that
+8kB NFS packet will arrive as about 6 back to back maximum size
+ethernet packets. Both the 8 and 16 bit cards have no problem
+Rx'ing back to back packets. The problem arises when the machine
+doesn't remove the packets from the cards buffer in time, and the
+buffer overflows. The fact that 8 bit cards take an extra ISA
+bus cycle per transfer doesn't help either. What you <EM>can</EM> do
+if you have an 8 bit card is either set the NFS transfer
+size to 2kB (or even 1kB), or try increasing the ISA bus speed
+in order to get the card's buffer cleared out faster.
+I have found that an old WD8003E card at 8MHz (with no other
+system load) can keep up with a large receive at 2kB NFS size,
+but not at 4kB, where performance was degraded by a factor of three.
+<P>On the other hand, if the default mount option is to use 1kB
+size and you have at least a 16 bit ISA card, you may find
+a significant increase in going to 4kB (or even 8kB).
+<P>
+<HR>
+<A HREF="Ethernet-HOWTO-4.html">Next</A>
+<A HREF="Ethernet-HOWTO-2.html">Previous</A>
+<A HREF="Ethernet-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

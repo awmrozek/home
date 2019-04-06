@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Plug-and-Play-HOWTO: Interrupt Sharing and Interrupt Conflicts </TITLE>
+ <LINK HREF="Plug-and-Play-HOWTO-11.html" REL=next>
+ <LINK HREF="Plug-and-Play-HOWTO-9.html" REL=previous>
+ <LINK HREF="Plug-and-Play-HOWTO.html#toc10" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Plug-and-Play-HOWTO-11.html">Next</A>
+<A HREF="Plug-and-Play-HOWTO-9.html">Previous</A>
+<A HREF="Plug-and-Play-HOWTO.html#toc10">Contents</A>
+<HR>
+<H2><A NAME="s10">10.</A> <A HREF="Plug-and-Play-HOWTO.html#toc10">Interrupt Sharing and Interrupt Conflicts </A></H2>
+
+<H2><A NAME="ss10.1">10.1</A> <A HREF="Plug-and-Play-HOWTO.html#toc10.1">Introduction</A>
+</H2>
+
+<P>When two or more devices use the same interrupt line (and the same
+IRQ number) it's either "Interrupt Sharing" or an "Interrupt
+Conflict".  The PCI bus allows all PCI devices to share interrupts
+with each other so this is called "sharing".  But if an ISA device (or
+a LPC device ??) uses the same interrupt (IRQ) as some other device
+(either PCI, ISA, or LPC ??) there is usually an interrupt conflict.</P>
+<P>There are exceptions to what's stated above.  Some very old PCI
+devices (pre 1995 ??) do not allow interrupt sharing.  Conversely, a
+few ISA devices have been designed to share interrupts (between two
+ISA devices ??) but both ISA devices must be designed this way and be
+driven by software that knows about sharing interrupts.  The
+motherboard must support it too.  The following discussion pertains to
+PCs that have an ISA bus.</P>
+<P>A conflict means that when an interrupt happens, no device driver (or
+the wrong one) may be called and bad things happen like buffer
+overruns (loss of data).  A device may nearly ground its interrupt
+line when it's not sending its interrupt, thus preventing any other
+device from using that interrupt wire.  That's OK if only that device
+uses that interrupt.  But if a second device tries to use the same
+interrupt line it can't do so.  If this second device also nearly
+grounds the line when not sending an interrupt, then neither device
+can use the interrupt.  But both Linux and the two devices are unaware
+of this conflict and merrily send out interrupts anyway that mostly go
+nowhere and are thus lost.</P>
+<P>Interrupt conflicts were common when the IRQs were set by jumpers on
+cards (ISA bus) because the kernel often didn't know how these jumpers
+were set.  ISA plug-and-play (no jumpers on the cards) helped since
+the software could change IRQs.  The demise of ISA in favor of PCI has
+nearly eliminated IRQ conflicts.  Still, your PC likely has devices on
+the motherboard (not on a plug-in card) on an ISA bus, a LPC bus, or
+an X-bus.  But the BIOS and the kernel should know how these are set
+and thus avoid using them for PCI devices, thereby avoiding interrupt
+conflicts.  But there is still a possible interrupt problem with PCI
+since it could run out of available interrupts, especially on older
+PCs that only have 16 interrupts.</P>
+<P>But IRQ sharing on the PCI bus, while eliminating the conflict
+problem, has introduced another problem which is less serious: the IRQ
+balancing problem.  If too many high-irq-issuing devices share the
+same IRQ, it may cause delays in the IRQs getting serviced and can't
+even result in buffer overruns and other errors.  This is not due to
+congestion on the interrupt line, but it's due to the way that the
+software determines which device issued the interrupt.  
+<A HREF="Plug-and-Play-HOWTO-11.html#pci_irq_share">PCI interrupt sharing</A></P>
+<P>There are two types of interrupt conflicts.  One is a real conflict
+as described above.  In this case interrupts don't work and the device
+driver keeps trying to control its device and is not aware that
+interrupts are not working.  The second type of interrupt conflict is
+where a device driver is started but discovers that the interrupt it
+needs is already in use so it issues an error message and exits.  The
+message could say something like "resource busy", and not clearly
+state that it was an interrupt problem.</P>
+
+<H2><A NAME="ss10.2">10.2</A> <A HREF="Plug-and-Play-HOWTO.html#toc10.2">Real Interrupt Conflict</A>
+</H2>
+
+<P>Both the BIOS and the the kernel will not knowingly allow any
+interrupt conflict, so how can they happen?   One way is if someone
+has put an incorrect IRQ into a configuration file, such as giving a
+parameter to a module like: irq=9.  In this example, suppose the irq
+of the device is really irq5.  Then when another device driver starts
+up where its device is set to irq5, you have two real devices using
+irq5 and a real conflict.  The kernel approved of letting the second
+device use irq5 since it erroneously thought that the first device was
+using irq9 and that irq5 was free.</P>
+<P>There are other cases like this where the kernel fails to know that an
+irq is in use.  One is when an old ISA card with an irq set by a
+jumper is present, but it's driver hasn't started yet (or it may not
+even have a driver).  Another case is where the BIOS set an irq in the
+hardware but no linux driver for that hardware ever started and Linux
+doesn't know about that irq.  This can happen even for a PCI card and
+the irq will show up in <EM>lspci -v</EM> but will not be in the
+<EM>/proc/interrupts</EM> directory and thus not known by the kernel.
+Is this a bug in the kernel?</P>
+<P>What are the symptoms of an interrupt conflict.  One might think that
+the devices will not work at all, but since the addresses are known,
+the driver does communicate.  Interrupts are often used to control the
+flow of data to and from the device and without interrupts, flow is not
+controlled.  This may mean buffer overruns or even no flow at all
+since interrupt are used to initiate flow.  For a serial modem, the
+result is extremely slow flow with long pauses and frequent errors.
+For a sound card it may mean that a word or two is heard and then
+nothing more.</P>
+
+<H2><A NAME="ss10.3">10.3</A> <A HREF="Plug-and-Play-HOWTO.html#toc10.3">No Interrupt Available</A>
+</H2>
+
+<P>This is when a device driver starts but immediately exits
+in order to avoid an interrupt conflict.  It should display or log an
+error message something like "resource busy".</P>
+<P>One case when an ISA device is activated but can't be assigned an
+interrupt (IRQ) since none are available.  Or an interrupt may be
+available, but it can't be used since the hardware of the device that
+needs the interrupt doesn't support the interrupt number available (or
+the motherboard doesn't support it due to "routing" problems, see 
+<A HREF="Plug-and-Play-HOWTO-7.html#pci_int">PCI Interrupts</A>).  If the ISA devices use up all
+the interrupts, then one or more PCI cards may be in conflict since
+they can't get any IRQs.</P>
+<P>Normally, the BIOS will assign interrupts and will not create
+conflicts.  But it may be forced to create conflicts if it runs out of
+IRQs.  This can happen if someone has set up the BIOS to reserve certain
+IRQs for legacy ISA devices that are not PnP.  These settings may be
+wrong and should be checked out, especially if you're having problems.
+For example, someone may have reserved an IRQ for an ISA card that has
+long since been removed from the PC.  If you unreserved this IRQ then
+this IRQ is available and and conflict disappears.</P>
+<P>Sometimes the BIOS will solve the problem of an IRQ shortage by using
+what it calls IRQ 0.  There is no such IRQ available since the real
+IRQ 0 is permanently assigned to the computer's timer.  But IRQ 0
+here means that the driver should use polling instead of IRQs.  This
+means that the driver frequently checks the device (polls it) to see
+if the device needs servicing by the interrupt service routine.  Of
+course, this wastes computer time and there's more likelihood of a
+buffer overrun inside a device since it might not get serviced by the
+driver promptly enough.</P>
+
+
+<HR>
+<A HREF="Plug-and-Play-HOWTO-11.html">Next</A>
+<A HREF="Plug-and-Play-HOWTO-9.html">Previous</A>
+<A HREF="Plug-and-Play-HOWTO.html#toc10">Contents</A>
+</BODY>
+</HTML>

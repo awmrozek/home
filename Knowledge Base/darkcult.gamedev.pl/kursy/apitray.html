@@ -1,0 +1,232 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Tray</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apitree.html">&lt;&lt; TreeView</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apitool3.html">Własne kontrolki, cz. 1 &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<P>
+Na pasku zadań Windowsa jest taki fajny obszar, zwany obszarem statusu (a popularnie - tray'em). Znajdują się tam najczęściej ikonki programów działających w tle. Pewnie nieraz zastanawiało cię, jak się dobrać do tego miejsca:
+</P>
+
+<P align=center>
+<img src="../gfx/tray1.gif" alt="To jest właśnie tray">
+</P>
+
+<P>
+Dzięki temu artykułowi stanie się to proste ;-). Wszelkie zadania związane z ikonkami w tray'u (dodawanie, modyfikowanie, usuwanie) wykonuje funkcja <SPAN CLASS=T>Shell_NotifyIcon</SPAN>. Jej składnia jest bardzo prosta, pobiera ona tylko rodzaj operacji do wykonania oraz adres struktury typu <SPAN CLASS=T>NOTIFYICONDATA</SPAN>. Struktura ta zawiera wszystkie niezbędne informacje o ikonce. W plikach nagłówkowych naszego SDK zadeklarowana ona jest następująco:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>typedef struct</SPAN> _NOTIFYICONDATA<BR> 
+{<BR>
+&nbsp;DWORD cbSize;<BR>
+&nbsp;HWND hWnd;<BR>
+&nbsp;UINT uID;<BR>
+&nbsp;UINT uFlags;<BR>
+&nbsp;UINT uCallbackMessage;<BR>
+&nbsp;HICON hIcon;<BR>
+&nbsp;<SPAN CLASS=K>char</SPAN> szTip[<SPAN CLASS=L>64</SPAN>];<BR>
+} NOTIFYICONDATA, *PNOTIFYICONDATA;<BR>
+</TD></TR>
+</TABLE>
+ 
+<P>
+Przeznaczenia większości tych pól nietrudno się domyślić. Podobnie jak w przypadku innych struktur charakterystycznych dla WinAPI, pole <SPAN CLASS=T>cbSize</SPAN> należy ustawić na rozmiar struktury, pobrany operatorem <SPAN CLASS=K>sizeof</SPAN>. Jako <SPAN CLASS=T>hWnd</SPAN> podajemy uchwyt okna, które będzie otrzymywało komunikaty związane z ikonką - zazwyczaj jest to główne okno naszego programu. Pole <SPAN CLASS=T>uID</SPAN> to identyfikator ikonki, zaś <SPAN CLASS=T>uFlags</SPAN> będzie określało, które z pozostałych trzech pól struktury są w danym momencie aktywne.
+</P>
+<P>
+Bierzmy się zatem do dzieła, czyli do umieszczenia ikony naszego programu na tray'u. Najpierw, jak zwykle, wypełnimy strukturę:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LPSTR sTip = <SPAN CLASS=L>"Moja własna ikonka"</SPAN>;<BR>
+NOTIFYICONDATA nid;<BR>
+<BR>
+nid.cbSize = <SPAN CLASS=K>sizeof</SPAN>(NOTIFYICONDATA);<BR>
+nid.hWnd = hwnd;<BR>
+nid.uID = ID_TRAY1;<BR>
+nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;<BR>
+nid.uCallbackMessage = CMSG_TRAY1;<BR>
+nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);<BR>
+lstrcpy(nid.szTip, sTip);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz niezbędne wyjaśnienia. Użyliśmy wszystkich trzech możliwych flag, żeby za jednym zamachem ustawić ikonkę, tooltipa (czyli napis, który się wyświetla po najechaniu na ikonkę myszą) oraz kod specjalnego komunikatu (o nim później). Oczywiście stałe <SPAN CLASS=T>ID_TRAY1</SPAN> oraz <SPAN CLASS=T>CMSG_TRAY1</SPAN> musimy sobie sami zdefiniować:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#define ID_TRAY1   601<BR>
+#define CMSG_TRAY1 0x8001<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Twórcy Windowsa nie byliby sobą, gdyby od czasu do czasu nie zrobili programistom jakiegoś kawału, i oto mamy go - pole <SPAN CLASS=T>szTip</SPAN> nie jest wskaźnikiem (jak w przypadku większości tego typu pól w WinAPI), lecz tablicą o stałym rozmiarze<SPAN CLASS=L>64</SPAN> znaków, dlatego wypełniamy ją przy pomocy funkcji <SPAN CLASS=T>lstrcpy</SPAN>.
+</P>
+<P>
+Wreszcie ostatnia rzecz: zakładam, że powyższa struktura będzie wypełniana już PO utworzeniu głównego okna programu, o uchwycie <SPAN CLASS=T>hwnd</SPAN>. Zakładam również, że <SPAN CLASS=T>wincl</SPAN> to nazwa struktury typu <SPAN CLASS=T>WNDCLASSEX</SPAN>, która była użyta do rejestracji klasy okna i zawiera poprawny uchwyt do ikony.
+</P>
+<P>
+Po tych przygotowaniach możemy wreszcie dodać ikonę do obszaru statusu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+BOOL r;<BR>
+r = Shell_NotifyIcon(NIM_ADD, &nid);<BR>
+<SPAN CLASS=K>if</SPAN>(!r) MessageBox(hwnd, <SPAN CLASS=L>"No niestety, z ikonki nici...", "Łeeee..."</SPAN>, MB_ICONEXCLAMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wszystko pięknie, ikonka widnieje sobie na tray'u:
+</P>
+
+<P align=center>
+<img  src="../gfx/tray2.gif" alt="Hmm, powiedzmy, że się udało :-P">
+</P>
+
+<P>
+Trochę nam się co prawda pokaszaniła ta ikona, ale dzięki temu mamy nauczkę na przyszłość: jeden z kolorów jest najwyraźniej używany jako kolor maski, więc należy się liczyć z tym, że na tray'u nie będzie go widać.
+</P>
+<P>
+Poza tym drobiazgiem wszystko jest jednak OK. Zadbajmy jeszcze o to (programiści lubią sobie o tym zapominać), żeby nasza ikonka samoczynnie usuwała się w momencie zniszczenia głównego okna:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_DESTROY:<BR>
+{<BR>
+&nbsp;NOTIFYICONDATA nid;<BR>
+&nbsp;nid.cbSize = <SPAN CLASS=K>sizeof</SPAN>(NOTIFYICONDATA);<BR>
+&nbsp;nid.hWnd = hwnd;<BR>
+&nbsp;nid.uID = ID_TRAY1;<BR>
+&nbsp;nid.uFlags = <SPAN CLASS=L>0</SPAN>;<BR>
+<BR>
+&nbsp;Shell_NotifyIcon(NIM_DELETE, &nid);<BR>
+<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście w przypadku usuwania ikony nie musimy zawracać sobie głowy polami <SPAN CLASS=T>hIcon, uCallbackMessage </SPAN>i<SPAN CLASS=T> szTip</SPAN>, dlatego też ustawiliśmy <SPAN CLASS=T>uFlags</SPAN> na <SPAN CLASS=L>0</SPAN>. Teraz ikonka będzie znikała po wyjściu z programu (wcześniej działo się to dopiero po najechaniu na nią myszą).
+</P>
+
+<h2>
+KOMUNIKATY
+</h2>
+
+<P>
+Teraz pora zająć się praktyczniejszym wykorzystaniem takich ikonek. Jak wiadomo, zwykle kliknięcie prawym przyciskiem myszy na takiej ikonce rozwija menu kontekstowe, z którego można wybrać pewne opcje programu (np. w WinAmp-ie można w ten sposób włączyć lub zatrzymać odtwarzanie, zmieniać skórki i wtyczki oraz wiele innych rzeczy). Zwykle też pojedyncze kliknięcie lewym przyciskiem przywołuje program na pierwszy plan (jeśli wcześniej działał on w tle). My zrobimy sobie to ostatnie; sprawimy, że po zminimalizowaniu naszego głównego okienka będzie ono znikało z głównego obszaru paska zadań i pojawiało się w tray'u.
+</P>
+<P>
+Przede wszystkim musimy teraz sprawić, żeby po zrzuceniu do paska zadań okienko znikało z niego. Pomoże nam w tym znana nam dobrze funkcja <SPAN CLASS=T>ShowWindow</SPAN>. Umieścimy ją w części kodu odpowiedzialnej za obsługę komunikatu <SPAN CLASS=T>WM_SIZE</SPAN>. Tam będziemy sprwdzać, czy okienko jest minimalizowane (wtedy wywołamy <SPAN CLASS=T>ShowWindow</SPAN> z parametrem <SPAN CLASS=T>SW_HIDE</SPAN>), czy nie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_SIZE:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(wParam == SIZE_MINIMIZED)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;ShowWindow(hwnd, SW_HIDE);<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// 1</SPAN><BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;ShowWindow(hwnd, SW_SHOW);<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// 2</SPAN><BR>
+&nbsp;}<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W miejscach oznaczonych komentarzami wstawiamy ponadto: <SPAN CLASS=L>1</SPAN>) kod dodający ikonkę do tray'a, <SPAN CLASS=L>2</SPAN>) kod usuwający tę ikonkę. Warto zwrócić uwagę, że kod usuwający ikonkę z tray'a powinien wystąpić zarówno w powyższym, oznaczonym miejscu, jak i tam, gdzie wstawialiśmy go wcześniej, czyli w obsłudze komunikatu <SPAN CLASS=T>WM_DESTROY</SPAN>, przy czym w tym drugim miejscu musimy teraz sprawdzić, czy okno jest zminimalizowane (bo tylko wtedy będzie sens usuwania ikony). Tak więc komunikat <SPAN CLASS=T>WM_DESTROY</SPAN> będziemy teraz obsługiwać tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_DESTROY:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(IsIconic(hwnd))<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// <-- tutaj wklej kod usuwający ikonę z tray'a</SPAN><BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+ 
+<P>
+Nowością jest funkcja <SPAN CLASS=T>IsIconic</SPAN>, która sprawdza, czy okno jest zminimalizowane - tylko wówczas pokazywana jest w naszym programie ikonka na tray'u. Równie dobrze moglibyśmy w tym przypadku użyć funkcji <SPAN CLASS=T>IsWindowVisible</SPAN>.
+</P>
+<P>
+Teraz pora na pozostałą część zadania - obsłużenie kliknięcia na ikonce. Do tej pory bowiem po zminimalizowaniu naszego okna nie dało się już bez stosowania tzw. cudów przywrócić do normalnego stanu - mogliśmy jedynie wcisnąć Ctrl+Alt+Del i wykopać program z pamięci siłą. Teraz sprawimy, by kliknięcie na ikonę sprowadzało okno z powrotem na pulpit.
+</P>
+<P>
+Wykorzystamy w tym celu zdefiniowany przez nas komunikat <SPAN CLASS=T>CMSG_TRAY1</SPAN>. Dlaczego nadaliśmy jej akurat taką wartość? Żeby nasz komunikat dało się odróżnić od tych systemowych - wszystkie numery od <SPAN CLASS=L>0x8000</SPAN> do <SPAN CLASS=L>0xBFFF</SPAN> są do dyspozycji użytkownika jako "prywatne" komunikaty do użytku wewnątrz danej aplikacji.
+</P>
+<P>
+Pozostaje nam teraz jedynie obsłużenie kliknięcia na naszej ikonce. Parametr <SPAN CLASS=T>wParam</SPAN> komunikatu <SPAN CLASS=T>CMSG_TRAY1</SPAN> będzie zawierał identyfikator ikonki (w naszym przypadku <SPAN CLASS=T>ID_TRAY1</SPAN>), natomiast <SPAN CLASS=T>lParam</SPAN> - rodzaj komunikatu (w przypadku kliknięcia lewym przyciskiem - np. <SPAN CLASS=T>WM_LBUTTONDOWN</SPAN>). Obsługa może wyglądać jakoś tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> CMSG_TRAY1:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(wParam == ID_TRAY1)<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(lParam == WM_LBUTTONDOWN)<BR>
+&nbsp;&nbsp;&nbsp;ShowWindow(hwnd, SW_RESTORE);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;
+</TD></TR>
+</TABLE>
+
+<P>
+Ważne jest tutaj sprawdzenie, od której ikonki pochodzi komunikat (jeśli dodaliśmy kilka ikon; od "obcych" ikon komunikaty nie przychodzą) oraz jakie zdarzenie nam oznajmia. Szczególnie na to drugie należy zwrócić uwagę; gdybyśmy nie sprawdzili wartości <SPAN CLASS=T>lParam</SPAN>, to nasze okno pojawiałoby się nawet po samym najechaniu myszą na ikonę (co jest efektem raczej niepożądanym).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apitree.html">&lt;&lt; TreeView</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apitool3.html">Własne kontrolki, cz. 1 &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+

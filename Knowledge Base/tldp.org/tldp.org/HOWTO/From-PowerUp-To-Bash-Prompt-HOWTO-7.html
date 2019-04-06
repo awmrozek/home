@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>From Power Up To Bash Prompt: The Filesystem</TITLE>
+ <LINK HREF="From-PowerUp-To-Bash-Prompt-HOWTO-8.html" REL=next>
+ <LINK HREF="From-PowerUp-To-Bash-Prompt-HOWTO-6.html" REL=previous>
+ <LINK HREF="From-PowerUp-To-Bash-Prompt-HOWTO.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-8.html">Next</A>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-6.html">Previous</A>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="s7">7. The Filesystem</A></H2>
+
+<P>In this section, I will be using the word ``filesystem'' in two different ways.
+There are filesystems on disk partitions and other devices, 
+and there is the filesystem as it is
+presented to you by a running Linux system. In Linux, you ``mount'' a disk
+filesystem onto the system's filesystem.
+<P>
+<P>In the previous section I mentioned that init scripts check and mount the
+filesystems. The commands that do this are <CODE>fsck</CODE> and <CODE>mount</CODE>
+respectively.
+<P>
+<P>A hard disk is just a big space that you can write ones and zeros on. A
+filesystem imposes some structure on this, and makes it look like files within
+directories within directories... Each file is represented by an inode, which
+says who's file it is, when it was created and where to find its contents.
+Directories are also represented by inodes, but these say where to find the
+inodes of the files that are in the directory. If the system wants to read
+<CODE>/home/greg/bigboobs.jpeg</CODE>, it first finds the inode for the root
+directory <CODE>/</CODE> in the ``superblock'', then finds the inode for the
+directory <CODE>home</CODE> in the contents of <CODE>/</CODE>, then finds the inode for
+the directory <CODE>greg</CODE> in the contents of <CODE>/home</CODE>, 
+then the inode for <CODE>bigboobs.jpeg</CODE> which
+will tell it which disk blocks to read.
+<P>
+<P>
+<P>If we add some data to the end of a file, it could happen that the data is
+written before the inode is updated to say that the new blocks belong to the
+file, or vice versa. If the power cuts out at this point, the filesystem will
+be broken. It is this kind of thing that <CODE>fsck</CODE> attempts to detect and
+repair.
+<P>
+<P>The mount command takes a filesystem on a device, and adds it to the heirarchy
+that you see when you use your system. Usually, the kernel mounts its root file
+system read-only. The mount command is used to remount it read-write after
+<CODE>fsck</CODE> has checked that it is ok.
+<P>
+<P>Linux supports other kinds of filesystem too: msdos, vfat, minix and so on. The
+details of the specific kind of filesystem are abstracted away by the virtual
+file system (VFS). I won't go into any detail on this though. There is a
+discussion of it in ``The Linux Kernel'' 
+(see section 
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-4.html#Kernel">The Linux Kernel</A> for a url)
+<P>
+<P>A completely different kind of filesystem gets mounted on <CODE>/proc</CODE>.
+It is really a representation of things in the kernel. There is a 
+directory there for each process running on the system, with the process
+number as the directory name. There are also files such as <CODE>interrupts</CODE>,
+and <CODE>meminfo</CODE> which tell you about how the hardware is being used.
+You can learn a lot by exploring <CODE>/proc</CODE>.
+<P>
+<H2><A NAME="ss7.1">7.1 Configuration</A>
+</H2>
+
+<P>There are parameters to the command <CODE>mke2fs</CODE> which creates ext2
+filesystems. These control the size of blocks, the number of inodes and so on.
+Check the <CODE>mke2fs</CODE> man page for details.
+<P>
+<P>What gets mounted where on your filesystem is controlled by the <CODE>/etc/fstab</CODE>
+file. It also has a man page. 
+<P>
+<H2><A NAME="ss7.2">7.2 Exercises</A>
+</H2>
+
+<P>Make a very small filesystem, and view it with a hex viewer. Identify inodes,
+superblocks and file contents.
+<P>
+<P>I believe there are tools that give you a graphical view of a filesystem.
+Find one, try it out, and email me the url and a review!
+<P>
+<P>Check out the ext2 filesystem code in the Kernel.
+<P>
+<H2><A NAME="ss7.3">7.3 More Information</A>
+</H2>
+
+<P>
+<UL>
+<LI>Chapter 9 of the LDP book ``The Linux Kernel'' is an excellent description
+of filesystems. You can find it at the Australian LDP
+<A HREF="http://mirror.aarnet.edu.au/linux/LDP/LDP/">mirror</A></LI>
+<LI>The <CODE>mount</CODE> command is part of the util-linux package, there is a link 
+to it in 
+<A HREF="http://www.netspace.net.au/~gok/power2bash">Building a Minimal Linux System from Source Code</A> </LI>
+<LI>man pages for <CODE>mount</CODE>, <CODE>fstab</CODE>, <CODE>fsck</CODE>, <CODE>mke2fs</CODE>
+and <CODE>proc</CODE></LI>
+<LI>The file <CODE>Documentation/proc.txt</CODE> in the Linux source code explains
+the <CODE>/proc</CODE> filesystem.</LI>
+<LI>EXT2 File System Utilities
+<A HREF="http://web.mit.edu/tytso/www/linux/e2fsprogs.html">ext2fsprogs</A> home page
+<A HREF="ftp://mirror.aarnet.edu.au/pub/linux/metalab/system/filesystems/ext2/">ext2fsprogs</A> Australian mirror. There is also a Ext2fs-overview
+document here, although it is out of date, and not as readable as chapter 9
+of ``The Linux Kernel''</LI>
+<LI>  
+<A NAME="FHS"></A> 
+<A HREF="ftp://tsx-11.mit.edu/pub/linux/docs/linux-standards/fsstnd/">Unix File System Standard</A> 
+Another 
+<A HREF="http://www.pathname.com/fhs/">link</A> to the Unix File System Standard.
+This describes what should go where
+in a Unix file system, and why. It also has minimum requirements for
+the contents of <CODE>/bin</CODE>, <CODE>/sbin</CODE> and so on. This is a 
+good reference if your goal is to make a minimal yet complete system.</LI>
+</UL>
+<P>
+<P>
+<P>
+<HR>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-8.html">Next</A>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO-6.html">Previous</A>
+<A HREF="From-PowerUp-To-Bash-Prompt-HOWTO.html#toc7">Contents</A>
+</BODY>
+</HTML>

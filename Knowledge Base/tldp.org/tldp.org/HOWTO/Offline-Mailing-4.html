@@ -1,0 +1,465 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux off-line mailing method (offline mailaddr with 1 account): I got it all, what now ?</TITLE>
+ <LINK HREF="Offline-Mailing-5.html" REL=next>
+ <LINK HREF="Offline-Mailing-3.html" REL=previous>
+ <LINK HREF="Offline-Mailing.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Offline-Mailing-5.html">Next</A>
+<A HREF="Offline-Mailing-3.html">Previous</A>
+<A HREF="Offline-Mailing.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. I got it all, what now ?</A></H2>
+
+<P>Now you created the extra account, you got the mail address - and/or the DNS
+entry &amp; forwarding to your account ... As well installed Procmail &amp; Fetchmail
+so we can rock the place ! :) .. here we go !
+<OL>
+<LI>You need to create a .procmailrc file, what will contain the "delivery"
+info to your users.</LI>
+<LI>You need to create a "nosuchuserfile" - so the writer knows his mail isn't
+delivered well.</LI>
+<LI>For best work :) you could use crontab to check for mail. This is a easy
+way to check your mail every XX minutes when on the internet.</LI>
+</OL>
+<P>
+<H2><A NAME="ss4.1">4.1 Creating a .fetchmailrc file</A>
+</H2>
+
+<P>You will need to create a .fetchmailrc file, what will contain the information
+(username &amp; password, as well the Mail Delivery Agent (mda) to proces the mail
+to). Here is some example file ...
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** text ***)     .fetchmailrc</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+server my.mail.server.com
+proto pop3
+user myaccountthere
+pass deepestsecrets
+flush
+mda /usr/bin/procmail
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>This file will be used to fetch your mail. Please test it by using the
+fetchmail program "fetchmail -vv" - and see your mail is being transferred
+right ... There will be some errors - since the procmail control file hasn't
+been created yet. You can wait by testing AFTER making the procmailrc file,
+but - i'll warn ya - IF there is something fault :) it CAN be this file :)
+It needs to be owned by the user account itself - in my case "mailservice"
+and needs to be "user readable" but NOT group/world readable - since it
+contains the "main password" :)). (chmod 600 .fetchmailrc will do).
+<P>
+<H2><A NAME="ss4.2">4.2 Creating a .procmailrc file</A>
+</H2>
+
+<P>This control file will forward all mail to the users in it. There are 2 ways
+as described before - the "to:" (header) way - and the "subject" (sloppy) way.
+The file will contain the usernames to transport to. All the "#" are comments
+and are absolutely not needed when not wanted - it's only so you know what i
+am doing ... - you can as well best chmod it 600 - so the rest of the world
+or group doesn't need those private addresses eh :) ... It needs also to be
+owned by the user (like "mailservice") :)). The "nosuchuserfile" is a
+"bounce" to the writer - if the user isn't found (so mail not delivered) in
+the procmailrc file ... - so the writer knows the mail isn't delivered well.
+<P>
+<H3>For "header (to:)" transportation</H3>
+
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** text ***)     .procmailrc</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# this line is for debugging purposes only ! it should be removed for
+# ethical purposes - since you can read all mail passed trough your mail-
+# server ... - all mail will be copied to the file "passtrough" before
+# going to the users ... herein you can look what went wrong ...
+:0 c
+        passtrough
+
+# the mail with header "to: freaker@mydom.com" will be forwarded directly
+# to me, the other mail will pass this option ... 
+:0 
+* ^To:.*freaker@mydom.com
+! freaker
+
+# the mail to root@mydom.com will be forwarded to root ... as well postmaster!
+:0 
+* ^To:.*root@mydom.com
+! root
+
+:0 
+* ^To:.*postmaster@mydom.com
+! postmaster
+
+
+# the mail to barbara@mydom.com will be forwarded to barbara AND will be
+# forwarded to her private email address !
+
+:0 c
+* ^To:.*barbara@mydom.com
+! barbara@her.private.one
+
+:0 
+* ^To:.*barbara@mydom.com
+! barbara
+
+# the mail to johnny@mydom.com and johnny@hisdom.com will be forwarded to johnny
+
+:0
+* (^To:.*johnny@mydom.com)|(^To:.*johnny@hisdom.com)
+! freaker
+
+# the mail to hans@mydom.com and all carbon copys will be forwarded to hans
+
+:0
+* (^To:.*hans@mydom.com)|(^CC:.*hans@mydom.com)
+! hans
+
+# this lines will BOUNCE the mail to the sender - when it is not delivered to
+# one of above users ... it will send the file "nosuchuser" into the mail
+# body as reply ... be aware ! you need to make such file ! - mine contains
+# "well, the user you wanted to reach does not exist on this server, please
+# try again, it could be the user is not present anymore".
+#
+:0
+  |(/usr/bin/formail -r -k \
+     -A"X-loop: mailservice@mydomain.dom "| \
+       /usr/bin/gawk '{print }\
+       /^/ &amp;&amp; !HEADER \
+         { system("/bin/cat nosuchuser"); \
+         print"--" ;\
+         HEADER=1 }' ) |\
+         /usr/bin/sendmail -t
+
+
+exit
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>     
+<P>
+<H3>For "subject: touser" transportation</H3>
+
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** text ***)     .procmailrc</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# this line is for debugging purposes only ! it should be removed for
+# ethical purposes - since you can read all mail passed trough your mail-
+# server ... - all mail will be copied to the file "passtrough" before
+# going to the users ... herein you can look what went wrong ...
+:0 c
+        passtrough
+
+# the mail with header "to: freaker@ibm.net" will be forwarded directly
+# to me, the other mail will pass this option ... When you got a "dedicated"
+# email address to receive your "mailservice thingy's" on - you don't need
+# to use this line :) 
+:0 
+* ^To:.*freaker@ibm.net
+! freaker
+
+# all mail with as subject "root" will be forwarded to root !
+:0
+* ^Subject:.root
+! root
+
+# all mail to "subject: barbara" will be forwarded to barbara ...
+:0
+* ^Subject:.barbara
+! barbara
+
+# all mail to "subject: paul" will be forwarded to his external email addr.
+:0
+* ^Subject:.paul
+! paul@his.personal.emailaddress
+
+# all mail to "subject: john" will be forwarded to his account at your server
+# and a copy will go to his private email address ... 
+:0 c
+* ^Subject:.john
+! john@his.personal.emailaddress
+
+:0 
+* ^Subject:.john
+! john
+
+# All the mail from ibm, with their updates and information, will go to                                
+# freaker, as he is the one who will administrate the mailservice, and
+# as ibm doesn't want to get the bounce putten below !! ... this is
+# neccesary if your mail provider sends "newsletters" etc...
+:0
+* ^From:.*newsletter@ibm.net
+! freaker
+
+# All messages from the daemon should been thrown away, or in my case, will
+# be saved to a file ... (use /dev/null to throw to endless pits of The Abyss)
+:0
+* ^FROM_DAEMON
+throwaway
+
+# this lines will BOUNCE the mail to the sender - when it is not delivered to
+# one of above users ... it will send the file "nosuchuser" into the mail
+# body as reply ... be aware ! you need to make such file ! - mine contains
+# some text like "user not found in subject line, please use "Subject: user"
+# to write a mail to the user, like example "subject: freaker" would send a
+# mail to freaker." The file can be long, but also small :) ... the
+# "mailservice@mydomain.dom" will prevent to loop between your server and
+# the other server - it needs to have the EXACT email address used !.
+# Else you could create an endless loop with a server what sends mail
+# to "your email address" with as subject something like "don't spend 500$
+# at your ..." etc...
+:0
+  |(/usr/bin/formail -r -k \
+     -A"X-loop: mailservice@mydomain.dom "| \
+       /usr/bin/gawk '{print }\
+       /^/ &amp;&amp; !HEADER \
+         { system("/bin/cat nosuchuser"); \
+         print"--" ;\
+         HEADER=1 }' ) |\
+         /usr/bin/sendmail -t
+
+exit
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H2><A NAME="ss4.3">4.3 "nosuchuserfile"</A>
+</H2>
+
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** text ***)     nosuchuser</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+
+The user you wanted to contact is not present at this system.
+
+Please use the subject line as recipient - example "subject: freaker" would
+send mail to freaker on this system.
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H2><A NAME="ss4.4">4.4 "crontab files".</A>
+</H2>
+
+<P>If you don't know how crontab works :) better read the manual :) ...
+You need to create a "checkmail" file - what will see if the link is up,
+as well the cronfile itself ... - i am using a ppp link :) so - this is an
+example how to look when the ppp link is up - and to poll every 10 minutes
+using cron. Looks sloppy - but isn't !.
+<P>
+<P>
+<H3>checkformail</H3>
+
+<P>the .checkformail file will be called (needs to be executable as well) - and
+will look if the ppp link is up. If it is up - then it will fetch for mail.
+Crontab will use this file when you are using the below cronentry ...
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** code ***)     .checkformail</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+#!/bin/sh
+#
+
+        cd /home/mailservice
+
+        if [ -f /var/run/ppp0.pid ]; then
+        /usr/local/bin/fetchmail -s > /dev/null 2>&amp;1
+fi
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>crontab</H3>
+
+<P>This cronentry file needs to been loaded into crontab, and will call the .checkformail - every 10 minutes. It won't write any mail or give any info
+to the console - since i'm redirecting everything to null.
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** text ***)     cronentry</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+0,10,20,30,40,50 * * * *  /home/mailservice/.checkformail 1> /dev/null 2> /dev/null
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H2><A NAME="ss4.5">4.5 "At the admins site".</A>
+</H2>
+
+<P>Well, this should be done when using the "A method" ... at the admin's site,
+so the email goes all from a complete domain, to one username. It is pretty
+simple, and once you've done it - it works like hell. this is NOT neccesary
+if your system administrator (the uplink) got another method, and is NOT
+neccesary at YOUR side !!!!
+<P>When using a newer version of sendmail, the "old sendmail" trick probably
+won't work, so please refer to the "new sendmail" topics to let your
+mailrouting work.
+<P>
+<H3>(old sendmail) add some lines to sendmail.cf</H3>
+
+<P>add the following lines to your /etc/sendmail.cf file, so the domains file
+will be read.  please be noted that the "ruleset 98" is added as underhere,
+since - once you got errors :) it's a hell to find 'm out ! (and i can know
+it :) DuH).
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** add ***)    /etc/sendmail.cf</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# Database of handled domains
+
+Kmaildomains btree /etc/maildomains.db
+
+# Add these lines *IN* Ruleset 98 ! (under Ruleset 98).
+
+R$+ &lt; @ $+  . >              $: $1 &lt; @ $2 > .
+R$+ &lt; @ $+ > $*              $: $(maildomains $1@$2 $: $1 &lt; @ $2 > $3 $)
+R$+ &lt; @ $+ > $*              $: $(maildomains $2 $: $1 &lt; # $2 > $3 $)
+R$+ &lt; @ $* > .               $: $1 &lt; @ $2 . >
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H3>(new sendmail) Adding some lines to sendmail.cf</H3>
+
+<P>With the newer sendmail releases (tested with sendmail v8.8.7, 8.8.8).
+Ignore method A, and add the next lines ...
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** add ***)    /etc/sendmail.cf</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# Database of handled domains
+
+Fw/etc/sendmail.cw
+Kvirtuser btree /etc/maildomains.db
+
+*OR*
+
+Fw/yourhomedir/sendmail.cw
+Kvirtuser btree /yourhomedir/maildomains.db
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H3>(new sendmail)editing the /etc/sendmail.cw (or /yourdir/sendmail.cw) file</H3>
+
+<P>If you are using another "location" for the sendmail.cw file, then please
+replace the "/etc/sendmail.cw" to "/yourhomedirectory/sendmail.cw". The
+pro points of putting this sendmail.cw file into your homedirectory is
+that you don't need root to change the domains to receive on. tough - this
+can give security risks if not used properly !
+<P>This file can already exist, or needs to be created, if it already exists
+be sure you don't overwrite the older data - or i need to refer you to my
+fine disclaimer :)
+<P>First create a /etc/sendmail.cw file, what will be used to "send" a domain
+to a specific user ... here is an example ... (as you already knew, the name
+"mailservice" can be anything you want - it can even be your loginname (like
+mine is freaker).
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** text ***) /etc/sendmail.cw</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+mydomain.dom            mailservice
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H3>creating a /etc/maildomains file</H3>
+
+<P>First create a /etc/maildomains file, what will be used to "send" a domain
+to a specific user ... here is an example ... (as you already knew, the name
+"mailservice" can be anything you want - it can even be your loginname (like
+mine is freaker). (you could have this /etc/maildomains in
+/yourhomedir/maildomains as mentioned before, just change the paths :)
+<P>With the OLDER sendmail versions:
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** text ***)     /etc/maildomains</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+mydomain.dom            mailservice
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>With the NEWER sendmail versions:
+<P>
+<BLOCKQUOTE>
+<CODE>(*** &lt; file &gt; *** text ***)     /etc/maildomains</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+@mydomain.dom           mailservice
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H3>let it work !</H3>
+
+<P>With the old &amp; new sendmail versionsyou need to generate the btree
+(database) files, you'll need to do the following:
+<P>
+<PRE>
+cd /etc    (or /yourhomedir)
+makemap btree maildomains &lt; maildomains
+</PRE>
+<P>after that, kill the sendmail daemon, and restart it. it should now WORK!
+good luck :)
+<P>
+<HR>
+<A HREF="Offline-Mailing-5.html">Next</A>
+<A HREF="Offline-Mailing-3.html">Previous</A>
+<A HREF="Offline-Mailing.html#toc4">Contents</A>
+</BODY>
+</HTML>

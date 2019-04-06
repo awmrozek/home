@@ -1,0 +1,250 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Emacs Beginner's HOWTO: Customizing Emacs </TITLE>
+ <LINK HREF="Emacs-Beginner-HOWTO-5.html" REL=next>
+ <LINK HREF="Emacs-Beginner-HOWTO-3.html" REL=previous>
+ <LINK HREF="Emacs-Beginner-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Emacs-Beginner-HOWTO-5.html">Next</A>
+<A HREF="Emacs-Beginner-HOWTO-3.html">Previous</A>
+<A HREF="Emacs-Beginner-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="customizing_emacs"></A> <A NAME="s4">4. Customizing Emacs </A></H2>
+
+<P>Virtually all Emacs customization is done via Lisp code. You can
+modify variables which influence the way Emacs operates or you can add
+new functions to Emacs (or override existing functions--replacing them
+with your own).
+<P>
+<H2><A NAME="ss4.1">4.1 Temporary Customization</A>
+</H2>
+
+<P>While experimenting with Emacs customization, you'll probably want
+to do it in a way that is temporary. If you do something horribly
+wrong, you can just <CODE>C-x C-c</CODE> to exit emacs and run it
+again. Once you've figured out what changes you'd like to make
+permanent, you can add them to your very own <CODE>.emacs</CODE> file so
+that they take effect every time you start Emacs. This is discussed in
+the next section.
+<P>
+<H3>Variable Assignments</H3>
+
+<P>The easiest customizations are accomplished by changing the value
+of a variable in Emacs. The list code to do this looks like this:
+<P>
+<PRE>
+(setq variable-name new-value)
+</PRE>
+<P>
+<P>Where <CODE>variable-name</CODE> is the name of the variable and
+<CODE>new-value</CODE> is the value you'd like to give the variable. (In
+Lisp-speak, you're binding a variable to a value.) The <CODE>setq</CODE>
+function in lisp is analogous to the assignment operators (usually
+<CODE>=</CODE>) in other programming languages.
+<P>
+<P><B>NOTE:</B> I'm glossing over many details here for the sake of
+simplicity. You may also see me or others use the Lisp functions
+<CODE>set</CODE> and even <CODE>setq-default</CODE>. If you're really curious,
+feel free to look them up in an Emacs Lisp reference.
+<P>
+<P>Let's look at a line from my <CODE>.emacs</CODE> file
+<P>
+<PRE>
+(setq-default transient-mark-mode t)
+</PRE>
+<P>
+<P>The variable <CODE>transient-mark-mode</CODE> controls whether or not a
+region becomes highlighted when I mark it. In many GUI applications,
+if you click and drag the mouse to select a range of text it becomes
+hi-lighted in reverse video or some other color. Emacs will do the same
+thing it the <CODE>transient-mark-mode</CODE> variable is set (to a non-nil
+value).
+<P>
+<P>A <EM>WHAT</EM> value?
+<P>
+<P>Okay. Brief digression. Most programming languages have some notion
+of true/false values. In C/C++ a value is considered true if it is a
+non-zero value. In Perl, a non-null or non-zero value is true. In
+Lisp, the same idea applies but the names and symbols are different.
+<P>
+<P>True is usually written as <CODE>t</CODE> and false (or null) is
+written as <CODE>nil</CODE>. Like in other languages, though, any non-nill
+value is considered true.
+<P>
+<P>To get the full description of what <CODE>transient-mark-mode</CODE>
+does, you can use the on-line help. Type <CODE>C-h v</CODE> or <CODE>M-x
+describe-variable</CODE> and then <CODE>transient-mark-mode</CODE>. If
+you're lazy like me, you can take advantage of variable name
+completion using the <CODE>Tab</CODE> key. Just type part of the variable
+name and hit the <CODE>Tab</CODE> key. If you've typed enough of it that
+Emacs can already uniquely identify it, you'll see the whole name
+completed for you.
+<P>
+<P>Another variable that folks often set is <CODE>fill-column</CODE>. It
+tells Emacs how wide the screen should be for the purposes of
+word-wrapping (and <CODE>auto-fill-mode</CODE> respects this value). To
+set the value to something absurd, you could type:
+<P>
+<PRE>
+(setq fill-column 20)
+</PRE>
+<P>
+<P>But that won't actually do anything. You need to tell Emacs to
+<B>evaluate</B> the expression you typed. To do so, put the point
+(cursor) at the end of the expression end then type <CODE>C-x C-e</CODE>,
+which calls the function <CODE>eval-last-sexp</CODE> in case you
+care. When you do that, notice that <CODE>20</CODE> (or whatever value you
+used) is echoed back to you in the mini-buffer at the bottom of the
+screen. That's just the return value from the expression you
+evaluated.
+<P>
+<P>Just to prove that it works, type a sentence or two. If you happen
+to have <CODE>auto-fill-mode</CODE> enabled (you probably don't), you'll
+notice the text wrapping at the 20 column mark. Otherwise, after
+you've typed some stuff, type <CODE>M-q</CODE> which calls the function
+<CODE>fill-paragraph</CODE>. It will then perform the word wrapping.
+<P>
+<H3>File Associations</H3>
+
+<P>You can configure Emacs to automatically do something when you open
+a file of a particular type (just like some GUIs will automatically
+launch a specific application if you click on the icon for a
+particular file). For example, I may want Emacs to automatically
+switch to <CODE>text-mode</CODE> every time I open a file with a
+<CODE>.txt</CODE> extension. Well, that already happens. <CODE>:-)</CODE> So
+let's tell Emacs to always enter <CODE>text-mode</CODE> when you open a
+file named ``README''.
+<P>
+<PRE>
+(setq auto-mode-alist (cons '("README" . text-mode) auto-mode-alist))
+</PRE>
+<P>
+<P>Huh?
+<P>
+<P>Without diving into lots of Lisp programming that you really don't
+need to know (but it wouldn't hurt you to learn), let just say that
+the variable <CODE>auto-mode-alist</CODE> contains a list of pairs. Each
+pair contains a regular expression and an Emacs mode name. If a file
+you open matches the regular expression (in this case, the string
+<CODE>README</CODE>) Emacs starts the mode you specified.
+<P>
+<P>The funny syntax above is because we're actually adding another
+pair to that mode list. You wouldn't want to just assign to
+<CODE>auto-mode-alist</CODE> without making sure the values that it
+already contains aren't lost.
+<P>
+<P>And if I wanted Emacs to automatically switch to
+<CODE>html-helper-mode</CODE> every time that I opened a file that ended
+with <CODE>.html</CODE> or <CODE>.htm</CODE>, I would add this to my .emacs
+file:
+<P>
+<PRE>
+(setq auto-mode-alist (cons '("\\.html$" . html-helper-mode) auto-mode-alist))
+(setq auto-mode-alist (cons '("\\.htm$" . html-helper-mode) auto-mode-alist))
+</PRE>
+<P>
+<P>The possibilities are truly endless.
+<P>
+<H2><A NAME="ss4.2">4.2 Using a <CODE>.emacs</CODE> File</A>
+</H2>
+
+<P>After you've spent some time with Emacs and have a basic idea of
+what customization can do for you, you'll probably want to customize a
+few things permanently (or at least until you change your mind). If
+you find yourself using Emacs on a daily basis, you'll also notice
+that your <CODE>.emacs</CODE> file get bigger as time goes on. That's a
+<EM>Good Thing</EM> because it means you've figured out how to make
+Emacs work the way <B>you</B> want it do work. It's a shame that
+more software products don't let you do that.
+<P>
+<P>In case you haven't already guessed, every time you start Emacs, it
+looks for a file named <CODE>.emacs</CODE> in your home directory. Your
+<CODE>.emacs</CODE> file is where you should put any Lisp code that you
+want run automatically and that includes the sort of customization
+we've been dealing with here.
+<P>
+<P>Another example from my <CODE>.emacs</CODE> file:
+<P>
+<PRE>
+(setq inhibit-startup-message t)
+</PRE>
+<P>
+<P>The <CODE>inhibit-startup-message</CODE> variable controls whether or
+not Emacs displays that welcome message when it starts. After a while,
+I got sick of looking at it (because I knew how to find the help and
+whatnot), so I went in search of a way to turn it off.
+<P>
+<P>As an exercise, try creating a <CODE>.emacs</CODE> file of your own and
+add that line to it. Then exit and start Emacs again. You should not
+see the welcome message.
+<P>
+<P>Often times when your read about an Emacs mode (or a package), the
+documentation will suggest some code to add to your <CODE>.emacs</CODE>
+file in order to make the mode or package work in a particular way.
+<P>
+<P>The GNU Emacs FAQ (<CODE>C-h F</CODE>) contains some items related to
+<CODE>.emacs</CODE> files that you might find useful.
+<P>
+<H2><A NAME="ss4.3">4.3 The Customize Package</A>
+</H2>
+
+<P>As Emacs has grown in popularity and continued to evolved, someone
+eventually said ``there has to be a better way to let novice users
+customize their Emacs.'' And <CODE>customize</CODE> was born.
+<P>
+<P>Customize provides a more intuitive method of customizing parts of
+Emacs. To try it out, either visit the <CODE>Customize</CODE> sub-menu in
+your <CODE>Help</CODE> menu, or type <CODE>M-x customize</CODE>.
+<P>
+<P>Customize groups customization into logical groups like
+``Editing'', ``Programming'', ``Files'', and so on. Some groups
+contain sub-groups.
+<P>
+<P>If you make changes using the customize interface, Emacs will save
+the changes to your <CODE>.emacs</CODE> file. That's rather handy, because
+you can easily inspect (and change) the changes it made for you.
+<P>
+<P><EM>I don't use the Customize interface, so I can't say much more
+about it.</EM>.
+<P>
+<H2><A NAME="ss4.4">4.4 X Windows Display</A>
+</H2>
+
+<P>Like any well behaved X application, Emacs respects your X
+resources. That means you can control the initial colors, geometry,
+and other X specific things just as you could with an <CODE>xterm</CODE>,
+<CODE>nxterm</CODE>, or whatever.
+<P>
+<P>Here's the relevant bit of my <CODE>~/.Xdefaults</CODE> file:
+<P>
+<PRE>
+emacs*Background: DarkSlateGray
+emacs*Foreground: Wheat
+emacs*pointerColor: Orchid
+emacs*cursorColor: Orchid
+emacs*bitmapIcon: on
+emacs*font: fixed
+emacs.geometry: 80x25
+</PRE>
+<P>
+<P>See your <CODE>X</CODE> manual page for more details about X resources.
+<P>
+<P>Chris Gray (
+<A HREF="mailto:cgray4@po-box.mcgill.ca">cgray4@po-box.mcgill.ca</A>) also notes:
+<P>
+<BLOCKQUOTE>
+In Debian, the <CODE>~/.Xdefaults</CODE> doesn't seem to be used.
+However, Debian people can put what you have given in
+<CODE>/etc/X11/Xresources/emacs</CODE> and they can have the pretty colors
+that they had when they were using RedHat.
+</BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="Emacs-Beginner-HOWTO-5.html">Next</A>
+<A HREF="Emacs-Beginner-HOWTO-3.html">Previous</A>
+<A HREF="Emacs-Beginner-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

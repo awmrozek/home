@@ -1,0 +1,493 @@
+<HTML
+><HEAD
+><TITLE
+>ICE (Internet Commerce Enabled)</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="Ingres II HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Ingres/Net"
+HREF="net.html"><LINK
+REL="NEXT"
+TITLE="Miscellaneous Topics"
+HREF="misc.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Ingres II HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="net.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="misc.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="ICE"
+>8. ICE (Internet Commerce Enabled)</A
+></H1
+><P
+><SPAN
+CLASS="APPLICATION"
+>ICE</SPAN
+> is <SPAN
+CLASS="APPLICATION"
+>Ingres'</SPAN
+>
+	proprietary gateway to the Web.
+	Basically, it is a <SPAN
+CLASS="ACRONYM"
+>CGI</SPAN
+> program that can talk to an
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> server through the
+	native <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> <SPAN
+CLASS="ACRONYM"
+>API</SPAN
+>.
+	<SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> supports a couple of macro commands which you
+	can embed in <SPAN
+CLASS="ACRONYM"
+>HTML</SPAN
+> documents.
+	When rendering such a document, <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> first
+	executes the macros then outputs the resulting web page.</P
+><P
+>On other platforms you can configure <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> as
+	a server extension to the <SPAN
+CLASS="APPLICATION"
+>Spyglass</SPAN
+> web server
+	which is bundled with <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>.
+	The Linux version of <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> does not include
+	<SPAN
+CLASS="APPLICATION"
+>Spyglass</SPAN
+>.
+	Therefore, in this section I will show you how to setup
+	<SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> as a standalone <SPAN
+CLASS="ACRONYM"
+>CGI</SPAN
+> program under
+	<SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+>, the world's most popular web server.</P
+><P
+>You need the <B
+CLASS="COMMAND"
+>ingvalidpw</B
+> program for
+	<SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> to work.
+	See subsection <A
+HREF="net.html#INGVALID"
+>ingvalidpw</A
+> on how to install it.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="APACHE"
+>8.1. Configuring Apache</A
+></H2
+><P
+>Building, installing and configuring <SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+>
+	is beyond the scope of this HOWTO.
+	(You had better learn <SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+> if you are putting
+	your databases on the Web, with <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> or otherwise.)</P
+><P
+>I suggest to download the newest stable version of
+	<SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+> in source and build it yourself for
+	maximum flexibility.
+	I also suggest you keep a separate <SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+>
+	installation just for <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+>.</P
+><P
+>In this subsection I will only cover those parameters of
+	<SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+> that are important from
+	<SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+>'s point of view.</P
+><P
+>Things to watch out for:</P
+><P
+></P
+><UL
+><LI
+><P
+>The installed software should be owned by the ingres user.
+			This is not strictly necessary but will make things easier.</P
+></LI
+><LI
+><P
+>Compile the mod_env module into the server, preferably
+			statically (do not use <SPAN
+CLASS="ACRONYM"
+>DSOs</SPAN
+> unless you have to:
+			they make <SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+> slower).</P
+></LI
+></UL
+><P
+>After you have compiled and installed <SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+>,
+	set the following parameters in <TT
+CLASS="FILENAME"
+>httpd.conf</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>Port 8000 -- must be greater than 1023
+User ingres -- all server processes run as ingres
+Group ingres -- the ingres user's group
+PassEnv II_SYSTEM
+PassEnv LD_LIBRARY_PATH
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The last two lines must be added to <TT
+CLASS="FILENAME"
+>httpd.conf</TT
+>.
+	These variables will be passed from the environment of the ingres user to the
+	environment of <SPAN
+CLASS="ACRONYM"
+>CGI</SPAN
+> programs started by
+	<SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+> (specifically <B
+CLASS="COMMAND"
+>iceinst</B
+>
+	and <B
+CLASS="COMMAND"
+>ice</B
+>, the two executables of <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+>).
+	</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="ICESETUP"
+>8.2. ICE Setup</A
+></H2
+><P
+>Now you can configure <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> and its Tutorials.
+	You can do this with a browser and the <B
+CLASS="COMMAND"
+>iceinst</B
+> program.
+	Let us suppose that your <SPAN
+CLASS="ACRONYM"
+>CGI</SPAN
+> directory is
+	<TT
+CLASS="FILENAME"
+>/opt/ingres/apache/cgi-bin</TT
+> and
+	<SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+> is listening on port 8000.
+	Let the name of your machine be ingserv1.
+	Then you can start <B
+CLASS="COMMAND"
+>iceinst</B
+> in the following manner:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ iceinst -d/opt/ingres/apache/cgi-bin -u/cgi-bin -shttp://ingserv1:8000
+-b/opt/netscape/netscape
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Option <TT
+CLASS="OPTION"
+>-d</TT
+> is the full path to the
+	<SPAN
+CLASS="ACRONYM"
+>CGI</SPAN
+> directory, <TT
+CLASS="OPTION"
+>-u</TT
+> is this directory's
+	address within the site, <TT
+CLASS="OPTION"
+>-s</TT
+> is the Internet address of the
+	server, while <TT
+CLASS="OPTION"
+>-b</TT
+> is the full path to the browser.
+	If you omit option <TT
+CLASS="OPTION"
+>-b</TT
+> and write <TT
+CLASS="OPTION"
+>-remote</TT
+>
+	instead, then <B
+CLASS="COMMAND"
+>iceinst</B
+> will not try to start the browser.
+	You can configure <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> from another machine then,
+	directing your browser to <A
+HREF="http://ingserv1/cgi-bin/iceinst"
+TARGET="_top"
+>	http://ingserv1/cgi-bin/iceinst</A
+>.</P
+><P
+>First the program asks for the value of <TT
+CLASS="ENVAR"
+>II_SYSTEM</TT
+>.
+	Then you should visit every screen and set all parameters presented on them.
+	Have <B
+CLASS="COMMAND"
+>iceinst</B
+> install the
+	<I
+CLASS="CITETITLE"
+>Dynamic SQL Tutorial</I
+> and the
+	<I
+CLASS="CITETITLE"
+>Macro Processor Tutorial</I
+> as well.
+	These show the usage of <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> via applications and a database
+	(<SPAN
+CLASS="DATABASE"
+>icedb</SPAN
+> by default).</P
+><P
+>It is important to create a directory under
+	<SPAN
+CLASS="APPLICATION"
+>Apache</SPAN
+>'s
+	<TT
+CLASS="ENVAR"
+>DocumentRoot</TT
+> where <SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> can store the output it
+	creates for clients' requests.
+	<SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> will not start until you create this directory and
+	specify its name in <B
+CLASS="COMMAND"
+>iceinst</B
+>.</P
+><P
+>After you have completed every form, choose the
+	<SPAN
+CLASS="GUIMENUITEM"
+>Install</SPAN
+> option.
+	If you have set everything properly, the configuration of
+	<SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> and the installation of the tutorials take place.
+	<SPAN
+CLASS="ACRONYM"
+>ICE</SPAN
+> is ready to use.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="net.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="misc.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Ingres/Net</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Miscellaneous Topics</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

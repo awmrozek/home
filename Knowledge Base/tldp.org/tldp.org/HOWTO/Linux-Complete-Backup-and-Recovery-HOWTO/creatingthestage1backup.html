@@ -1,0 +1,817 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Creating the Stage 1 Back Up</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Complete Backup and Recovery HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Preparation"
+HREF="preparation.html"><LINK
+REL="NEXT"
+TITLE="First Stage Restore"
+HREF="firststagerestore.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Complete Backup and Recovery HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="preparation.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="firststagerestore.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="CREATINGTHESTAGE1BACKUP"
+></A
+>4. Creating the Stage 1 Back Up</H1
+><P
+>Having made your production backups, you need to preserve your partition information so that you can rebuild your partitions.</P
+><P
+>The script <A
+HREF="thescripts.html#MAKE.FDISK"
+><TT
+CLASS="FILENAME"
+>make.fdisk</TT
+></A
+> scans a hard drive for partition information, and saves it in three files. The first is an executable script, called <A
+HREF="thescripts.html#MAKE.DEV.HDA"
+><TT
+CLASS="FILENAME"
+>make.dev.x</TT
+></A
+> (where <SPAN
+CLASS="QUOTE"
+>"x"</SPAN
+> is the name of the device file, e.g. hda). Second is <A
+HREF="thescripts.html#MOUNT.DEV.HDA"
+><TT
+CLASS="FILENAME"
+>mount.dev.x</TT
+></A
+>, which creates mount points and mounts the newly created partitions on them. The last, <A
+HREF="thescripts.html#DEV.HDA"
+><TT
+CLASS="FILENAME"
+>dev.x</TT
+></A
+>, is the commands necessary for <B
+CLASS="COMMAND"
+>fdisk</B
+> to build the partitions. You specify which hard drive you want to build scripts for (and thus the file names) by naming the associated device file as the argument to <A
+HREF="thescripts.html#MAKE.FDISK"
+><TT
+CLASS="FILENAME"
+>make.fdisk</TT
+></A
+>. For example, on a typical IDE system,</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>bash# <B
+CLASS="COMMAND"
+>make.fdisk /dev/hda</B
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>spits out the scripts <A
+HREF="thescripts.html#MAKE.DEV.HDA"
+><TT
+CLASS="FILENAME"
+>make.dev.hda</TT
+></A
+>, <A
+HREF="thescripts.html#MOUNT.DEV.HDA"
+><TT
+CLASS="FILENAME"
+>mount.dev.hda</TT
+></A
+> and the input file for <B
+CLASS="COMMAND"
+>fdisk</B
+>, <A
+HREF="thescripts.html#DEV.HDA"
+><TT
+CLASS="FILENAME"
+>dev.hda</TT
+></A
+>.</P
+><P
+>In addition, if <A
+HREF="thescripts.html#MAKE.FDISK"
+><TT
+CLASS="FILENAME"
+>make.fdisk</TT
+></A
+> encounters a FAT partition, it preserves the partition's boot sector in a file named <TT
+CLASS="FILENAME"
+>dev.xy</TT
+>, where x is the drive's device name (e.g. sdc, hda) and y is the partition number. The boot sector is the first sector, 512 bytes, of the partition. This sector is restored at the same time the partitions are rebuilt, in the script <A
+HREF="thescripts.html#MAKE.DEV.HDA"
+><TT
+CLASS="FILENAME"
+>make.dev.hda</TT
+></A
+>.</P
+><P
+>Fortunately, the price of hard drives is plummeting almost as fast as the public's trust in politicians after an election. So it is good that the output files are text, and allow hand editing. That's the most difficult but most flexible way to rebuild on a larger replacement drive. (See the <A
+HREF="whatnow.html#TODO"
+>To Do list</A
+>.)</P
+><P
+>Other metadata are preserved in the script <A
+HREF="thescripts.html#SAVE.METADATA"
+><TT
+CLASS="FILENAME"
+>save.metadata</TT
+></A
+>. The script saves the partition information in the file <TT
+CLASS="FILENAME"
+>fdisk.hda</TT
+> in the root of the ZIP disk. It is a good idea to print this file and your <TT
+CLASS="FILENAME"
+>/etc/fstab</TT
+> so that you have hard copy should you ever have to restore the partition data manually. You can save a tree by toggling between two virtual consoles, running <B
+CLASS="COMMAND"
+>fdisk</B
+> in one and catting <TT
+CLASS="FILENAME"
+>/etc/fstab</TT
+> or <TT
+CLASS="FILENAME"
+>/fdisk.hda</TT
+> as needed. However, doing so is error prone.</P
+><P
+>You will also want to preserve files relevant to your restoration method. For example, if you use nfs to save your data, you will need to preserve hosts.allow, hosts.deny, exports, etc. Also, if you are using any network-backed restoration process, such as Amanda or Quick Restore, you will need to preserve networking files like HOSTNAME, hosts, etc. and the relevant software tree.</P
+><P
+>The simplest way to handle these and similar questions is to preserve the entire etc directory.</P
+><P
+>There is no way a 100 MB ZIP drive is going to hold a server installation of a modern distribution of Linux. We have to be much more selective than simply preserving the whole kazoo. What files do we need?</P
+><P
+></P
+><UL
+><LI
+><P
+>The boot directory.</P
+></LI
+><LI
+><P
+>The /etc directory and subdirectories.</P
+></LI
+><LI
+><P
+>Directories needed at boot time.</P
+></LI
+><LI
+><P
+>Device files in /dev.</P
+></LI
+></UL
+><P
+>To determine the directories needed at boot, we look at the boot initialization file <TT
+CLASS="FILENAME"
+>/etc/rc.sysinit</TT
+>. It sets its own path like so:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>PATH=/bin:/sbin:/usr/bin:/usr/sbin
+export PATH</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Trial and error indicated that we needed some other directories as well, such as <TT
+CLASS="FILENAME"
+>/dev</TT
+>. In Linux, you can't do much without device files.</P
+><P
+>In reading the script <A
+HREF="thescripts.html#SAVE.METADATA"
+><TT
+CLASS="FILENAME"
+>save.metadata</TT
+></A
+>, note that we aren't necessarily saving files that are called with absolute paths.</P
+><P
+>We may require several iterations of back up, test the bare metal restore, re-install from CD and try again, before we have a working backup script. While I worked on this HOWTO, I made five such iterations before I had a successful restoration. That is one reason why it is essential to use scripts whenever possible. Test thoroughly!</P
+><P
+>One thing you can do on an RPM based system is use the <B
+CLASS="COMMAND"
+>rpm</B
+> program to determine which files are where. For example, to get a complete list of the files used by the openssh package, run:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>bash# <B
+CLASS="COMMAND"
+>rpm -ql openssh</B
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>There are some things you don't need, like the man pages. You can inspect each one and decide whether to back it up or not.</P
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>WARNING</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>The second stage of restoration is run without overwriting previously restored files. This means that the files restored in the first stage are the ones that will be used after full restoration. So update your bare metal backups whenever you update files in these directories!</P
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>WARNING</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>The version of <B
+CLASS="COMMAND"
+>tar</B
+> included in <A
+HREF="http://www.toms.net/rb"
+TARGET="_top"
+>tomsrtbt</A
+> does not preserve ownership when it restores. This may cause problems for applications like <A
+HREF="applicationspecificnotes.html#AMANDA"
+>Amanda</A
+>. A backup and restoration tool, Amanda has several directories owned by its own eponymous user. The solution is:</P
+><P
+></P
+><UL
+><LI
+><P
+>Note which directories and files are not owned by root.</P
+></LI
+><LI
+><P
+>Note their owners.</P
+></LI
+><LI
+><P
+>Arrange to set the ownership correctly as part of the restoration process. E.g:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>bash# <B
+CLASS="COMMAND"
+>chown -R amanda:disk /var/lib/amanda</B
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You can also add that line to your scripts for second state restoration, such as <A
+HREF="thescripts.html#RESTORE.TESTER"
+><TT
+CLASS="FILENAME"
+>restore.tester</TT
+></A
+>.</P
+></LI
+></UL
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>WARNING</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+><A
+HREF="http://www.toms.net/rb"
+TARGET="_top"
+>tomsrtbt</A
+> does not support restoring owners by UID/GID. To make backups suitable for restoring with <A
+HREF="http://www.toms.net/rb"
+TARGET="_top"
+>tomsrtbt</A
+>, remove the tar command line option <SPAN
+CLASS="QUOTE"
+>"--numeric-owner"</SPAN
+> from the command line options for tar in the function crunch in the script <A
+HREF="thescripts.html#SAVE.METADATA"
+><TT
+CLASS="FILENAME"
+>save.metadata</TT
+></A
+>.</P
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="THEMEANDVARIATIONS"
+></A
+>4.1. Theme And Variations</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN321"
+></A
+>4.1.1. No ZIP drive</H3
+><P
+>This backup process used to requires you to have the ZIP disk drive present at each backup. It now creates the ZIP disk's contents in a directory, which you can back up over the net. Then you only need to build a ZIP disk (with <B
+CLASS="COMMAND"
+>cp -rp</B
+>) on the backup server when you need to restore.</P
+><P
+>The backup process will be faster than directly writing to the ZIP drive, but you should check that the resulting directory will fit on your ZIP disk (with the output of <B
+CLASS="COMMAND"
+>du -hs $target.zip</B
+> in the script <A
+HREF="thescripts.html#SAVE.METADATA"
+><TT
+CLASS="FILENAME"
+>save.metadata</TT
+></A
+>)! See the definition of the variable <TT
+CLASS="VARNAME"
+>zip</TT
+> in that script.</P
+><P
+>My laptop has problems running both a network card and a ZIP drive, so this is the process I use to back it up. I keep a backup image as well as the current one, so that I have a fallback in case the computer crashes during a backup.</P
+><P
+>Alternatively, you could build several ZIP disks' worth of backup on the hard drive, and feed them to the system on restore.</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN332"
+></A
+>4.1.2. CD-ROM</H3
+><P
+>This is similar to the no ZIP drive option above. Save your backups to a directory on your hard drive, as noted. Then use <B
+CLASS="COMMAND"
+>mkisofs</B
+> to create an ISO 9660 image from that directory, and burn it. This does not work with some CD-ROM based Linuxes, like <A
+HREF="http://www.knoppix.org/"
+TARGET="_top"
+>Knoppix</A
+>, because the Linux has to have the CD-ROM drive. Unless you have two CD-ROM drives, say one in a USB clamshell. I have a DVD burner set up this way with exactly this in mind.</P
+><P
+>Or look at <A
+HREF="http://www.knoppix.net/wiki/Knoppix_Remastering_Howto"
+TARGET="_top"
+>remastering</A
+> Knoppix with your first and second stage backups on the CD-ROM/DVD. You should also be able to <A
+HREF="http://www.finnix.org/Remastering_Finnix"
+TARGET="_top"
+>remaster finnix</A
+>.</P
+><P
+>These days many computers come with a CD-ROM drive but no floppy diskette. And floppy drives do fail. So it's a good idea to burn your CD-ROM with a bootable image on it. The bad news is that the <SPAN
+CLASS="QUOTE"
+>"El Torito"</SPAN
+> format supports 1.2 MB, 1.44 MB and 2.88 MB floppies, and <A
+HREF="http://www.toms.net/rb"
+TARGET="_top"
+>tomsrtbt</A
+> uses a 1.7 MB floppy. The good news is that you can get a 2.88 MB version, <TT
+CLASS="FILENAME"
+>tomsrtbt-2.0.103.ElTorito.288.img</TT
+>, from the same mirrors where you get the floppy image. Place a <EM
+>copy</EM
+>
+<A
+NAME="AEN345"
+HREF="#FTN.AEN345"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>
+ in the root directory of the backup files. Then use the <B
+CLASS="COMMAND"
+>mkisofs</B
+> command line option -b to specify <TT
+CLASS="FILENAME"
+>tomsrtbt-2.0.103.ElTorito.288.img</TT
+> as the boot image file.</P
+><P
+>The only down side of this process is that many older BIOSes do not support 2.88 MB floppy images on CD-ROMs. Most of those will boot to a <A
+HREF="http://www.toms.net/rb"
+TARGET="_top"
+>tomsrtbt</A
+> floppy.</P
+><P
+>An alternative is to use <A
+HREF="http://syslinux.zytor.com/"
+TARGET="_top"
+>Syslinux</A
+>. It is not dependent on a floppy diskette image, and you can build your own CD with a number of tools, such as <A
+HREF="http://www.toms.net/rb"
+TARGET="_top"
+>tomsrtbt</A
+>, on it.</P
+><P
+>You may have to adjust the BIOS options to allow the computer to boot to CD-ROM drive. If you can't do that, either because the BIOS won't support booting to CD-ROM, or because you can't get into the BIOS, see <A
+HREF="http://btmgr.webframe.org/"
+TARGET="_top"
+>Smart Boot Manager (SBM)</A
+> as described in the <A
+HREF="resources.html"
+>Resources</A
+>.</P
+><P
+><EM
+>Test</EM
+> your CDs on the drive you will use at restoration time. If you find you need to hack the scripts, you can copy them to <TT
+CLASS="FILENAME"
+>/tmp</TT
+>, a RAM disk under <A
+HREF="http://www.toms.net/rb"
+TARGET="_top"
+>tomsrtbt</A
+>, and edit them there. The scripts will run there. As a RAM disk is volatile, be sure to save your changes before you reboot!</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN362"
+></A
+>4.1.3. Multiple ZIP disks</H3
+><P
+>By splitting up the two first stage scripts, <A
+HREF="thescripts.html#RESTORE.METADATA"
+><TT
+CLASS="FILENAME"
+>restore.metadata</TT
+></A
+> and <A
+HREF="thescripts.html#SAVE.METADATA"
+><TT
+CLASS="FILENAME"
+>save.metadata</TT
+></A
+>, you could spread the first stage metadata across multiple ZIP disks.</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN369"
+></A
+>4.1.4. Excluding From First Stage Saving</H3
+><P
+>There are time when you need to squeeze a few megabytes from the first stage data, especially when you are pushing the limit of your ZIP disk. The function <B
+CLASS="COMMAND"
+>crunch</B
+> in the script <A
+HREF="thescripts.html#SAVE.METADATA"
+><TT
+CLASS="FILENAME"
+>save.metadata</TT
+></A
+> takes multiple parameters to feed to <B
+CLASS="COMMAND"
+>tar</B
+>. It can also take the <B
+CLASS="COMMAND"
+>--exclude</B
+> parameter. So, for example, you can exclude the <TT
+CLASS="FILENAME"
+>samba</TT
+> and <TT
+CLASS="FILENAME"
+>X11</TT
+> directories under <TT
+CLASS="FILENAME"
+>/etc</TT
+> like so:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>crunch etc --exclude etc/samba --exclude etc/X11 etc</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Why those two? Because they're hard drive space hogs and we don't need them at boot time.</P
+><P
+>If you keep multiple kernels around, you can eliminate the modules for all of the kernels you won't boot to. Check your <TT
+CLASS="FILENAME"
+>lilo.conf</TT
+> or <TT
+CLASS="FILENAME"
+>grub.conf</TT
+>to see which kernel you will use, and then check <TT
+CLASS="FILENAME"
+>/lib/modules</TT
+> for module directories you can exclude.</P
+><P
+>How to find more good candidates for exclusion? List the target directories with <B
+CLASS="COMMAND"
+>ls -alSr</B
+> for individual files, and <B
+CLASS="COMMAND"
+>du | sort -n</B
+> for directories.</P
+><P
+>Another (probably neater) way to exclude directories is to put a complete list of directories into a file, then refer to it via the tar option <TT
+CLASS="FILENAME"
+>--exclude-from=FILENAME</TT
+>.</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="INITRD"
+></A
+>4.1.5. Initrd</H3
+><P
+>If your system uses an initial RAM disk, or initrd, to boot, make sure that <A
+HREF="thescripts.html#RESTORE.METADATA"
+><TT
+CLASS="FILENAME"
+>restore.metadata</TT
+></A
+> creates the directory <TT
+CLASS="FILENAME"
+>/initrd</TT
+>. The easiest way to do this is to ensure that it is included in the list of directories used in the directory creating loop toward the end.</P
+><P
+>Your system will probably use an initrd if it boots from a SCSI drive or has root on an ext3fs partition. Check <TT
+CLASS="FILENAME"
+>/etc/lilo.conf</TT
+> to see if it calls for one.</P
+></DIV
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN345"
+HREF="creatingthestage1backup.html#AEN345"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>I emphasize copy because <B
+CLASS="COMMAND"
+>mkisofs</B
+> will mung the file in the directory from which it makes the ISO image.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="preparation.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="firststagerestore.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Preparation</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>First Stage Restore</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

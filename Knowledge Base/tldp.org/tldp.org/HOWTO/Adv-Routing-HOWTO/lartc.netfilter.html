@@ -1,0 +1,277 @@
+<HTML
+><HEAD
+><TITLE
+>Netfilter &#38; iproute - marking packets</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Other possibilities"
+HREF="lartc.loadshare.other.html"><LINK
+REL="NEXT"
+TITLE="Advanced filters for (re-)classifying packets"
+HREF="lartc.adv-filter.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.loadshare.other.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="LARTC.NETFILTER"
+></A
+>Chapter 11. Netfilter &#38; iproute - marking packets</H1
+><P
+>So far we've seen how iproute works, and netfilter was mentioned a few
+times. This would be a good time to browse through <A
+HREF="http://netfilter.samba.org/unreliable-guides/"
+TARGET="_top"
+>Rusty's Remarkably Unreliable Guides</A
+>. Netfilter itself
+can be found <A
+HREF="http://netfilter.filewatcher.org/"
+TARGET="_top"
+>here</A
+>.</P
+><P
+>Netfilter allows us to filter packets, or mangle their headers. One special
+feature is that we can mark a packet with a number. This is done with the
+--set-mark facility. </P
+><P
+>As an example, this command marks all packets destined for port 25, outgoing
+mail:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># iptables -A PREROUTING -i eth0 -t mangle -p tcp --dport 25 \
+ -j MARK --set-mark 1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Let's say that we have multiple connections, one that is fast (and
+expensive, per megabyte) and one that is slower, but flat fee. We would most
+certainly like outgoing mail to go via the cheap route.</P
+><P
+>We've already marked the packets with a '1', we now instruct the routing
+policy database to act on this:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># echo 201 mail.out &#62;&#62; /etc/iproute2/rt_tables
+# ip rule add fwmark 1 table mail.out
+# ip rule ls
+0:	from all lookup local 
+32764:	from all fwmark        1 lookup mail.out 
+32766:	from all lookup main 
+32767:	from all lookup default </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Now we generate the mail.out table with a route to the slow but cheap link:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># /sbin/ip route add default via 195.96.98.253 dev ppp0 table mail.out</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>And we are done. Should we want to make exceptions, there are lots of ways
+to achieve this. We can modify the netfilter statement to exclude certain
+hosts, or we can insert a rule with a lower priority that points to the main
+table for our excepted hosts.</P
+><P
+>We can also use this feature to honour TOS bits by marking packets with a
+different type of service with different numbers, and creating rules to act
+on that. This way you can even dedicate, say, an ISDN line to interactive
+sessions.</P
+><P
+>Needless to say, this also works fine on a host that's doing NAT
+('masquerading').</P
+><P
+>IMPORTANT: We received a report that MASQ and SNAT at least collide
+with marking packets. Rusty Russell explains it in
+<A
+HREF="http://lists.samba.org/pipermail/netfilter/2000-November/006089.html"
+TARGET="_top"
+>this posting</A
+>. Turn off the reverse path filter to make it work
+properly.</P
+><P
+>Note: to mark packets, you need to have some options enabled in your
+kernel:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>IP: advanced router (CONFIG_IP_ADVANCED_ROUTER) [Y/n/?]
+IP: policy routing (CONFIG_IP_MULTIPLE_TABLES) [Y/n/?]
+IP: use netfilter MARK value as routing key (CONFIG_IP_ROUTE_FWMARK) [Y/n/?]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>See also the <A
+HREF="lartc.cookbook.squid.html"
+>Section 15.5</A
+> in the
+<I
+CLASS="CITETITLE"
+><A
+HREF="lartc.cookbook.html"
+>Cookbook</A
+></I
+>.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.loadshare.other.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Other possibilities</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Advanced filters for (re-)classifying packets</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

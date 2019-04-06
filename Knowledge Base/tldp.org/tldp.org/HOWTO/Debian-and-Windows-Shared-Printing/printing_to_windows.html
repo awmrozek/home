@@ -1,0 +1,360 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Printing To Windows PCs</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Debian and Windows Shared Printing mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Getting Started"
+HREF="getting_started.html"><LINK
+REL="NEXT"
+TITLE="Sharing Printers With Windows PCs"
+HREF="sharing_with_windows.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Debian and Windows Shared Printing mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="getting_started.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="sharing_with_windows.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="printing_to_windows"
+></A
+>3. Printing To Windows PCs</H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="to_windows"
+></A
+>3.1. Connecting To Windows</H2
+><DIV
+CLASS="figure"
+><A
+NAME="netprint"
+></A
+><P
+><B
+>Figure 2. Network Printing</B
+></P
+><P
+><IMG
+SRC="to_windows.png"></P
+></DIV
+><P
+>&#13;SMB and CIFS are the Windows file and printer sharing protocols.
+We use Samba to speak to the Windows PCs using these protocols. Before
+configuring CUPS we should make sure we can connect to the Windows
+PC with <B
+CLASS="command"
+>smbclient</B
+>, the Samba SMB/CIFS client
+<A
+HREF="printing_to_windows.html#netprint"
+>Figure 2</A
+>. 
+</P
+><P
+>&#13;The following is an example of creating a connection to a Windows
+PC:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>/usr/bin/smbclient -L rice -U fred
+
+added interface ip=10.6.7.234 bcast=10.6.7.255 nmask=255.255.255.0
+Got a positive name query response from 10.6.7.8 ( 10.6.7.8 )
+Password: (not shown)
+
+Sharename  Type  Comment
+PRINTER$   Disk
+INKJET     Printer
+STUFF      Disk
+IPC$       IPC    Remote Inter Process Communication 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;The command shown asks for a list of shares on a Windows PC
+named <SPAN
+CLASS="QUOTE"
+>"rice"</SPAN
+>, with the user id <SPAN
+CLASS="QUOTE"
+>"fred"</SPAN
+>.
+The result shows a printer named <SPAN
+CLASS="QUOTE"
+>"INKJET"</SPAN
+>. 
+</P
+><P
+>&#13;If Windows naming service is unavailable you will need to specify
+the IP address of the Windows PC with the <TT
+CLASS="option"
+>-I</TT
+> switch as in:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>/usr/bin/smbclient -I 10.6.7.8 -L rice -N
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;For more information see the Samba documentation about 
+<B
+CLASS="command"
+>smbclient</B
+> usage.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="to_windows_cupsconfig"
+></A
+>3.2. CUPS Configuration</H2
+><P
+>&#13;Once you have found a Windows printer you may configure CUPS. First
+verify that your installation of CUPS has the smb backend with the
+following command:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>ls -l /usr/lib/cups/backend/smb
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;If this file does not exist create it by issuing the following:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>ln -s `which smbspool` /usr/lib/cups/backend/smb
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;The following is an example of setting up the printer shown above.  
+You will have to become root or use <B
+CLASS="command"
+>sudo</B
+> to execute these commands:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>/usr/sbin/lpadmin -p RicePrinter -v smb://fred:mypass@rice/INKJET -P /root/inkjet.ppd
+/usr/bin/enable RicePrinter
+/usr/sbin/accept RicePrinter
+/usr/sbin/lpadmin -d RicePrinter
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;As mentioned above, bash has a builtin command called
+<B
+CLASS="command"
+>enable</B
+>, so bash users must use the full path 
+(<B
+CLASS="command"
+>/usr/bin/enable</B
+>) to enable printers.
+</P
+><P
+>&#13;The <SPAN
+CLASS="QUOTE"
+>"lpadmin"</SPAN
+> command sets up a the shared Windows printer by
+giving the username, password, netbios name and printer name as a single
+parameter.
+See <A
+HREF="getting_started.html#basicprconfig"
+>Section 2.3</A
+> for a further explanation of the commands
+above. 
+</P
+><P
+>&#13;Your printer is now ready to test. Send a file to the printer with
+the <B
+CLASS="command"
+>lp</B
+> command followed by a filename, or 
+by printing a document from within an application.
+</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="getting_started.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="sharing_with_windows.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Getting Started</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Sharing Printers With Windows PCs</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

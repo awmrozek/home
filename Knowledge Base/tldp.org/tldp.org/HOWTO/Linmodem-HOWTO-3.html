@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linmodem-HOWTO   : General Setup and Kernel Module Issues</TITLE>
+ <LINK HREF="Linmodem-HOWTO-4.html" REL=next>
+ <LINK HREF="Linmodem-HOWTO-2.html" REL=previous>
+ <LINK HREF="Linmodem-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Linmodem-HOWTO-4.html">Next</A>
+<A HREF="Linmodem-HOWTO-2.html">Previous</A>
+<A HREF="Linmodem-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. General Setup and Kernel Module Issues</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss3.1">3.1 Kernel Module Support</A>
+</H2>
+
+<P>All of the kernel drivers listed here are released as kernel modules; therefore,
+you must be sure to have a kernel which supports modules.  In addition, 
+"module version" support should be enabled to aid the use of 
+kernels and modules which are not version matched, as described further below.
+If you use a kernel from a reasonably recent Linux distribution, such module support
+is most likely already enabled.  If you're compiling the kernel yourself, then you
+should already be aware of how to enable modules, via the 
+<A HREF="http://www.linuxdoc.org/HOWTO/Kernel-HOWTO.html">Kernel HOWTO</A>.  
+In any case, you can check to make sure that the following
+settings exist in your kernel configuration  file
+(which is usually found under <CODE>/usr/src/linux</CODE>):
+<PRE>
+CONFIG_MODULES=y
+CONFIG_MODVERSIONS=y
+</PRE>
+<P>
+<P>
+<H2><A NAME="ss3.2">3.2 ISA Plug-n-Play</A>
+</H2>
+
+<P>If you have an ISA Plug-n-Play modem, you will most likely 
+need to use isapnptools to allocate resources to the modem card.
+For this, you need to have isapnptools installed and have an entry in 
+the <CODE>/etc/isapnp.conf</CODE> file
+for the modem.  You should read the manual pages and the 
+<A HREF="http://www.linuxdoc.org/HOWTO/Plug-and-Play-HOWTO.html">Plug-and-Play-HOWTO</A>, but if you have no other 
+ISA devices you're concerned about, basically all you need to do is:
+<OL>
+<LI> If possible, configure your BIOS to "Non-PNP OS."</LI>
+<LI> As root, run <CODE>pnpdump</CODE> to generate a prototype isapnp.conf
+file based on probed cards and your system's current resource usage.</LI>
+<LI> Look for your modem in this output, and uncomment the lines
+corresponding to the (otherwise unused) IRQ you wish to use for the
+modem.  For example, Sean's <CODE>isapnp.conf</CODE> for a Thinkpad i1411 with
+a Lucent LT modem includes:
+<P>
+<PRE>
+(CONFIGURE ACRd119/1 (LD 0                   
+  (INT 0 (IRQ 11 (MODE +E)))                   
+  (IO 1 (SIZE 8) (BASE 0x0100) (CHECK))       
+  (NAME "ACRd119/1[0]{LT Win Modem        }") 
+# (ACT Y)                                    
+))                                           
+</PRE>
+
+Strangely, in this case at least, it was necessary to leave
+the <CODE>#(ACT Y)</CODE> commented out.  If it doesn't work for you one way,
+try it the other.
+</LI>
+<LI> Copy the file to <CODE>/etc/isapnp.conf</CODE></LI>
+<LI> Reboot.  You should see a message along the lines of 'Initializing
+ISA PNP devices...OK' on booting.  If it fails, you have probably selected
+an IRQ/DMA setting which is already in use; try another of the options
+given in the <CODE>pnpdump</CODE> output.
+(Note that it is probably not necessary to reboot, if you run <CODE>isapnp</CODE>
+with the right flags.  However, it's easiest for the beginner to simply reboot
+at this point.)</LI>
+</OL>
+<P>
+<P>
+<H2><A NAME="ss3.3">3.3 PCI Modems</A>
+</H2>
+
+<P>   
+If you wish to know more about your PCI modem
+than <CODE>cat /proc/pci</CODE> gives, utilities within the software package
+<CODE>pciutils</CODE> are useful, such as <CODE>scanpci</CODE> and <CODE>lspci</CODE>.
+In particular, <CODE>lspci -vv</CODE> gives lots of nice, useful information.
+<P>
+<P>
+<H2><A NAME="ss3.4">3.4 Module tools</A>
+</H2>
+
+<P>The following commands are useful when dealing with modules.  Many
+require root priveleges.  See the manual pages (e.g., <CODE>man insmod</CODE>)
+for more detailed information on these commands.
+<P>
+<H3>insmod, insmod -f, and modprobe</H3>
+
+<P>A version-matched kernel module should usually be inserted using the command 
+<CODE>modprobe</CODE> <EM>module_name</EM>; <CODE>modprobe</CODE> will try to
+insert any other modules on which your module depends (as determined
+by <CODE>depmod</CODE>, described below). 
+<P>A single module can be inserted (without those modules on which it depends)
+using the command <CODE>insmod</CODE> <EM>module_name</EM>.  
+If the module were compiled under a different kernel than the current one,
+<CODE>insmod</CODE> would report the version mismatch and refuse load the module.
+One can, however, pass a flag to force the module to load despite the mismatch:
+<CODE>insmod -f</CODE> <EM>module_name</EM>.  If the kernel interface the
+module uses did not actually change with the kernel version, the
+module will be inserted and could be to some degree functional.  
+<P>This is the case with, for example, the ESS modem module <CODE>esscom.o</CODE>
+which, while compiled under 2.2.12, can be forcibly inserted with later kernels
+and will function to a greater or lesser extent up through kernel version 2.2.14
+without further changes; beyond 2.2.15, the patch to <CODE>tty.h</CODE> described
+below is required.  However, even forcing insertion fails for kernels
+from the 2.4 series.
+<P>
+<P>
+<H3>rmmod</H3>
+
+<P>A module can be unloaded (removed from the kernel) after use by issuing
+the command <CODE>rmmod</CODE>.
+<P>
+<P>
+<H3>depmod</H3>
+
+<P>The <CODE>depmod</CODE> commands analyzes module dependencies.
+The compatility of precompiled modules with a running kernel
+can be checked with a command like:
+<PRE>
+   depmod -e ltmodem.o
+</PRE>
+
+For the specific example of the ltmodem.o module compiled under kernel 2.2.12
+with a running kernel 2.2.17, the returned information includes:
+<UL>
+<LI> depmod: *** Unresolved symbols in ltmodem.o</LI>
+<LI> depmod:    bh_mask</LI>
+<LI> depmod:    schedule_timeout</LI>
+<LI> depmod:    request_region</LI>
+<LI> depmod:    pcibios_read_co</LI>
+<LI>  and many others.</LI>
+</UL>
+
+Using a module with unresolved symbols can be a dangerous thing, as described
+below.
+<P>
+<P>
+<HR>
+<A HREF="Linmodem-HOWTO-4.html">Next</A>
+<A HREF="Linmodem-HOWTO-2.html">Previous</A>
+<A HREF="Linmodem-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

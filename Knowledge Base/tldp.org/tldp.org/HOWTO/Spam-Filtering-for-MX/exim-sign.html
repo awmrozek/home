@@ -1,0 +1,790 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Adding Envelope Sender Signatures</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Exim Implementation"
+HREF="exim.html"><LINK
+REL="PREVIOUS"
+TITLE="Adding SpamAssassin"
+HREF="exim-sa.html"><LINK
+REL="NEXT"
+TITLE="Accept Bounces Only for Real Users"
+HREF="exim-bounces.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="exim-sa.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix A. Exim Implementation</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="exim-bounces.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="exim-sign"
+></A
+>A.11. Adding Envelope Sender Signatures</H1
+><P
+>&#13;      Here we implement <A
+HREF="collateral.html#signedsender"
+>Envelope Sender Signature</A
+> in our outgoing
+      mail, and check for these signatures before accepting incoming
+      <SPAN
+CLASS="QUOTE"
+>"bounces"</SPAN
+> (i.e. mail with no envelope sender).
+    </P
+><P
+>&#13;      The envelope sender address of outgoing mails from your host
+      will be modified as follows:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+><TT
+CLASS="parameter"
+><I
+>sender</I
+></TT
+>=<TT
+CLASS="parameter"
+><I
+>recipient</I
+></TT
+>=<TT
+CLASS="parameter"
+><I
+>recipient.domain</I
+></TT
+>=<TT
+CLASS="parameter"
+><I
+>hash</I
+></TT
+>@<TT
+CLASS="parameter"
+><I
+>sender.domain</I
+></TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;      However, because this scheme may produce unintended consequences
+      (e.g. in the case of mailing list servers), we make it optional
+      for your users.  We sign the envelope sender address of outgoing
+      mail only if we find a file named
+      <SPAN
+CLASS="QUOTE"
+>".return-path-sign"</SPAN
+> in the sender's home directory,
+      and only if the domain we are sending to is matched in that
+      file.   If the file exists, but is empty, all domains match.
+    </P
+><P
+>&#13;      Similarly, we only require the recipient address to be signed in
+      incoming <SPAN
+CLASS="QUOTE"
+>"bounce"</SPAN
+> messages (i.e. messages with no
+      envelope sender) if the same file exists in recipient's home
+      directory.  Users can exempt specific hosts from this check via
+      their user specific whitelist, as described in
+      <A
+HREF="exim-forward.html"
+>Exempting Forwarded Mail</A
+>.
+    </P
+><P
+>&#13;      Also, because this scheme involves tweaking with routers and
+      transports in addition to ACLs, we do not include it in the
+      <A
+HREF="exim-final.html"
+>Final ACLs</A
+> to follow.  If you are able to
+      follow the instructions pertaining to those sections, you should
+      also be able to add the ACL section as described here.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-sign-transport"
+></A
+>A.11.1. Create a Transport to Sign the Sender Address</H2
+><P
+>&#13;        First we create an Exim <EM
+>transport</EM
+> that
+        will be used to sign the envelope sender for remote
+        deliveries:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;remote_smtp_signed:
+  debug_print    = "T: remote_smtp_signed for $local_part@$domain"
+  driver         = smtp
+  max_rcpt       = 1
+  return_path    = $sender_address_local_part=$local_part=$domain=\
+                   ${hash_8:${hmac{md5}{SECRET}{${lc:\
+                     $sender_address_local_part=$local_part=$domain}}}}\
+                   @$sender_address_domain
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        The <SPAN
+CLASS="QUOTE"
+>"local part"</SPAN
+> of the sender address now
+        consists of the following components, separated by equal
+        signs (<SPAN
+CLASS="QUOTE"
+>"="</SPAN
+>):
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;            the sender's username, i.e. the original local part,
+          </P
+></LI
+><LI
+><P
+>&#13;            the local part of the recipient address,
+          </P
+></LI
+><LI
+><P
+>&#13;            the domain part of the recipient address,
+          </P
+></LI
+><LI
+><P
+>&#13;            a string unique to this sender/recipient
+            combination, generated by:
+          </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;                encrypting the three prior components of the rewritten
+                sender address, using Exim's
+                <TT
+CLASS="option"
+>${hmac{md5}...}</TT
+> function along with
+                the <TT
+CLASS="option"
+>SECRET</TT
+> we declared in the
+                <TT
+CLASS="option"
+>main</TT
+> section,
+                <A
+NAME="AEN1936"
+HREF="#FTN.AEN1936"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>
+              </P
+></LI
+><LI
+><P
+>&#13;                hashing the result into 8 lowercase letters, using
+                Exim's <TT
+CLASS="option"
+>${hash...}</TT
+> function.
+              </P
+></LI
+></UL
+></LI
+></UL
+><P
+>&#13;        If you need authentication for deliveries to
+        <SPAN
+CLASS="QUOTE"
+>"smarthosts"</SPAN
+>, add an appropriate
+        <TT
+CLASS="option"
+>hosts_try_auth</TT
+> line here as well.
+        (Take it from your existing smarthost transport).
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-sign-router-remote"
+></A
+>A.11.2. Create a New Router for Remote Deliveries</H2
+><P
+>&#13;        Add a new router prior to the existing router(s) that
+        currently handles your outgoing mail.  This router will use
+        the transport above for remote deliveries, but only if the
+        file <SPAN
+CLASS="QUOTE"
+>".return-path-sign"</SPAN
+> exists in the sender's
+        home directory, and if the recipient's domain is matched in
+        that file.  For instance, if you send mail directly over the
+        internet to the final destination:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# Sign the envelope sender address (return path) for deliveries to
+# remote domains if the sender's home directory contains the file
+# ".return-path-sign", and if the remote domain is matched in that
+# file. If the file exists, but is empty, the envelope sender
+# address is always signed.  
+#
+dnslookup_signed:
+  debug_print   = "R: dnslookup_signed for $local_part@$domain"
+  driver        = dnslookup
+  transport     = remote_smtp_signed
+  senders       = ! : *
+  domains       = ! +local_domains : !+relay_to_domains : \
+             ${if exists {/home/$sender_address_local_part/.return-path-sign}\
+                         {/home/$sender_address_local_part/.return-path-sign}\
+                         {!*}}
+  no_more
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Or if you use a smarthost:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# Sign the envelope sender address (return path) for deliveries to
+# remote domains if the sender's home directory contains the file
+# ".return-path-sign", and if the remote domain is matched in that
+# file. If the file exists, but is empty, the envelope sender
+# address is always signed.
+#
+smarthost_signed:
+  debug_print   = "R: smarthost_signed for $local_part@$domain"
+  driver        = manualroute
+  transport     = remote_smtp_signed
+  senders       = ! : *
+  route_list    = * <TT
+CLASS="parameter"
+><I
+>smarthost.address</I
+></TT
+>
+  host_find_failed = defer
+  domains       = ! +local_domains : !+relay_to_domains : \
+             ${if exists {/home/$sender_address_local_part/.return-path-sign}\
+                         {/home/$sender_address_local_part/.return-path-sign}\
+                         {!*}}
+  no_more  
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Add other options as you see fit
+        (e.g. <TT
+CLASS="option"
+>same_domain_copy_routing = yes</TT
+>),
+        perhaps modelled after your existing routers.
+      </P
+><P
+>&#13;        Note that we do not use this router for mails with no envelope
+        sender address - we wouldn't want to tamper with those!
+        <A
+NAME="AEN1959"
+HREF="#FTN.AEN1959"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-sign-router-redirect"
+></A
+>A.11.3. Create New Redirect Router for Local Deliveries</H2
+><P
+>&#13;        Next, you need to tell Exim that incoming recipient
+        addresses that match the format above should be delivered to
+        the mailbox identified by the portion before the first equal
+        (<SPAN
+CLASS="QUOTE"
+>"="</SPAN
+>) sign.  For this purpose, you want to
+        insert a <TT
+CLASS="option"
+>redirect</TT
+> router early in the
+        <TT
+CLASS="option"
+>routers</TT
+> section of your configuration file
+        - before any other routers pertaining to local deliveries
+        (such as a <EM
+>system alias</EM
+> router):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;hashed_local:
+  debug_print       = "R: hashed_local for $local_part@$domain"
+  driver            = redirect
+  domains           = +local_domains
+  local_part_suffix = =*
+  data              = $local_part@$domain
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Recipient addresses that contain a equal sign are rewritten
+        such that the portion of the local part that follows the
+        equal sign are stripped off.  Then all routers are
+        processed again.
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-sign-acl"
+></A
+>A.11.4. ACL Signature Check</H2
+><P
+>&#13;        The final part of this scheme is to tell Exim that mails
+        delivered to valid recipient addresses with this signature
+        should <EM
+>always</EM
+> be accepted, and that 
+        other messages with a NULL envelope sender should be
+        rejected if the recipient has opted in to this scheme.
+        No greylisting should be done in either case.
+      </P
+><P
+>&#13;        The following snippet should be placed in <A
+HREF="exim-final.html#acl_rcpt_to_final"
+>acl_rcpt_to</A
+>, prior to any SPF checks,
+        greylisting, and/or the final <TT
+CLASS="option"
+>accept</TT
+>
+        statement:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  # Accept the recipient addresss if it contains our own signature.
+  # This means this is a response (DSN, sender callout verification...)
+  # to a message that was previously sent from here.
+  #
+  accept
+    domains     = +local_domains
+    condition   = ${if and {{match{${lc:$local_part}}{^(.*)=(.*)}}\
+                            {eq{${hash_8:${hmac{md5}{SECRET}{$1}}}}{$2}}}\
+                           {true}{false}}
+
+  # Otherwise, if this message claims to be a bounce (i.e. if there
+  # is no envelope sender), but if the receiver has elected to use
+  # and check against envelope sender signatures, reject it.
+  #
+  deny
+    message     = This address does not match a valid, signed \
+                  return path from here.\n\
+                  You are responding to a forged sender address.
+    log_message = bogus bounce.
+    senders     = : postmaster@*
+    domains     = +local_domains
+    set acl_m9  = /home/${extract{1}{=}{${lc:$local_part}}}/.return-path-sign
+    condition   = ${if exists {$acl_m9}{true}}
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        You will have an issue when sending mail to hosts that
+        perform callout verification on addresses in the message
+        <EM
+>header</EM
+>, such as the one provided in the
+        <TT
+CLASS="option"
+>From:</TT
+> field of your outgoing mail.  The
+        <TT
+CLASS="option"
+>deny</TT
+> statement here will effectively give a
+        negative response to such a verification attempt.
+      </P
+><P
+>&#13;        For that reason, you may want to convert the last
+        <TT
+CLASS="option"
+>deny</TT
+> statement into a <TT
+CLASS="option"
+>warn</TT
+>
+        statement, store the rejection message in
+        <TT
+CLASS="varname"
+>$acl_m0</TT
+>, and perform the actual rejection
+        after the <B
+CLASS="command"
+>DATA</B
+> command, in a fashion
+        similar to previously described:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  # Otherwise, if this message claims to be a bounce (i.e. if there
+  # is no envelope sender), but if the receiver has elected to use
+  # and check against envelope sender signatures, store a reject
+  # message in $acl_m0, and a log message in $acl_m1.  We will later
+  # use these to reject the mail.  In the mean time, their presence 
+  # indicate that we should keep stalling the sender.
+  #
+  warn
+    senders     = : postmaster@*
+    domains     = +local_domains
+    set acl_m9  = /home/${extract{1}{=}{${lc:$local_part}}}/.return-path-sign
+    condition   = ${if exists {$acl_m9}{true}}
+    set acl_m0  = The recipient address &#60;$local_part@$domain&#62; does not \
+                  match a valid, signed return path from here.\n\
+                  You are responding to a forged sender address.
+    set acl_m1  = bogus bounce for &#60;$local_part@$domain&#62;.
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Also, even if the recipient has chosen to use envelope sender
+        signatures in their outgoing mail, they may want to exempt
+        specific hosts from having to provide this signature in
+        incoming mail, even if the mail has no envelope sender
+        address.  This may be required for specific mailing list
+        servers, see the discussion on <A
+HREF="collateral.html#signedsender"
+>Envelope Sender Signature</A
+>
+        for details.
+      </P
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN1936"
+HREF="exim-sign.html#AEN1936"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;                    If you think this is an overkill, would I tend to
+                    agree on the surface.  In previous versions of
+                    this document, I simply used
+                    <TT
+CLASS="option"
+>${hash_8:SECRET=....}</TT
+> to generate
+                    the last component of the signature.  However,
+                    with this it would be technically possible, with a
+                    bit of insight into Exim's
+                    <TT
+CLASS="option"
+>${hash...}</TT
+> function and some
+                    samples of your outgoing mail sent to different
+                    recipients, to forge the signature.  Matthew
+                    Byng-Maddic <TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:mbm (at) colondot.net"
+>mbm (at) colondot.net</A
+>&#62;</TT
+>
+                    notes:
+                    <EM
+>&#13;                      What you're writing is a document that you
+                      expect many people to just copy.  Given that,
+                      kerchoff's principle starts applying, and all of
+                      your secrecy should be in the key.  If the key
+                      can be reversed out, as seems likely with a few
+                      return paths, then the spammer kan once again
+                      start emitting valid return-paths from that
+                      domain, and you're back to where you
+                      started. [...] Better, IMO, to have it being
+                      strong from the start.
+                    </EM
+>
+                  </P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN1959"
+HREF="exim-sign.html#AEN1959"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;            In the examples above, the <TT
+CLASS="option"
+>senders</TT
+>
+            condition is actually redundant, since the file
+            <TT
+CLASS="option"
+>/home//.return-path-sign</TT
+> is not likely to
+            exist.  However, we make the condition explicit for
+            clarity.
+          </P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="exim-sa.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="exim-bounces.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Adding SpamAssassin</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="exim.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Accept Bounces Only for Real Users</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

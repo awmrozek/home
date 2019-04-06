@@ -1,0 +1,486 @@
+<HTML
+><HEAD
+><TITLE
+>Plotting Monitor Capabilities</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="XFree86 Video Timings HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Fixing Problems with the Image."
+HREF="fixes.html"><LINK
+REL="NEXT"
+TITLE="Credits"
+HREF="credits.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>XFree86 Video Timings HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="fixes.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="credits.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="cplot"
+></A
+>17. Plotting Monitor Capabilities</H1
+><P
+>To plot a monitor mode diagram, you'll need the gnuplot package
+(a freeware plotting language for UNIX-like operating systems) and the
+tool <SPAN
+CLASS="application"
+>modeplot</SPAN
+>, a shell/gnuplot script to plot the
+diagram from your monitor characteristics, entered as command-line
+options.</P
+><P
+>Here is a copy of <SPAN
+CLASS="application"
+>modeplot</SPAN
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;#!/bin/sh
+#
+# modeplot -- generate X mode plot of available monitor modes
+#
+# Do `modeplot -?' to see the control options.
+#
+
+# Monitor description. Bandwidth in MHz, horizontal frequencies in kHz
+# and vertical frequencies in Hz.
+TITLE="Viewsonic 21PS"
+BANDWIDTH=185
+MINHSF=31
+MAXHSF=85
+MINVSF=50
+MAXVSF=160
+ASPECT="4/3"
+vesa=72.5	# VESA-recommended minimum refresh rate
+
+while [ "$1" != "" ] 
+do
+	case $1 in
+	-t) TITLE="$2"; shift;; 
+	-b) BANDWIDTH="$2"; shift;; 
+	-h) MINHSF="$2" MAXHSF="$3"; shift; shift;; 
+	-v) MINVSF="$2" MAXVSF="$3"; shift; shift;; 
+	-a) ASPECT="$2"; shift;; 
+	-g) GNUOPTS="$2"; shift;; 
+	-?) cat &#60;&#60;EOF
+modeplot control switches:
+
+-t "&#60;description&#62;"	name of monitor            defaults to "Viewsonic 21PS"
+-b &#60;nn&#62;           	bandwidth in MHz           defaults to 185
+-h &#60;min&#62; &#60;max&#62;   	min &#38; max HSF (kHz)        defaults to 31 85
+-v &#60;min&#62; &#60;max&#62;   	min &#38; max VSF (Hz)         defaults to 50 160
+-a &#60;aspect ratio&#62;	aspect ratio               defaults to 4/3
+-g "&#60;options&#62;"   	pass options to gnuplot
+
+The -b, -h and -v options are required, -a, -t, -g optional.  You can
+use -g to pass a device type to gnuplot so that (for example) modeplot's
+output can be redirected to a printer.  See gnuplot(1) for  details.
+
+The modeplot tool was created by Eric S. Raymond &#60;esr@thyrsus.com&#62; based on
+analysis and scratch code by Martin Lottermoser &#60;Martin.Lottermoser@mch.sni.de&#62;
+
+This is modeplot $Revision: 1.25 $
+EOF
+		exit;;
+	esac
+	shift
+done
+
+gnuplot $GNUOPTS &#60;&#60;EOF
+set title "$TITLE Mode Plot"
+
+# Magic numbers.  Unfortunately, the plot is quite sensitive to changes in
+# these, and they may fail to represent reality on some monitors.  We need
+# to fix values to get even an approximation of the mode diagram.  These come
+# from looking at lots of values in the ModeDB database.
+F1 = 1.30	# multiplier to convert horizontal resolution to frame width
+F2 = 1.05	# multiplier to convert vertical resolution to frame height
+
+# Function definitions (multiplication by 1.0 forces real-number arithmetic)
+ac = (1.0*$ASPECT)*F1/F2
+refresh(hsync, dcf) = ac * (hsync**2)/(1.0*dcf)
+dotclock(hsync, rr) = ac * (hsync**2)/(1.0*rr)
+resolution(hv, dcf) = dcf * (10**6)/(hv * F1 * F2)
+
+# Put labels on the axes
+set xlabel 'DCF (MHz)'
+set ylabel 'RR (Hz)' 6	# Put it right over the Y axis
+
+# Generate diagram
+set grid
+set label "VB" at $BANDWIDTH+1, ($MAXVSF + $MINVSF) / 2 left
+set arrow from $BANDWIDTH, $MINVSF to $BANDWIDTH, $MAXVSF nohead
+set label "max VSF" at 1, $MAXVSF-1.5
+set arrow from 0, $MAXVSF to $BANDWIDTH, $MAXVSF nohead
+set label "min VSF" at 1, $MINVSF-1.5
+set arrow from 0, $MINVSF to $BANDWIDTH, $MINVSF nohead
+set label "min HSF" at dotclock($MINHSF, $MAXVSF+17), $MAXVSF + 17 right
+set label "max HSF" at dotclock($MAXHSF, $MAXVSF+17), $MAXVSF + 17 right
+set label "VESA $vesa" at 1, $vesa-1.5
+set arrow from 0, $vesa to $BANDWIDTH, $vesa nohead # style -1
+plot [dcf=0:1.1*$BANDWIDTH] [$MINVSF-10:$MAXVSF+20] \
+  refresh($MINHSF, dcf) notitle with lines 1, \
+  refresh($MAXHSF, dcf) notitle with lines 1, \
+  resolution(640*480,   dcf) title "640x480  " with points 2, \
+  resolution(800*600,   dcf) title "800x600  " with points 3, \
+  resolution(1024*768,  dcf) title "1024x768 " with points 4, \
+  resolution(1280*1024, dcf) title "1280x1024" with points 5, \
+  resolution(1600*1280, dcf) title "1600x1200" with points 6
+
+pause 9999
+EOF
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Once you know you have <SPAN
+CLASS="application"
+>modeplot</SPAN
+> and the
+gnuplot package in place, you'll need the following monitor
+characteristics:</P
+><P
+></P
+><UL
+><LI
+><P
+>video bandwidth (VB)</P
+></LI
+><LI
+><P
+>range of horizontal sync frequency (HSF)</P
+></LI
+><LI
+><P
+>range of vertical sync frequency (VSF)</P
+></LI
+></UL
+><P
+>The plot program needs to make some simplifying assumptions which are
+not necessarily correct.  This is the reason why the resulting diagram is
+only a rough description. These assumptions are:</P
+><P
+></P
+><UL
+><LI
+><P
+>All resolutions have a single fixed aspect ratio AR =
+HR/VR.  Standard resolutions have AR = 4/3 or AR = 5/4.  The
+<SPAN
+CLASS="application"
+>modeplot</SPAN
+> programs assumes 4/3 by default, but you
+can override this.</P
+></LI
+><LI
+><P
+>For the modes considered, horizontal and vertical
+frame lengths are fixed multiples of horizontal and vertical
+resolutions, respectively:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;	HFL = F1 * HR
+	VFL = F2 * VR
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></LI
+></UL
+><P
+>As a rough guide, take F1 = 1.30 and F2 = 1.05 (see <A
+HREF="framesizes.html"
+> Computing Frame Sizes</A
+>.</P
+><P
+>Now take a particular sync frequency, HSF.  Given the assumptions just
+presented, every value for the clock rate DCF already determines the
+refresh rate RR, i.e. for every value of HSF there is a function RR(DCF).
+This can be derived as follows.</P
+><P
+>The refresh rate is equal to the clock rate divided by the product of the
+frame sizes:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;	RR = DCF / (HFL * VFL)		(*)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>On the other hand, the horizontal frame length is equal to the clock rate
+divided by the horizontal sync frequency:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;	HFL = DCF / HSF			(**)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>VFL can be reduced to HFL be means of the two assumptions above:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;	VFL = F2 * VR
+	    = F2 * (HR / AR)
+	    = (F2/F1) * HFL / AR	(***)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Inserting (**) and (***) into (*) we obtain:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;	RR = DCF / ((F2/F1) * HFL**2 / AR)
+	   = (F1/F2) * AR * DCF * (HSF/DCF)**2
+	   = (F1/F2) * AR * HSF**2 / DCF
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>For fixed HSF, F1, F2 and AR, this is a hyperbola in our
+diagram.  Drawing two such curves for minimum and maximum horizontal
+sync frequencies we have obtained the two remaining boundaries of the
+permitted region.</P
+><P
+>The straight lines crossing the capability region represent
+particular resolutions. This is based on (*) and the second
+assumption:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;	RR = DCF / (HFL * VFL) = DCF / (F1 * HR * F2 * VR)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>By drawing such lines for all resolutions one is interested in, one
+can immediately read off the possible relations between resolution,
+clock rate and refresh rate of which the monitor is capable. Note that
+these lines do not depend on monitor properties, but they do depend on
+the second assumption.</P
+><P
+>The <SPAN
+CLASS="application"
+>modeplot</SPAN
+> tool provides you with an easy way to
+do this.  Do <SPAN
+CLASS="application"
+>modeplot -?</SPAN
+> to see its control
+options. A typical invocation looks like this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;	modeplot -t "Swan SW617" -b 85 -v 50 90 -h 31 58
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The -b option specifies video bandwidth; -v and -h set horizontal and
+vertical sync frequency ranges.</P
+><P
+>When reading the output of <SPAN
+CLASS="application"
+>modeplot</SPAN
+>, always
+bear in mind that it gives only an approximate description. For
+example, it disregards limitations on HFL resulting from a minimum
+required sync pulse width, and it can only be accurate as far as the
+assumptions are.  It is therefore no substitute for a detailed
+calculation (involving some black magic) as presented in <A
+HREF="synth.html"
+>Putting it All Together</A
+>. However, it should give
+you a better feeling for what is possible and which tradeoffs are
+involved.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="fixes.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="credits.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Fixing Problems with the Image.</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Credits</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

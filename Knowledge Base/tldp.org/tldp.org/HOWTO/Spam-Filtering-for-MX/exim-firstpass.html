@@ -1,0 +1,590 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Building the ACLs - First Pass</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Exim Implementation"
+HREF="exim.html"><LINK
+REL="PREVIOUS"
+TITLE="Options and Settings"
+HREF="exim-options.html"><LINK
+REL="NEXT"
+TITLE="Adding SMTP transaction delays"
+HREF="exim-smtpdelays.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="exim-options.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix A. Exim Implementation</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="exim-smtpdelays.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="exim-firstpass"
+></A
+>A.4. Building the ACLs - First Pass</H1
+><P
+>&#13;      In the acl section (following <TT
+CLASS="option"
+>begin acl</TT
+>), we
+      need to define these ACLs.  In doing so, we will incorporate
+      some of the basic
+      <EM
+><A
+HREF="techniques.html"
+>Techniques</A
+></EM
+>
+      described earlier in this document, namely
+      <EM
+><A
+HREF="dnschecks.html"
+>DNS checks</A
+></EM
+> and
+      <EM
+><A
+HREF="smtpchecks.html"
+>SMTP checks</A
+></EM
+>. 
+    </P
+><P
+>&#13;      In this pass, we will do most of the checks in <A
+HREF="exim-firstpass.html#acl_rcpt_to_1"
+>acl_rcpt_to</A
+>, and leave the other ACLs largely
+      empty.  That is because most of the commonly used ratware does
+      not understand rejections early in the SMTP transaction - it
+      keeps trying.  On the other hand, most ratware clients give up
+      if the <B
+CLASS="command"
+>RCPT TO:</B
+> fails.
+    </P
+><P
+>&#13;      We create all these ACLs, however, because we will use them
+      later.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_connect_1"
+></A
+>A.4.1. acl_connect</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used at the start of an incoming
+# connection.  The tests are run in order until the connection 
+# is either accepted or denied.
+
+acl_connect:
+
+  # In this pass, we do not perform any checks here.
+  accept
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_helo_1"
+></A
+>A.4.2. acl_helo</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used for the HELO or EHLO command in
+# an incoming SMTP transaction.  The tests are run in order until the
+# greeting is either accepted or denied.
+
+acl_helo:
+
+  # In this pass, we do not perform any checks here.
+  accept
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_mail_from_1"
+></A
+>A.4.3. acl_mail_from</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used for the MAIL FROM: command in an
+# incoming SMTP transaction.  The tests are run in order until the
+# sender address is either accepted or denied.
+#
+
+acl_mail_from:
+
+  # Accept the command.
+  accept
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_rcpt_to_1"
+></A
+>A.4.4. acl_rcpt_to</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used for every RCPT command in an
+# incoming SMTP message.  The tests are run in order until the 
+# recipient address is either accepted or denied.
+
+acl_rcpt_to:
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP).  
+  # We do this by testing for an empty sending host field.
+  # Also accept mails received from hosts for which we relay mail.
+  #
+  # Recipient verification is omitted here, because in many
+  # cases the clients are dumb MUAs that don't cope well with 
+  # SMTP error responses.
+  #
+  accept
+    hosts       = : +relay_from_hosts
+
+
+  # Accept if the message arrived over an authenticated connection,
+  # from any host. Again, these messages are usually from MUAs, so
+  # recipient verification is omitted.
+  #
+  accept
+    authenticated = *
+
+
+  ######################################################################
+  # DNS checks
+  ######################################################################
+  #
+  # The results of these checks are cached, so multiple recipients
+  # does not translate into multiple DNS lookups.
+  #
+
+  # If the connecting host is in one of a select few DNSbls, then
+  # reject the message.  Be careful when selecting these lists; many
+  # would cause a large number of false postives, and/or have no
+  # clear removal policy.
+  #
+  deny
+    dnslists    = dnsbl.sorbs.net : \
+                  dnsbl.njabl.org : \
+                  cbl.abuseat.org : \
+                  bl.spamcop.net
+    message     = $sender_host_address is listed in $dnslist_domain\
+                  ${if def:dnslist_text { ($dnslist_text)}}
+
+
+  # If reverse DNS lookup of the sender's host fails (i.e. there is
+  # no rDNS entry, or a forward lookup of the resulting name does not
+  # match the original IP address), then reject the message.
+  #
+  deny
+    message     = Reverse DNS lookup failed for host $sender_host_address.
+    !verify     = reverse_host_lookup
+
+
+  
+  ######################################################################
+  # Hello checks
+  ######################################################################
+
+  # If the remote host greets with an IP address, then reject the mail.
+  # 
+  deny
+    message     = Message was delivered by ratware
+    log_message = remote host used IP address in HELO/EHLO greeting
+    condition   = ${if isip {$sender_helo_name}{true}{false}}
+
+
+  # Likewise if the peer greets with one of our own names
+  # 
+  deny
+    message     = Message was delivered by ratware
+    log_message = remote host used our name in HELO/EHLO greeting.
+    condition   = ${if match_domain{$sender_helo_name}\
+                       {$primary_hostname:+local_domains:+relay_to_domains}\
+                       {true}{false}}
+
+
+  deny
+    message     = Message was delivered by ratware
+    log_message = remote host did not present HELO/EHLO greeting.
+    condition   = ${if def:sender_helo_name {false}{true}}
+
+
+  # If HELO verification fails, we add a X-HELO-Warning: header in
+  # the message.
+  #
+  warn
+    message     = X-HELO-Warning: Remote host $sender_host_address \
+                  ${if def:sender_host_name {($sender_host_name) }}\
+                  incorrectly presented itself as $sender_helo_name
+    log_message = remote host presented unverifiable HELO/EHLO greeting.
+    !verify     = helo
+
+  
+
+  ######################################################################
+  # Sender Address Checks
+  ######################################################################
+
+  # If we cannot verify the sender address, deny the message.
+  #
+  # You may choose to remove the "callout" option.  In particular, 
+  # if you are sending outgoing mail through a smarthost, it will not
+  # give any useful information.
+  #
+  # Details regarding the failed callout verification attempt are
+  # included in the 550 response; to omit these, change
+  # "sender/callout" to "sender/callout,no_details".
+  #
+  deny
+    message     = &#60;$sender_address&#62; does not appear to be a \
+                  valid sender address. 
+    !verify     = sender/callout
+
+
+
+  ######################################################################
+  # Recipent Address Checks
+  ######################################################################
+
+  # Deny if the local part contains @ or % or / or | or !. These are
+  # rarely found in genuine local parts, but are often tried by people
+  # looking to circumvent relaying restrictions.
+  #
+  # Also deny if the local part starts with a dot. Empty components
+  # aren't strictly legal in RFC 2822, but Exim allows them because
+  # this is common.  However, actually starting with a dot may cause
+  # trouble if the local part is used as a file name (e.g. for a
+  # mailing list).
+  #
+  deny
+    local_parts = ^.*[@%!/|] : ^\\.
+
+
+  # Drop the connection if the envelope sender is empty, but there is
+  # more than one recipient address.  Legitimate DSNs are never sent
+  # to more than one address.
+  #
+  drop
+    message      = Legitimate bounces are never sent to more than one \
+                   recipient.
+    senders      = : postmaster@*
+    condition    = $recipients_count
+
+
+  # Reject the recipient address if it is not in a domain for
+  # which we are handling mail.
+  #
+  deny
+    message     = relay not permitted
+    !domains    = +local_domains : +relay_to_domains
+
+
+  # Reject the recipient if it is not a valid mailbox.
+  # If the mailbox is not on our system (e.g. if we are a
+  # backup MX for the recipient domain), then perform a
+  # callout verification; but if the destination server is
+  # not responding, accept the recipient anyway.
+  #
+  deny
+    message     = unknown user
+    !verify     = recipient/callout=20s,defer_ok
+
+
+  # Otherwise, the recipient address is OK.
+  #
+  accept
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="acl_data_1"
+></A
+>A.4.5. acl_data</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# This access control list is used for message data received via 
+# SMTP.  The tests are run in order until the recipient address 
+# is either accepted or denied.
+
+acl_data:
+
+  # Add Message-ID if missing in messages received from our own hosts.
+  warn
+    condition   = ${if !def:h_Message-ID: {1}}
+    hosts       = : +relay_from_hosts
+    message     = Message-ID: &#60;E$message_id@$primary_hostname&#62;
+
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP).  
+  # We do this by testing for an empty sending host field.
+  # Also accept mails received from hosts for which we relay mail.
+  #
+  accept
+    hosts       = : +relay_from_hosts
+
+  # Accept if the message arrived over an authenticated connection, from
+  # any host.
+  #
+  accept
+    authenticated = *
+
+
+  # Enforce a message-size limit
+  #
+  deny
+    message     = Message size $message_size is larger than limit of \
+                  MESSAGE_SIZE_LIMIT
+    condition   = ${if &#62;{$message_size}{MESSAGE_SIZE_LIMIT}{true}{false}}
+
+
+  # Deny unless the address list header is syntactically correct.
+  #
+  deny
+    message     = Your message does not conform to RFC2822 standard
+    log_message = message header fail syntax check
+    !verify     = header_syntax
+
+
+  # Deny non-local messages with no Message-ID, or no Date
+  #
+  # Note that some specialized MTAs, such as certain mailing list
+  # servers, do not automatically generate a Message-ID for bounces.
+  # Thus, we add the check for a non-empty sender.
+  #
+  deny
+    message     = Your message does not conform to RFC2822 standard
+    log_message = missing header lines
+    !hosts      = +relay_from_hosts
+    !senders    = : postmaster@*
+    condition   = ${if or {{!def:h_Message-ID:}\
+                           {!def:h_Date:}\
+                           {!def:h_Subject:}} {true}{false}}
+ 
+
+  # Warn unless there is a verifiable sender address in at least
+  # one of the "Sender:", "Reply-To:", or "From:" header lines.
+  #
+  warn
+    message     = X-Sender-Verify-Failed: No valid sender in message header
+    log_message = No valid sender in message header
+    !verify     = header_sender
+
+
+  # Accept the message. 
+  #
+  accept
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="exim-options.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="exim-smtpdelays.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Options and Settings</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="exim.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Adding SMTP transaction delays</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

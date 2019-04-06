@@ -1,0 +1,524 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>The Exim Configuration File</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Exim Implementation"
+HREF="exim.html"><LINK
+REL="PREVIOUS"
+TITLE="Prerequisites"
+HREF="exim-prereq.html"><LINK
+REL="NEXT"
+TITLE="Options and Settings"
+HREF="exim-options.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="exim-prereq.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix A. Exim Implementation</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="exim-options.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="exim-configfile"
+></A
+>A.2. The Exim Configuration File</H1
+><P
+>&#13;      The Exim configuration file contains global definitions at the
+      top (we will call this the <EM
+>main section</EM
+>),
+      followed by several other sections<A
+NAME="AEN1380"
+HREF="#FTN.AEN1380"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>. Each of these other sections starts with:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>begin <TT
+CLASS="parameter"
+><I
+>section</I
+></TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;      We will spend most of our time in the <TT
+CLASS="option"
+>acl</TT
+>
+      section (i.e. after <TT
+CLASS="option"
+>begin acl</TT
+>); but we will
+      also add and/or modify a few items in the
+      <TT
+CLASS="option"
+>transports</TT
+> and <TT
+CLASS="option"
+>routers</TT
+>
+      sections, as well as in the main section at the top of the file.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-acl"
+></A
+>A.2.1. Access Control Lists</H2
+><P
+>&#13;        As of version 4.xx, Exim incorporates perhaps the most
+        sophisticated and flexible mechanism for SMTP-time filtering
+        available anywhere, by way of so-called <EM
+>Access
+        Control Lists</EM
+> (ACLs).
+      </P
+><P
+>&#13;        An ACL can be used to evaluate whether to accept or reject an
+        aspect of an incoming message transaction, such as the initial
+        connection from a remote host, or the
+        <B
+CLASS="command"
+>HELO/EHLO</B
+>, <B
+CLASS="command"
+>MAIL FROM:</B
+>,
+        or <B
+CLASS="command"
+>RCPT TO:</B
+> SMTP commands.  So, for
+        instance, you may have an ACL named
+        <TT
+CLASS="option"
+>acl_rcpt_to</TT
+> to validate each <B
+CLASS="command"
+>RCPT
+        TO:</B
+> command received from the peer.
+      </P
+><P
+>&#13;        An ACL consists of a series of <EM
+>statements</EM
+>
+        (or <EM
+>rules</EM
+>).  Each statement starts with
+        an action verb, such as <TT
+CLASS="option"
+>accept</TT
+>,
+        <TT
+CLASS="option"
+>warn</TT
+>, <TT
+CLASS="option"
+>require</TT
+>,
+        <TT
+CLASS="option"
+>defer</TT
+>, or <TT
+CLASS="option"
+>deny</TT
+>, followed by
+        a list of conditions, options, and other settings pertaining
+        to that statement.  Every <EM
+>statement</EM
+> is
+        evaluated in order, until a definitive action (besides
+        <TT
+CLASS="option"
+>warn</TT
+>) is taken.  There is an implicit
+        <TT
+CLASS="option"
+>deny</TT
+> at the end of the ACL.
+      </P
+><P
+>&#13;        A sample statement in the <TT
+CLASS="option"
+>acl_rcpt_to</TT
+> ACL
+        above may look like this:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  deny
+    message  = relay not permitted
+    !hosts   = +relay_from_hosts
+    !domains = +local_domains : +relay_to_domains
+    delay    = 1m
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        This statement will reject the <B
+CLASS="command"
+>RCPT TO:</B
+>
+        command if it was not delivered by a host in the
+        <SPAN
+CLASS="QUOTE"
+>"+relay_from_hosts"</SPAN
+> host list, and the recipient
+        domain is not in the <SPAN
+CLASS="QUOTE"
+>"+local_domains"</SPAN
+> or
+        <SPAN
+CLASS="QUOTE"
+>"+relay_to_domains"</SPAN
+> domain lists.  However, before
+        issuing the <SPAN
+CLASS="QUOTE"
+>"550"</SPAN
+> SMTP response to this command,
+        the server will wait for one minute.
+      </P
+><P
+>&#13;        To evaluate a particular ACL at a given stage of the message
+        transaction, you need to point one of Exim's <EM
+>policy
+        controls</EM
+> to that ACL.  For instance, to use the
+        <TT
+CLASS="option"
+>acl_rcpt_to</TT
+> ACL mentioned above to evaluate the
+        <B
+CLASS="command"
+>RCPT TO:</B
+>, the main section of your Exim
+        configuration file (before any <TT
+CLASS="option"
+>begin</TT
+> keywords)
+        should include:
+
+        <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>acl_smtp_rcpt = acl_rcpt_to</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        For a full list of such <EM
+>policy controls</EM
+>,
+        refer to section 14.11 in the Exim specifications.
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-expansions"
+></A
+>A.2.2. Expansions</H2
+><P
+>&#13;        A large number of <EM
+>expansion items</EM
+> are
+        available, including run-time variables, lookup functions,
+        string/regex manipulations, host/domain lists, etc. etc.  An
+        exhaustive reference for the last x.x0 release (i.e. 4.20,
+        4.30..) can be found in the file <SPAN
+CLASS="QUOTE"
+>"spec.txt"</SPAN
+>; ACLs
+        are described in section 38.
+      </P
+><P
+>&#13;        In particular, Exim provides twenty general purpose expansion
+        variables to which we can assign values in an ACL statement:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;            <TT
+CLASS="varname"
+>$acl_c0</TT
+> - <TT
+CLASS="varname"
+>$acl_c9</TT
+> can
+            hold values that will persist through the lifetime of an
+            SMTP connection.
+          </P
+></LI
+><LI
+><P
+>&#13;            <TT
+CLASS="varname"
+>$acl_m0</TT
+> - <TT
+CLASS="varname"
+>$acl_m9</TT
+> can
+            hold values while a message is being received, but are
+            then reset.  They are also reset by the
+            <B
+CLASS="command"
+>HELO</B
+>, <B
+CLASS="command"
+>EHLO</B
+>,
+            <B
+CLASS="command"
+>MAIL</B
+>, and <B
+CLASS="command"
+>RSET</B
+>
+            commands.
+          </P
+></LI
+></UL
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN1380"
+HREF="exim-configfile.html#AEN1380"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;        <EM
+>Debian users:</EM
+> The
+        <TT
+CLASS="option"
+>exim4-config</TT
+> package gives you a choice
+        between splitting the Exim configuration into several small
+        chunks distributed within subdirectories below
+        <TT
+CLASS="option"
+>/etc/exim4/conf.d</TT
+>, or to keep the entire
+        configuration in a single file.
+      </P
+><P
+>&#13;        If you chose the former option (I recommend this!), you can
+        keep your customization well separated from the stock
+        configuration provided with the <TT
+CLASS="option"
+>exim4-config</TT
+>
+        package by creating new files within these subdirectories,
+        rather than modifying the existing ones.  For instance, you
+        may create a file named
+        <TT
+CLASS="option"
+>/etc/exim4/conf.d/acl/80_local-config_rcpt_to</TT
+>
+        to declare your own ACL for the <B
+CLASS="command"
+>RCPT TO:</B
+>
+        command (see <A
+HREF="exim-firstpass.html#acl_rcpt_to_1"
+>below</A
+>).
+      </P
+><P
+>&#13;        The Exim <SPAN
+CLASS="QUOTE"
+>"init"</SPAN
+> script
+        (<TT
+CLASS="option"
+>/etc/init.d/exim4</TT
+>) will automatically
+        consolidate all these files into a single large run-time
+        configuration file next time you (re)start.
+      </P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="exim-prereq.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="exim-options.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Prerequisites</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="exim.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Options and Settings</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

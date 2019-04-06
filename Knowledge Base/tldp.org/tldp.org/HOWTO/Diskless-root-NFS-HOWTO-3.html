@@ -1,0 +1,313 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root over nfs clients &amp; server Howto.  : Preparing the server</TITLE>
+ <LINK HREF="Diskless-root-NFS-HOWTO-4.html" REL=next>
+ <LINK HREF="Diskless-root-NFS-HOWTO-2.html" REL=previous>
+ <LINK HREF="Diskless-root-NFS-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Diskless-root-NFS-HOWTO-4.html">Next</A>
+<A HREF="Diskless-root-NFS-HOWTO-2.html">Previous</A>
+<A HREF="Diskless-root-NFS-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Preparing the server</A> </H2>
+
+<P>Now it's time to prepare the server to serve diskless clients.
+<H2><A NAME="ss3.1">3.1 Building a kernel</A>
+ </H2>
+
+<P>The first thing todo is build a kernel with the nescesarry stuff in to
+support root over nfs. Take the following steps to build your kernel:
+<P>
+<OL>
+<LI>Since we'll be using redhat-5.2 with kernel-2.2 you should asure yourself
+that your redhat-5.2 is kernel-2.2 ready. RedHat has got an excellent howto
+on this.</LI>
+<LI>I use the same kernel for both server and ws, to avoid module conflicts
+since they share the same /lib/modules. If this is not possible in your situation,
+fake different kernel versions by editing the version number in the kernel's
+top makefile. These different versionsnumbers will avoid any conflicts. </LI>
+<LI>Besides the usual stuff the kernel should have the following:
+<UL>
+<LI>ext2 compiled in (if used on server, or for both)</LI>
+<LI>nfs and root-over-nfs compiled in (if used on client or both), to get the
+nfs over root option in 2.2 enable ip-autoconfig in the network options. We'll
+use bootp as configuration method.</LI>
+<LI>ws networkcard support compiled in (if used on client or both)</LI>
+<LI>compile devfs in (required for client, also nice for server)</LI>
+<LI>anything else you normally use, modules for all other devices used on either
+the server or all / some ws etc.</LI>
+</UL>
+</LI>
+<LI>The kernel-src needs to be edited to make the default root-over-nfs mount:
+/tftpboot/&lt;ip&gt;/root instead of just /tftpboot/&lt;ip&gt;. This is to
+get a clean tree in /tftpboot with one dir per ws containing both the root
+for it (a link to the actual server root) and any ws specific dirs.
+<UL>
+<LI>For 2.0 This is a define in: &quot;include/linux/nfs_fs.h&quot; called
+&quot;NFS_ROOT&quot;</LI>
+<LI>For 2.2 This is a define in: &quot;fs/nfs/nfsroot.c&quot;</LI>
+</UL>
+</LI>
+<LI>Now just compile the kernel as usual, see the kernel-howto. </LI>
+<LI>If you don't have /dev/nfsroot yet, create it by typing: 
+<BLOCKQUOTE>
+mknod /dev/nfsroot b 0 255.
+</BLOCKQUOTE>
+</LI>
+<LI>After compiling the kernel set the root to nfsroot by typing:
+<BLOCKQUOTE>
+rdev &lt;path-to-zImage&gt;/zImage /dev/nfsroot
+</BLOCKQUOTE>
+</LI>
+<LI>Before booting with devfs you need to make a few changes to /etc/conf.modules,
+append the contents of the conf.modules in the devfs documentation to it. </LI>
+<LI>Since this new kernel is compiled for autoconfig of ip's it will try to
+autoconf the ip of the server during bootup. Which ofcourse will fail since
+it gives out the ip's. To avoid a long timeout add: append=&quot;ip=off&quot;
+To the linux section of /etc/lilo.conf. </LI>
+<LI>Run lilo and boot the new kernel.</LI>
+<LI>Due to devfs you'll have lost all symlinks on the server. With redhat this
+is usually /dev/mouse and /dev/cdrom. Recreate these. If you also used to use
+special ownerships, chown to appropiate files in /dev. Now save the /dev settings
+(in /etc/sysconfig, since they might be ws specific):
+<UL>
+<LI>Copy rc.devfs from the devfs documentation in the kernel source to /etc/rc.d/rc.devfs
+and make it executable</LI>
+<LI>Save the settings by typing:
+<BLOCKQUOTE>
+/etc/rc.d/rc.devfs save /etc/sysconfig
+</BLOCKQUOTE>
+</LI>
+</UL>
+</LI>
+</OL>
+<H2><A NAME="ss3.2">3.2 Creating and populating /tftpboot, making symlinks for /tmp etc.</A>
+ </H2>
+
+<P>The next step is to create and populate /tftpboot
+<H3>The automagic part </H3>
+
+<P>This is all handled by a big script since putting a long list of commands
+into this howto seemed pretty useless to me. If you want todo this manual just
+read the script and type it in as you go ;)
+<P>This setup script thus some nasty things like nuke /tmp, temporary kill
+syslog, umount /proc. So make sure that noone is using the machine during this,
+and that X isn't running. Just making sure your the only one logged in on a
+text-console is enough, no need to change runlevels.
+<P>DISCLAIMER: this script has been tested but nevertheless if it messes up
+your server your on your own. I can take no responsibility what so ever. Lett
+me repeat this howto is only for experienced linux sysadmins. Also this is
+script is designed to be run once and I really mean once. Running it twice
+will nuke: /etc/fstab, /etc/X11/XF86Config, /etc/X11/X and /etc/conf.modules.
+<P>Now with that said, just cut and paste the script make it executable, execute
+it and pray to the holy penguin that it works ;)
+<P>
+<HR>
+<PRE>
+#!/bin/sh
+
+SERVER_NAME=`hostname -s`
+
+###
+echo creating /etc/rc.d/rc.ws
+#this basicly just echos the entire script ;)
+echo &quot;#root on nfs stuff
+
+SERVER=$SERVER_NAME
+
+#we need proc for mtab, route etc
+mount -t proc /proc /proc
+
+IP=\`ifconfig eth0|grep inet|cut --field 2 -d ':'|cut --field 1 -d ' '\`
+
+#if the first mount fails we're probably the server, or atleast something is
+#pretty wrong, so only do the other stuff if the first mount succeeds
+mount \$SERVER:/tftpboot/\$IP/sysconfig /etc/sysconfig -o nolock &amp;&amp;
+{
+   #other mounts
+   mount \$SERVER:/home /home -o nolock
+   mount \$SERVER:/ /\$SERVER -o ro,nolock
+
+   #/var
+   echo Creating /var ...
+   mke2fs -q -i 1024 /dev/ram1 1024
+   mount /dev/ram1 /var -o defaults,rw
+   cp -a /tftpboot/var /
+
+   #network stuff
+   . /etc/sysconfig/network
+   HOSTNAME=\`cat /etc/hosts|grep \$IP|cut --field 2\`
+   route add default gw \$GATEWAY
+   ifup lo
+}
+
+#restore devfs settings
+/etc/rc.d/rc.devfs restore /etc/sysconfig
+
+umount /proc&quot; &gt; /etc/rc.d/rc.ws
+
+###
+echo splitting runlevel 3 for the client and server
+mv /etc/rc.d/rc3.d /etc/rc.d/rc3.server
+cp -a /etc/rc.d/rc3.server /etc/rc.d/rc3.ws
+rm /etc/rc.d/rc3.ws/*network
+rm /etc/rc.d/rc3.ws/*nfs
+rm /etc/rc.d/rc3.ws/*nfsfs
+rm /etc/rc.d/rc3.ws/S99local
+ln -s /etc/sysconfig/rc.local /etc/rc.d/rc3.ws/S99local
+ln -s /etc/rc.d/rc3.server /etc/sysconfig/rc3.d
+ln -s /etc/sysconfig/rc3.d /etc/rc.d/rc3.d
+
+###
+echo making tmp a link to /var/tmp
+rm -fR /tmp
+ln -s var/tmp /tmp
+
+###
+echo moving various files around and create symlinks for them
+echo mtab
+/etc/rc.d/init.d/syslog stop
+umount /proc
+touch /proc/mounts
+mount /proc
+/etc/rc.d/init.d/syslog start
+rm /etc/mtab
+ln -s /proc/mounts /etc/mtab
+echo fstab
+mv /etc/fstab /etc/sysconfig
+ln -s sysconfig/fstab /etc/fstab
+echo X-config files
+mkdir /etc/sysconfig/X11
+mv /etc/X11/X /etc/sysconfig/X11
+ln -s ../sysconfig/X11/X /etc/X11/X
+mv /etc/X11/XF86Config /etc/sysconfig/X11
+ln -s ../sysconfig/X11/XF86Config /etc/X11/XF86Config
+echo conf.modules
+mv /etc/conf.modules /etc/sysconfig
+ln -s sysconfig/conf.modules /etc/conf.modules
+echo isapnp.conf
+mv /etc/isapnp.conf /etc/sysconfig
+ln -s sysconfig/isapnp.conf /etc/isapnp.conf
+
+###
+echo creating a template dir for the ws directories
+echo /tftpboot/template
+mkdir /home/tftpboot
+ln -s home/tftpboot /tftpboot
+mkdir /tftpboot/template
+mkdir /$SERVER_NAME
+echo root
+ln -s / /tftpboot/template/root
+echo sysconfig
+cp -a /etc/sysconfig /tftpboot/template/sysconfig
+rm -fR /tftpboot/template/sysconfig/network-scripts
+ln -s /$SERVER_NAME/etc/sysconfig/network-scripts \
+ /tftpboot/template/sysconfig/network-scripts
+echo NETWORKING=yes &gt; /tftpboot/template/sysconfig/network
+echo `grep &quot;GATEWAY=&quot; /etc/sysconfig/network` &gt;&gt; /tftpboot/template/sysconfig/network
+echo &quot;/dev/nfsroot / nfs defaults 1 1&quot; &gt; /tftpboot/template/sysconfig/fstab
+echo &quot;none /proc proc defaults 0 0&quot; &gt;&gt; /tftpboot/template/sysconfig/fstab
+echo &quot;#!/bin/sh&quot; &gt; /tftpboot/template/sysconfig/rc.local
+chmod 755 /tftpboot/template/sysconfig/rc.local
+rm /tftpboot/template/sysconfig/rc3.d
+ln -s /etc/rc.d/rc3.ws /tftpboot/template/sysconfig/rc3.d
+rm /tftpboot/template/sysconfig/isapnp.conf
+echo var
+cp -a /var /tftpboot/var
+rm -fR /tftpboot/var/lib
+ln -s /$SERVER_NAME/var/lib /tftpboot/var/lib
+rm -fR /tftpboot/var/catman
+ln -s /$SERVER_NAME/var/catman /tftpboot/var/catman
+rm -fR /tftpboot/var/log/httpd
+rm -f /tftpboot/var/log/samba/*
+for i in `find /tftpboot/var/log -type f`; do cat /dev/null &gt; $i; done
+rm `find /tftpboot/var/lock -type f`
+rm `find /tftpboot/var/run -type f`
+echo /sbin/fsck.nfs
+echo &quot;#!/bin/sh
+exit 0&quot; &gt; /sbin/fsck.nfs
+chmod 755 /sbin/fsck.nfs
+
+echo all done
+ 
+</PRE>
+<HR>
+<H3>Manual adjustments to some files  </H3>
+
+<P>Now we need to make a few manual adjustments to the server:
+<P>
+<OL>
+<LI>The ws setup script has to be sourced at the very beginning of rc.sysinit,
+so add the following lines directly after setting the PATH:
+<HR>
+<PRE>
+#for root over nfs workstations.
+/etc/rc.d/rc.ws
+  
+</PRE>
+<HR>
+</LI>
+<LI>Strip /etc/rc.d/rc3.ws to a bare minimum. It might be useful to create
+something like rc.local.ws but I'll leave that up to you. Network and nfsfs
+are already setup.The following have been already removed / updated by the
+automagic script:
+<UL>
+<LI>network</LI>
+<LI>nfsfs</LI>
+<LI>nfs</LI>
+<LI>rc.local</LI>
+</UL>
+</LI>
+</OL>
+<H2><A NAME="ss3.3">3.3 Exporting the appropriate file systems and setting up bootp</A>
+ </H2>
+
+<P>The server must ofcourse export the appropriate filesystems and asign the
+ip addresses to the clients.
+<H3>Exporting the appropriate file systems </H3>
+
+<P>We need to export some dir's for the workstations so for the situation
+here at the university I would add the following to /etc/exports:
+<P>
+<HR>
+<PRE>
+/ *.st.hhs.nl(ro,no_root_squash)
+/home *.st.hhs.nl(rw,no_root_squash)
+ 
+</PRE>
+<HR>
+<P>Ofcourse use the apropriate domain ;) and restart nfs by typing:
+<P>
+<BLOCKQUOTE>
+/etc/rc.d/init.d/nfs restart
+</BLOCKQUOTE>
+<P>Note for knfsd users: knfsd doesn't allow you to have multiple exports
+on one partition with different permissions. Also knfsd doesn't allow clients
+to go past partition boundaries for example if a client mounts / and /usr is
+a different partition it won't have access to /usr. Thus if you use knfsd,
+at least /home should be on a different partition, the server prepare script
+already puts /tftpboot in /home so that doesn't need a seperate partition.
+If you've got any other partitions your clients should have access to export
+them seperatly and add mount commands for them to /etc/rc.d/rc.ws.
+<H3>Setting up bootp </H3>
+
+<P>
+<OL>
+<LI>If bootp isn't installed yet install it. It comes with RedHat.</LI>
+<LI>Edit /etc/inetd.conf and uncomment the line beginning with bootps, if you
+want to use a bootprom uncomment tftp while your at it. </LI>
+<LI>Restart inetd by typing:
+<BLOCKQUOTE>
+/etc/rc.d/init.d/inetd restart
+</BLOCKQUOTE>
+</LI>
+</OL>
+<HR>
+<A HREF="Diskless-root-NFS-HOWTO-4.html">Next</A>
+<A HREF="Diskless-root-NFS-HOWTO-2.html">Previous</A>
+<A HREF="Diskless-root-NFS-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,321 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Creating the encrypted root filesystem</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Encrypted Root Filesystem HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Preparing the system"
+HREF="preparing-system.html"><LINK
+REL="NEXT"
+TITLE="Setting up the boot device"
+HREF="setup-boot-device.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Encrypted Root Filesystem HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="preparing-system.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="setup-boot-device.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="encrypt-root-filesystem"
+></A
+>2. Creating the encrypted root filesystem</H1
+><P
+>&#13;Fill the target partition with random data:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>shred -n 1 -v /dev/hda2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;Setup the encrypted loopback device:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>losetup -e aes256 -S xxxxxx /dev/loop0 /dev/hda2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;To prevent optimized dictionary attacks, it is recommended to add
+the -S xxxxxx option, where "xxxxxx" is your randomly chosen
+seed (for example, you might choose "gPk4lA"). Write down your seed on
+a piece of paper so that you don't loose it afterwards. Also, in order
+to avoid boot-time problems with the keyboard map, do not use non-ASCII
+characters (accents, etc.) in your password. The
+<A
+HREF="http://www.diceware.com/"
+TARGET="_top"
+>Diceware</A
+> site offers
+a simple way to create strong, yet easy to remember, passphrases.
+    </P
+><P
+>&#13;Now create the ext3 filesystem:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mke2fs -j /dev/loop0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;Check that the password you entered is correct:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>losetup -d /dev/loop0
+losetup -e aes256 -S xxxxxx /dev/loop0 /dev/hda2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mkdir /mnt/efs
+mount /dev/loop0 /mnt/efs</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;You can compare the encrypted and unencrypted data:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>xxd /dev/hda2  | less
+xxd /dev/loop0 | less</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;It's time to install your encrypted Linux system. If you use a GNU/Linux
+distribution (such as Debian, Slackware, Gentoo, Mandrake, RedHat/Fedora,
+SuSE, etc.), run the following command:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cp -avx / /mnt/efs</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;If you use the Linux From Scratch book, proceed as described in
+the manual, with the modifications below:
+        <P
+></P
+><UL
+><LI
+><P
+>Chapter 6 - Installing util-linux:</P
+><P
+>Apply the loop-AES patch after unpacking the sources.</P
+></LI
+><LI
+><P
+>Chapter 8 - Making the LFS system bootable:</P
+><P
+>Refer to the next section (Setting up the boot device).</P
+></LI
+></UL
+>
+    </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="preparing-system.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="setup-boot-device.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Preparing the system</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Setting up the boot device</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

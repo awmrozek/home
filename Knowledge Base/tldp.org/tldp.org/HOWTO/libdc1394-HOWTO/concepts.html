@@ -1,0 +1,3735 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Concepts and Basic Programs </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Libdc1394 Library Support for IEEE 1394 Cameras HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Installation"
+HREF="install.html"><LINK
+REL="NEXT"
+TITLE="References"
+HREF="references.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Libdc1394 Library Support for IEEE 1394 Cameras HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="install.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="references.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="concepts"
+></A
+>4. Concepts and Basic Programs</H1
+><P
+>At present, the documents that are available for understanding libdc1394 are very few. Among the available documents are a FAQ, which only talks about the general concept of the camera and a few forums where people have posted their queries.</P
+><P
+>We had to read the libdc1394 source code to understand how to grab a frame from the camera. The extreme need for a complete explanation on this topic encouraged us to write this HOWTO. </P
+><P
+>On the basis of what we understood by exploring the source code of the camera, we are presenting our insights on the library.</P
+><P
+>We encourage you to keep referring following files while reading through the next section: </P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+><TT
+CLASS="filename"
+>dc1394_control.h</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="filename"
+>dc1394_control.c</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="filename"
+>dc1394_capture.c</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="filename"
+>dc1394_format7.c</TT
+></P
+></LI
+></OL
+><P
+>The <TT
+CLASS="filename"
+>dc1394_control.h</TT
+> file is the most important, as it contains the declaration of various functions and data structures. It should be read to understand the features supported by IEEE1394 cameras and the functions which access and control various features of camera.</P
+><P
+>The dc1394 library works closely with raw1394 since all the functions make use of functions of raw1394 (raw1394_read() and raw1394_write()) in order to retrieve or modify the values of various parameters of the camera.  This is one of the reasons why raw1394 must be installed before installing libdc1394.</P
+><P
+>To understand how the functions provided by the library work, we need to understand few technical aspects of the IEEE1394 camera:</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>There can be more than one camera connected to the host card at any time, hence one need to uniquely identify the camera node.</P
+></LI
+><LI
+><P
+>The camera has some control registers to set camera features.</P
+></LI
+><LI
+><P
+>According to IEEE specifications, the camera can grab images in different formats. The image formats are defined by two parameters: format and mode. Five modes are defined:
+     <P
+></P
+><OL
+TYPE="a"
+><LI
+><P
+>Format_0 contains low resolution mode up to 640x480</P
+></LI
+><LI
+><P
+>Format_1 contains medium resolution modes: 800x600 and 1024x768</P
+></LI
+><LI
+><P
+>Format_2 contains mega pixel modes: 1280x960 and 1600x1200</P
+></LI
+><LI
+><P
+>Format_7 is the scalable image format. With this, you can change the image size, color coding and other parameters</P
+></LI
+></OL
+>
+     It may be possible that a camera does not support some modes, so we need to be careful during the setup. You use setup to set various parameters like data speed, image mode, framerate that are necessary to make the camera ready to grab the image. We will shortly discuss setup functions.</P
+></LI
+><LI
+><P
+>In order to set or get the values of the parameters/features of the camera, the library functions will modify or read the register values.</P
+></LI
+><LI
+><P
+>The camera can work with or without DMA. We are greatful to Ian Peikon and Tim Hanson for contributing a section on IEEE1394 camera using DMA support </P
+></LI
+></OL
+><P
+>With the above background, we begin our discussion about the
+  various functions, data structures and other miscellaneous features
+  available in the <TT
+CLASS="filename"
+>dc1394_control.h</TT
+> file.</P
+><P
+>We would like to mention one important aspect of the <TT
+CLASS="filename"
+>dc1394_control.h</TT
+> file, which is that it lists out the values that can be set for the data speeds, frame rates, camera modes and image formats. All the values are in the form of enumerations to help you write readable code.  For example, enumeration for speed indicates that the data speed can be set only as 100, 200, 400, 800, 1600 or 3200. </P
+><P
+>The <TT
+CLASS="filename"
+>dc1394_control.h</TT
+> also lists the features (brightness, hue, sharpness, saturation, etc.) supported for your camera.</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="imp_data_structs"
+></A
+>4.1. Important Data Structures</H2
+><P
+>The library provides some structures which are useful in
+  storing camera and image related information. They have been
+  declared in the <TT
+CLASS="filename"
+>dc1394_control.h</TT
+> file.</P
+><DIV
+CLASS="informaltable"
+><A
+NAME="AEN338"
+></A
+><P
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Structure</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Use</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>dc1394_camerainfo</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Helps in accessing the information about the camera model, vendor, ccr_offset (used to access the registers).</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>dc1394_cameracapture</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Contains various parameters that are to be manipulated
+while the camera setup. It also declares a buffer of <TT
+CLASS="varname"
+>int</TT
+> type that will be used to store the grabbed frame.</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>dc1394_misc_info</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Contains the information about the ISO channel id, iso-channel speed, memory channel number.</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>dc1394_feature_info</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Contains the information about a particular feature (brightness, hue, gamma, white balance, etc.,) for example the availability and values for it.</P
+></TD
+></TR
+></TBODY
+></TABLE
+><P
+></P
+></DIV
+><P
+>We will be largely concerned with the dc1394_cameracapture structure.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="function_types"
+></A
+>4.2. Types of functions</H2
+><P
+>We have categorized the functions provided by the library
+   into 6 types. (The categorization is purely done on our own for the
+   ease of discussion). Each of these functions has been declared in
+   <TT
+CLASS="filename"
+>dc1394_control.h</TT
+>. We suggest you to keep a copy of the file on hand while going through the subsequent section.</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>Get/Query Functions</P
+></LI
+><LI
+><P
+>Set Functions</P
+></LI
+><LI
+><P
+>Print Functions</P
+></LI
+><LI
+><P
+>Setup Functions </P
+></LI
+><LI
+><P
+>Format7 Functions</P
+></LI
+><LI
+><P
+>Release Functions </P
+></LI
+></OL
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="get-query"
+></A
+>4.2.1. Get/Query Functions</H3
+><P
+>These functions are used to get the value of various
+    features of the camera, the information about the ISO channel,
+    trigger mode, frame rate, format and mode. The functions contain
+   <TT
+CLASS="varname"
+>get</TT
+> or <TT
+CLASS="varname"
+>query</TT
+> in their names.</P
+><P
+>For example, 
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;int dc1394_get_gamma (raw1394handle_t handle, node_t node, unsigned
+int *gamma)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+> 
+gets the value of the gamma attribute for the camera.</P
+><P
+>Most of the <TT
+CLASS="varname"
+>get</TT
+> functions take a minimum of three parameters: </P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>Both the <TT
+CLASS="function"
+>raw1394handle_t</TT
+>
+      and <TT
+CLASS="function"
+>node_t</TT
+> nodes: these two together identify the camera</P
+></LI
+><LI
+><P
+>A pointer to obtain the value, for example,
+      <TT
+CLASS="userinput"
+><B
+>int * gamma</B
+></TT
+></P
+></LI
+></OL
+><P
+>If we try to trace the flow of the function call, we can understand what actually happens:</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN403"
+></A
+><P
+><B
+>Figure 1. Flow of get function call</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig1.jpg"></P
+></DIV
+></DIV
+><P
+>In case the <TT
+CLASS="varname"
+>get</TT
+> function you called is
+    meant to retrieve the value of a camera feature (the value for the
+    parameters listed in feature enumeration), that
+    <TT
+CLASS="varname"
+>get</TT
+> function will call another
+    <TT
+CLASS="varname"
+>get</TT
+> function (<TT
+CLASS="function"
+>GetFeatureValue</TT
+>), which takes the enumeration value of the feature as input. For example, in the
+    case of gamma value, the function passes 422 as the value (this
+    value can be calculated from the enumeration given in the
+    <TT
+CLASS="filename"
+>dc1394_control.h</TT
+> file).</P
+><P
+>Ultimately, the
+    <TT
+CLASS="function"
+>GetCameraControlRegister</TT
+> function, whose task is
+    to get the value from the appropriate control registers, is
+    called. This functions takes the offset value (<TT
+CLASS="function"
+>octlet_t
+    offset</TT
+>), which is the offset from the base register as
+    the input to its call. The function prototype is declared in <TT
+CLASS="filename"
+>dc1394_internal.h</TT
+>.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;GetCameraControlRegister (raw1394handle_t handle, nodeid_t node,
+                         octlet_t offset, quadlet_t *value)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>The above will store the final result in the <TT
+CLASS="varname"
+>value</TT
+>.</P
+><DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>Note on data types:</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>The library makes use of typedefed data types
+<TT
+CLASS="varname"
+>octlet_t</TT
+> and <TT
+CLASS="varname"
+>quadlet_t</TT
+> very frequently . These are defined in <TT
+CLASS="filename"
+>dc1394_internal.h</TT
+> and stand for 8-byte and 4-byte data types.</P
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>The <TT
+CLASS="function"
+>GetCameraControlRegister</TT
+> function
+    will in turn call <TT
+CLASS="function"
+>dc1394_get_camera_info()</TT
+> to get the address of the base register:</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;camera-&#62;ccr_base = CONFIG_ROM_BASE + info-&#62;ccr_offset;
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Once the base register and the offset is known,
+<TT
+CLASS="function"
+>raw1394_read()</TT
+> is called by <TT
+CLASS="function"
+>GetCameraControlRegister</TT
+> to read the actual values.</P
+><P
+>Now the <TT
+CLASS="varname"
+>get</TT
+> function
+(<TT
+CLASS="function"
+>dc1394_get_gamma</TT
+>) uses the value returned by the <TT
+CLASS="function"
+>GetCameraControlRegister</TT
+> to modify the parameter gamma.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;int dc1394_get_gamma (raw1394handle_t handle, node_t node , unsigned int *gamma )
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>In this way, the user obtains the value of the camera parameter he queried for.</P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="set_functions"
+></A
+>4.2.2. Set Functions</H3
+><P
+>These functions are used to set the values of various
+     camera features. There is a corresponding set function for almost
+     each get function. You can recognize these functions by searching
+     for <TT
+CLASS="varname"
+>set</TT
+> string.</P
+><P
+>For example,</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>dc1394_set_gamma (raw1394handle_t handle, nodeid_t node, int
+gamma)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Like the <TT
+CLASS="function"
+>get</TT
+> function, this function needs
+<TT
+CLASS="function"
+>raw1394handle_t</TT
+> and <TT
+CLASS="function"
+>nodeid_t</TT
+> for camera identification.</P
+><P
+>The other parameter, <TT
+CLASS="parameter"
+><I
+>gamma</I
+></TT
+>, is the user-specified value for the gamma parameter.</P
+><P
+>The flow of the function call is quite helpful in
+     understanding what is actually happening. The flow is exactly
+     same as that of the <TT
+CLASS="varname"
+>get</TT
+> function. The only
+     difference is this time all the intermediate functions are also
+     <TT
+CLASS="varname"
+>set</TT
+> functions, and instead of
+    <TT
+CLASS="function"
+>raw1394_read()</TT
+>, it uses <TT
+CLASS="function"
+>raw1394_write()</TT
+> to write the value of the camera parameter on to the registers.</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN465"
+></A
+><P
+><B
+>Figure 2. Flow of set function call</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig2.jpg"></P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="print_functions"
+></A
+>4.2.3. Print Functions</H3
+><P
+>There are three print functions available:</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_print_camera_info</TT
+>:
+      This function is used to print the values stored in the
+      dc1394camera_info structure. The print function is usually
+      called after <TT
+CLASS="function"
+>dc1394_get_camera_info()</TT
+> to ensure that the dc1394camera_info structure is not NULL. </P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_print_feature</TT
+>: This function is used to print the value of any feature. It takes as an input the pointer to dc1394_feature_info structure.</P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_print_feature_set</TT
+>: This function is used to print the values of all features present in the camera. It takes as an input the pointer to dc1394_feature_set structure. The function call basically calls dc1394_print_feature repeatedly in a <EM
+>for</EM
+> loop.</P
+></LI
+></OL
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="setup_functions"
+></A
+>4.2.4. Setup Functions</H3
+><P
+>As the name suggests, these functions are used to prepare
+     the camera to start grabbing the images. In order to setup the
+     camera, some parameters must be passed to the function. The
+     number and the type of parameters are specific to the setup
+     function, but essentially three parameters must be passed in
+     all the setup functions: <TT
+CLASS="parameter"
+><I
+>raw1394handle_t</I
+></TT
+>,
+     <TT
+CLASS="parameter"
+><I
+>nodeid_t</I
+></TT
+> and the pointer to the dc1394_cameracapture structure (this is to provide the buffer for grabbed images and keep attributes, like height and width of frame).</P
+><P
+>As mentioned previously, <TT
+CLASS="parameter"
+><I
+>raw1394handle_t</I
+></TT
+> and <TT
+CLASS="parameter"
+><I
+>nodeid_t</I
+></TT
+> uniquely define the camera, while the pointer to dc1394_cameracapture provides the buffer for the image frame to be grabbed. It also stores information about the width and height of the frame which is useful at the time of image processing.</P
+><P
+>Other parameters that are passed are data speed, frame rate, image format, image mode and ISO channel number. </P
+><P
+>In case the camera uses DMA, the number of <TT
+CLASS="varname"
+>DMA buffers</TT
+> and <TT
+CLASS="varname"
+>drop frames</TT
+> is to be provided. In most applications you will want to set the number of DMA buffers relatively low(i.e. 1) this ensures that you are viewing frames in near real time. Drop frames is also important for real time as it causes the capture function to throw away the frames buffered in the DMA ring buffer except fot the last. We will discuss about DMA functions in the later part of this HowTo</P
+><P
+>The various setup functions are:</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_dma_setup_capture</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_setup_capture</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_setup_format7_capture</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_dma_setup_format7_capture</TT
+></P
+></LI
+></OL
+><P
+>These setup functions have been defined in <TT
+CLASS="filename"
+>dc1394_capture.c</TT
+>.</P
+><P
+>You have a choice while passing the values for the
+     parameters, like data-speed, format, mode, and channel. Instead
+     of providing the value yourself, you may instruct the function to
+     take the value from the camera. This can be done by passing
+     <TT
+CLASS="envar"
+>QUERY_FROM_CAMERA</TT
+> in place of the actual value for that function parameter.</P
+><P
+>The basic flow of control is easy to understand:</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN518"
+></A
+><P
+><B
+>Figure 3. Flow of the setup function call</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig3.jpg"></P
+></DIV
+></DIV
+><P
+>As shown in Figure 3, the Setup function in turn calls various set functions to set the parameter values to the camera registers. In the case of DMA setup, after the set functions have been called the ioctl system call is called to allocate memory for the DMA buffers and returns a pointer <TT
+CLASS="parameter"
+><I
+>capture_buffer</I
+></TT
+> in user space.</P
+><P
+>The ioctl system calls will fail if the DMA is not setup correctly</P
+><P
+>The setup functions also allocate memory for the camera _capture buffer:</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>camera-&#62;capture_buffer=(int*)malloc(camera-&#62;quadlets_per_frame*4);
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="format7_functions"
+></A
+>4.2.5. Format7 Functions</H3
+><P
+>These functions are used only if the camera is set for Format7. This format is preferred since this allows the user to define the size of the image to be captured according to his need. By default the size is 1024x768; you can set it to different dimensions, say 960x720.</P
+><P
+>All Format7 functions have <TT
+CLASS="varname"
+>format7</TT
+> in
+     their function names, and the functions have been defined in a
+     separate file, <TT
+CLASS="filename"
+>dc1394_format7.c</TT
+>.</P
+><P
+>The setup function for Format7 has a minor difference from the normal setup since it also asks for the size of the frame, while you don't have to pass the format parameter as the setup function, as it is meant only for a particular format, for example Format7. The function call flow remains the same as discussed in the previous section.</P
+><P
+>The Format7 <TT
+CLASS="varname"
+>get</TT
+> functions are called
+     query functions. The mechanism is different from the normal
+     get/query functions: they don't call
+     <TT
+CLASS="function"
+>GetCameraControlRegister</TT
+>; instead, they call <TT
+CLASS="function"
+>GetCameraFormat7Register()</TT
+>.</P
+><P
+>The following flowchart will make the differences evident:</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN543"
+></A
+><P
+><B
+>Figure 4. Flow of the Format7 query function call</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig4.jpg"></P
+></DIV
+></DIV
+><P
+>The Format7 query function will call
+     <TT
+CLASS="function"
+>GetCameraFormat7Register</TT
+>, which is supposed
+     to read the values from the control and status registers of the
+     camera. This function in turn will call the
+     <TT
+CLASS="function"
+>QueryFormat</TT
+> and
+     <TT
+CLASS="function"
+>CSROffset</TT
+> to know the offset for the
+     particular information that has been queried. After getting the offset, <TT
+CLASS="function"
+>raw1394_read</TT
+> is used to actually read the values.</P
+><P
+>The Format7 set functions also follow the same logic with
+     the obvious difference that the reading functions are replaced by
+     writing functions, for example, <TT
+CLASS="function"
+>SetCameraFormat7Register</TT
+> and <TT
+CLASS="function"
+>raw1394_write()</TT
+>.</P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="release_functions"
+></A
+>4.2.6. Release Functions</H3
+><P
+>These are the final set of functions identified by us. The basic job of these functions is to release the memory allocated to the capture buffer by the setup routine. This is essential to save the system from memory leaks.</P
+><P
+>These functions are defined in <TT
+CLASS="filename"
+>dc1394_capture.c:</TT
+></P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>dc1394_release_camera()</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>This function in turn calls <TT
+CLASS="function"
+>free (camera -&#62; capture_buffer)</TT
+>, which frees the memory.</P
+><P
+>Similarly, the release function is available for DMA setup.</P
+></DIV
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="coriander_app"
+></A
+>4.3. <SPAN
+CLASS="application"
+>Coriander</SPAN
+>: A GUI for the libdc1394 library</H2
+><P
+><SPAN
+CLASS="application"
+>Coriander</SPAN
+> helps in easy handling
+    of the IEEE1394 cameras. It uses the above discussed functions and
+    libraries and provides a GUI for them. The main advantage of <SPAN
+CLASS="application"
+>Coriander</SPAN
+> is that it saves time that is
+    normally wasted in camera setup.  Also, <SPAN
+CLASS="application"
+>Coriander</SPAN
+> shows only those features and
+    attributes that are present on the camera and hence you can judge
+    how useful the camera will be for your application
+    development. The most important feature of <SPAN
+CLASS="application"
+>Coriander</SPAN
+> is its ability to display the captured image at run-time. </P
+><P
+><SPAN
+CLASS="application"
+>Coriander</SPAN
+> also allows the user to
+    convert a BGGR image to RGB. We will discuss the meaning of these
+    types of images in detail in later sections. Some files that can be
+    useful in understanding the functionality of <SPAN
+CLASS="application"
+>Coriander</SPAN
+> are:</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+><TT
+CLASS="filename"
+>thread_iso.c</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="filename"
+>Camera.c</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="filename"
+>main.c</TT
+></P
+></LI
+></OL
+><P
+>The <SPAN
+CLASS="application"
+>Coriander</SPAN
+> homepage contains
+    an excellent user manual which can be useful in case of any
+    difficulty: <A
+HREF="http://damien.douxchamps.net/ieee1394/coriander/manual.php"
+TARGET="_top"
+>http://damien.douxchamps.net/ieee1394/coriander/manual.php</A
+>.</P
+><P
+>Our use of <SPAN
+CLASS="application"
+>Coriander</SPAN
+> was limited
+    only to checking that the camera was working properly and confirming
+    the focus was correct. We will give some more usage information
+    for <SPAN
+CLASS="application"
+>Coriander</SPAN
+> in later sections.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="example"
+></A
+>4.4. Example: How to grab image from the IEEE1394 camera</H2
+><P
+>In this section we will demonstrate how to write a small
+    program to grab an image from the camera. We have taken the
+    program (<TT
+CLASS="filename"
+>grab_gray_image.c</TT
+>) given in the examples in the library tar file. We have removed some lines to increase the readability of the code. We have provided the explanation for this code below. In order to provide you with a clear picture of which section of the code does what, we grouped the code lines together by task below.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="screen"
+>&#13;  #include &#60;stdio.h&#62;
+  #include &#60;libraw1394/raw1394.h&#62;
+  #include &#60;libdc1394/dc1394_control.h&#62;
+  #include &#60;stdlib.h&#62;                                     <A
+NAME="header"
+><IMG
+SRC="../images/callouts/1.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(1)"></A
+>
+  #define IMAGE_FILE_NAME "Image.pgm"
+
+  int main(int argc, char *argv[]) 
+  {
+
+    FILE* imagefile;
+    dc1394_cameracapture camera;
+    int numNodes;
+    int numCameras;
+    raw1394handle_t handle;
+    nodeid_t * camera_nodes;                              <A
+NAME="d_types"
+><IMG
+SRC="../images/callouts/2.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(2)"></A
+>
+
+         /* Open ohci and asign handle to it */
+
+         handle = dc1394_create_handle(0);                <A
+NAME="ohci"
+><IMG
+SRC="../images/callouts/3.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(3)"></A
+>
+    if (handle==NULL)
+    {
+         fprintf( stderr, "Unable to aquire a raw1394 handle\n\n"
+                    );
+         exit(1);
+    }
+
+         /* get the camera nodes and describe them as we find them */
+                                                          <A
+NAME="c_nodes"
+><IMG
+SRC="../images/callouts/4.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(4)"></A
+>
+    numNodes = raw1394_get_nodecount(handle);
+    camera_nodes = dc1394_get_camera_nodes(handle,&#38;numCameras,1);
+    fflush(stdout);
+    if (numCameras&#60;1)
+    {
+      fprintf( stderr, "no cameras found :(\n");
+      dc1394_destroy_handle(handle);
+      exit(1);
+    }
+    printf("working with the first camera on the bus\n");
+
+    if( camera_nodes[0] == numNodes-1)                    <A
+NAME="condition"
+><IMG
+SRC="../images/callouts/5.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(5)"></A
+>
+    {
+      fprintf( stderr, "\n"
+         "Sorry, your camera is the highest numbered node\n");
+      dc1394_destroy_handle(handle);
+      dc1394_free_camera_nodes(camera_nodes);
+      exit( 1);
+    }
+
+    /*setup capture */
+
+    if (dc1394_setup_capture(handle,camera_nodes[0],      <A
+NAME="setup"
+><IMG
+SRC="../images/callouts/6.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(6)"></A
+>
+                             0, /* channel */ 
+
+                             FORMAT_VGA_NONCOMPRESSED,
+                             MODE_640x480_MONO,
+                             SPEED_400,
+                             FRAMERATE_7_5,
+                             &#38;camera)!=DC1394_SUCCESS) 
+    {
+      fprintf( stderr,"unable to setup camera-\n"
+         "check line %d of %s to make sure\n"
+         "that the video mode,framerate and format are\n"
+         "supported by your camera\n",
+         __LINE__,__FILE__);
+      dc1394_release_camera(handle,&#38;camera);
+      dc1394_destroy_handle(handle);
+      dc1394_free_camera_nodes(camera_nodes);
+      exit(1);
+    }
+    dc1394_free_camera_nodes(camera_nodes);
+
+    /* set trigger mode */
+
+    if( dc1394_set_trigger_mode(handle, camera.node, TRIGGER_MODE_0)
+        != DC1394_SUCCESS)
+    {                                                     <A
+NAME="trigger"
+><IMG
+SRC="../images/callouts/7.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(7)"></A
+>
+      fprintf( stderr, "unable to set camera trigger mode\n");
+#if 0
+      dc1394_release_camera(handle,&#38;camera);
+      dc1394_destroy_handle(handle);
+      exit(1);
+#endif
+    }
+
+    /* have the camera start sending us data*/
+
+    if (dc1394_start_iso_transmission(handle,camera.node)
+        !=DC1394_SUCCESS) 
+    {                                                     <A
+NAME="c_send"
+><IMG
+SRC="../images/callouts/8.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(8)"></A
+>
+      fprintf( stderr, "unable to start camera iso transmission\n");
+      dc1394_release_camera(handle,&#38;camera);
+      dc1394_destroy_handle(handle);
+      exit(1);
+    }
+
+    /* capture one frame */
+
+    if (dc1394_single_capture(handle,&#38;camera)!=DC1394_SUCCESS) 
+    {
+      fprintf( stderr, "unable to capture a frame\n");    <A
+NAME="c_frame"
+><IMG
+SRC="../images/callouts/9.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(9)"></A
+>
+      dc1394_release_camera(handle,&#38;camera);
+      dc1394_destroy_handle(handle);
+      exit(1);
+    }
+
+    /* Stop data transmission */
+
+    if (dc1394_stop_iso_transmission(handle,camera.node)!=DC1394_SUCCESS)
+    {
+      printf("couldn't stop the camera?\n");              <A
+NAME="stop_d"
+><IMG
+SRC="../images/callouts/10.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(10)"></A
+>
+    }
+
+    /* save image as 'Image.pgm' */
+
+    imagefile=fopen(IMAGE_FILE_NAME, "w");
+
+    if( imagefile == NULL)
+    {
+      perror( "Can't create '" IMAGE_FILE_NAME "'");
+      dc1394_release_camera(handle,&#38;camera);
+      dc1394_destroy_handle(handle);
+      exit( 1);
+    }
+
+    /* Adding the pgm file header */
+
+    fprintf(imagefile,"P5\n%u %u 255\n", camera.frame_width,
+         camera.frame_height );
+                                                          <A
+NAME="pgm_header"
+><B
+>(11)</B
+></A
+>
+    /* Writing to the file */
+
+    fwrite((const char *)camera.capture_buffer, 1,
+         camera.frame_height*camera.frame_width, imagefile);
+    fclose(imagefile);                                    <A
+NAME="fwrite"
+><B
+>(12)</B
+></A
+>
+    printf("wrote: " IMAGE_FILE_NAME "\n");
+
+    /* Close camera */
+
+    dc1394_release_camera(handle,&#38;camera);
+    dc1394_destroy_handle(handle);
+    return 0;                                             <A
+NAME="c_camera"
+><B
+>(13)</B
+></A
+>
+}
+</PRE
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="calloutlist"
+><DL
+COMPACT="COMPACT"
+><DT
+><A
+HREF="concepts.html#header"
+><IMG
+SRC="../images/callouts/1.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(1)"></A
+></DT
+><DD
+>Include the header files, which means include:</DD
+><P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="filename"
+>libraw1394/raw1394.h</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="filename"
+>libdc1394/dc1394_control.h</TT
+></P
+></LI
+></UL
+><DD
+><P
+>These are necessary in order to access functions of the library.</P
+></DD
+><DT
+><A
+HREF="concepts.html#d_types"
+><IMG
+SRC="../images/callouts/2.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(2)"></A
+></DT
+><DD
+>Declare three variables of the following data types:</DD
+><P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="varname"
+>dc1394_cameracapture</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="varname"
+>raw1394handle_t</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="varname"
+>nodeid_t *</TT
+></P
+></LI
+></UL
+><DD
+><P
+>The <TT
+CLASS="varname"
+>raw1394handle_t</TT
+> and <TT
+CLASS="varname"
+>nodeid_t *</TT
+> are required to uniquely identify the camera. Moreover, <TT
+CLASS="varname"
+>raw1394handle_t</TT
+> is used to hold the handle that is created for the OHCI-compliant host card.</P
+></DD
+><DT
+><A
+HREF="concepts.html#ohci"
+><IMG
+SRC="../images/callouts/3.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(3)"></A
+></DT
+><DD
+>Open ohci and assign a handle to it.</DD
+><DD
+><P
+>This is done by:</P
+></DD
+><DD
+><P
+><TT
+CLASS="userinput"
+><B
+>handle=dc1394_create_handle(0)</B
+></TT
+></P
+></DD
+><DD
+><P
+>Where <TT
+CLASS="varname"
+>handle</TT
+> is of the <SPAN
+CLASS="type"
+>raw1394handle_t</SPAN
+>type&#62; type. The parameter <TT
+CLASS="parameter"
+><I
+>0</I
+></TT
+> refers to the position of the camera on host card (there may be more than one slot on the host card; 0 means that the camera is on the first slot ).</P
+></DD
+><DD
+><P
+>If the wrong number is passed, the handle will not be created. </P
+></DD
+><DT
+><A
+HREF="concepts.html#c_nodes"
+><IMG
+SRC="../images/callouts/4.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(4)"></A
+></DT
+><DD
+>Get camera nodes:</DD
+><DD
+><P
+>There can be more than one camera node, since IEEE1394 supports multiple devices on a single port. But for our discussion we will assume that only a single camera is present. Here is how to get nodes:</P
+></DD
+><DD
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;int numNodes = raw1394_get_nodecount(raw1394handle_t handle)
+camera_nodes=dc1394_getcamera_nodes(handle,&#38;numCameras,1)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DD
+><DD
+><P
+>If the number of cameras returned is <TT
+CLASS="varname"
+>numCameras &#60;1</TT
+>, this means no camera has been detected.</P
+></DD
+><DD
+><P
+><TT
+CLASS="varname"
+>1</TT
+> in the function signifies that a printed description of the camera node found will be shown on the console.</P
+></DD
+><DT
+><A
+HREF="concepts.html#condition"
+><IMG
+SRC="../images/callouts/5.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(5)"></A
+></DT
+><DD
+>Check the condition of <TT
+CLASS="varname"
+>camera_nodes[0]==numNodes -1</TT
+>. It must be false. The explanation for this is outside the scope of this document.</DD
+><DT
+><A
+HREF="concepts.html#setup"
+><IMG
+SRC="../images/callouts/6.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(6)"></A
+></DT
+><DD
+>Call the setup function and pass the various parameters.
+     For example, let us examine the setup function of the above
+     example: </DD
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;     dc1394_setup_capture(
+
+/* handle and camera_nodes[0] uniquely identifies the camera */
+     handle,
+    camera_nodes[0],
+    0, /* channel */
+
+/*format of the Image */
+    FORMAT_VGA_NONCOMPRESSED, MODE_640x480_MONO, /* mode of the image */
+    SPEED_400, /* data speed */
+    FRAMERATE_7_5, /*Frame rate */
+    &#38;camera /*dc1394_cameracapture type pointer *./
+    )!=DC1394_SUCCESS) 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DD
+><P
+>Our suggestion is that the various parameters should be first queried from the camera and then passed. This is helpful in a successful setup since often the user does not know actual values of the various parameters that have to be passed in the setup function call, and ends up passing the wrong values. In such situations the setup is not done correctly and the camera doesn't get initialized.</P
+></DD
+><DD
+><P
+>We are listing the appropriate <TT
+CLASS="function"
+>get</TT
+> functions that should be called first in order to obtain the correct values of the setup parameters:</P
+></DD
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_get_iso_channel_and_speed(handle,camera_nodes[0], &#38;channel,&#38;speed);</TT
+> /* to get the channel and the data speed */</P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_get_video_format(handle,camera_nodes[0],&#38;format);</TT
+> /*to get the format */</P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_get_video_framerate(handle,camera_nodes[0],&#38;framerate);</TT
+> /* to get the framerate*/</P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_get_video_mode(handle,camera_nodes[0],&#38;mode);</TT
+> /* to get the mode */</P
+></LI
+></OL
+><DD
+><P
+>So the above <TT
+CLASS="function"
+>dc1394_setup_capture</TT
+>
+    function call will look like this:</P
+></DD
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;     dc1394_setup_capture(
+
+/* handle and camera_nodes[0] uniquely identifies the camera */
+     handle, 
+     camera_nodes[0],
+
+   /*we pass the variables instead of actual values */
+     channel ,
+     format, 
+     mode, 
+     speed,
+     framerate,
+     &#38;camera /*dc1394_cameracapture type pointer *./
+     )!=DC1394_SUCCESS) 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DT
+><A
+HREF="concepts.html#trigger"
+><IMG
+SRC="../images/callouts/7.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(7)"></A
+></DT
+><DD
+>Setting the trigger mode. This is generally not required. This is just like brightness:</DD
+><DD
+><P
+><TT
+CLASS="function"
+>dc1394_set_trigger_mode(handle,camera.node,TRIGGER_MODE_0)</TT
+> sets the trigger mode to 0.</P
+></DD
+><DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>Note on nodes:</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>We have passed <TT
+CLASS="varname"
+>camera.node</TT
+> which indicates that the dc1394_cameracapture structure is being used and only the particular node for which the camera has been setup is being referred to, but we can also use <TT
+CLASS="varname"
+>camera_nodes[0]</TT
+>.</P
+></TD
+></TR
+></TABLE
+></DIV
+><DT
+><A
+HREF="concepts.html#c_send"
+><IMG
+SRC="../images/callouts/8.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(8)"></A
+></DT
+><DD
+>Have the camera start sending the data to the user. This is done by starting the ISO transmission. The following function is used: </DD
+><DD
+><P
+><TT
+CLASS="function"
+>dc1394_start_iso_transmission(handle,camera.node)</TT
+></P
+></DD
+><DT
+><A
+HREF="concepts.html#c_frame"
+><IMG
+SRC="../images/callouts/9.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(9)"></A
+></DT
+><DD
+>Capture one frame by calling the function:</DD
+><DD
+><P
+><TT
+CLASS="function"
+>dc1394_single_capture(handle,&#38;camera)</TT
+></P
+></DD
+><DD
+><P
+>Where <TT
+CLASS="varname"
+>camera</TT
+> is a pointer to the structure dc1394_cameracapture. This function will grab the image and store it in the buffer (capture_buffer) provided by the structure.</P
+></DD
+><DD
+><P
+>In order to capture more than one frame use a for loop and place the function inside it:</P
+></DD
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;for( i=0;i&#60;100 ;i++)/* to capture 100 images*/
+dc1394_single_capture(handle,&#38;camera)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DT
+><A
+HREF="concepts.html#stop_d"
+><IMG
+SRC="../images/callouts/10.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(10)"></A
+></DT
+><DD
+>After the image has been grabbed, stop the data transmission by calling the following function:</DD
+><DD
+><P
+><TT
+CLASS="function"
+>dc1394_stop_iso_transmission(handle,camera.node)</TT
+></P
+></DD
+><A
+NAME="pgm_header_anchor"
+></A
+><DT
+><A
+HREF="concepts.html#pgm_header"
+><B
+>(11)</B
+></A
+></DT
+><DD
+>Add a PGM file header to the captured buffer to see the image using <SPAN
+CLASS="application"
+>gimp</SPAN
+>.</DD
+><DT
+><A
+HREF="concepts.html#fwrite"
+><B
+>(12)</B
+></A
+></DT
+><DD
+>Use <B
+CLASS="command"
+>fwrite</B
+>
+      to save the captured image, by writing the buffer
+      (<TT
+CLASS="parameter"
+><I
+>camera.capture_buffer</I
+></TT
+>) to a file. The
+      other parameters like height and width of the image can be
+      extracted from the same structure: <TT
+CLASS="parameter"
+><I
+>camera.frame_width</I
+></TT
+>, <TT
+CLASS="parameter"
+><I
+>camera.frame_height</I
+></TT
+>.</DD
+><DT
+><A
+HREF="concepts.html#c_camera"
+><B
+>(13)</B
+></A
+></DT
+><DD
+>Close the camera. This step is necessary to prevent a memory leak:</DD
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;dc1394_release_camera(handle,&#38;camera);
+dc1394_destroy_handle(handle);
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DD
+><P
+>In order to compile the program, use: <B
+CLASS="command"
+>gcc -o
+       grabImage grabImage.c -ldc1394_control -lraw1394</B
+>,
+       where <TT
+CLASS="filename"
+>grabImage.c</TT
+> is your program.</P
+></DD
+></DL
+></DIV
+><P
+>We hope that after going through this algorithmic way explanation you can comfortably understand the example code.</P
+><P
+>If we used the Format7 image format, we would have to
+       change only the <TT
+CLASS="function"
+>setup_capture</TT
+> function. Let us look at the setup function:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;      dc1394_setup_format7_capture(
+  /* handle and camera_nodes[0] uniquely identifies the camera */
+            handle,
+            camera_nodes[0],
+            channel, /* channel */
+            mode , /*mode */
+            bytes_per_packet , 
+            left ,/*area of interest start column */
+            right, /*area of interest start row */
+            width,/* area of interest width */
+            height /* area of interest height */
+           &#38;camera /* dc1394_cameracapture type pointer *./
+            )!=DC1394_SUCCESS) 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+where the values of the parameters for channel, speed, bytes_per_packet, speed, mode are found using the following functions:</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_get_iso_channel_and_speed(handle,camera_nodes[0], &#38;channel,&#38;speed)</TT
+> /* to get the channel and the data speed */</P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_get_video_mode(handle,camera_nodes[0] &#38;mode);</TT
+> /* to get the mode */</P
+></LI
+><LI
+><P
+><TT
+CLASS="function"
+>dc1394_query_format7_byte_per_packet(handle, camera_nodes[0], mode ,&#38;bytes_per_packet);</TT
+> /* to get the bytes per packet which depends on the mode*/</P
+></LI
+><LI
+><P
+>The value of left, top can be set to <TT
+CLASS="envar"
+>QUERY_FROM_CAMERA</TT
+>, or can be specified directly by the user.</P
+></LI
+><LI
+><P
+>The value of the width and height depends on the size of frame the user wants, for example, if one wants 960x720 then pass 960 as width and 720 as height.</P
+></LI
+></OL
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="dma example"
+></A
+>4.5. Example: How to grab image from the IEEE1394 camera using DMA</H2
+><P
+>This section has been contributed by Ian Peikon <TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:idp2@duke.edu"
+><A
+HREF="mailto:idp2@duke.edu"
+TARGET="_top"
+>idp2@duke.edu</A
+></A
+>&#62;</TT
+>and Tim Hanson <TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:tim@hardcarve.com"
+><A
+HREF="mailto:tim@hardcarve.com"
+TARGET="_top"
+>tim@hardcarve.com</A
+></A
+>&#62;</TT
+>
+	We will now present an example of how to grab a frame by the camera using DMA calls. The example is simple to understand as the logic remains the same as the previous example. We will later compare the function calls used in the previous example (without dma) and this example (with dma) for better understanding.
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;#include &#60;stdio.h&#62;
+#include &#60;libraw1394/raw1394.h&#62;
+#include &#60;libdc1394/dc1394_control.h&#62;
+#include &#60;stdlib.h&#62;  
+#include &#60;iostream&#62;
+#define IMAGE_FILE_NAME "Image.pgm"
+using namespace std;
+
+int main(int arc, char *argv[]){
+        FILE * imagefile;
+        dc1394_cameracapture camera;
+        int numNodes;
+        int numCameras;
+        raw1394handle_t handle;
+        nodeid_t * camera_nodes;
+        unsigned int channel, speed, format, framerate, mode;
+        
+        /*Step 1: Open ohci and assign a handle to it.*/
+	/*=======================================================*/
+	handle = dc1394_create_handle(0);
+        if(handle==NULL){
+                fprintf(stderr, "Unable to acquire a handle. \n\n");
+        }
+        else{
+		 cout &#60;&#60;"dma1394: Handle aquired successfully-" &#60;&#60;handle&#60;&#60;"\n";
+        }
+        
+/*Step 2: Get the camera nodes and describe them as we find them.*/
+	/*=========================================================================*/
+	numNodes = raw1394_get_nodecount(handle);
+        camera_nodes = dc1394_get_camera_nodes(handle, &#38;numCameras, 1);
+        fflush(stdout);
+        if (numCameras&#60;1){
+                fprintf(stderr, "No cameras found :( \n");
+                dc1394_destroy_handle(handle);
+                return -1;
+        }
+        else{
+                cout&#60;&#60;"dma1394:"&#60;&#60; numCameras&#60;&#60;" cameras found. \n";
+        }
+        printf("dma1394: Working with the first camera on the bus.\n");
+        if(camera_nodes[0] == numNodes-1){
+                fprintf(stderr, "\n" "dma1394: Sorry, your camera is the highest numbered node.\n");
+                dc1394_destroy_handle(handle);
+                dc1394_free_camera_nodes(camera_nodes);
+                return -1;
+        }
+        
+/*Step 3: Setup Capture*/
+	/*=====================================================================*/
+	/*Using camera functions to get the params by querying them*/
+	cout&#60;&#60;"INFO FOR DEBUG: \n"
+                        "num_dma_buffers: "&#60;&#60; camera.num_dma_buffers&#60;&#60;"\n";
+        dc1394_get_iso_channel_and_speed(handle, camera_nodes[0], &#38;channel, &#38;speed); /*get channel and speed*/
+	dc1394_get_video_format(handle, camera_nodes[0], &#38;format); /*get format*/
+	dc1394_get_video_framerate(handle, camera_nodes[0], &#38;framerate); /*get framerate*/
+	dc1394_get_video_mode(handle, camera_nodes[0], &#38;mode); /*get mode*/
+	cout&#60;&#60;"dc1394: Got parameters from the camera.\n"
+                "=======================================\n"
+                "Channel: "&#60;&#60; channel&#60;&#60; " \n"
+                "Speed: " &#60;&#60;speed &#60;&#60;" \n"
+                "Format: "&#60;&#60; format &#60;&#60;" \n"
+                "Framerate: " &#60;&#60;framerate&#60;&#60; "\n"
+                "Mode: "&#60;&#60; mode &#60;&#60;"\n";
+        camera.num_dma_buffers = 8; /* set the dma buffers */
+        camera.drop_frames = 1; /* set the number of drop frames */
+        camera.dma_device_file = NULL;
+        if(dc1394_dma_setup_capture(handle, camera_nodes[0], channel, format, mode, speed, framerate, camera.num_dma_buffers, camera.drop_frames, camera.dma_device_file, &#38;camera) !=DC1394_SUCCESS){
+                fprintf(stderr, "dma1394: Unable to setup camera.\n" 
+                                        "Check line %d of %s to ensure that the options set are supported by your camera.\n", __LINE__, __FILE__);
+                dc1394_destroy_handle(handle);
+                dc1394_free_camera_nodes(camera_nodes);
+                return -1;
+        }
+        else{
+                printf("dma1394: Capture has been setup.\n");
+        }
+        dc1394_free_camera_nodes(camera_nodes);
+
+        //Set Trigger Mode -- Generally not required thus I will comment it out.
+	/*if(dc1394_set_trigger_mode(handle, camera.node, TRIGGER_MODE_0) != DC1394_SUCCESS){
+                fprintf(stderr, "dma1394: Unable to set the camera trigger mode. Refer to line %d in %s.\n", __LINE__, __FILE__);
+                dc1394_release_camera(handle, &#38;camera);
+                dc1394_destroy_handle(handle);
+        }
+        else{
+                printf("dma1394: Successfully set trigger mode.\n");
+        }*/
+        
+        /*Step 4: Start sending data */
+	/*=======================================================*/
+	if(dc1394_start_iso_transmission(handle, camera.node) != DC1394_SUCCESS){
+                fprintf(stderr, "dma1394: Unable to start the data transmission.\n");
+                dc1394_dma_done_with_buffer(&#38;camera);
+				dc1394_dma_release_camera(handle, &#38;camera);
+                dc1394_destroy_handle(handle);
+                return -1;
+        }
+        else{
+                printf("dma1394: Success.  Data Transmission started.\n");
+        }
+        
+        /*Step 5: Capture Something...Anything...PLEASE*/
+	/*===============================================================*/
+	if(dc1394_dma_single_capture(&#38;camera) != DC1394_SUCCESS){
+                fprintf(stderr, "dma1394; DAIM, can't capture a single frame.\n");
+				dc1394_dma_done_with_buffer(&#38;camera); /*important step */
+                dc1394_dma_release_camera(handle, &#38;camera);
+                dc1394_destroy_handle(handle);
+                return -1;
+        }
+        else{
+                printf("dma1394: GREAT SUCCESS! Captured a single frame.\n");
+        }
+        
+        /*Step 6: Stop sending data*/
+	/*==================================================*/
+	if(dc1394_dma_unlisten(handle, &#38;camera) != DC1394_SUCCESS){
+        		fprintf(stderr, "Can't unlisten iso channel! \n");
+        }
+        else{
+                printf("dma1394: DMA unlistened. \n");
+        }
+        
+	if(dc1394_stop_iso_transmission(handle, camera.node) != DC1394_SUCCESS){
+                fprintf(stderr, " Can't stop the camera!! \n");
+        }
+        else{
+                printf("dma1394: Data transmission terminated. \n");
+        }
+        
+        /*Step 7: Save our image*/
+	/*===============================================================*/
+	imagefile=fopen(IMAGE_FILE_NAME, "w");
+        if(imagefile==NULL){
+                perror("dma1394: Can't create' "IMAGE_FILE_NAME" ' ");
+                dc1394_dma_done_with_buffer(&#38;camera);
+				dc1394_dma_release_camera(handle, &#38;camera);
+                dc1394_destroy_handle(handle);
+                return -1;
+        }
+        else{
+                cout&#60;&#60;"dma1394: Saved image in "&#60;&#60;IMAGE_FILE_NAME&#60;&#60;".\n";
+        }
+         /*Add pgm file header*/
+	fprintf(imagefile, "P5\n%u %u 255\n", camera.frame_width, camera.frame_height);
+       
+		/*write to file*/
+	fwrite((const char *)camera.capture_buffer, 1, camera.frame_height*camera.frame_width, imagefile);
+        fclose(imagefile);
+        printf("dma1394: wrote: " IMAGE_FILE_NAME "\n");
+        
+        /*Step 8: Close camera*/
+	/*=============================================================*/
+	dc1394_dma_done_with_buffer(&#38;camera);
+	dc1394_dma_release_camera(handle, &#38;camera);
+        dc1394_destroy_handle(handle);
+        printf("dma1394: Camera released.  Exiting. \n");
+        
+        //Step END
+	return 0;
+
+}
+
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;Just like the previous example (<A
+HREF="concepts.html#example"
+>Section 4.4</A
+>) the program includes the necessary header files(<TT
+CLASS="filename"
+>libraw1394/raw1394.h</TT
+> and <TT
+CLASS="filename"
+>libdc1394/dc1394_control.h</TT
+>) and then declare the three variables of the following data type
+     <P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="varname"
+>dc1394_cameracapture</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="varname"
+>raw1394handle_t</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="varname"
+>nodeid_t *</TT
+></P
+></LI
+></UL
+>
+
+After this the following steps are followed which are very similar to the previous example (<A
+HREF="concepts.html#example"
+>Section 4.4</A
+>)
+<P
+></P
+><OL
+TYPE="1"
+><LI
+>Open ohci and assign handle to it using the function <TT
+CLASS="function"
+>dc1394_create_handle(0)</TT
+></LI
+><LI
+>Get the camera nodes using the function <TT
+CLASS="function"
+>dc1394_get_camera_nodes</TT
+></LI
+><LI
+>Find out various parameters need to be passed during the camera setup. This is done by querying the camera using the following functions
+<P
+></P
+><UL
+><LI
+><TT
+CLASS="function"
+>dc1394_get_iso_channel_and_speed()</TT
+>: To get the channel and speed information</LI
+><LI
+><TT
+CLASS="function"
+>dc1394_get_video_format()</TT
+>: To get the camera format</LI
+><LI
+><TT
+CLASS="function"
+>dc1394_get_video_framerate()</TT
+>: To get the framerate information</LI
+><LI
+><TT
+CLASS="function"
+>dc1394_get_video_mode()</TT
+>: To get the camera mode</LI
+></UL
+>Also we are required to set the <TT
+CLASS="varname"
+>dma buffers</TT
+>to 8 and <TT
+CLASS="varname"
+>number of drop frames</TT
+>to 1.
+<P
+>&#13;Once the values of the parameter have been obtained (framerate,format,mode,channel,speed etc), they are passed in <TT
+CLASS="function"
+>dc1394_dma_setup_capture</TT
+> which then sets up the camera and enables it for capturing video. For  DMA you must pass the number of dma buffers and drop frames parameter.</P
+></LI
+><LI
+>After the camera is set, <TT
+CLASS="function"
+>dc1394_start_iso_transmission()</TT
+>is called. This function starts data transactions from the camera to the bus.</LI
+><LI
+>Now capture one frame using <TT
+CLASS="function"
+>dc1394_dma_single_capture()</TT
+>. This function will capture a frame into the dma buffer<P
+>&#13;After the frame has been grabbed release the dma buffer using <TT
+CLASS="function"
+>dc1394_dma_done_with_buffer()</TT
+>. This is required so that the memory can be reused. It is imperative that <TT
+CLASS="function"
+>dc1394_dma_done_with_buffer()</TT
+> always follows a <TT
+CLASS="function"
+>dma_capture</TT
+> function call</P
+>So in order to capture more than one frame the code will be
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;for( i=0;i&#60;100 ;i++)/* to capture 100 images*/
+	{
+	dc1394_dma_single_capture(&#38;camera);
+	dc1394_dma_done_with_buffer(&#38;camera);
+	}
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></LI
+><LI
+>Stop listening to the iso channel by calling <TT
+CLASS="function"
+>dc1394_dma_unlisten()</TT
+><P
+>&#13;Terminate the data transmission by calling <TT
+CLASS="function"
+>dc1394_stop_iso_transmission()</TT
+></P
+></LI
+><LI
+>Save the image in a file and add a PGM header for viewing using <SPAN
+CLASS="application"
+>gimp</SPAN
+>.</LI
+><LI
+>Finally call <TT
+CLASS="function"
+>dc1394_release_camera</TT
+>to release the camera</LI
+></OL
+>
+</P
+><P
+>&#13;If DMA is not setup correctly you will get the following error message:
+</P
+><P
+><TT
+CLASS="computeroutput"
+>VIDEO1394_IOC_LISTEN_CHANNEL ioctl failed </TT
+></P
+><P
+>&#13;There are various reasons for this error which will be further explained in the Problems section (<A
+HREF="concepts.html#common_problems"
+>Section 4.7</A
+>)
+</P
+><P
+>&#13; Thus we can see that the image capture using DMA is not much different from non DMA method. We have compared the functions used in two approaches in the following table.
+</P
+><DIV
+CLASS="informaltable"
+><A
+NAME="AEN811"
+></A
+><P
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Non DMA steps</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>DMA steps</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Comments</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_create_handle</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_create_handle</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Create handle</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_get_camera_nodes</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_get_camera_nodes</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Get camera nodes</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_setup_capture</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_dma_setup_capture</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Call setup functions to set various parameters of camera</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_start_iso_transmission</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_start_iso_transmission</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Start sending the data from camera to the bus</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_single_capture</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_dma_single_capture</TT
+>, <TT
+CLASS="function"
+>dc1394_dma_done_with_buffer</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Capture one frame</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_stop_iso_transmission</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_dma_unlisten</TT
+>, <TT
+CLASS="function"
+>dc1394_stop_iso_transmission</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Stop sending the data from camera to the bus</P
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_release_camera</TT
+>, <TT
+CLASS="function"
+>dc1394_destroy_handle</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+><TT
+CLASS="function"
+>dc1394_dma_done_with_buffer</TT
+>, <TT
+CLASS="function"
+>dc1394_dma_release_camera</TT
+>, <TT
+CLASS="function"
+>dc1394_destroy_handle</TT
+></P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><P
+>Close the camera</P
+></TD
+></TR
+></TBODY
+></TABLE
+><P
+></P
+></DIV
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="get_color"
+></A
+>4.6. How to get color images: Bayer Pattern Concepts</H2
+><P
+>The image grabbed by the sample code in the previous section
+    is not colored (we have intentionally used the words <SPAN
+CLASS="QUOTE"
+>"not colored,"</SPAN
+> since the image is not gray-scale either). It is actually a Bayer Pattern. We will give an overview of Bayer Patterns and how they are used to get a colored image in this section.</P
+><P
+>Digital cameras use a solid-state device called an <EM
+>image sensor</EM
+>. These fingernail-sized silicon chips contain millions of photosensitive diodes called <EM
+>photosites</EM
+>. When you take a picture with a digital camera, the intensity of light hitting each photo site on the sensor is recorded as a signal. Depending on the camera, either 12 or 14 bits of data are recorded. At 12 bits, the camera can record 4,096 levels of brightness. At 14 bits, the camera can record 16,384 levels of brightness. This is referred to as <EM
+>bit depth</EM
+>. The higher the bit depth, the finer is the detail, the smoother the transition between tones, and the higher the dynamic range (the ability of the camera to hold detail in both highlighted and shadowed areas). But at capture, digital images are grayscale, not color. To record color information, each pixel on the sensor is covered with a red, green, or blue filter, with the colors alternating. A common arrangement of color filters is the <I
+CLASS="citetitle"
+>Bayer Pattern array</I
+> that alternates colors, but that also uses twice as many green filters as red and blue. Twice as many green filters are used because our eyes are more sensitive to green. This pattern, or sequence, of filters can vary, but the widely adopted Bayer Pattern, which was invented at Kodak, is a repeating 2x2 arrangement. Each pixel has been made sensitive only to one color (one spectral band).</P
+><P
+>A Typical Bayer Pattern will look like this:</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN899"
+></A
+><P
+><B
+>Figure 5. Bayer Pattern</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig5.jpg"></P
+></DIV
+></DIV
+><P
+>The <EM
+>tile</EM
+> or <EM
+>square (pixel)</EM
+> labeled B means this particular tile is sensitive only to Blue light, and so on.</P
+><P
+>The Bayer Patterns may be classified into 4 types, depending on how we have arranged the colors. The naming of the Bayer Pattern is done by taking a 2x2 matrix from the top most corner of the pattern and the colors being read in (0,0),(0,1),(1,0),(1,1) order. So for the above Bayer Pattern, if we take the 2x2 matrix as:</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN910"
+></A
+><P
+><B
+>Figure 6. BGGR Pattern</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig6.jpg"></P
+></DIV
+></DIV
+><P
+>The pattern is therefore known as BGGR </P
+><P
+>The other possible patterns are:</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN919"
+></A
+><P
+><B
+>Figure 7. Other Patterns</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig7.jpg"></P
+></DIV
+></DIV
+><P
+>The image we obtained in the previous example was a Bayer
+    Pattern image also known as a <EM
+>RAW</EM
+> image. This
+    was stored in <TT
+CLASS="varname"
+>camera.capture_buffer</TT
+>. In order
+    to view what we have captured we convert this RAW image to .PGM by
+    adding a header (look at the explanation in <A
+HREF="concepts.html#example"
+>Section 4.4</A
+>).</P
+><P
+>In order to get a colored image, the Bayer Pattern image is
+    converted to a <EM
+>RGB</EM
+> image. A RGB image is an enhanced version of the Bayer Pattern image; we try to find the value of the two missing colors at each pixel (remember that each pixel of the sensor is covered by Bayer Pattern filter so we get a single color at any pixel by default). This is done by using different algorithms like <EM
+>Nearest Neighbor</EM
+>,<EM
+> Edge Sense</EM
+>, and so on:
+<DIV
+CLASS="figure"
+><A
+NAME="AEN934"
+></A
+><P
+><B
+>Figure 8. RAW to RGB</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig8.jpg"></P
+></DIV
+></DIV
+>
+where the shaded values are to be calculated by the algorithm. Subscript denotes the tile on the Bayer Pattern to which the value of R, G, and B belongs. Note that the image size will become 3 times the Bayer Pattern. In order to view the RGB image we convert it to a Bit Map, or .BMP image, by adding a bitmap header.</P
+><P
+>To get a clear picture of what's happening, we have provided the following diagram:</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN942"
+></A
+><P
+><B
+>Figure 9. Bayer to Bitmap conversion</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig9.jpg"></P
+></DIV
+></DIV
+><P
+>Let's understand how the RAW to RGB conversion algorithms
+    work. We will look into the Nearest Neighbor algorithm in
+    detail. Other Algorithms are thoroughly explained at the following
+    web link: <A
+HREF="http://www-ise.stanford.edu/~tingchen/main.htm"
+TARGET="_top"
+>http://www-ise.stanford.edu/~tingchen/main.htm</A
+>.</P
+><P
+>Most of these algorithms make use of some kind of interpolations.</P
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="nearest_alg"
+></A
+>4.6.1. Nearest Neighbor Algorithm</H3
+><P
+>In this interpolation method, each interpolated output pixel is assigned the value of the nearest pixel in the input image. The nearest neighbor can be any one of the upper, lower, left or right pixels.</P
+><P
+>An example will make the logic clear. We try to find the G values for the R, B tiles for a 3x3 block (shown as shaded region. The blank squares either bear R value or B value. We have not shown them just to make the figure easy to understand). Here we assume the left neighboring pixel value is used to fill the missing ones.</P
+><DIV
+CLASS="figure"
+><A
+NAME="AEN956"
+></A
+><P
+><B
+>Figure 10. Nearest Neighbour</B
+></P
+><DIV
+CLASS="mediaobject"
+><P
+><IMG
+SRC="images/Fig10.jpg"></P
+></DIV
+></DIV
+><P
+>The table on the left shows the G values for the Bayer Pattern image. In order to find out the missing G values for the other squares that originally contains only R or B we use the following approach:</P
+><P
+>Find the nearest G value square and copy the G value of that square onto the R (B) square. This has been illustrated in the above figure. The square next to G7 had a value of either R or B. So to get G8 (a G value for square 8) we copied the G value of square 7, since it was the nearest so G8 = G7. Similarly we filled the other non G value squares.</P
+><P
+>The same logic is applied when finding R and B values for the green squares.</P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="sample_color_grab"
+></A
+>4.6.2. Example program to understand how the colored image is grabbed using IEEE1394 Camera</H3
+><P
+>Now that we have presented the basic concept of the RAW, RGB and the conversion algorithm, we feel that you can understand an example program that gives us a colored image.</P
+><P
+>We have chosen the format as Format7 because the camera we
+     used responds to this format only. We will make use of another
+     example code which provides the implementation of the
+     algorithms. The program is <TT
+CLASS="filename"
+>conversions.cpp</TT
+>,
+     in the  <TT
+CLASS="filename"
+>grabdma</TT
+>
+     folder, available for download at <A
+HREF="http://www.ptgrey.com/support/kb/data/grabdma.tgz"
+TARGET="_top"
+>http://www.ptgrey.com/support/kb/data/grabdma.tgz</A
+>.</P
+><P
+>To run the code, make sure that you have the following files: </P
+><P
+></P
+><UL
+><LI
+><P
+><TT
+CLASS="filename"
+>conversions.h</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="filename"
+>conversions.cpp</TT
+></P
+></LI
+><LI
+><P
+><TT
+CLASS="filename"
+>grabcolor.cpp</TT
+> - also
+       from the <TT
+CLASS="filename"
+>grabdma</TT
+>
+       folder. We have modified the code according to our requirements
+       and removed some of the lines. Since most of the code is same
+       as the previously discussed code, we have explained only the
+       portions that are different. These portions have been <EM
+>emphasized</EM
+>.</P
+></LI
+></UL
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;#include &#60;stdio.h&#62;
+#include &#60;libraw1394/raw1394.h&#62;
+#include &#60;libdc1394/dc1394_control.h&#62;
+#include &#60;stdlib.h&#62;
+#include &#60;onversions.h&#62;
+
+#define IMAGE "Image.rgb"
+
+int main(int argc, char *argv[]) 
+{
+  FILE* imagefile;
+  dc1394_cameracapture camera;
+  int numNodes;
+  int numCameras;
+  raw1394handle_t handle;
+  nodeid_t * camera_nodes;
+  int channel,speed,mode,bytes_per_packet;
+
+   /* Open ohci and asign handle to it */
+
+    handle = dc1394_create_handle(0);
+  if (handle==NULL)
+  {
+    fprintf( stderr, "Unable to aquire a raw1394 handle\n\n"
+       "Please check \n"
+         " - if the kernel modules `ieee1394',`raw1394' and `ohci1394' are loaded \n"
+         " - if you have read/write access to /dev/raw1394\n\n");
+exit(1);
+  }
+
+  /* get the camera nodes and describe them as we find them */
+
+  numNodes = raw1394_get_nodecount(handle);
+  camera_nodes = dc1394_get_camera_nodes(handle,&#38;numCameras,1);
+  fflush(stdout);
+  if (numCameras&#60;1)
+  {
+    fprintf( stderr, "no cameras found :(\n");
+    dc1394_destroy_handle(handle);
+    exit(1);
+  }
+  printf("working with the first camera on the bus\n");
+
+  if( camera_nodes[0] == numNodes-1)
+  {
+    fprintf( stderr, "\n"
+           "Sorry, your camera is the highest numbered node\n");
+    dc1394_destroy_handle(handle);
+    dc1394_free_camera_nodes(camera_nodes);
+    exit( 1);
+  }
+
+  /*obtain the values of the parameter from the camera */
+
+dc1394_get_video_mode(handle,camera_nodes[0],(unsigned int *)&#38;mode); 
+
+dc1394_get_iso_channel_and_speed(handle,camera_nodes[0],
+(unsigned int *)&#38;channel, (unsigned int *)&#38;speed);
+
+dc1394_query_format7_byte_per_packet(handle,camera_nodes[0],(unsigned)
+mode,&#38;bytes_per_packet);
+
+  /*setup capture */
+
+if (dc1394_setup_format7_capture(handle,
+           camera_nodes[0],
+         channel , /* channel */ 
+         mode,
+         speed,
+         bytes_per_packet,
+         0,
+         0,
+         960,
+         720, 
+         &#38;camera)!=DC1394_SUCCESS) 
+  {
+    fprintf( stderr,"unable to setup camera-\n"
+         "check line %d of %s to make sure\n"
+         "that the video mode,framerate and format are\n"
+         "supported by your camera\n",
+         __LINE__,__FILE__);
+    dc1394_release_camera(handle,&#38;camera);
+    dc1394_destroy_handle(handle);
+    dc1394_free_camera_nodes(camera_nodes);
+    exit(1);
+  }
+  dc1394_free_camera_nodes(camera_nodes);
+
+  /* have the camera start sending us data*/
+
+  if (dc1394_start_iso_transmission(handle,camera.node)
+      !=DC1394_SUCCESS) 
+  {
+    fprintf( stderr, "unable to start camera iso transmission\n");
+    dc1394_release_camera(handle,&#38;camera);
+    dc1394_destroy_handle(handle);
+    exit(1);
+  }
+
+  /* capture one frame */
+
+  if (dc1394_single_capture(handle,&#38;camera)!=DC1394_SUCCESS) 
+  {
+    fprintf( stderr, "unable to capture a frame\n");
+    dc1394_release_camera(handle,&#38;camera);
+    dc1394_destroy_handle(handle);
+    exit(1);
+  }
+<EM
+>&#13;  /*query the camera to determine the Bayer pattern*/
+
+quadlet_t qValue;
+   GetCameraControlRegister( handle, 
+              Camera_nodes[0],
+              0x1040,/* Bayer Tile Mapping register */
+              &#38;qValue );
+
+   bayer_pattern_t pattern = BAYER_PATTERN_BGGR;
+   switch( qValue )
+   {
+      case 0x42474752:/* BGGR */
+       pattern = BAYER_PATTERN_BGGR;
+       break;
+      case 0x47524247:/* GRBG */
+       pattern = BAYER_PATTERN_GRBG;
+       break;
+      case 0x52474742: /* RGGB */
+       pattern = BAYER_PATTERN_RGGB;
+       break;
+      case 0x47425247:/* GBRG */
+       pattern = BAYER_PATTERN_GBRG;
+       break;
+      case 0x59595959:/* YYYY = BW */
+       fprintf( stderr, "Camera is black and white\n" );
+       cleanup();
+       return 1;
+      default:
+      fprintf(stderr,
+          "Camera BAYER_TILE_MAPPING register has an unexpected value:\n"
+          "\t0x%x\n", qValue );
+
+      return 1;
+   }
+
+   int bufferSize = camera.frame_width*camera.frame_height;
+
+   /* assign a buffer of size three time the original image */
+
+   unsigned char* rgbBuffer = new unsigned char[3 * bufferSize];
+
+   unsigned char* src = (unsigned char*)camera.capture_buffer;
+
+   unsigned char* captureBuffer=
+            (unsigned char*)camera.capture_buffer;
+   for ( int i = 0; i &#60; bufferSize; i++ )
+   {
+       src[i] = captureBuffer[ i * bytesPerPixel ];
+   }
+
+   /* convert to color image */
+
+   BayerNearestNeighbor (src, 
+             rgbBuffer, 
+             camera.frame_width,
+             camera.frame_height,
+             pattern );
+</EM
+>
+
+   /* Stop data transmission */
+
+  if (dc1394_stop_iso_transmission(handle,camera.node)!=DC1394_SUCCESS) 
+  {
+  printf("couldn't stop the camera?\n");
+  }
+
+  /* save image as 'Image.rgb' without adding any pgm header */
+
+  printf( "Saving the image...\n" );
+  imagefile = fopen( IMAGE, "w" );
+
+  fwrite( rgbBuffer, 3,
+         bufferSize, imagefile );
+
+  fclose( imagefile );
+
+  /* Close camera */
+
+  dc1394_release_camera(handle,&#38;camera);
+  dc1394_destroy_handle(handle);
+  return 0;
+}
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>As we have already discussed the use of
+    <TT
+CLASS="function"
+>GetCameraControlRegister</TT
+>, you can understand 
+    that it has been used to find out the value contained at <TT
+CLASS="varname"
+>0x1040</TT
+>. Libdc1394 does not provide any function to query this address, so we explicitly used this call to get the value.</P
+><P
+>It is important to understand the utility of the above
+    function call. Refer to our discussion about the Bayer Pattern
+    filters in the previous section. We know that the pattern can be
+    BGGR, RGGB, GRBG, and GRBG. The algorithm that we use for
+    converting the Bayer Pattern to RGB requires to know about the
+    type of pattern the camera filter has got so that it can carry out
+    some initialization (refer to <TT
+CLASS="filename"
+>conversions.cpp</TT
+> for details). The fourth parameter in the function call:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;   BayerNearestNeighbor (src, 
+             rgbBuffer, 
+             camera.frame_width,
+             camera.frame_height,
+             pattern )
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>refers to this value.</P
+><P
+><TT
+CLASS="function"
+>BayerNearestNeighbor</TT
+> is the function
+    call for the interpolation algorithm we discussed in the last
+    section. This is implemented in <TT
+CLASS="filename"
+>conversions.cpp</TT
+>.</P
+><P
+>Having understood this, we move on to the
+    <EM
+>switch-cases</EM
+>. The value that is obtained for
+    the Bayer Pattern (<TT
+CLASS="varname"
+>qvalue</TT
+>) is in the hex form which needs to be decoded for setting the value of the variable <TT
+CLASS="varname"
+>pattern</TT
+>.</P
+><P
+>The case statements indicate the various hex values relating
+    to the Bayer Pattern that can be returned by the various cameras. The intimidating values are actually quite easy to decode. Here's the trick:</P
+><P
+>The hex code for various colors is as follows:</P
+><P
+></P
+><UL
+><LI
+><P
+>42h -&#62; B</P
+></LI
+><LI
+><P
+>47h -&#62; G</P
+></LI
+><LI
+><P
+>52h -&#62; R</P
+></LI
+></UL
+><P
+>Now if the <TT
+CLASS="varname"
+>qvalue</TT
+> contains 0x42474752, it means: B (42h) G (47h) G (47h) R (52h) or BGGR.  We can therefore decode all the case statements similarly.</P
+><P
+>Finally, we need to declare another image buffer that will
+    contain the RGB image. Remember that the size of the RGB is 3 times the
+    size of the Bayer Pattern image.  <TT
+CLASS="parameter"
+><I
+>rgbbuffer</I
+></TT
+>
+    is therefore assigned 3 times the buffer size
+    (<TT
+CLASS="varname"
+>camera.capture_buffer</TT
+>). This buffer
+    (<TT
+CLASS="parameter"
+><I
+>rgbbuffer</I
+></TT
+>) will be passed as the destination buffer (the second parameter in <TT
+CLASS="function"
+>BayerNearestNeighbor</TT
+>).</P
+><P
+>After the buffer has been filled with the RGB values we
+    write it in the file <TT
+CLASS="filename"
+>image.rgb</TT
+>.</P
+><P
+>In order to view this image using <SPAN
+CLASS="application"
+>gimp</SPAN
+>, we need to append a bitmap header.  The method we employed was as follows: </P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>Save the RGB image buffer in a file, say, <TT
+CLASS="filename"
+>image.rgb</TT
+>.</P
+></LI
+><LI
+><P
+>Make a bitmap header and save it in a separate
+      file, <TT
+CLASS="filename"
+>bmpheader</TT
+>.  Refer to <A
+HREF="http://www.fortunecity.com/skyscraper/windows/364/bmpffrmt.html"
+TARGET="_top"
+>http://www.fortunecity.com/skyscraper/windows/364/bmpffrmt.html</A
+> for header details.</P
+></LI
+><LI
+><P
+><B
+CLASS="command"
+>cat bmpheader image.rgb
+      &#62; bmpfile</B
+></P
+></LI
+><LI
+><P
+>Open <TT
+CLASS="filename"
+>bmpfile</TT
+> using <SPAN
+CLASS="application"
+>gimp</SPAN
+>.</P
+></LI
+></OL
+><P
+>In order to run the program, use the following steps:</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;g++ -c conversions.cpp
+g++ -o grabcolor conversions.o grabcolor.cpp -lraw1394
+-ldc1394_control
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>Note on available algorithms:</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>There are many algorithms that are available in <TT
+CLASS="filename"
+>conversions.cpp</TT
+>, so depending upon the requirements, you can call the necessary functions.</P
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>The <SPAN
+CLASS="application"
+>Coriander</SPAN
+> application is useful in finding out how the RGB image will look after undergoing different conversion algorithms. For example, it provides the choice between Nearest Neighbor, Edge Sense and Down Sample conversion algorithms. The difference can be observed on a mouse click.</P
+></DIV
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="common_problems"
+></A
+>4.7. Common Problems Faced While Working With IEEE1394 Cameras</H2
+><P
+>We now look at some of the common problems faced while working with the camera, however we have only listed those problems which we faced. These problems are likely to be faced by anyone who uses the library and the camera. Some of the problems were solved with a proper reasoning but some were just hit-and-miss attempts. The problems and their solutions are listed below.</P
+><P
+></P
+><UL
+><LI
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Problem #1. </B
+>After the installation of the library and the modules the
+       camera did not respond</P
+></DIV
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Solution: </B
+><EM
+>We disconnected the camera and
+       connected it again. May be this has to be repeated multiple
+       times. We could not figure out an appropriate reason for this
+       but it works.</EM
+></P
+></DIV
+></LI
+><LI
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Problem #2. </B
+>Program is not compiling</P
+></DIV
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Solution: </B
+><EM
+>If one forgets to link
+       the executable with raw1394 and dc1394_control the program
+       won't compile.</EM
+> The correct way is:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;gcc -o xx xx.c -lraw1394 -ldc1394_control /*for C files*/
+g++ -o xx xx.cpp -lraw1394 -ldc1394_control /* for Cpp files */
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+></LI
+><LI
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Problem #3. </B
+>Compilation failed, giving the error:
+       <TT
+CLASS="computeroutput"
+>libdc1394_control.so.13: cannot open the shared
+       object file</TT
+>.</P
+></DIV
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Solution: </B
+><EM
+>Check for the
+environment variable <TT
+CLASS="envar"
+>LD_LIBRARY_PATH</TT
+>. This should
+contain the path of the shares library. On our system the path was
+<TT
+CLASS="filename"
+>/usr/local/lib</TT
+>. The path must
+be set accordingly.</EM
+></P
+></DIV
+></LI
+><LI
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Problem #4. </B
+>Program hangs when executed.</P
+></DIV
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Solution: </B
+><EM
+>This primarily happens
+       if the values of parameters that are passed to the setup
+       function are not supported by the camera. For e.g. setting the mode
+       mode_640x480_MONO16 when it is not supported. Our suggestion is
+       that one should always query for the values and then pass them
+       to the function (as explained in the example code, located in
+       <A
+HREF="concepts.html#example"
+>Section 4.4</A
+>)</EM
+>.</P
+></DIV
+></LI
+><LI
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Problem #5. </B
+><TT
+CLASS="computeroutput"
+>IDEO1394_IOC_LISTEN_CHANNEL ioctl
+       failed</TT
+> error message being displayed.</P
+></DIV
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Solution: (contributed by Ian and Tim). </B
+><EM
+>There are various reasons for this error message. Type <B
+CLASS="command"
+>dmesg</B
+> in the command prompt to gain a better understanding of the problem. Here is a list of problem we ran into
+	   <A
+NAME="AEN1097"
+HREF="#FTN.AEN1097"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></EM
+></P
+></DIV
+></LI
+><LI
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Problem #6. </B
+>Used <B
+CLASS="keycap"
+>CTRL</B
+>+<B
+CLASS="keycap"
+>C</B
+>
+       to terminate the image grabbing program, but the next time the
+       program is run, it just hangs.</P
+></DIV
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Solution: </B
+><EM
+>The error usually
+       occurs because the camera functions like a pipe and experiences
+       a broken pipe situation if terminated without flushing the
+       memory channels. The trick is to disconnect the camera and
+       connect it again. One can also try debugging the problem by
+       reinstalling the ohci1394, video1394, raw1394, video1394
+       modules, which works occasionally.</EM
+></P
+></DIV
+></LI
+><LI
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Problem #7. </B
+>Every parameter is okay and the installation is also
+       fine, but even then, when the program is executed the camera is
+       still not detected.</P
+></DIV
+><DIV
+CLASS="formalpara"
+><P
+><B
+>Solution: </B
+><EM
+>This is a strange problem which we also face frequently. The solution is based on trial and error, but it always works:</EM
+>
+       <P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>Disconnect the camera first and then reconnect it.</P
+></LI
+><LI
+><P
+>Now run <SPAN
+CLASS="application"
+>Coriander</SPAN
+>
+        (that's why we suggest that you install <SPAN
+CLASS="application"
+>Coriander</SPAN
+> before you start working with the camera).</P
+></LI
+><LI
+><P
+>Make all the necessary adjustments; for example, select the mode of the camera, the frame size, and so forth.</P
+></LI
+><LI
+><P
+>Close <SPAN
+CLASS="application"
+>Coriander</SPAN
+>.</P
+></LI
+><LI
+><P
+>Execute your program.</P
+></LI
+></OL
+>
+      Bingo!!! It works.</P
+></DIV
+><DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>Note on first step above:</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>The first step is critical since we experienced an error
+       message from <SPAN
+CLASS="application"
+>Coriander</SPAN
+> about not
+       finding the camera if we did not disconnect and reconnect the camera before running <SPAN
+CLASS="application"
+>Coriander</SPAN
+>.</P
+></TD
+></TR
+></TABLE
+></DIV
+></LI
+></UL
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN1097"
+HREF="concepts.html#AEN1097"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+></P
+><UL
+><LI
+>Channel 0 is not being used- This means you are listening on the iso channel and then calling a capture function again. Make sure not to call <TT
+CLASS="function"
+>dma_unlisten</TT
+>until you are ready to stop iso transmission.
+	   </LI
+><LI
+>Channel 0 is already being used- This means you have set two camera nodes to the same Channel. Fix your <TT
+CLASS="function"
+>dma_setup_capture()</TT
+>. This could also mean that you have tried to call the setup function more than once without releasing the camera between the calls. This error is more likely to occur when you are working with more than one camera.</LI
+><LI
+>Buffer 0 is already being used- This means that you have not freed the DMA buffer before trying to write to it again. Make sure to alternate <TT
+CLASS="function"
+>dma_done_with_buffer calls with dma_capture_calls</TT
+></LI
+></UL
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="install.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="references.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Installation</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>References</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

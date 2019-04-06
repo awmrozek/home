@@ -1,0 +1,1058 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Configuration examples</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Traffic Control using tcng and HTB HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Requirements"
+HREF="requirements.html"><LINK
+REL="NEXT"
+TITLE="Miscellaneous Notes"
+HREF="misc.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Traffic Control using tcng and HTB HOWTO: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="requirements.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="misc.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="examples"
+></A
+>3. Configuration examples</H1
+><P
+>&#13;    Examples shown here will be modified examples of downloadable
+    configurations available in
+    <A
+HREF="http://linux-ip.net/code/tcng/"
+TARGET="_top"
+>this directory</A
+>.
+  </P
+><P
+>&#13;    These examples can be used as standalone configuration files to be fed
+    into a <B
+CLASS="command"
+>tcc</B
+> parser, or they can be used in
+    conjunction with the example
+    <A
+HREF="http://linux-ip.net/code/tcng/tcng.init"
+TARGET="_top"
+>SysV startup
+    script</A
+>.  The startup script is a modification of a
+    <A
+HREF="http://mailman.ds9a.nl/pipermail/lartc/2002q4/005411.html"
+TARGET="_top"
+>script
+    posted on the LARTC mailing list by raptor</A
+>.
+  </P
+><P
+>&#13;    If you are going to use the above startup script, take a look at
+    this example <TT
+CLASS="filename"
+>/etc/sysconfig/tcng</TT
+>:
+  </P
+><DIV
+CLASS="example"
+><A
+NAME="ex-sysconfig-tcng"
+></A
+><P
+><B
+>Example 1. <TT
+CLASS="filename"
+>/etc/sysconfig/tcng</TT
+></B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;# - tcng meta-configuration file
+#   (I never meta-configuration file I didn't like)
+#
+# -- 2003-03-15 created; -MAB
+# -- 2003-03-31 modified to allow ENVAR override; -MAB
+#
+# -- this directory will hold all of the tcng configurations
+#    used on this host
+#
+TCCONFBASEDIR=${TCCONFBASEDIR:-/etc/sysconfig/tcng-configs}
+
+# -- this is the active, desired tcng configuration
+#    note, that, because tcng provides the #include construct,
+#    the modularity of configuration can be built into the
+#    configuration files in $TCCONFBASEDIR
+#
+TCCONF=${TCCONF:-$TCCONFBASEDIR/global.tcc}
+
+tcstats=${tcstats:-no}   # -- will suppress statistical output
+tcstats=${tcstats:-yes}  # -- will throw the "-s" option to tc
+
+tcdebug=${tcdebug:-0}    # -- for typical startup script usage
+tcdebug=${tcdebug:-1}    # -- for a bit of information about what's happening
+tcdebug=${tcdebug:-2}    # -- for debugging information
+#
+#
+# -- an additional measure to take, you can override the default tc and tcc
+#    command line utilities by specifying their pathnames here, for example:
+#
+#  tc=/usr/local/bin/tc
+#  tcc=/usr/local/tcng/bin/tcc
+#
+#
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="examples-adsl"
+></A
+>3.1. Using tcng to shape download only</H2
+><P
+>&#13;      Many general concepts will be introduced with this example.  This
+      example can be compiled to its <B
+CLASS="command"
+>tc</B
+> output with the
+      command <TT
+CLASS="userinput"
+><B
+>tcc
+      <TT
+CLASS="filename"
+>class-selection-path.tcc</TT
+></B
+></TT
+>.
+    </P
+><DIV
+CLASS="example"
+><A
+NAME="ex-example-0"
+></A
+><P
+><B
+>Example 2. <TT
+CLASS="filename"
+>/etc/sysconfig/tcng/class-selection-path.tcc</TT
+></B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;/*
+ * Simply commented example of a tcng traffic control file.
+ *
+ *   Martin A. Brown <TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:martin@linux-ip.net"
+>martin@linux-ip.net</A
+>&#62;</TT
+>
+ *
+ * Example:  Using class selection path.
+ *
+ * (If you are reading the processed output in HTML, the callouts are
+ *  clickable links to the description text.)
+ *
+ */
+
+#include "fields.tc"     <A
+NAME="ex-0-includes"
+><IMG
+SRC="../images/callouts/1.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(1)"></A
+>
+#include "ports.tc"
+
+#define INTERFACE  eth0  <A
+NAME="ex-0-defines"
+><IMG
+SRC="../images/callouts/2.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(2)"></A
+>
+
+dev INTERFACE {
+    egress { <A
+NAME="ex-0-egress"
+><IMG
+SRC="../images/callouts/3.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(3)"></A
+>
+
+        /* In class selection path, the filters come first!  DSmark */ <A
+NAME="ex-0-csp"
+><IMG
+SRC="../images/callouts/4.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(4)"></A
+>
+
+        class ( &#60;$ssh&#62; )    if tcp_sport ==  22 &#38;&#38; ip_tos_delay == 1 ;
+        class ( &#60;$audio&#62; )  if tcp_sport == 554 || tcp_dport == 7070 ;
+        class ( &#60;$bulk&#62; ) \
+            if tcp_sport == PORT_SSH || tcp_dport == PORT_HTTP ; <A
+NAME="ex-0-portusage"
+><IMG
+SRC="../images/callouts/5.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(5)"></A
+>
+        class ( &#60;$other&#62; )  if 1 ; <A
+NAME="ex-0-leftover"
+><IMG
+SRC="../images/callouts/6.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(6)"></A
+>
+
+        /* section in which we configure the qdiscs and classes */ 
+
+        htb () { <A
+NAME="ex-0-root"
+><IMG
+SRC="../images/callouts/7.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(7)"></A
+>
+            class ( rate 600kbps, ceil 600kbps ) { <A
+NAME="ex-0-topclass"
+><IMG
+SRC="../images/callouts/8.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(8)"></A
+>
+                $ssh   = class ( rate  64kbps, ceil 128kbps ) { sfq; } ; 
+              <A
+NAME="ex-0-classvariable"
+><IMG
+SRC="../images/callouts/9.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(9)"></A
+> $audio = class ( rate 128kbps, ceil 128kbps ) { sfq; } ;
+                $bulk  = class ( rate 256kbps, ceil 512kbps ) { sfq; } ;
+                $other = class ( rate 128kbps, ceil 384kbps ) { sfq; } ; <A
+NAME="ex-0-embedsfq"
+><IMG
+SRC="../images/callouts/10.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(10)"></A
+>
+            }
+        }
+    }
+}
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="calloutlist"
+><DL
+COMPACT="COMPACT"
+><DT
+><A
+HREF="examples.html#ex-0-includes"
+><IMG
+SRC="../images/callouts/1.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(1)"></A
+></DT
+><DD
+>&#13;            The <B
+CLASS="command"
+>tcng</B
+> language provides support for C-style
+            include directives which can include any file.  Files are included
+            relative to the current directory or the <B
+CLASS="command"
+>tcng</B
+>
+            library (normally <TT
+CLASS="filename"
+>/usr/lib/tcng/include</TT
+>).
+            Strictly speaking, it is not necessary to
+            <TT
+CLASS="constant"
+>#include</TT
+> <TT
+CLASS="filename"
+>ports.tc</TT
+> and
+            <TT
+CLASS="filename"
+>fields.tc</TT
+>, because
+            <B
+CLASS="command"
+>tcc</B
+> will include these by default.
+          </DD
+><DD
+><P
+>&#13;            The use of <TT
+CLASS="constant"
+>#include</TT
+> can allow for flexible
+            definition of variables and inclusion of common traffic control
+            elements.
+          </P
+></DD
+><DD
+><P
+>&#13;            See also the tcng manual
+            <A
+HREF="http://linux-ip.net/gl/tcng/node35.html"
+TARGET="_top"
+>on
+            includes</A
+>.
+          </P
+></DD
+><DT
+><A
+HREF="examples.html#ex-0-defines"
+><IMG
+SRC="../images/callouts/2.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(2)"></A
+></DT
+><DD
+>&#13;            These are CPP directives.  The <TT
+CLASS="constant"
+>#define</TT
+>
+            can be used to create macros or constants.  For more on their use,
+            you should see the <B
+CLASS="command"
+>tcng</B
+> manual
+            <A
+HREF="http://linux-ip.net/gl/tcng/node111.html"
+TARGET="_top"
+>on
+            variables</A
+>.
+          </DD
+><DT
+><A
+HREF="examples.html#ex-0-egress"
+><IMG
+SRC="../images/callouts/3.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(3)"></A
+></DT
+><DD
+>&#13;            The <TT
+CLASS="constant"
+>egress</TT
+> keyword is synonymous with the
+            <TT
+CLASS="constant"
+>dsmark</TT
+> keyword.  The example here uses
+            <A
+HREF="http://linux-ip.net/gl/tcng/node32.html"
+TARGET="_top"
+>class
+            selection path</A
+>.  It is the use of the
+            <TT
+CLASS="constant"
+>egress</TT
+> keyword in this configuration which
+            requires dsmark support in the kernel and <B
+CLASS="command"
+>tc</B
+>.
+          </DD
+><DT
+><A
+HREF="examples.html#ex-0-csp"
+><IMG
+SRC="../images/callouts/4.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(4)"></A
+></DT
+><DD
+>&#13;            Class selection path is one approach to traffic shaping.  In class
+            selection path, the packet is marked (DiffServ mark) upon entry
+            into the router.  The router may take any number of actions or
+            apply any number of policing, scheduling or shaping actions on the
+            packet as a result of this initial classification.
+          </DD
+><DD
+><P
+>&#13;            Consult the <B
+CLASS="command"
+>tcng</B
+> manual
+            <A
+HREF="http://linux-ip.net/gl/tcng/node32.html"
+TARGET="_top"
+>on class
+            selection path</A
+> for further details.
+          </P
+></DD
+><DT
+><A
+HREF="examples.html#ex-0-portusage"
+><IMG
+SRC="../images/callouts/5.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(5)"></A
+></DT
+><DD
+>&#13;            This example shows the use of names for the ports instead of
+            numbers.  This is one of the conveniences of
+            <B
+CLASS="command"
+>tcng</B
+> afforded by the automatic inclusion of
+            <TT
+CLASS="filename"
+>ports.tc</TT
+>.  The ports are named in accordance
+            with IANA port names.  See
+            <A
+HREF="http://www.iana.org/assignments/port-numbers"
+TARGET="_top"
+>IANA's
+            registered ports</A
+> for these names or examine the file
+            <TT
+CLASS="filename"
+>ports.tc</TT
+>.
+          </DD
+><DD
+><P
+>&#13;            Names and numbers are equally acceptable and valid.
+          </P
+></DD
+><DT
+><A
+HREF="examples.html#ex-0-leftover"
+><IMG
+SRC="../images/callouts/6.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(6)"></A
+></DT
+><DD
+>&#13;            Note this peculiar construct which classifies any packet which
+            have not yet been classified.  Any packet which has not been
+            classified by the above classifiers is put into the class "$other"
+            here.  The <TT
+CLASS="constant"
+>if 1</TT
+> construct can be used to
+            classify the remainder of unclassified traffic.
+          </DD
+><DT
+><A
+HREF="examples.html#ex-0-root"
+><IMG
+SRC="../images/callouts/7.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(7)"></A
+></DT
+><DD
+>&#13;            This is the creation of the root qdisc which is attached to
+            device, <TT
+CLASS="constant"
+>eth0</TT
+> in this case.  Consult the
+            reference material in the <B
+CLASS="command"
+>tcng</B
+>
+            <A
+HREF="http://linux-ip.net/gl/tcng/node159.html"
+TARGET="_top"
+>appendix on
+            queuing discipline parameters</A
+> for valid parameters to
+            each qdisc.  Any qdisc parameters can be inserted into the
+            parentheses in the same fashion as the class parameters further
+            below in the example.  If no parameters need be specified, the
+            parentheses are optional.
+          </DD
+><DT
+><A
+HREF="examples.html#ex-0-topclass"
+><IMG
+SRC="../images/callouts/8.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(8)"></A
+></DT
+><DD
+>&#13;            The top level class in this example sets the maximum bandwidth
+            allowed through this class.  Let's assume that
+            <TT
+CLASS="constant"
+>eth0</TT
+> is the inside network interface of a
+            machine.  This limits the total bandwidth to 600 kilobits per
+            second transmitted to the internal network.
+          </DD
+><DD
+><P
+>&#13;            The parameters
+            <TT
+CLASS="constant"
+>rate</TT
+> and <TT
+CLASS="constant"
+>ceil</TT
+> should be
+            familiar to anybody who has used HTB.  These are HTB specific
+            parameters and are translated properly by the
+            <B
+CLASS="command"
+>tcc</B
+> utility.  See the table
+            <A
+HREF="misc.html#tb-misc-rates"
+>on <B
+CLASS="command"
+>tcng</B
+> rate
+            and speed specification</A
+>.
+          </P
+></DD
+><DT
+><A
+HREF="examples.html#ex-0-classvariable"
+><IMG
+SRC="../images/callouts/9.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(9)"></A
+></DT
+><DD
+>&#13;            This is the assignment of a class to a variable.  This is commonly
+            done as part of class selection path.
+          </DD
+><DT
+><A
+HREF="examples.html#ex-0-embedsfq"
+><IMG
+SRC="../images/callouts/10.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(10)"></A
+></DT
+><DD
+>&#13;            As suggested by Martin Devera on the HTB homepage, an embedded SFQ
+            gives each class a fair queuing algorithm for distribution of
+            resources to the contenders passing packets through that class.
+            Note the absence of any parameters to the embedded queuing
+            discipline.
+          </DD
+><DD
+><P
+>&#13;            If no queuing discipline is specified for leaf
+            classes, they contain the default, a pfifo_fast qdisc.  The
+            inclusion of a stochastic fair queuing qdisc in the leaf classes
+            inhibits the ability of a single connection to dominate in a given
+            class.
+          </P
+></DD
+></DL
+></DIV
+></DIV
+><P
+>&#13;    </P
+><P
+>&#13;    </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="examples-1"
+></A
+>3.2. Using a two-rate three-color meter</H2
+><P
+>&#13;    </P
+><DIV
+CLASS="example"
+><A
+NAME="ex-example-1"
+></A
+><P
+><B
+>Example 3. <TT
+CLASS="filename"
+>/etc/sysconfig/tcng/two-rate-three-color-meter.tcc</TT
+></B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;/*
+ * Simply commented example of a tcng traffic control file.
+ *
+ *   Martin A. Brown <TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:martin@linux-ip.net"
+>martin@linux-ip.net</A
+>&#62;</TT
+>
+ *
+ * Example:  Using a meter.
+ *
+ * (If you are reading the processed output in HTML, the callouts are
+ *  clickable links to the description text.)
+ *
+ */
+
+#define   EXCEPTION      192.168.137.50
+#define   INTERFACE      eth0
+
+$meter = trTCM( cir 128kbps, cbs 10kB, pir 256kbps, pbs 10kB );  <A
+NAME="ex-1-mdefine"
+><IMG
+SRC="../images/callouts/1.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(1)"></A
+>
+
+dev eth0 {
+    egress {
+        class ( &#60;$full&#62; )     if ip_src == EXCEPTION      ; <A
+NAME="ex-1-notmetered"
+><IMG
+SRC="../images/callouts/2.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(2)"></A
+>
+        class ( &#60;$fast&#62; )     if trTCM_green( $meter )    ; <A
+NAME="ex-1-green"
+><IMG
+SRC="../images/callouts/3.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(3)"></A
+>
+        class ( &#60;$slow&#62; )     if trTCM_yellow( $meter )   ; <A
+NAME="ex-1-yellow"
+><IMG
+SRC="../images/callouts/4.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(4)"></A
+>
+        drop                  if trTCM_red( $meter )      ; <A
+NAME="ex-1-red"
+><IMG
+SRC="../images/callouts/5.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(5)"></A
+>
+        htb {
+            class ( rate 600kbps, ceil 600kbps ) {
+                $fast = class ( rate 256kbps, ceil 256kbps ) { sfq; } ;
+                $slow = class ( rate 128kbps, ceil 128kbps ) { sfq; } ;
+                $full = class ( rate 600kbps, ceil 600kbps ) { sfq; } ;
+            }
+        }
+    }
+}
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="calloutlist"
+><DL
+COMPACT="COMPACT"
+><DT
+><A
+HREF="examples.html#ex-1-mdefine"
+><IMG
+SRC="../images/callouts/1.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(1)"></A
+></DT
+><DD
+>&#13;            This is the declaration of the meter to be used for classifying
+            traffic.  The underlying technology used to implement this meter
+            is policing.  See the
+            <A
+HREF="http://linux-ip.net/gl/tcng/node53.html"
+TARGET="_top"
+>tcng manual
+            on meters</A
+> for the different types of meters.
+          </DD
+><DD
+><P
+>&#13;            This meter is a two-rate three-color meter, the most complex meter
+            available in the <B
+CLASS="command"
+>tcng</B
+> language.  This meter
+            returns the colors green, yellow and red, based on the rates
+            offered in the committed and peak buckets.  If the metered rate
+            exceeds the committed rate, this meter will turn yellow, and if
+            the metered rate exceeds the peak rate, this meter will turn red.
+          </P
+></DD
+><DD
+><P
+>&#13;            The variable <TT
+CLASS="varname"
+>$meter</TT
+> can be operated on by
+            functions applicable to the meter type.  In this case, there are
+            three functions available for testing <TT
+CLASS="varname"
+>$meter</TT
+>'s
+            state,
+            <TT
+CLASS="function"
+>trTCM_green</TT
+>, <TT
+CLASS="function"
+>trTCM_yellow</TT
+>,
+            and <TT
+CLASS="function"
+>trTCM_red</TT
+>.  For efficiency, consider also
+            the
+            <A
+HREF="http://linux-ip.net/gl/tcng/node58.html"
+TARGET="_top"
+>accelerated
+            counterparts</A
+>.
+          </P
+></DD
+><DT
+><A
+HREF="examples.html#ex-1-notmetered"
+><IMG
+SRC="../images/callouts/2.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(2)"></A
+></DT
+><DD
+>&#13;            In this example, the IP 192.168.137.50 is specifically excluded
+            from the policing control applied to traffic departing on eth0.
+          </DD
+><DT
+><A
+HREF="examples.html#ex-1-green"
+><IMG
+SRC="../images/callouts/3.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(3)"></A
+></DT
+><DD
+>&#13;            Up to the committed information rate (<TT
+CLASS="constant"
+>cir</TT
+>),
+            packets will pass through this class.  Tokens will be removed from
+            the <TT
+CLASS="constant"
+>cir</TT
+>/<TT
+CLASS="constant"
+>cbs</TT
+> bucket.
+          </DD
+><DD
+><P
+>&#13;            The meter is green.
+          </P
+></DD
+><DT
+><A
+HREF="examples.html#ex-1-yellow"
+><IMG
+SRC="../images/callouts/4.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(4)"></A
+></DT
+><DD
+>&#13;            Traffic flow exceeding the
+            <TT
+CLASS="constant"
+>cir</TT
+>/<TT
+CLASS="constant"
+>cbs</TT
+> bucket will be
+            classified here.  The
+            <TT
+CLASS="constant"
+>pir</TT
+>/<TT
+CLASS="constant"
+>pbs</TT
+> bucket
+            (<TT
+CLASS="constant"
+>pir</TT
+> is peak information rate,
+            <TT
+CLASS="constant"
+>pbs</TT
+> is peak burst size).  This allows a
+            particular flow to be guaranteed one class of service up to a
+            given rate, and then be reclassified above that rate.
+          </DD
+><DD
+><P
+>&#13;            The meter is yellow.
+          </P
+></DD
+><DT
+><A
+HREF="examples.html#ex-1-red"
+><IMG
+SRC="../images/callouts/5.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(5)"></A
+></DT
+><DD
+>&#13;            Traffic flow exceeding the
+            <TT
+CLASS="constant"
+>pir</TT
+>/<TT
+CLASS="constant"
+>pbs</TT
+> bucket will be
+            classified here.  A common configuration causes traffic to be
+            dropped above peak rate, although traffic could be re-classified
+            into a best-effort class from a guaranteed class.
+          </DD
+><DD
+><P
+>&#13;            The meter is red.
+          </P
+></DD
+></DL
+></DIV
+></DIV
+><P
+>&#13;    </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="requirements.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="misc.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Requirements</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Miscellaneous Notes</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

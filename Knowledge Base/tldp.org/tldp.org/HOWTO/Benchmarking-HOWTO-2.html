@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Benchmarking HOWTO: Benchmarking procedures and interpretation of results</TITLE>
+ <LINK HREF="Benchmarking-HOWTO-3.html" REL=next>
+ <LINK HREF="Benchmarking-HOWTO-1.html" REL=previous>
+ <LINK HREF="Benchmarking-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Benchmarking-HOWTO-3.html">Next</A>
+<A HREF="Benchmarking-HOWTO-1.html">Previous</A>
+<A HREF="Benchmarking-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Benchmarking procedures and interpretation of results</A></H2>
+
+<P>
+<P>A few semi-obvious recommendations:
+<OL>
+<LI>First and foremost, <B>identify your benchmarking goals</B>. What is it you are exactly trying to benchmark ? In what way will the benchmarking process help later in your decision making ? How much time and resources are you willing to put into your benchmarking effort ?</LI>
+<LI><B>Use standard tools</B>. Use a current, stable kernel version, standard, current gcc and libc and a standard benchmark. In short, use the LBT (see below).</LI>
+<LI>Give a <B>complete description</B> of your setup (see the LBT report form below). </LI>
+<LI>Try to<B> isolate a single variable</B>. Comparative benchmarking is more informative than "absolute" benchmarking.<B> I cannot stress this enough.</B></LI>
+<LI><B>Verify your results</B>. Run your benchmarks a few times and verify the variations in your results, if any. Unexplained variations will invalidate your results. </LI>
+<LI>If you think your benchmarking effort produced meaningful information, <B>share it</B> with the Linux community in a <B>precise</B> and <B>concise</B> way. </LI>
+<LI>Please <B>forget about BogoMips</B>. I promise myself I shall someday implement a very fast ASIC with the BogoMips loop wired in. Then we shall see what we shall see ! </LI>
+</OL>
+<H2><A NAME="ss2.1">2.1 Understanding benchmarking choices </A>
+</H2>
+
+<P>
+<H3>Synthetic vs. applications benchmarks</H3>
+
+<P>
+<P>Before spending any amount of time on benchmarking chores, a basic choice must be made between "synthetic" benchmarks and "applications" benchmarks. 
+<P>Synthetic benchmarks are specifically designed to measure the performance of individual components of a computer system, usually by exercising the chosen component to its maximum capacity. An example of a well-known synthetic benchmark is the <B>Whetstone</B> suite, originally programmed in 1972 by Harold Curnow in FORTRAN (or was that ALGOL ?) and still in widespread use nowadays. The Whestone suite will measure the floating-point performance of a CPU. 
+<P>The main critic that can be made to synthetic benchmarks is that they do not represent a computer system's performance in real-life situations. Take for example the Whetstone suite: the main loop is very short and will easily fit in the primary cache of a CPU, keeping the FPU pipeline constantly filled and so exercising the FPU to its maximum speed. We cannot really criticize the Whetstone suite if we remember it was programmed 25 years ago (its design dates even earlier than that !), but we must make sure we interpret its results with care, when it comes to benchmarking modern microprocessors.
+<P>Another very important point to note about synthetic benchmarks is that, ideally, they should tell us something about a <B>specific</B> aspect of the system being tested, independently of all other aspects: a synthetic benchmark for Ethernet card I/O throughput should result in the same or similar figures whether it is run on a 386SX-16 with 4 MBytes of RAM or a Pentium 200 MMX with 64 MBytes of RAM. Otherwise, the test will be measuring the overall performance of the CPU/Motherboard/Bus/Ethernet card/Memory subsystem/DMA combination: not very useful since the variation in CPU will cause a greater impact than the change in Ethernet network card (this of course assumes we are using the same kernel/driver combination, which could cause an even greater variation)!
+<P>Finally, a very common mistake is to average various synthetic benchmarks and claim that such an average is a good representation of real-life performance for any given system. 
+<P>Here is a comment on FPU benchmarks quoted with permission from the Cyrix Corp. Web site: 
+<BLOCKQUOTE>
+<EM>"A Floating Point Unit (FPU) accelerates software designed to use floating point mathematics : typically CAD programs, spreadsheets, 3D games and design applications. However, today's most popular PC applications make use of both floating point and integer instructions. As a result, Cyrix chose to emphasize "parallelism" in the design of the 6x86 processor to speed up software that intermixes these two instruction types. </EM>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE>
+<EM>The x86 floating point exception model allows integer instructions to issue and complete while a floating point instruction is executing. In contrast, a second floating point instruction cannot begin execution while a previous floating point instruction is executing. To remove the performance limitation created by the floating point exception model, the 6x86 can speculatively issue up to four floating point instructions to the on-chip FPU while continuing to issue and execute integer instructions. As an example, in a code sequence of two floating point instructions (FLTs) followed by six integer instructions (INTs) followed by two FLTs, the 6x86 processor can issue all ten instructions to the appropriate execution units prior to completion of the first FLT. If none of the instructions fault (the typical case), execution continues with both the integer and floating point units completing instructions in parallel. If one of the FLTs faults (the atypical case), the speculative execution capability of the 6x86 allows the processor state to be restored in such a way that it is compatible with the x86 floating point exception model.</EM>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE>
+<EM>Examination of benchmark tests reveals that synthetic floating point benchmarks use a pure floating point-only code stream not found in real-world applications. This type of benchmark does not take advantage of the speculative execution capability of the 6x86 processor. Cyrix believes that non-synthetic benchmarks based on real-world applications better reflect the actual performance users will achieve. Real-world applications contain intermixed integer and floating point instructions and therefore benefit from the 6x86 speculative execution capability."</EM>
+</BLOCKQUOTE>
+<P>So, the recent trend in benchmarking is to choose common applications and use them to test the performance of complete computer systems. For example, <B>SPEC</B>, the non-profit corporation that designed the well-known SPECINT and SPECFP synthetic benchmark suites, has launched a project for a new applications benchmark suite. But then again, it is very unlikely that such commercial benchmarks will ever include any Linux code. 
+<P>Summarizing, synthetic benchmarks are valid as long as you understand their purposes and limitations. Applications benchmarks will better reflect a computer system's performance, but none are available for Linux. 
+<H3>High-level vs. low-level benchmarks</H3>
+
+<P>
+<P>Low-level benchmarks will directly measure the performance of the hardware: CPU clock, DRAM and cache SRAM cycle times, hard disk average access time, latency, track-to-track stepping time, etc... This can be useful in case you bought a system and are wondering what components it was built with, but a better way to check these figures would be to open the case, list whatever part numbers you can find and somehow obtain the data sheet for each part (usually on the Web).
+<P>Another use for low-level benchmarks is to check that a kernel driver was correctly configured for a specific piece of hardware: if you have the data sheet for the component, you can compare the results of the low-level benchmarks to the theoretical, printed specs. 
+<P>High-level benchmarks are more concerned with the performance of the hardware/driver/OS combination for a specific aspect of a microcomputer system, for example file I/O performance, or even for a specific hardware/driver/OS/application performance, e.g. an Apache benchmark on different microcomputer systems.
+<P>Of course, all low-level benchmarks are synthetic. High-level benchmarks may be synthetic or applications benchmarks.
+<H2><A NAME="ss2.2">2.2 Standard benchmarks available for Linux </A>
+</H2>
+
+<P>
+<P>IMHO a simple test that anyone can do while upgrading any component in his/her Linux box is to launch a kernel compile before and after the hard/software upgrade and compare compilation times. If all other conditions are kept equal then the test is valid as a measure of compilation performance and one can be confident to say that: 
+<BLOCKQUOTE>
+"Changing A to B led to an improvement of x % in the compile time of the Linux kernel under such and such conditions". 
+</BLOCKQUOTE>
+<P>No more, no less ! 
+<P>Since kernel compilation is a very usual task under Linux, and since it exercises most functions that get exercised by normal benchmarks (except floating-point performance), it constitutes a rather good <B>individual</B> test. In most cases, however, results from such a test cannot be reproduced by other Linux users because of variations in hard/software configurations and so this kind of test cannot be used as a "yardstick" to compare dissimilar systems (unless we all agree on a standard kernel to compile - see below). 
+<P>Unfortunately, there are no Linux-specific benchmarking tools, except perhaps the Byte Linux Benchmarks which are a slightly modified version of the Byte Unix Benchmarks dating back from May 1991 (Linux mods by Jon Tombs, original authors Ben Smith, Rick Grehan and Tom Yager).
+<P>There is a central 
+<A HREF="http://www.silkroad.com/bass/linux/bm.html">Web site </A>for the Byte Linux Benchmarks.
+<P>An improved, updated version of the Byte Unix Benchmarks was put together by David C. Niemi. It is called UnixBench 4.01 to avoid confusion with earlier versions. Here is what David wrote about his mods:
+<BLOCKQUOTE>
+<EM>"The original and slightly modified BYTE Unix benchmarks are broken in quite a number of ways which make them an unusually unreliable indicator of system performance. I intentionally made my "index" values look a lot different to avoid confusion with the old benchmarks."</EM>
+</BLOCKQUOTE>
+<P>David has setup a majordomo mailing list for discussion of benchmarking on Linux and competing OSs. Join with "subscribe bench" sent in the body of a message to 
+<A HREF="mailto:majordomo@wauug.erols.com">majordomo@wauug.erols.com</A>. The Washington Area Unix User Group is also in the process of setting up a 
+<A HREF="http://wauug.erols.com/bench "> Web site </A>for Linux benchmarks.
+<P>Also recently, Uwe F. Mayer, 
+<A HREF="mailto:mayer@math.vanderbilt.edu">mayer@math.vanderbilt.edu </A>ported the BYTE Bytemark suite to Linux. This is a modern suite carefully put together by Rick Grehan at BYTE Magazine to test the CPU, FPU and memory system performance of modern microcomputer systems (these are strictly processor-performance oriented benchmarks, no I/O or system performance is taken into account).
+<P>Uwe has also put together a 
+<A HREF="http://math.vanderbilt.edu:80/~mayer/linux/bmark.html">Web site </A>with a database of test results for his version of the Linux BYTEmark benchmarks.
+<P>While searching for synthetic benchmarks for Linux, you will notice that sunsite.unc.edu carries few benchmarking tools. To test the relative speed of X servers and graphics cards, the xbench-0.2 suite by Claus Gittinger is available from sunsite.unc.edu, ftp.x.org and other sites. Xfree86.org refuses (wisely) to carry or recommend any benchmarks.
+<P>The 
+<A HREF="http://www.goof.com/xbench/">XFree86-benchmarks Survey </A>is a Web site with a database of x-bench results.
+<P>For pure disk I/O throughput, the hdparm program (included with most distributions, otherwise available from sunsite.unc.edu) will measure transfer rates if called with the -t and -T switches.
+<P>There are many other tools freely available on the Internet to test various performance aspects of your Linux box. 
+<H2><A NAME="ss2.3">2.3 Links and references</A>
+</H2>
+
+<P>
+<P>The comp.benchmarks.faq by Dave Sill is the standard reference for benchmarking. It is not Linux specific, but recommended reading for anybody serious about benchmarking. It is available from a number of FTP and web sites and lists <B>56 different benchmarks</B>, with links to FTP or Web sites that carry them. Some of the benchmarks listed are commercial (SPEC for example), though. 
+<P>I will not go through each one of the benchmarks mentionned in the comp.benchmarks.faq, but there is at least one low-level suite which I would like to comment on: the 
+<A HREF="http://reality.sgi.com/lm/lmbench/lmbench.html"> lmbench suite</A>, by Larry McVoy. Quoting David C. Niemi:
+<BLOCKQUOTE>
+<EM>"Linus and David Miller use this a lot because it does some useful low-level measurements and can also measure network throughput and latency if you have 2 boxes to test with. But it does not attempt to come up with anything like an overall "figure of merit"..."</EM>
+</BLOCKQUOTE>
+<P>A rather complete 
+<A HREF="ftp://ftp.nosc.mil/pub/aburto">FTP site </A>for <B>freely</B> available benchmarks was put together by Alfred Aburto. The Whetstone suite used in the LBT can be found at this site.
+<P>There is a <B>multipart FAQ by Eugene Miya</B> that gets posted regularly to comp.benchmarks; it is an excellent reference.
+<HR>
+<A HREF="Benchmarking-HOWTO-3.html">Next</A>
+<A HREF="Benchmarking-HOWTO-1.html">Previous</A>
+<A HREF="Benchmarking-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,314 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Installing DB2 Express-C on Fedora 7</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="IBM DB2 Express-C for Linux HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Installing DB2 Express-C on Fedora Core 6"
+HREF="fedora6.html"><LINK
+REL="NEXT"
+TITLE="Installing DB2 Express-C on OpenSUSE 10.2"
+HREF="opensuse10.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>IBM DB2 Express-C for Linux HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="fedora6.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="opensuse10.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="fedora7"
+></A
+>9. Installing DB2 Express-C on Fedora 7</H1
+><P
+>&#13;    Before proceeding, please ensure that you have read
+    <A
+HREF="planning.html"
+>Section 5</A
+> and <A
+HREF="installing.html"
+>Section 6</A
+>.
+  </P
+><P
+>Note that IBM does not officially support this distribution for DB2
+  9. Any problems you encounter using this distribution must be replicated on a
+  supported distribution before IBM Support can help you resolve the
+  issue.</P
+><P
+>These installation notes are based on a single-partition 32-bit
+  installation using the 2.6.21-1.3228.fc7 kernel.</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN538"
+></A
+>9.1. Installation notes</H2
+><P
+>The only installation error encountered was found when launching the
+    <B
+CLASS="command"
+>./db2setup</B
+> command. The screen displayed this error:
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>ERROR:
+    The following library files could not be loaded by db2langdir
+    in /tmp/exp/disk1/db2/linux/install/../bin
+
+        libstdc++.so.5
+        libstdc++.so.5
+        
+    Check the following web site for the up-to-date system
+    requirements of IBM DB2 Version 9.1:
+        http://www.ibm.com/software/data/db2/udb/sysreqs.html
+
+    Aborting the current installation ...</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    To resolve this error, use the <B
+CLASS="command"
+>yum</B
+> package utility to install the necessary C++ compatibility libraries:
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>yum -y install compat-libstdc++-33</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    Installation succeeded after installing the C++ libraries.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN545"
+></A
+>9.2. Post-installation notes</H2
+><P
+>Basic test results (see <A
+HREF="tests.html"
+>Section 21</A
+> for more details) were
+    successful.</P
+><P
+>However, I found that after a reboot, the DB2 instance was not being
+    restarted automatically, so clients could not connect to the database. To
+    correct this problem, execute this command as the instance owner:
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>db2set DB2AUTOSTART=YES</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    This will ensure that the DB2 instance is initialized and ready to receive
+    incoming connections after a reboot (intentional or otherwise).</P
+><P
+>Also, to allow DB2 access through the iptables-based firewall (which
+    is enabled by default), it was necessary to modify the iptables firewall
+    ruleset, which is kept in the <TT
+CLASS="filename"
+>/etc/sysconfig/iptables</TT
+>
+    file. If you have enabled your firewall (using the
+    <B
+CLASS="command"
+>iptables</B
+> service), and you want to enable external
+    connectivity to your DB2 server, you must open up TCP and UDP access to
+    ports 523 and TCP access to any DB2 service ports. To make this work, add
+    these rules to the <TT
+CLASS="filename"
+>iptables</TT
+>file (anywhere amongst the
+    <B
+CLASS="command"
+>-j ACCEPT</B
+> rules):
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>-A RH-Firewall-1-INPUT -p udp -m udp --dport 523 -j ACCEPT
+-A RH-Firewall-1-INPUT -p tcp -m tcp --dport 523 -j ACCEPT
+-A RH-Firewall-1-INPUT -p tcp -m tcp --dport 50000 -j ACCEPT</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    These rules were added directly to the <TT
+CLASS="filename"
+>iptables</TT
+> file to
+    ensure that they persist in case of a system reboot. Note that you will need
+    to add another new TCP rule to allow firewall access if you create any
+    additional instances later.
+    </P
+><P
+>You can use <B
+CLASS="command"
+>db2 get dbm cfg | grep SVCENAME</B
+> to retrieve
+    the service names and then check the <TT
+CLASS="filename"
+>/etc/services</TT
+> for
+    the equivalent port values to open on your firewall.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="fedora6.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="opensuse10.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Installing DB2 Express-C on Fedora Core 6</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Installing DB2 Express-C on OpenSUSE 10.2</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

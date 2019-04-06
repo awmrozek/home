@@ -1,0 +1,416 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Elite's K7s5a mainboard HOWTO: The mainboard's sensors</TITLE>
+ <LINK HREF="K7s5a-HOWTO-4.html" REL=next>
+ <LINK HREF="K7s5a-HOWTO-2.html" REL=previous>
+ <LINK HREF="K7s5a-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="K7s5a-HOWTO-4.html">Next</A>
+<A HREF="K7s5a-HOWTO-2.html">Previous</A>
+<A HREF="K7s5a-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. The mainboard's sensors</A></H2>
+
+<P>
+<H2><A NAME="ss3.1">3.1 lm-sensors</A>
+</H2>
+
+<H3>Getting the drivers</H3>
+
+<P>Get the lm_sensors 2.6.2 or more recent:
+<A HREF="http://www.lm-sensors.nu/archive/lm_sensors-2.6.2.tar.gz">http://www.lm-sensors.nu/archive/lm_sensors-2.6.2.tar.gz</A>
+You'll need kernel sources too in order to compile that one.
+<H3>Installing them</H3>
+
+<P><EM>tar -xzvf i2c-2.6.2.tar.gz</EM>
+<P><EM>cd i2c-2.6.2</EM>
+<P><EM>make &amp;&amp; make install</EM>
+<P>Then there was a problem when making install for me, so if it doesn't work, just
+do the following:
+<P><EM>cp kernel/i2c-core.o /lib/modules/`uname -r`/misc/i2c-core.o</EM>
+<P><EM>cp kernel/i2c-proc.o /lib/modules/`uname -r`/misc/i2c-proc.o</EM>
+<P>Now let's copy the specific driver:
+<P><EM>cp kernel/chips/it87.o /lib/modules/`uname -r`/misc/it87.o</EM>
+<P>ok now
+<P><EM>cp prog/sensors/sensors /usr/bin/sensors</EM>
+<P>--------------------------------------------------------------------
+<P>
+<P>Edit <CODE>/etc/modules.conf</CODE> and add to it the following lines:
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+alias char-major-89 i2c-dev
+options it87 temp_type=0x31
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>now:
+<P><EM>modprobe i2c-proc</EM>
+<P><EM>modprobe it87</EM>
+<P><EM>modprobe i2c-isa</EM>
+<P><EM>sensors</EM>
+<P>should output you some data
+<P>When it works, you can write it to a file, that will be loaded automatically on
+boot. Under 
+<A HREF="http://www.SuSE.de">SuSE</A> the file is:
+<CODE>/etc/init.d/boot.local</CODE> (used to be <CODE>/sbin/init.d/</CODE>)
+and you should just add: <CODE>sensors -s</CODE>
+Under mandrake, the install should have created that file:
+<CODE>/etc/init.d/sensors</CODE>, which you can edit freely, sensord being just a
+daemon to watch over temperature and fan speed, I assume no one
+will need something like that for her/his own machine.
+<P>Paolo reports that in order to start up sensord on boot, he put in /etc/sysconfig/sensors:
+<BLOCKQUOTE><CODE>
+<PRE>
+MODULE_0=i2c-proc
+MODULE_1=it87
+MODULE_2=i2c-isa
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Now as root you should edit your <CODE>/etc/sensors.conf</CODE>
+search for that line: <CODE>chip "it87-*"</CODE>
+and below you should be able to modify everything to get the right data, here is
+a copy of what i have in there:
+(please note that temp1 is trash and only temp2 and temp3 should be kept)
+<P>--------------------------------------------------------------------
+<H2><A NAME="ss3.2">3.2 lm-sensors the Debian way</A>
+</H2>
+
+<P>This time you'll be forced to compile the modules.
+install the source and programs:
+<P><EM>apt-get install lm-sensors lm-sensors-source</EM>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ The upstream lm-sensors maintainers know of a problem using 
+ lm-sensors with IBM ThinkPad computers, resulting in 
+ firmware corruption.  If you are installing this package on 
+ a ThinkPad, you should wait until the upstream maintainers 
+ have solved this problem before building modules from it.
+ For more information, see 
+ /usr/share/doc/lm-sensors-source/README.thinkpad.
+ IBM ThinkPad brokenness -- really install lm-sensors?
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Answer yes to this question, you can't have an IBM thinkpad and the k7s5a in the same box as far as I know!
+<P><EM>cd /usr/src</EM>
+<P><EM>tar xzvf lm-sensors.tar.gz</EM>
+<P><EM>cd modules/lm-sensors/</EM>
+<P><EM>make &amp;&amp; make install</EM>
+<P>Then you should have modutils take a few arguments,
+the best way is probably to use a new file, like:
+/etc/modutils/sensors
+with this content:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+alias char-major-89 i2c-dev
+options it87 temp_type=0x31
+</PRE>
+</CODE></BLOCKQUOTE>
+
+run
+<P><EM>update-modules</EM>
+<P><EM>modprobe i2c-isa it87</EM>
+<P>You can now type sensors to access to the informations (note that you should edit sensors.conf, otherwise you'll see strange and inaccurate things :] )
+<P>You can also put i2c-isa and it87 in /etc/modules (one by line!) to have them be automatically loaded on boot, I don't know yet, how/whether it is possible to use some automatic loading/removing process with /etc/modules.conf
+<P>
+<H2><A NAME="sample-config"></A> <A NAME="ss3.3">3.3 Sensors.conf for the K7s5a</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#David Thorarinsson explained me that all the 'set' lines should be after the compute ones,
+#this is now fixed,
+chip "it87-*"
+
+# The values below have been tested on Asus CUSI, CUM motherboards.
+# Voltage monitors as advised in the It8705 data sheet
+
+    label in0 "VCore"
+    label in1 "Vcc2.5V"
+    label in2 "+3.3V"
+    label in3 "+5V"
+    label in4 "+12V"
+    label in5 "-12V"
+    label in6 "-5V"
+    label in7 "SB 5V"
+    label in8 "V battery"
+
+    # vid not monitored by IT8705F
+    ignore  vid
+
+# For this family of chips the negative voltage equation is different from
+# the lm78.  The chip uses two external resistor for scaling but one is
+# tied to a positive reference voltage.  See ITE8705/12 datasheet (SIS950
+# data sheet is wrong)
+
+# Vs = (1 + Rin/Rf) * Vin - (Rin/Rf) * Vref.
+# Vref = 4.096 volts, Vin is voltage measured, Vs is actual voltage.
+
+#    compute in2 (1 + 1)*@ ,       @/(1 + 1)
+    compute in3 ((6.8/10)+1)*@ ,  @/((6.8/10)+1)
+    compute in4 ((30/10) +1)*@  , @/((30/10) +1)
+
+# The next two are negative voltages (-12 and -5).
+# The following formulas must be used. Unfortunately the datasheet
+# does not give recommendations for Rin, Rf, but we can back into
+# them based on a nominal +2V input to the chip, together with a 4.096V Vref.
+
+# Formula:
+#    actual V = (Vmeasured * (1 + Rin/Rf)) - (Vref * (Rin/Rf))
+#    For -12V input use Rin/Rf = 6.68
+#    For -5V input use Rin/Rf = 3.33
+# Then you can convert the forumula to a standard form like:
+
+    compute in5 -(36/10)*@, -@/(36/10)
+#(7.67 * @) - 27.36  ,  (@ + 27.36) / 7.67
+    compute in6 -(56/10)*@, -@/(56/10)
+#(4.33 * @) - 13.64  ,  (@ + 13.64) / 4.33
+    compute in7 ((6.8/10)+1)*@ ,  @/((6.8/10)+1)
+
+    set in0_min 1.7 * 0.95
+    set in0_max 1.7 * 1.05
+    set in1_min 2.4
+    set in1_max 2.6
+    set in2_min 3.3 * 0.95
+    set in2_max 3.3 * 1.05
+    set in3_min 5.0 * 0.95
+    set in3_max 5.0 * 1.05
+    set in4_min  12 * 0.95
+    set in4_max  12 * 1.05
+    set in5_min -12 * 0.95
+    set in5_max -12 * 1.05
+    set in6_min  -5 * 0.95
+    set in6_max  -5 * 1.05
+    set in7_min   5 * 0.95
+    set in7_max   5 * 1.05
+
+# Temperature
+
+    label temp3       "Processor"
+    set   temp3_over  40
+    set   temp3_hyst  20
+    label temp2       "Mainboard"
+    set   temp2_over  45
+    set   temp2_hyst  25
+    ignore temp1
+
+# Fans
+
+    label fan1"Processor's Fan"
+    set fan1_min 2000
+    ignore fan3
+    ignore fan2
+#
+#  If you have a system fan, comment 'ignore fan2'
+#  and uncomment the following lines :
+#  Thanks to gro.reirual@erreip
+#
+#    label fan2        "System Fan"
+#    set   fan2_min    3000
+#    set   fan2_div    4
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss3.4">3.4 Sensors on 2.6 kernels</A>
+</H2>
+
+<H3>Kernel 2.6.1 configuration:</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+   # Bus options (PCI, PCMCIA, EISA, MCA, ISA)
+   CONFIG_ISA=y
+   # I2C support
+   CONFIG_I2C=m
+   CONFIG_I2C_CHARDEV=m
+   # I2C Hardware Bus support
+   CONFIG_I2C_ISA=m
+   # I2C Hardware Sensors Chip support
+   CONFIG_I2C_SENSOR=m
+   CONFIG_SENSORS_IT87=m
+</PRE>
+</CODE></BLOCKQUOTE>
+<H3>Setting up the modules</H3>
+
+<P>mount sysfs pseudo filesystem if you have not done it yet.
+<P><EM>mount -t sysfs sysfs /sys</EM>
+<P>See Documentation/filesystems/sysfs.txt and Documentation/i2c/sysfs-interface in the kernel sources tree
+<P><EM>modprobe it87</EM>
+<P><EM>modprobe i2c-isa</EM>
+Sensors can be accessed in the sysfs pseudo file system. But if you want you can use the lm_sensors user tools...
+<P>
+<H3>The lm_sensors user tools</H3>
+
+<P>Install sensors user tools:
+<P><EM>cd lm_sensors-2.8.3</EM>
+<P>copy this into a file named chips-it87.diff
+<P><B>NOTE:</B> This patch is only required for old versions of lm_sensors, Paolo wrote:
+<P><I>"A reply from lm_sensors developers said that the next version of lm_sensors will fix this. It is already fixed in CVS."</I>
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+--- lib/chips.c Sun Jan 25 00:13:49 2004
++++ ../lm_sensors-2.8.3.OK/lib/chips.c  Sat Jan 24 01:23:43 2004
+@@ -3757,13 +3757,13 @@
+                          R, IT87_SYSCTL_TEMP2, VALUE(3), 1 },
+     { SENSORS_IT87_TEMP3, "temp3", NOMAP, NOMAP,
+                          R, IT87_SYSCTL_TEMP3, VALUE(3), 1 },
+-    { SENSORS_IT87_TEMP1_LOW, "temp1_hyst", SENSORS_IT87_TEMP1,
++    { SENSORS_IT87_TEMP1_LOW, "temp1_min", SENSORS_IT87_TEMP1,
+                               SENSORS_IT87_TEMP1, RW,
+                               IT87_SYSCTL_TEMP1, VALUE(2), 1 },
+-    { SENSORS_IT87_TEMP2_LOW, "temp2_hyst", SENSORS_IT87_TEMP2,
++    { SENSORS_IT87_TEMP2_LOW, "temp2_min", SENSORS_IT87_TEMP2,
+                               SENSORS_IT87_TEMP2, RW,
+                               IT87_SYSCTL_TEMP2, VALUE(2), 1 },
+-    { SENSORS_IT87_TEMP3_LOW, "temp3_hyst", SENSORS_IT87_TEMP3,
++    { SENSORS_IT87_TEMP3_LOW, "temp3_min", SENSORS_IT87_TEMP3,
+                               SENSORS_IT87_TEMP3, RW,
+                               IT87_SYSCTL_TEMP3, VALUE(2), 1 },
+     { SENSORS_IT87_TEMP1_HIGH, "temp1_over", SENSORS_IT87_TEMP1,
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>apply the patch:
+<P><EM>$ patch -p0</EM>&lt;<EM>chips-it87.diff</EM> 
+<P><EM>$ make user</EM>
+<P><EM># make user_install</EM>
+<P>edit sensors.conf file it87 chip section (There is an example for more recent versions of lm_sensors in the following section)
+<P>
+<H2><A NAME="ss3.5">3.5 Newer version of Sensors.conf</A>
+</H2>
+
+<P>This version was sent by Paolo BERVA for lm_sensors 2.8.3.
+<BLOCKQUOTE><CODE>
+<PRE>
+chip "it87-*" "it8705-*" "it8712-*"
+
+# The values below have been tested on Asus CUSI, CUM motherboards.
+
+# Voltage monitors as advised in the It8705 data sheet
+
+    label in0 "VCore 1"
+    label in1 "VCore 2"
+    label in2 "+3.3V"
+    label in3 "+5V"
+    label in4 "+12V"
+    label in5 "-12V"
+    label in6 "-5V"
+    label in7 "Stdby"
+    label in8 "VBat"
+
+    set in0_min 1.7 * 0.95
+    set in0_max 1.7 * 1.05
+    set in1_min 2.4
+    set in1_max 2.6
+    set in2_min 3.3 * 0.95
+    set in2_max 3.3 * 1.05
+    set in3_min 5.0 * 0.95
+    set in3_max 5.0 * 1.05
+    set in4_min 12 * 0.95
+    set in4_max 12 * 1.05
+    set in5_max -12 * 0.95
+    set in5_min -12 * 1.05
+    set in6_max -5 * 0.95
+    set in6_min -5 * 1.05
+    set in7_min 5 * 0.95
+    set in7_max 5 * 1.05
+    #the chip does not support in8 min/max
+
+    # vid is not monitored by IT8705F
+    # and is not supported by driver at this time
+    ignore  vid
+
+# If 3.3V reads 2X too high (Soyo Dragon and Asus A7V8X-X, for example),
+# comment out following line.
+#    compute in2   2*@ , @/2
+#
+    compute in3 ((6.8/10)+1)*@ ,  @/((6.8/10)+1)
+    compute in4 ((30/10) +1)*@  , @/((30/10) +1)
+# For this family of chips the negative voltage equation is different from
+# the lm78.  The chip uses two external resistor for scaling but one is
+# tied to a positive reference voltage.  See ITE8705/12 datasheet (SIS950
+# data sheet is wrong)
+# Vs = (1 + Rin/Rf) * Vin - (Rin/Rf) * Vref.
+# Vref = 4.096 volts, Vin is voltage measured, Vs is actual voltage.
+
+# The next two are negative voltages (-12 and -5).
+# The following formulas must be used. Unfortunately the datasheet
+# does not give recommendations for Rin, Rf, but we can back into
+# them based on a nominal +2V input to the chip, together with a 4.096V Vref.
+# Formula:
+#    actual V = (Vmeasured * (1 + Rin/Rf)) - (Vref * (Rin/Rf))
+#    For -12V input use Rin/Rf = 6.68
+#    For -5V input use Rin/Rf = 3.33
+# Then you can convert the forumula to a standard form like:
+#    compute in5 (7.67 * @) - 27.36  ,  (@ + 27.36) / 7.67
+#    compute in6 (4.33 * @) - 13.64  ,  (@ + 13.64) / 4.33
+#
+# this much simpler version is reported to work for a
+# Eltite Group K7S5A board
+#
+   compute in5 -(34/10)*@, -@/(34/10)
+   compute in6 -(51/10)*@, -@/(51/10)
+#   compute in6 -(56/10)*@, -@/(56/10)
+#
+    compute in7 ((6.8/10)+1)*@ ,  @/((6.8/10)+1)
+
+# Temperature
+#
+# Important - if your temperature readings are completely whacky
+# you probably need to change the sensor type.
+# Adujst and uncomment the appropriate lines below.
+# The old method (modprobe it87 temp_type=0xXX) is no longer supported.
+#
+# 2 = thermistor; 3 = thermal diode
+#   set sensor1 3
+   set sensor2 2
+   set sensor3 2
+
+    ignore temp1
+    label temp2       "M/B Temp"
+    set   temp2_over  40
+    set   temp2_min  20
+    label temp3       "CPU Temp"
+    set   temp3_over  45
+    set   temp3_min  25
+
+# The A7V8X-X has temperatures inverted, and needs a conversion for
+# CPU temp. Thanks to Preben Randhol for the formula.
+#   label temp1       "CPU Temp"
+#   label temp2       "M/B Temp"
+#   compute temp1     (-15.096+1.4893*@), (@+15.096)/1.4893
+
+# The A7V600 also has temperatures inverted, and needs a different
+# conversion for CPU temp. Thanks to Dariusz Jaszkowski for the formula.
+#   label temp1       "CPU Temp"
+#   label temp2       "M/B Temp"
+#   compute temp1     (@+128)/3, (3*@-128)
+
+# Fans
+    label fan1 "CPU/Fan"
+    set fan1_div 2
+    set fan1_min 2000
+    label fan2 "Sys/Fan"
+    set fan2_div 4
+    set fan2_min 2000
+    ignore fan3
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="K7s5a-HOWTO-4.html">Next</A>
+<A HREF="K7s5a-HOWTO-2.html">Previous</A>
+<A HREF="K7s5a-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

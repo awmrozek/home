@@ -1,0 +1,234 @@
+<HTML
+><HEAD
+><TITLE
+>Direct IO</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Direct and Mmap-ed IO"
+HREF="dmmio.html"><LINK
+REL="PREVIOUS"
+TITLE="Direct and Mmap-ed IO"
+HREF="dmmio.html"><LINK
+REL="NEXT"
+TITLE="Mmap-ed IO"
+HREF="mmapio.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="dmmio.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 9. Direct and Mmap-ed IO</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="mmapio.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="DIO">9.1. Direct IO</H1
+><P
+>Direct IO uses the kiobuf mechanism [see the <A
+HREF="refs.html#LDD2"
+>Linux
+Device Drivers</A
+> book] to manipulate memory 
+allocated within the user space so that a lower level (adapter) driver
+can DMA directly to or from that user space memory. Since the user
+can give a different data buffer to each SCSI command passed through
+the sg interface then the kiobuf mechanism needs to setup its structures
+(and undo that setup) for each SCSI command.
+<A
+NAME="AEN700"
+HREF="#FTN.AEN700"
+>[1]</A
+>
+Direct IO is available as an option in sg 3.1.18 (before that the sg driver
+needed to be recompiled with an altered define). Direct IO support is
+designed in such a way that if it is requested and cannot be performed
+then the command will still be performed using indirect IO. If direct IO
+is requested and has been performed then the SG_INFO_DIRECT_IO bit will
+be set in the 'info' member of the sg_io_hdr_t control structure after
+the request has been completed. Direct IO is not supported on ISA SCSI 
+adapters since they only can address a 24 bit address space.</P
+><P
+>One limit on direct IO is that sg_io_hdr_t::iovec_count==0. So the user
+cannot (currently) use application level scatter gather and direct IO on
+the same request.</P
+><P
+>For direct IO to be worthwhile, a reasonable amount of data should be
+requested for data transfer. For transfers less than 8 KByte it is
+probably not worth the trouble. On the other hand "locking down" a
+multiple 512 KB blocks of data for direct IO could adversely impact
+overall system performance. Remember that for the duration of a direct
+IO request, the data transfer buffer is mapped to a fixed memory location
+and locked in such a way that it won't be swapped out. This can "cramp
+the style" of the kernel if it is overdone.</P
+><P
+>Prior to sg 3.1.18 the direct IO code was commented out with the
+"SG_ALLOW_DIO" define. In sg 3.1.18 (available for lk 2.4.2 and later)
+the direct IO code is active but is defaulted off by a run time value.
+This value can be accessed via the "proc" file system at
+<TT
+CLASS="FILENAME"
+>/proc/scsi/sg/allow_dio</TT
+> .  Direct IO is enabled when 
+a user with root permissions writes "1" to that file: 
+<B
+CLASS="COMMAND"
+>echo 1 &#62; /proc/scsi/sg/allow_dio</B
+> . If SG_FLAG_DIRECT_IO
+is set in sg_io_hdr::flags but <TT
+CLASS="FILENAME"
+>/proc/scsi/sg/allow_dio</TT
+>
+holds "0" then indirect IO will be performed (and this is indicated by
+((sg_io_hdr::info &#38; SG_INFO_DIRECT_IO_MASK) == SG_INFO_INDIRECT_IO) 
+after the request is completed).</P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN700"
+HREF="dio.html#AEN700"
+>[1]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>Unfortunately that setup time is large enough in some versions of
+the lk 2.4 series to adversely impact direct IO performance.
+Also memory malloc()-ed in the user space tends to be made up of
+discontinuous pages seen from the SCSI adapter. This requires the
+sg driver to build heavily splintered scatter gather lists which 
+is less than desirable. This limits the maximum transfer size to 
+[(max_scsi_adapter_scatter_gather_elements - 1) * PAGE_SIZE].
+[This is a _different_ scatter gather mechanism to that which the user 
+sees in the sg interface based on iovec.]</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="dmmio.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="mmapio.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Direct and Mmap-ed IO</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="dmmio.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Mmap-ed IO</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,359 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Rejestr</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apimenu.html">&lt;&lt; Tworzenie menu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apiclass.html">Subclassing i superclassing &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h1>
+Rejestr
+</h1>
+
+<P>
+W opisywanie, czym jest Rejestr i do czego służy nie będę się tutaj bawić - wszystko to powinieneś już dawno wiedzieć, a jeśli nie wiesz, to pan Google chętnie powie. W tym kursie zakładam, że odpowiednią terminologię znasz, a i Edytor Rejestru jest ci nieobcy. Dlatego też bez zbędnych ceregieli przechodzimy od razu do grzebania w tym największym windowsowym śmietnisku ;-)
+</P>
+
+<h2>
+Otwieranie i tworzenie kluczy
+</h2>
+
+<P>
+Żeby cokolwiek zrobić z danym kluczem Rejestru, musi on być najpierw otwarty. Trochę to dziwne, zwłaszcza dla kogoś kto przyzwyczaił się, że klucze to przyrządy do otwierania czegoś, a nie odwrotnie. Mniejsza jednak o szczegóły. Można dokonać otwarcia klucza przy pomocy funkcji <SPAN CLASS=T>RegOpenKeyEx</SPAN> lub <SPAN CLASS=T>RegCreateKeyEx</SPAN>. Łatwo się domyślić, że ta druga dodatkowo tworzy klucz, jeśli wcześniej on nie istniał. W obu przypadkach po otwarciu danego klucza uzyskujemy do niego uchwyt (typu <SPAN CLASS=T>HKEY</SPAN>). Posługując się tym uchwytem możemy z kluczem zrobić niemal wszystko, co nam potrzebne.
+</P>
+<P>
+Przejdźmy teraz do praktyki. Odpalmy Edytor Rejestru (co najprościej uczynić, wciskając Win+R, a następnie wpisując 'regedit' i Enter). Otwieramy klucz <SPAN CLASS=L>HKEY_CURRENT_USER/Software</SPAN>, oczom naszym ukazuje się mniej więcej taki widok:
+</P>
+<p align=center><img src="../gfx/rejestr1.gif" alt="Edytor Rejestru, otwarty klucz HKEY_CURRENT_USER/Software">
+</p>
+
+<P>
+Następnie tworzymy w nim nowy klucz, np. o nazwie <SPAN CLASS=L>Test</SPAN>:
+</P>
+<P>
+Tyle nam na razie wystarczy, spróbujemy teraz otworzyć ten klucz z poziomu C++. Funkcja <SPAN CLASS=T>RegOpenKeyEx</SPAN> prezentuje się następująco:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: RegOpenKeyEx(<I>hKey, lpSubKey, ulOptions, samDesired, phkResult</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>hKey</I></TD><TD CLASS=ARGLIST>Uchwyt otwartego klucza</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpSubKey</I></TD><TD CLASS=ARGLIST>Nazwa podklucza, którey otwieramy/tworzymy</TD></TR>
+<TR><TD CLASS=ARGLIST><I>ulOptions</I></TD><TD CLASS=ARGLIST>Zarezerwowane - nie używać</TD></TR>
+<TR><TD CLASS=ARGLIST><I>samDesired</I></TD><TD CLASS=ARGLIST>Maska bezpieczeństwa dostępu</TD></TR>
+<TR><TD CLASS=ARGLIST><I>nXSrc, nYSrc</I></TD><TD CLASS=ARGLIST>Adres zmiennej na uchwyt klucza </TD></TR>
+</TABLE>
+
+<P>
+Warto wiedzieć, że istnieje też funkcja <SPAN CLASS=T>RegOpenKey</SPAN> o znacznie prostszej składni, jednak pochodzi ona jeszcze z czasów Windows 3.1 (gdzie, jak wiemy, Rejestru w znanej nam formie właściwie nie było) i jej stosowanie nie jest zalecane.
+</P>
+<P>
+Z powyższych argumentów najbardziej interesuje nas pierwszy. Jest to, jak widać w opisie, uchwyt do otwartego klucza. Więc jak to - mógłby ktoś trzeźwo zapytać - żeby otworzyć klucz i uzyskać do niego uchwyt, musimy podać uchwyt do już otwartego klucza? Przecież można w ten sposób w nieskończoność... Na szczęście nikt nie wymaga od programistów, żeby próbowali gonić własny ogon ;-). Okazuje się bowiem, że niektóre klucze są otwarte przez cały czas, a uchwyty do nich są stałymi: <SPAN CLASS=T>HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_USERS</SPAN> (przy okazji dowiedzieliśmy się, skąd wzięły się te nazwy w Regedicie, co pewnie niejednego nurtowało ;-)). Te cztery akurat są wspólne dla wszystkich 32-bitowych Windowsów, natomiast w zależności od konkretnej platformy mogą wystąpić także inne predefiniowane klucze (np. w Windows 98 są jeszcze: <SPAN CLASS=T>HKEY_CURRENT_CONFIG</SPAN> i <SPAN CLASS=T>HKEY_DYN_DATA</SPAN>).
+</P>
+<P>
+Tak więc, skoro mamy dane uchwyty kluczy pierwszego i najwyższego poziomu, to przy ich pomocy możemy otworzyć klucze drugiego poziomu, np. w naszym przypadku klucz <SPAN CLASS=L>Software</SPAN>. Uczyńmy to zatem:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HKEY hkSoftware;<BR>
+LONG result;<BR>
+result = RegOpenKeyEx(HKEY_CURRENT_USER, <SPAN CLASS=L>"software", 0</SPAN>, KEY_ALL_ACCESS, &hkSoftware);<BR>
+<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Udało się otworzyć klucz.", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Z parametrów funkcji <SPAN CLASS=T>RegOpenKeyEx</SPAN> niewiele jest do omawiania; w sumie rola każdego z nich powinna być oczywista. Nieco mniej jasne wydaje się użycie stałej <SPAN CLASS=T>KEY_ALL_ACCESS</SPAN> - oznacza ona, że życzymy sobie pełnego dostępu do danego klucza. Mogłoby się okazać, że np. klucz jest zabezpieczony przed zapisem i wtedy otwarcie go z flagą <SPAN CLASS=T>KEY_ALL_ACCESS</SPAN> zapewne by się nie powiodło. W przeciwnym razie funkcja zwraca wartość o dość schizofrenicznej nazwie <SPAN CLASS=T>ERROR_SUCCESS</SPAN> (jawny dowód na to, że w systemie Windows sukces jest sytuacją wyjątkową ;-)), co oznacza, że klucz jest już gotowy do użycia.
+</P>
+<P>
+W samym kluczu <SPAN CLASS=L>Software</SPAN> grzebać trochę nie wypada, gdyż jest on wspólny dla wszystkich aplikacji w systemie, w tym również dla samych aplikacji systemowych. Dużo grzeczniej z naszej strony będzie, jeśli stworzymy sobie własny klucz do prywatnego użytku. Tutaj znowu mamy do wyboru dwa warianty: prostszy <SPAN CLASS=T>RegCreateKey</SPAN> oraz dość skomplikowany <SPAN CLASS=T>RegCreateKeyEx</SPAN>. I znowu wybieramy ten drugi, gdyż jesteśmy akurat chorobliwie ambitni:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HKEY hkTest;<BR>
+LONG result;<BR>
+DWORD dwDisp;<BR>
+<BR>
+result = RegCreateKeyEx(hkSoftware, <SPAN CLASS=L>"test", 0</SPAN>, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &hkTest, &dwDisp);<BR>
+<BR>
+<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(dwDisp == REG_CREATED_NEW_KEY)<BR>
+&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Udało się stworzyć nowy klucz.", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+&nbsp;<SPAN CLASS=K>else if</SPAN>(dwDisp == REG_OPENED_EXISTING_KEY)<BR>
+&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Udało się otworzyć istniejący klucz.", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Trzy pierwsze argumenty funkcji są identyczne jak w przypadku <SPAN CLASS=T>RegOpenKeyEx</SPAN>. Czwarty, <SPAN CLASS=T>lpClass</SPAN>, oznacza stringa z nazwą klasy klucza - możemy tu dać <SPAN CLASS=T>NULL</SPAN>. Kolejny argument to specjalne opcje tworzenia klucza - znów nie musimy się tym specjalnie przejmować, gdyż mają one znaczenie (i to niewielkie) tylko w systemach klasy NT (co prawda teraz prawie wszyscy mają takie systemy... no, nieistotne :-)). Daliśmy więc <SPAN CLASS=T>REG_OPTION_NON_VOLATILE</SPAN> tylko po to, żeby ładnie wyglądało ;-). Argument <SPAN CLASS=T>samDesired</SPAN> już znamy - to opcje dostępu do nowo tworzonego klucza. Ponieważ to właśnie my tworzymy ten klucz, więc raczej chcemy mieć do niego pełny dostęp, czyli dajemy <SPAN CLASS=T>KEY_ALL_ACCESS</SPAN>.
+</P>
+<P>
+Pozostały trzy argumenty. Ten figurujący jako <SPAN CLASS=T>lpSecurityAttributes</SPAN> znowu bezczelnie olejemy, podając <SPAN CLASS=T>NULL</SPAN>. Wreszcie dochodzimy do wskaźnika do zmiennej typu <SPAN CLASS=T>HKEY</SPAN>, która otrzyma uchwyt nowo utworzonego klucza oraz wskaźnika do zmiennej typu <SPAN CLASS=T>DWORD</SPAN>, która otrzyma wartość mówiącą, czy klucz istniał przed wywołaniem funkcji <SPAN CLASS=T>RegCreateKeyEx</SPAN> czy też nie istniał. Trzeba ci bowiem wiedzieć, że funkcja ta nie będzie protestowała w przypadku próby utworzenia już od wieków istniejącego klucza i również w takim przypadku, co może się wydać zaskakujące, zwróci <SPAN CLASS=T>ERROR_SUCCESS</SPAN>. Efekt:
+</P>
+
+<p align=center>
+<img src="../gfx/rejestr2.gif" alt="Utworzyliśmy klucz - jeden śmieć więcej w Rejestrze ;-)"
+</P>
+
+<h2>
+Tworzenie i odczytywanie wartości
+</h2>
+
+<P>
+Z samych kluczy niewielki mamy pożytek, więc warto dowiedzieć się, jak ustawiamy konkretne wartości. Intuicja podpowiada, że służy do tego funkcja <SPAN CLASS=T>RegSetValue</SPAN> - i faktycznie, istnieje taka. Jednak jest to kolejny relikt z czasów Windows 3.1 i do naszych celów funkcja ta jest praktycznie bezużyteczna, gdyż potrafi tylko ustawiać domyślną wartość klucza. Aby ustawić "zwykłą" wartość, musimy skorzystać z nowszej wersji tej funkcji, czyli oczywiście <SPAN CLASS=T>RegSetValueEx</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>char</SPAN> buf[<SPAN CLASS=L>20</SPAN>];<BR>
+lstrcpy(buf, <SPAN CLASS=L>"Jakiś tam tekst"</SPAN>);<BR>
+result = RegSetValueEx(hkTest,<SPAN CLASS=L> "MojaWartość", 0</SPAN>, REG_SZ, (LPBYTE)buf, lstrlen(buf)+<SPAN CLASS=L>1</SPAN>);<BR>
+<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"value is set.", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Składnia naszej funkcji przypomina trochę poprzednie dwie, tyle że tym razem zamiast nazwy podklucza podajemy nazwę wartości. Czwarty argument, czyli <SPAN CLASS=T>dwType</SPAN>, to typ wartości. Oto tabelka z najczęściej stosowanymi typami:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TH CLASS=ARGLIST>Stała</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>REG_BINARY</I></TD><TD CLASS=ARGLIST>Dowolne dane binarne</TD></TR>
+<TR><TD CLASS=ARGLIST><I>REG_DWORD</I></TD><TD CLASS=ARGLIST>Liczba 32-bitowa bez znaku</TD></TR>
+<TR><TD CLASS=ARGLIST><I>REG_SZ</I></TD><TD CLASS=ARGLIST>String</TD></TR>
+<TR><TD CLASS=ARGLIST><I>REG_MULTI_SZ</I></TD><TD CLASS=ARGLIST>Tablica stringów</TD></TR>
+</TABLE>
+
+<P>
+W powyższym przykładzie użyliśmy sobie typu <SPAN CLASS=T>REG_SZ</SPAN>, czyli zwykłego stringa (najpowszechniejszy typ danych w Rejstrze). Aby umieścić stringa w Rejestrze, musieliśmy najpierw stworzyć sobie bufor, skopiować do niego tego stringa za pomocą funkcji lstrcpy, a następnie podać adres bufora funkcji <SPAN CLASS=T>RegSetValueEx</SPAN>. Funkcja ta oczekuje wskaźnika tylko do pierwszego bajtu wartości, więc musieliśmy przekonwertować adres bufora do typu <SPAN CLASS=T>LPBYTE</SPAN> (czyli <SPAN CLASS=T>BYTE*</SPAN>). Oczywiście jeśli funkcja oczekuje wskaźnika typu <SPAN CLASS=T>LPBYTE</SPAN>, a wskazywany bufor jest zwykle dłuższy niż <SPAN CLASS=L>1</SPAN> bajt, to należy się spodziewać, że będziemy również musieli podać długość tego bufora. A ponieważ funkcja przyjmuje dane różnych typów (nie tylko stringi), więc do tej długości wlicza się również znak zerowy na końcu stringa, dlatego też dodajemy jedynkę do długości otrzymanej przy pomocy <SPAN CLASS=T>lstrlen</SPAN>.
+</P>
+<P>
+Naturalnie, jeśli los się na nas nie uwziął, to po tych wszystkich zabiegach <SPAN CLASS=T>RegSetValueEx</SPAN> powinna nam zwrócić <SPAN CLASS=T>ERROR_SUCCESS</SPAN>.
+</P>
+<P>
+Odczytywanie wartości jest bardzo podobne do ich ustawiania, przynajmniej pod względem składniowym. Tak więc wystarczy nieco zmodyfikować poprzedni przykład. Funkcja, którą tu zaprzęgniemy do pracy, zowie się <SPAN CLASS=T>RegQueryValueEx</SPAN>.
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: RegQueryValueEx(<I>hKey, lpValueName, lpReserved, lpType, lpData, lpcbData</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>hKey</I></TD><TD CLASS=ARGLIST>Uchwyt klucza</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpValueName</I></TD><TD CLASS=ARGLIST>Nazwa wartości</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpReserved</I></TD><TD CLASS=ARGLIST>Nie dotykać, grozi trwałym kalectwem</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpType</I></TD><TD CLASS=ARGLIST>Adres bufora na typ wartości</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpData</I></TD><TD CLASS=ARGLIST>Adres bufora na dane wartości</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpcbData</I></TD><TD CLASS=ARGLIST>Rozmiar bufora na dane</TD></TR>
+</TABLE>
+
+
+<P>
+Poniższy przykład pokazuje, jak pobrać wartość typu tekstowego do bufora i następnie ukazać ją zaskoczonym oczętom użytkownika:
+ </P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>char</SPAN> buf[<SPAN CLASS=L>21</SPAN>];<BR>
+DWORD dwBufSize = <SPAN CLASS=L>20</SPAN>;<BR>
+result = RegQueryValueEx(hkTest, <SPAN CLASS=L>"MojaWartość"</SPAN>, NULL, REG_SZ, (LPBYTE)buf, &dwBufSize);<BR>
+<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+{<BR>
+&nbsp;buf[<SPAN CLASS=L>20</SPAN>] = <SPAN CLASS=L>0</SPAN>;<BR>
+&nbsp;MessageBox(hwnd, buf, <SPAN CLASS=L>"Test"</SPAN>, MB_ICONINFORMATION);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jedyna istotna dla nas różnica jest taka, że ostatni parametr funkcji <SPAN CLASS=T>RegQueryValueEx</SPAN> to tym razem wskaźnik. Musimy do niego wpisać adres zadeklarowanej zmiennej, która będzie zawierać rozmiar bufora (i do której później powędruje liczba bajtów skopiowanych do bufora przez funkcję <SPAN CLASS=T>RegQueryValueEx</SPAN>). Powinna to być zmienna typu <SPAN CLASS=T>DWORD</SPAN>.
+</P>
+<P>
+Jeśli <SPAN CLASS=T>RegQueryValueEx</SPAN> nie napotka po drodze żadnych przeszkód, to tradycyjnie zwróci<SPAN CLASS=T> ERROR_SUCCESS</SPAN>, żądana przez nas wartość zostanie wpisana do bufora wskazywanego przez <SPAN CLASS=T>lpData</SPAN>, zaś rozmiar tej wartości w bajtach zostanie wpisany do zmiennej wskazywanej przez <SPAN CLASS=T>lpcbData</SPAN>.
+</P>
+<P>
+Przewidziano jeszcze jedno zastosowanie funkcji <SPAN CLASS=T>RegQueryValueEx</SPAN>, mianowicie samo sprawdzenie, czy dana wartość istnieje, bez jej pobierania do bufora. Wówczas zamiast dwóch ostatnich wskaźników podajemy <SPAN CLASS=T>NULL</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+result = RegQueryValueEx(hkTest, <SPAN CLASS=L>"MojaWartość"</SPAN>, NULL, REG_NONE, NULL, NULL);<BR>
+<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wartość istnieje ;-)", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W tym przypadku użycie <SPAN CLASS=T>REG_NONE</SPAN> jako typ wartości ma znaczenie czysto kosmetyczne - robimy tak, żeby na pierwszy rzut oka było widać, że de facto nie pobieramy żadnej wartości.
+</P>
+
+<h2>
+Usuwanie kluczy i wartości
+</h2>
+
+<P>
+Usuwanie wartości nie jest sprawą skomplikowaną, przynajmniej w porównaniu do wyżej opisanych funkcji. Zajmuje się tym funkcja <SPAN CLASS=T>RegDeleteValue</SPAN> (tym razem bez Ex ;-)). Podajemy jej tylko uchwyt klucza i nazwę wartości do skasowania:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+result = RegDeleteValue(hkTest, <SPAN CLASS=L>"MojaWartość"</SPAN>);<BR>
+<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Z wartości pozostało tylko wspomnienie ", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Analogicznie usuwamy klucze. Podobnie jak w przypadku otwierania kluczy, także i tutaj nie możemy się odwołać do klucza bezpośrednio, lecz musimy podać uchwyt do klucza nadrzędnego i nazwę podklucza, który chcemy usunąć. Tak więc nie można usunąć kluczy, które są najwyżej w hierarchii, np. <SPAN CLASS=L>HKEY_CLASSES_ROOT</SPAN> (no i bardzo dobrze ;-)). Przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+result = RegDeleteKey(hkSoftware, <SPAN CLASS=L>"test"</SPAN>); <SPAN CLASS=C>//usuń klucz "test"</SPAN><BR>
+<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Ulotny jest żywot klucza... ;-)", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W rodzinie Windows 9x klucze usuwane są kaskadowo (czyli poklucz wraz ze wszystkimi ewentualnymi pod-podkluczami). W rodzinie NT (czyli również w Windows 2000 oraz XP) można usuwać tylko puste klucze (tj. nie mogą one zawierać żadnych podkluczy). Za to w tym drugim przypadku możesz skorzystać z funkcji <SPAN CLASS=T>SHDeleteKey</SPAN>, aby usuwać klucze rekurencyjnie (kaskadowo).
+</P>
+
+<h2>
+Więcej wartości naraz
+</h2>
+
+<P>
+Odczytywanie wielu wartości pod rząd potrafi być deczko nużące. Jeśli nie mamy pod ręką jakiegoś frajera, który by to za nas zakodził, możemy sobie ułatwić życie dzięki funkcji <SPAN CLASS=T>RegEnumValue</SPAN>. Nie jest to może najprzyjaźniejsza w użyciu funkcja WinAPI, ale i tak dużo nam pomoże w sytuacjach podobnych do tej:
+</P>
+
+<p align=center>
+<img src="../gfx/rejestr3.gif" alt="Nasze zadanie bojowe - 3 wartości do odczytania">
+</p>
+
+<P>
+Funkcja <SPAN CLASS=T>RegEnumValue</SPAN> służy do pobieranie kolejnych wartości z danego podklucza (np. tych trzech powyżej). Poza tym używamy jej wtedy, gdy nie znamy nazw wartości, do których właśnie się chcemy dobrać ;-). Składnia jest następująca:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: RegEnumValue(<I>hKey, dwIndex, lpValueName, lpcbValueName, lpReserved, lpType, lpData, lpcbData</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>hKey</I></TD><TD CLASS=ARGLIST>uchwyt klucza</TD></TR>
+<TR><TD CLASS=ARGLIST><I>dwIndex</I></TD><TD CLASS=ARGLIST>Indeks wartości do odczytania</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpValueName</I></TD><TD CLASS=ARGLIST>Bufor na nazwę wartoćci</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpcbValueName</I></TD><TD CLASS=ARGLIST>Adres zmiennej z rozmiarem powyśzego bufora</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpReserved</I></TD><TD CLASS=ARGLIST>Nie dotykać</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpType</I></TD><TD CLASS=ARGLIST>Adres bufora na typ</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpData</I></TD><TD CLASS=ARGLIST>Adres bufora na dane</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpcbData</I></TD><TD CLASS=ARGLIST>Adres na rozmiar bufora na dane</TD></TR>
+</TABLE>
+ 
+<P>
+ Używamy tej funkcji w ten sposób, że wywołujemy ją tak długo, aż zwróci <SPAN CLASS=T>ERROR_NO_MORE_ITEMS</SPAN>. Za każdym wywołaniem powinniśmy też zwiększać wartość <SPAN CLASS=T>dwIndex </SPAN>(zaczynając od <SPAN CLASS=L>0</SPAN>). Jeśli funkcja znajdzie w danym podkluczu wartość o podanym przez nas indeksie, to umieści jej nazwę w buforze wskazywanym przez <SPAN CLASS=T>lpValueName</SPAN>, typ w buforze wskazywanym przez <SPAN CLASS=T>lpType</SPAN>, natomiast wartość w buforze wskazywanym przez <SPAN CLASS=T>lpData</SPAN>. Bufor na typ wartości musi być typu <SPAN CLASS=T>DWORD</SPAN>, natomiast pozostałe dwa z wymienionych buforów powinne być odpowiednio duże, żeby pomieścić: nazwę i dane naszej wartości. Tylko jak uczynić je "odpowiednio dużymi", jeśli nie wiemy nic o wartości, którą właśnie pobieramy?
+</P>
+<P>
+Na szczęście informacja o maksymalnym rozmiarze tych buforów jest przechowywana przez system dla każdego klucza osobno. Możemy ją pobrać za pomocą <SPAN CLASS=T>RegQueryInfoKey</SPAN>. Liczba argumentów tej funkcji nie jest mała - "jedyne" 12. Większość z nich to wskaźniki do typu <SPAN CLASS=T>DWORD</SPAN>, każdy z nich reprezentuje jakiś atrybut klucza. Na szczęście te, które nas nie interesują (czyli większość), można spokojnie ustawić na <SPAN CLASS=T>NULL</SPAN>. Chcemy tylko dwóch liczb - maksymalny rozmiar bufora na nazwę oraz bufora na wartość. A żeby nas palce nie zabolały od wpisywania tych <SPAN CLASS=T>NULL</SPAN>-ów, to pobierzemy sobie jeszcze całkowitą liczbę wartości w danym kluczu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DWORD dwMaxName, dwMaxData, dwMaxIndex;<BR>
+result = RegQueryInfoKey(hkTest, NULL, NULL, NULL, NULL, NULL, NULL, &dwMaxIndex, &dwMaxName, &dwMaxData, NULL, NULL);<BR>
+<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=K>"Niesamowite, ale się udało.", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W ten oto sposób otrzymaliśmy interesujące nas dane. Wiemy już, ile jest wszystkich wartości w kluczu <SPAN CLASS=T>hkTest</SPAN> (ich liczba jest w zmiennej <SPAN CLASS=T>dwMaxIndex</SPAN> - znając tę liczbę nie musimy sprawdzać, czy <SPAN CLASS=T>RegEnumValue</SPAN> zwróciła <SPAN CLASS=T>ERROR_NO_MORE_ITEMS</SPAN>), wiemy również, jak duże powinne być bufory, które teraz użyjemy wraz z <SPAN CLASS=T>RegEnumValue...</SPAN> No właśnie, rozmiar buforów. Twórcy funkcji operujących na rejestrze najwyraźniej nie mogli się zdecydować, czy w rozmiar ten wliczać znak zerowy na końcu, czy też nie. W rezultacie nie dość, że każda funkcja interpretuje to inaczej, to jeszcze taka np. <SPAN CLASS=T>RegEnumValue</SPAN> przyjmuje rozmiar wraz z zerem, ale zwraca bez niego. Żeby ten bałagan jako tako opanować, musimy zwiększyć o 1 wartości otrzymane dzięki <SPAN CLASS=T>RegQueryInfoKey</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+++dwMaxName;<BR>
+++dwMaxData;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Drugą pułapką czyhającą na amatora rejestru jest fakt, że <SPAN CLASS=T>RegEnumValue</SPAN>, jako się rzekło, coś tam sobie zwraca oprócz kodu błędu. A tak dokładniej - zwraca liczbę znaków, skopiowanych do podanych przez nas buforów, wpisując tę liczbę do zmiennych, których adresy podajemy (czyli u nas <SPAN CLASS=T>dwMaxName</SPAN> i <SPAN CLASS=T>dwMaxData</SPAN>). Ponieważ zaś zmienne te przekazujemy jako argumenty wielokrotnie, więc przy każdym wywołaniu <SPAN CLASS=T>RegEnumValue</SPAN> musimy do nich wpisywać odpowiednią wartość od nowa. Dlatego też będziemy potrzebować dodatkowych dwóch zmiennych, w których zapamiętamy pierwotne wartości <SPAN CLASS=T>dwMaxName</SPAN> i <SPAN CLASS=T>dwMaxData</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DWORD dwMaxName_ = dwMaxName, dwMaxData_ = dwMaxData;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz dopiero możemy przystąpić do pobierania w pętli kolejnych wartości z rejestru:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>char*</SPAN> ValueName = (<SPAN CLASS=K>char*</SPAN>)GlobalAlloc(GMEM_FIXED, dwMaxName);<BR>
+<SPAN CLASS=K>char*</SPAN> Data = (<SPAN CLASS=K>char*</SPAN>)GlobalAlloc(GMEM_FIXED, dwMaxData);<BR>
+<BR>
+DWORD ValueType;<BR>
+<BR>
+<SPAN CLASS=K>for</SPAN>(DWORD i=<SPAN CLASS=L>0</SPAN>; i&lt;dwMaxIndex; ++i)<BR>
+{<BR>
+&nbsp;result = RegEnumValue(hkTest, i, ValueName, &dwMaxName, NULL, &ValueType, (LPBYTE)Data, &dwMaxData);<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(result == ERROR_SUCCESS)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;MessageBox(hwnd, ValueName, <SPAN CLASS=L>"Nazwa"</SPAN>, MB_ICONINFORMATION); <BR>
+&nbsp;&nbsp;MessageBox(hwnd, Data, <SPAN CLASS=L>"Wartość"</SPAN>, MB_ICONINFORMATION); <BR>
+&nbsp;}<BR>
+}<BR>
+<BR>
+GlobalFree(ValueName);<BR>
+GlobalFree(Data);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Powyższy przykładzik po prostu wyświetla kolejno wszystkie wartości z klucza <SPAN CLASS=T>hkTest</SPAN>. Zakładamy w nim, że wszystkie wartości są typu <SPAN CLASS=T>REG_SZ</SPAN> (dla przyzwoitości powinniśmy to najpierw sprawdzić - typ wartości kopiowany jest tutaj do <SPAN CLASS=T>ValueType</SPAN> - jednakże, jak wiadomo, autor tej strony słynie z lenistwa).
+</P>
+
+<P>
+Zwróć uwagę, że zgodnie z tym, co w MSDN napisano, kolejność pobierania wartości z rejestru może być dowolna (chociaż najczęściej pobierane są w takiej kolejności, w jakiej zostały utworzone).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apimenu.html">&lt;&lt; Tworzenie menu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apiclass.html">Subclassing i superclassing &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>

@@ -1,0 +1,162 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Dialogi niemodalne</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apidlg.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidlg3.html">Następna część kursu >></A> &nbsp; 
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+Okna dialogowe niemodalne
+</H1>
+
+<P>
+Takie okienka dialogowe, o jakich mówiliśmy do tej pory, nie do wszystkiego da się wykorzystać. I tak na przykład jeśli chcemy zrobić aplikację składającą się z kilku okien widocznych za ekranie jednocześnie (np. jedno okno główne i drugie okno jako pasek narzędzi), dialogi modalne stają się kompletnie nieprzydatne, ponieważ taki dialog trzeba zamknąć, by móc znów korzystać z głównego okna.
+</P>
+<P>
+Dialogi <SPAN CLASS=Wazne>niemodalne</SPAN> (<SPAN CLASS=Inglisz>modeless dialogs</SPAN>) nie posiadają własnej pętli komunikatów. Wszystko, co się na nich dzieje, wysyłane jest do okna-rodzica. Zresztą w tym przypadku określenia "okno-rodzic" i "okno-dziecko" są bardzo adekwatne do sytuacji: niemodalne okna dialogowe są "niesamodzielne" i całkowicie podległe swym "rodzicom".
+</P>
+<P>
+Po tej szczypcie teorii czas zakasać rękawy i brać się do roboty, czyli do stworzenia takiego niemodalnego okna dialogowego. Załóżmy, że chcemy mieć pasek narzędzi z trzema przyciskami. Czyli coś takiego:
+</P>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/modeless.gif" ALT="Niemodalny dialog w roli paska narzędziowego">
+</P>
+
+<P>
+Zaczniemy od edycji pliku *.rc:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;windows.h&gt;<BR>
+#include "pasek.h"</SPAN><BR>
+<BR>
+IDD_PASEK <SPAN CLASS=K>DIALOGEX</SPAN> <SPAN CLASS=L>0, 0, 98, 52</SPAN><BR>
+<SPAN CLASS=K>STYLE</SPAN> DS_MODALFRAME | WS_POPUP | WS_CAPTION<BR>
+<SPAN CLASS=K>EXSTYLE</SPAN> WS_EX_TOOLWINDOW<BR>
+<SPAN CLASS=K>CAPTION</SPAN> <SPAN CLASS=L>"Mój pasek narzędzi"</SPAN><BR>
+<SPAN CLASS=K>FONT</SPAN> <SPAN CLASS=L>8, "MS Sans Serif"</SPAN><BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>PUSHBUTTON</SPAN> <SPAN CLASS=L>"&Pierwszy przycisk"</SPAN>, IDC_PRZYC1, <SPAN CLASS=L>7,7,84,14</SPAN><BR>
+&nbsp;<SPAN CLASS=K>PUSHBUTTON</SPAN> <SPAN CLASS=L>"&Drugi przycisk"</SPAN>, IDC_PRZYC2, <SPAN CLASS=L>7,31,84,14</SPAN><BR>
+&nbsp;<SPAN CLASS=K>PUSHBUTTON</SPAN> <SPAN CLASS=L>"&Trzeci przycisk"</SPAN>, IDC_PRZYC3, <SPAN CLASS=L>7,31,84,14</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Nagłówek <SPAN CLASS=C>pasek.h</SPAN> może wyglądać jakoś tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#define IDD_PASEK &nbsp;200<BR>
+#define IDC_PRZYC1 201<BR>
+#define IDC_PRZYC1 202<BR>
+#define IDC_PRZYC1 203<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, powyższy plik zasobów nie różni się zbytnio od tego dla dialogu modalnego. Wstawiłem go tylko po to, by pokazać, jak określać rozszerzone opcje stylów w pliku zasobów. Dla naszego dialogu użyjemy rozszerzonego stylu <SPAN CLASS=T>WS_EX_TOOLWINDOW</SPAN>, który zamienia nasze okienko na pasek narzędzi. Charakteryzuje się on przede wszystkim mniejszym paskiem tytułowym. Jeśli chcemy skorzystać z rozszerzonych stylów dla dialogu, definiujemy go w pliku *.rc słowem <SPAN CLASS=K>DIALOGEX</SPAN> (zamiast zwykłego <SPAN CLASS=K>DIALOG</SPAN>). Stałe rozszerzonych stylów podajemy po słowie <SPAN CLASS=K>EXSTYLE</SPAN>.
+</P>
+<P>
+Oczywiście rozszerzone style można równie dobrze stosować dla dialogów niemodalnych jak i modalnych. W budowie pliku zasobów tych dwóch rodzajów dialogów nie ma, jak już powiedziałem, żadnej różnicy. Pojawia się ona dopiero przy makrze wywołującym dialog. Dla dialogów niemodalnych będzie to <SPAN CLASS=T>CreateDialog</SPAN>. Składnia jest identyczna, jak w przypadku <SPAN CLASS=T>DialogBox</SPAN>:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<SPAN CLASS=K>int</SPAN> CreateDialog(<I>HINSTANCE hInstance, LPCTSTR lpTemplate, HWND hWndParent, DLGPROC lpDialogFunc</I>)
+</TD></TR><TR></TR><TR></TR><TR></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>hInstance</I></TD><TD CLASS=ARGLIST>Uchwyt do naszej aplikacji</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpTemplate</I></TD><TD CLASS=ARGLIST>Identyfikator wzorca dialogu</TD></TR> 
+<TR><TD CLASS=ARGLIST><I>hWndParent</I></TD><TD CLASS=ARGLIST>Uchwyt okna wywołującego dialog</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpDialogFunc</I></TD><TD CLASS=ARGLIST>Wskaźnik do procedury dialogowej</TD></TR>
+</TABLE>
+
+<P>
+Podobna jest też budowa procedury dialogowej dialogu niemodalnego. Jedyna istotna różnica to sposób zamykania dialogu. Tym razem nie wywołujemy <SPAN CLASS=T>EndDialog</SPAN>, tylko niszczymy okno poleceniem <SPAN CLASS=T>DestroyWindow</SPAN>, tak jak w przypadku "zwykłego" (nie-dialogowego) okna. Oczywiście okno niszczymy zazwyczaj tylko raz, a konkretnie przy wychodzeniu z programu. Czasami jednak użytkownik może zapragnąć schować na jakiś czas swój pasek narzędzi (np. żeby nie zasłaniał mu uroczego widoku na inne okienko ;-)), a później znowu je pokazać, gdy będzie potrzebne. Wtedy możemy skorzystać z usług funkcji <SPAN CLASS=T>ShowWindow</SPAN>. Ukrywamy okno tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+ShowWindow(hwnd, SW_HIDE);
+</TD></TR>
+</TABLE>
+
+<P>
+...a z powrotem pokazujemy tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+ShowWindow(hwnd, SW_SHOW);
+</TD></TR>
+</TABLE>
+
+<P>
+Kodu przykładowego wykorzystującego dialog niemodalny nie będzie, gdyż jest on prawie identyczny z tym do dialogów modalnych (a tak naprawdę to nie chce mi się go kopiować ;-)).
+</P>
+
+<H2>
+DOMYŚLNA OBSŁUGA KOMUNIKATÓW
+</H2>
+
+<P>
+Uczyniwszy nasz dialog niemodalnym, pozbawiliśmy go przy okazji pewnej cennej cechy: domyślnej obsługi przełączania się między kontrolkami za pomocą klawisza TAB. Na szczęście jest na to sposób. Wystarczy wywołać funkcję <SPAN CLASS=T>IsDialogMessage</SPAN>. Jak sugeruje nazwa, funkcja ta sprawdza, czy podany komunikat pochodzi od podanego dialogu, czy też nie. Jeśli pochodzi, funkcja obsłuży ten komunikat (zapewniając przy okazji automatyczną obsługę TAB-a) i zwróci <SPAN CLASS=T>TRUE</SPAN>. Tak więc modyfikując pętlę komunikatów w następujący sposób:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>while</SPAN>(GetMessage(&msg, NULL, <SPAN CLASS=L>0, 0</SPAN>))<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(!IsDialogMessage(hPasek, &msg))<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;TranslateMessage(&msg);<BR>
+&nbsp;&nbsp;&nbsp;DispatchMessage(&msg);<BR>
+&nbsp;&nbsp;}<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...zyskujemy automatyczną obsługę TAB-a również w niemodalnym dialogu. Co więcej, sztuczkę tę można wykorzystać także dla "zwykłego" okna, podając funkcji <SPAN CLASS=T>IsDialogMessage</SPAN> uchwyt tego okna jako argument! Głupi Windows pomyśli sobie, że okno jest dialogiem i zapewni mu obsługę TAB-a :-). 
+</P>
+
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apidlg.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidlg3.html">Następna część kursu >></A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

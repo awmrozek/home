@@ -1,0 +1,417 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Dynamiczna Kontrola Typów</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs08a.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs10.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h2>
+Statyczne rzutowanie
+</h2>
+
+<P>
+Zanim zaczniemy się faktycznie bawić dynamiczną kontrolą typów, poznamy trzy nowe operatory, które do języka C++ dostały się niejako "przy okazji" wprowadzania mechanizmu RTTI (<span class=Inglisz>Run-Time Type Information</SPAN> - informacja o typie w fazie wykonania programu), bo służą właściwie do czego innego.
+</P>
+<P>
+Pierwszym jest operator zwykłego, statycznego rzutowania.
+</P>
+
+<P class=UWAGA>
+Generalnie słowo "konwersja" jakoś bardziej mi pasuje jako nazwa dla operacji zmiany typu. Ponieważ jednak operatory języka C++ odpowiedzialne za tę czynność mają w nazwie "cast", więc utarło się, żeby nazywać zmianę typu rzutowaniem (chociaż po angielsku "cast" znaczy "rzucać", nie "rzutować"). A konwersję w stylu C (z nawiasami okragłymi) będę nadal nazywał po prostu konwersją.</P>
+
+<P>
+Wspomniany operator zastępuje konwersję przy użyciu nawiasów okrągłych, która jest pozostałością z języka C, niezbyt lubianą przez niektórych programistów. Dlaczego niezbyt lubianą? Po pierwsze, gwałtownie zwiększają liczbę nawiasów w wyrażeniach, co nie wpływa najlepiej na jego przejrzystość:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> a, b = <SPAN CLASS=L>2</SPAN>, c = <SPAN CLASS=L>4</SPAN>;<BR>
+a = (<SPAN CLASS=K>int</SPAN>)((<SPAN CLASS=K>float</SPAN>)(b+<SPAN CLASS=L>1</SPAN>)/(<SPAN CLASS=K>float</SPAN>)(c+<SPAN CLASS=L>1</SPAN>));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Musisz przyznać, że oczopląsu można dostać, patrząc na tę drugą linijkę. A przecież jest to zwykła zamiana liczb całkowitych na zmiennoprzecinkowe dla uzyskania dokładniejszego dzielenia i zamiana wyniku z powrotem na liczbę całkowitą. Oczywiście można zastosować też drugi rodzaj notacji dla konwersji w stylu C, na pewno bardziej czytelny:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+a = <SPAN CLASS=K>int</SPAN>(<SPAN CLASS=K>float</SPAN>(b+<SPAN CLASS=L>1</SPAN>)/<SPAN CLASS=K>float</SPAN>(c+<SPAN CLASS=L>1</SPAN>));<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...ale takie rozwiązanie również nie każdemu przypadnie do gustu, gdyż kojarzy się z wywoływaniem funkcji (a żadnych tu nie ma).
+</P>
+<P>
+Drugą wadą "klasycznych" konwersji jest fakt, że przełykają one gładko również wszelkie udziwnienia, na przykład konwersję z <SPAN CLASS=T>std::string</SPAN> na <SPAN CLASS=K>int</SPAN> (sam język nie zawiera definicji takiej zamiany, chociaż realizujące ją funkcje obecne są w Standardowej Biliotece C++). Dla mnie i jedna, i druga "wada" to bzdety, którymi nie powinno się zawracać sobie głowy, ale pomimo to ludzie pracujący nad rozwojem C++ wzięli je sobie do serca i sprezentowali nam operatorek, który wykonuje to samo zadanie, co konwersje "a la C", a przy tym jest ładniejszy (przynajmniej niektórzy tak sądzą) i bezpieczniejszy (chociaż czy szanujący się programista będzie próbował konwersji z <SPAN CLASS=T>std::string</SPAN> na <SPAN CLASS=K>int</SPAN>? ;-)). Zowie się to cudo <SPAN CLASS=K>static_cast</SPAN>, a przykładowe użycie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+a = <SPAN CLASS=K>static_cast</SPAN>&lt;<SPAN CLASS=K>int</SPAN>&gt;( <SPAN CLASS=K>static_cast</SPAN>&lt;<SPAN CLASS=K>float</SPAN>&gt;(b+<SPAN CLASS=L>1</SPAN>) / <SPAN CLASS=K>static_cast</SPAN>&lt;<SPAN CLASS=K>float</SPAN>&gt;(c+<SPAN CLASS=L>1</SPAN>) );<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, kod z powyższego przykładu, potraktowany naszym nowym cackiem stał się nieco czytelniejszy, choć na pewno nie krótszy. Myślę również, że początkujący (zwłaszcza tacy, którzy programowali już np. w Pascalu i przyzwyczaili się, że nawiasy trójkątne służą tylko do porównywania liczb) będą mieli nieliche problemy z odszyfrowaniem powyższego zapisu. Dlatego też nie zalecam operatora <SPAN CLASS=K>static_cast</SPAN> na kilka pierwszych randek z C++.
+</P>
+<P>
+Gwoli ścisłości - wspomniałem, że <SPAN CLASS=K>static_cast</SPAN> jest bezpieczny. Oznacza to, że jeśli uzna on daną konwersję za niewykonalną (np. ten nieszczęsny <SPAN CLASS=T>std::string</SPAN> na <SPAN CLASS=K>int</SPAN>), to wydarzy się to jeszcze podczas kompilacji programu, która z tego powodu zostanie przerwana.
+</P>
+<P>
+Pozostałe dwa operatory rzutowania statycznego mają raczej małe pole zastosowań i zostały wprowadzone przede wszystkim dlatego, aby wszystkie operacje wykonywalne przy pomocy konwersji w stylu C dało się wykonać również za pomocą konwersji w stylu C++. Pierwszy, <SPAN CLASS=K>reinterpret_cast</SPAN>, służy do rzutowania "na chama", czyli bez sprawdzania, czy taka operacja ma sens. Jak pewnie się domyślasz, nie jest to zbyt bezpieczne, zatem stosowanie <SPAN CLASS=K>reinterpret_cast</SPAN> nie jest zalecane, dopóki nie mamy absolutnej pewności, że da on poprawny wynik. Typowe zadanie realizowane przez operator <SPAN CLASS=K>reinterpret_cast</SPAN> to zamiana wskaźnika na liczbę całkowitą lub odwrotnie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> a = <SPAN CLASS=L>77</SPAN>;<BR>
+cout &lt;&lt; <SPAN CLASS=L>"Adres fizyczny zmiennej a to "</SPAN> &lt;&lt; <SPAN CLASS=K>reinterpret_cast</SPAN>&lt;<SPAN CLASS=K>int</SPAN>&gt;(&a) &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Po co nam adres zmiennej jako liczba? Dzięki temu możemy sobie wykonywać niskopoziomowe operacje na pamięci, niczym asemblerowcy ;-). W praktyce może się nam to przydać np. do napisania funkcji haszującej (generującej unikalne adresy dla obiektów na podstawie ich fizycznego adresu).
+</P>
+<P>
+Operator <SPAN CLASS=K>const_cast</SPAN> służy do usuwania z obiektów modyfikatora <SPAN CLASS=K>const</SPAN> lub <SPAN CLASS=K>volatile</SPAN>. Tutaj praktyczne zastosowanie znaleźć jeszcze trudniej, niż w przypadku <SPAN CLASS=K>reinterpret_cast</SPAN>, więc weźmy sobie przykład dość oderwany od rzeczywistości (i niemal w całości zerżnięty z MSDN ;-)). Oto on:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;stdlib.h&gt;<BR>
+#include &lt;iostream&gt;<BR></SPAN>
+<BR>
+<SPAN CLASS=K>class</SPAN> Klasa<BR>
+{<BR><SPAN CLASS=K>
+private:<BR>
+&nbsp;int</SPAN> Liczba;<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> GetLiczba() <SPAN CLASS=K>const</SPAN>;<BR>
+&nbsp;Klasa();<BR>
+};<BR>
+<BR>
+Klasa::Klasa()<BR>
+{<BR>
+&nbsp;Liczba = <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> Klasa::GetLiczba() <SPAN CLASS=K>const</SPAN><BR>
+{<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Stan początkowy: "</SPAN> &lt;&lt; Liczba &lt;&lt; endl;<BR>
+&nbsp;<SPAN CLASS=K>const_cast</SPAN>&lt;Klasa*&gt;(<SPAN CLASS=K>this</SPAN>)-&gt;Liczba = <SPAN CLASS=L>666</SPAN>;<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Stan obecny: "</SPAN> &lt;&lt; Liczba &lt;&lt; endl;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;Klasa Test;<BR>
+&nbsp;Test.GetLiczba();<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN><SPAN CLASS=L> 0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, metoda <SPAN CLASS=T>GetLiczba</SPAN> (lubię takie polsko-angielskie mieszańce ;-)) jest funkcją stałą. Oznacza to, że ukryty w niej wskaźnik <SPAN CLASS=K>this</SPAN> też jest stały, czyli jest typu <SPAN CLASS=K>const</SPAN><SPAN CLASS=T> Klasa*</SPAN> i nie można za jego pośrednictwem zmienić pola <SPAN CLASS=T>Liczba</SPAN>. Nie można, dopóki nie użyjemy na nim rzutowania za pomocą <SPAN CLASS=K>const_cast</SPAN>, które usunie słówko <SPAN CLASS=K>const</SPAN> (czyli po rzutowaniu <SPAN CLASS=K>this</SPAN> będzie typu <SPAN CLASS=T>Klasa*</SPAN>). Zabieg ten umożliwi nam przypisanie liczby <SPAN CLASS=L>666</SPAN> do zmiennej składowej <SPAN CLASS=T>Liczba</SPAN>.
+</P>
+
+<h2>
+Dynamiczne rzutowanie
+</h2>
+
+<P>
+Jedną z najprzydatniejszych cech dziedziczenia jest możliwość tworzenia wskaźników do klas bazowych, które mogą przechowywać adresy obiektów klas pochodnych. Często wrzucamy takie wskaźniki do różnych klas (ale opartych na tej samej klasie bazowej) do tablicy, otrzymując dzięki temu tzw. kolekcję obiektów. Jest to niesamowicie przydatna konstrukcja, ale o tym może pogadamy przy innej okazji. Teraz zajmiemy się problemami, które pojawiają się zwykle przy operowaniu wskaźnikami do klas bazowych.
+</P>
+<P>
+Otóż jeśli mamy taki wskaźnik, to przy użyciu poznanych do tej pory środków nie jesteśmy w stanie stwierdzić, jakiej tak naprawdę klasy jest obiekt, na który ten wskaźnik wskazuje. Weźmy na przykład taką sytuację: tworzymy sobie grę strategiczną. Mamy klasę bazową <SPAN CLASS=T>CObiekt</SPAN> oraz dziedziczące po niej klasy: <SPAN CLASS=T>CBudynek, CCzolg, COddzial</SPAN>. Rzeczywiste obiekty w grze, czyli budynki, czołgi i oddziały piechoty reprezentowane będą tylko przez klasy pochodne, będą też oczywiście alokowane dynamicznie, a ich adresy (wskaźniki typu <SPAN CLASS=T>CObiekt*</SPAN>) będą przechowywane w tablicy. Oto nasze klasy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> CObiekt<BR>
+{<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> CBudynek : <SPAN CLASS=K>public</SPAN> CObiekt<BR>
+{<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> Rysuj() {};<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> CCzolg : <SPAN CLASS=K>public</SPAN> CObiekt<BR>
+{<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> Rysuj() {};<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> COddzial : <SPAN CLASS=K>public</SPAN> CObiekt<BR>
+{<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> Rysuj() {};<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Przegrupuj() {};<BR>
+};
+</TD></TR>
+</TABLE>
+
+<P>
+Nie zadeklarowaliśmy żadnych składowych, oprócz metody <SPAN CLASS=T>Rysuj</SPAN> (dla wszystkich klas pochodnych)  oraz metody <SPAN CLASS=T>Przegrupuj</SPAN>, występującej tylko w klasie <SPAN CLASS=T>COddzial</SPAN> - na razie nic więcej nie będzie nam potrzebne. Teraz tworzymy sobie tablicę wskaźników do typu <SPAN CLASS=T>CObiekt*</SPAN>.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+CObiekt* Obiekty[<SPAN CLASS=L>5</SPAN>];
+</TD></TR>
+</TABLE>
+
+<P>
+Możemy już utworzyć kolekcję obiektów przez ich dynamiczne zaalokowanie i zapisanie otrzymanych w ten sposób wskaźników do tablicy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Obiekty[<SPAN CLASS=L>0</SPAN>] = <SPAN CLASS=K>new</SPAN> CBudynek;<BR>
+Obiekty[<SPAN CLASS=L>1</SPAN>] = <SPAN CLASS=K>new</SPAN> CCzolg;<BR>
+Obiekty[<SPAN CLASS=L>2</SPAN>] = <SPAN CLASS=K>new</SPAN> CCzolg;<BR>
+Obiekty[<SPAN CLASS=L>3</SPAN>] = <SPAN CLASS=K>new</SPAN> COddzial;<BR>
+Obiekty[<SPAN CLASS=L>4</SPAN>] = <SPAN CLASS=K>new</SPAN> COddzial;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy już konkretne argumenty niezbędne do prowadzenia wojny oraz jeden problem. Każdy obiekt - czy jest to czołg, czy zwykły piechur - trzeba będzie kiedyś narysować. Wywołujemy więc metodę <SPAN CLASS=T>Rysuj</SPAN> dla wszystkich istniejących obiektów:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=T>0</SPAN>; i&lt;<SPAN CLASS=L>5</SPAN>; ++i)<BR>
+&nbsp;Obiekty[i]-&gt;Rysuj(); <SPAN CLASS=C>//nie skompiluje się</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Kompilator odmówi oczywiście wykonania rozkazu, gdyż metody <SPAN CLASS=T>Rysuj</SPAN> będzie poszukiwał w klasie <SPAN CLASS=T>CObiekt</SPAN> (nie ma jej tam), ponieważ poprzez wskaźnik do tej właśnie klasy została wywołana metoda <SPAN CLASS=T>Rysuj</SPAN>. Wyjściem byłaby zamiana metody <SPAN CLASS=T>Rysuj</SPAN> na wirtualną - występuje ona we wszystkich klasach pochodnych w naszym przykładzie. Co więcej, powinna ona być czysto wirtualna, ponieważ nie chcemy, aby w naszej grze występowały obiekty abstrakcyjne (czyli chcemy, aby klasa <SPAN CLASS=T>CObiekt</SPAN> była abstrakcyjna - brzmi jak majaczenie kolesia z 40-stopniową gorączką, ale jest jak najbardziej logiczne ;-)). Dokonajmy sobie takiej zamiany:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> CObiekt<BR>
+{<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;virtual void</SPAN> Rysuj() = <SPAN CLASS=L>0</SPAN>;<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz kompilator nie będzie już miał nic przeciwko wywołaniu Rysuj przez wskaźnik typu <SPAN CLASS=T>CObiekt*</SPAN>. Ale to nie koniec kłopotów - nie potrafimy bowiem wywołać w ten sam sposób metody <SPAN CLASS=T>Przegrupuj</SPAN>. Tym razem nie pomoże zadeklarowanie jej jako wirtualnej, gdyż nie występuje ona we wszystkich klasach pochodnych, a tylko w jednej z nich (<SPAN CLASS=T>COddzial</SPAN>).
+</P>
+<P>
+W tym właśnie miejscu przyda nam się rzutowanie dynamiczne. Jak być może się już domyślasz, zadanie to powierzymy operatorowi <SPAN CLASS=K>dynamic_cast</SPAN>. Służy on właśnie do zamiany wskaźników do klas pochodnych na wskaźniki do klasy bazowej i vice versa. Możemy to zrobić, wykorzystując konwersje w stylu C, ale mają one jedną poważną wadę: nie sprawdzają poprawności takiej operacji. Operator <SPAN CLASS=K>dynamic_cast</SPAN> jest tej wady pozbawiony; jeśli rzutowanie nie powiedzie się, zamiast wynikowego wskaźnika operator zwróci <SPAN CLASS=T>NULL</SPAN>.
+</P>
+<P>
+Uzbrojeni w tę wiedzę, możemy sobie zadeklarować wskaźnik typu <SPAN CLASS=T>COddzial*</SPAN>, przekształcić odpowiednie (dwa ostatnie elementy naszej tablicy) wskaźniki typu <SPAN CLASS=T>CObiekt*</SPAN> na <SPAN CLASS=T>COddzial*</SPAN>, zapisać je do nowej zmiennej wskaźnikowej i przez tę zmienną wywołać wreszcie metodę <SPAN CLASS=T>Przegrupuj</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+COddzial* wsk;<BR>
+wsk = <SPAN CLASS=K>dynamic_cast</SPAN>&lt;COddzial*&gt;(Obiekty[<SPAN CLASS=L>3</SPAN>]);<BR>
+<SPAN CLASS=K>if</SPAN>(wsk != NULL)<BR>
+&nbsp;wsk-&gt;Przegrupuj();<BR>
+wsk = <SPAN CLASS=K>dynamic_cast</SPAN>&lt;COddzial*&gt;(Obiekty[<SPAN CLASS=L>4</SPAN>]);<BR>
+<SPAN CLASS=K>if</SPAN>(wsk != NULL)<BR>
+&nbsp;wsk-&gt;Przegrupuj();<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W tym przypadku nie jest konieczne sprawdzanie, czy <SPAN CLASS=T>wsk</SPAN> jest różne od <SPAN CLASS=T>NULL</SPAN>, ponieważ i tak wiemy, że rzutowane wskaźniki wskazują na obiekt typu <SPAN CLASS=T>COddzial</SPAN>, więc rzutowanie musi się powieść. Robimy to tylko w celach dydaktycznych ;-).
+</P>
+
+<h2>
+Dynamiczna identyfikacja klasy obiektu
+</h2>
+
+<P>
+W powyższym przykładzie mamy malutką, <SPAN CLASS=L>5</SPAN>-elementową tablicę ze wskaźnikami. W praktyce takich tablic raczej nie stosuje się. Zamiast nich w "poważnych" grach nie tylko same obiekty alokowane są dynamicznie, ale też sama tablica wskaźników rozszerza się w miarę dodawania kolejnych obiektów. Poza tym różne obiekty dodawane są w różnej kolejności; nie mamy na przykład, jak tutaj, pewności, że czwarty z kolei obiekt jest klasy <SPAN CLASS=T>COddzial</SPAN>. W jaki zatem sposób stwierdzimy, czy można dla danego wskaźnika wywołać metodę <SPAN CLASS=T>Przegrupuj</SPAN>? (Innymi słowy: czy wskazuje on na klasę <SPAN CLASS=T>COddzial</SPAN>?)
+</P>
+<P>
+Bardzo prosto. Możemy w każdej z klas pochodnych umieścić sobie metodę, np. o nazwie <SPAN CLASS=T>Klasa</SPAN>, która będzie zwracała odpowiednią stałą, jednoznacznie idetyfikującą klasę obiektu. Ponieważ metoda ta będzie wywoływana w praktyce tylko przez wskaźnik typu <SPAN CLASS=T>CObiekt</SPAN>*, więc będzie ona wirtualna:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>const int</SPAN> KLASA_BUDYNEK = <SPAN CLASS=L>1</SPAN>;<BR>
+<SPAN CLASS=K>const int</SPAN> KLASA_CZOLG   = <SPAN CLASS=L>2</SPAN>;<BR>
+<SPAN CLASS=K>const int</SPAN> KLASA_ODDZIAL = <SPAN CLASS=L>3</SPAN>;<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> CObiekt<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>virtual int</SPAN> Klasa() = <SPAN CLASS=L>0</SPAN>; <BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> CBudynek : <SPAN CLASS=K>public</SPAN> CObiekt<BR>
+{<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> Rysuj() {};<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> Klasa() { <SPAN CLASS=K>return</SPAN> KLASA_BUDYNEK; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> CCzolg : <SPAN CLASS=K>public</SPAN> CObiekt<BR>
+{<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> Rysuj() {};<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> Klasa() { <SPAN CLASS=K>return</SPAN> KLASA_CZOLG; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> COddzial : <SPAN CLASS=K>public</SPAN> CObiekt<BR>
+{<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> Rysuj() {};<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Przegrupuj() {};<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> Klasa() { <SPAN CLASS=K>return</SPAN> KLASA_ODDZIAL; }<BR>
+};
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz sprawa nam się bardzo upraszcza. Możemy po kolei egzaminować poszczególne wskaźniki z tablicy <SPAN CLASS=T>Obiekty</SPAN> w pętli, wykorzystując metodę <SPAN CLASS=T>Klasa</SPAN>. Dzięki temu wiemy na pewno, na jaką klasę który wskazuje i możemy dokonać rzutowania go na wskaźnik do tej klasy. A mając wskaźnik do konkretnej klasy pochodnej... Wtedy możemy się już bez przeszkód odwoływać do dowolnej składowej danej klasy, bez obawy, że kompilator tej składowej nie znajdzie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+CBudynek* wsk_bud;<BR>
+CCzolg*   wsk_cz;<BR>
+COddzial* wsk_odd;<BR>
+<BR>
+<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>5</SPAN>; ++i)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(Obiekty[i]-&gt;Klasa())<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> KLASA_BUDYNEK:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;wsk_bud = <SPAN CLASS=K>dynamic_cast</SPAN>&lt;CBudynek*&gt;(Obiekty[i]);<BR>
+&nbsp;&nbsp;&nbsp;wsk_bud-&gt;Rysuj();<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> KLASA_CZOLG:   <BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;wsk_cz = <SPAN CLASS=K>dynamic_cast</SPAN>&lt;CCzolg*&gt;(Obiekty[i]);<BR>
+&nbsp;&nbsp;&nbsp;wsk_cz-&gt;Rysuj();<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> KLASA_ODDZIAL: <BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;wsk_odd = <SPAN CLASS=K>dynamic_cast</SPAN>&lt;COddzial*&gt;(Obiekty[i]);<BR>
+&nbsp;&nbsp;&nbsp;wsk_odd-&gt;Rysuj();<BR>
+&nbsp;&nbsp;&nbsp;wsk_odd-&gt;Przegrupuj();<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;}<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Przykład ten bierze kolejno wszystkie wskaźniki z tablicy, rzutuje je na wskaźniki do właściwych klas, a następnie wywołuje dla nich metodę <SPAN CLASS=T>Rysuj</SPAN>. Jeśli dojdzie do obiektu typu <SPAN CLASS=T>COddzial</SPAN>, to dodatkowo wywołuje metodę <SPAN CLASS=T>Przegrupuj</SPAN>. Oczywiście z punktu widzenia gry przegrupowywanie oddziału zawsze wtedy, gdy jest on rysowany niekoniecznie musi mieć sens, ale chciałem koniecznie pokazać, że po rzutowaniu wywołanie tej metody będzie możliwe ;-).
+</P>
+
+<h2>
+Operator typeid
+</h2>
+
+<P>
+Zamiast stosować pokazaną wyżej sztuczkę z wirtualną metodą <SPAN CLASS=T>Klasa</SPAN>, możemy wykorzystać część mechanizmu RTTI, jaką jest operator <SPAN CLASS=K>typeid</SPAN>. Aby to zrobić, musimy najpierw dołączyć do naszego programu nagłówek <SPAN CLASS=C>typeinfo</SPAN>. Operator <SPAN CLASS=K>typeid</SPAN> zwraca referencję do klasy <SPAN CLASS=T>type_info</SPAN>. Można go stosować zarówno do nazw typów (np. <SPAN CLASS=T>COddzial</SPAN>), jak i wyrażeń (np. <SPAN CLASS=T>Obiekty[i]</SPAN>). Oczywiście nas najbardziej interesuje ta druga opcja:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;typeinfo&gt;<BR>
+#include &lt;iostream&gt;<BR>
+<BR>
+//...</SPAN><BR>
+<BR>
+cout &lt;&lt; <SPAN CLASS=L>"Typ pierwszego elementu: "</SPAN> &lt;&lt; <SPAN CLASS=K>typeid</SPAN>(Obiekty[<SPAN CLASS=L>0</SPAN>]).name() &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jeśli spodziewasz się, że na ekranie pojawi się nazwa "<SPAN CLASS=L>CBudynek</SPAN>", to będziesz rozczarowany. Możesz spytać: po jaką cholerę jest ten operator <SPAN CLASS=K>typeid</SPAN>, skoro każdy głupi widzi, że elementy tablicy <SPAN CLASS=T>Obiekty</SPAN> są typu <SPAN CLASS=T>CObiekt*</SPAN>? Cóż, tutaj <SPAN CLASS=K>typeid</SPAN> wykręcił się sianem, ponieważ podaliśmy mu wskaźnik, ale można go zmusić do większego posłuszeństwa - wystarczy ten wskaźnik poprzedzić gwiazdką:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+cout &lt;&lt; <SPAN CLASS=L>"Typ pierwszego elementu: "</SPAN> &lt;&lt; <SPAN CLASS=K>typeid</SPAN>(*Obiekty[<SPAN CLASS=L>0</SPAN>]).name() &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P class=UWAGA>
+Jeśli chcesz uzyskać w ten sposób nazwę klasy pochodnej, a nie bazowej, to oprócz poprzedzenia wskaźnika gwiazdką, klasa bazowa musi być polimorficzna (zawierać przynajmniej jedną wirtualną metodę).</P>
+
+<P>
+Poza metodą <SPAN CLASS=T>name</SPAN>, klasa <SPAN CLASS=T>type_info</SPAN> ma jeszcze dwa operatory: <SPAN CLASS=T>==</SPAN> i <SPAN CLASS=T>!=</SPAN>. Dzięki nim możemy porównywać różne obiekty (lub wskaźniki) albo po prostu sprawdzać, czy dany obiekt (lub wskaźnik) jest danego typu. Na przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(<SPAN CLASS=K>typeid</SPAN>(*Obiekty[<SPAN CLASS=L>0</SPAN>]) != <SPAN CLASS=K>typeid</SPAN>(*Obiekty[<SPAN CLASS=L>1</SPAN>]))<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Pierwszy i drugi element wskazują na obiekty różnych typów!"</SPAN> &lt;&lt; endl;<BR>
+<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Pierwszy i drugi element wskazują na obiekty tego samego typu."</SPAN> &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Dla polimorficznej wersji klasy <SPAN CLASS=T>CObiekt</SPAN> wyświetlony zostanie pierwszy komunikat (obiekty różnych typów). Dla nie-polimorficznej (bez deklaracji wirtualnej funkcji <SPAN CLASS=T>Klasa</SPAN>) będzie to zaś drugi komunikat (program nie wykryje różnicy między typem obiektów).
+</P>
+<P>
+Ostatnim sekretem, ukrytym w klasie <SPAN CLASS=T>type_info</SPAN> jest metoda <SPAN CLASS=T>before</SPAN>. Teoretycznie służy ona do ustalania kolejności obiektów klasy <SPAN CLASS=T>type_info</SPAN>, ale trudno mi powiedzieć, po co właściwie mielibyśmy to robić. Tym bardziej, iż nie ma żadnej gwarancji, że <SPAN CLASS=T>before</SPAN> da ten sam wynik dla dwóch różnych wykonań tego samego programu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(<SPAN CLASS=K>typeid</SPAN>(*Obiekty[<SPAN CLASS=L>0</SPAN>]).before(<SPAN CLASS=K>typeid</SPAN>(*Obiekty[<SPAN CLASS=L>1</SPAN>])))<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"CBudynek przed CCzolg"</SPAN> &lt;&lt; endl;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Operator <SPAN CLASS=K>typeid</SPAN> może się wydawać wygodniejszy w użyciu, niż omówiona przez nas wcześniej sztuczka z wirtualną funkcją <SPAN CLASS=T>Klasa</SPAN>. Ma on jednak spore ułomności. Po pierwsze - jest niezbyt wydajny. Po drugie - może sprawić, że kod staje się nieprzenośny (działanie programu może zależeć od platformy). Na przykład SDK do Dev-C++ w ogóle nie zawiera metody <SPAN CLASS=T>raw_name</SPAN>, obecnej w klasie <SPAN CLASS=T>type_info</SPAN> w SDK do Visual C++. Funkcja <SPAN CLASS=T>name</SPAN> również daje dla tych dwóch SDK zupełnie inne efekty. Tak więc w zdecydowanej większości przypadków lepiej jest z niego zrezygnować na rzecz alternatywnych rozwiązań, nawet gdyby miały one kosztować nieco więcej stukania w klawiaturę ;-).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs08a.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs10.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

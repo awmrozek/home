@@ -1,0 +1,492 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Why Filter Mail During the SMTP Transaction?</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Background"
+HREF="background.html"><LINK
+REL="PREVIOUS"
+TITLE="Background"
+HREF="background.html"><LINK
+REL="NEXT"
+TITLE="The Good, The Bad, The Ugly"
+HREF="goodbadugly.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="background.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 1. Background</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="goodbadugly.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="whysmtptime"
+></A
+>1.1. Why Filter Mail During the SMTP Transaction?</H1
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="statusquo"
+></A
+>1.1.1. Status Quo</H2
+><P
+>&#13;	If you receive spam, raise your hands.  Keep them up.
+      </P
+><P
+>&#13;	If you receive computer virii or other malware, raise your
+	hands too.
+      </P
+><P
+>&#13;	If you receive bogus <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+>s (DSNs), such as
+	<SPAN
+CLASS="QUOTE"
+>"Message Undeliverable"</SPAN
+>, <SPAN
+CLASS="QUOTE"
+>"Virus
+	found"</SPAN
+>, <SPAN
+CLASS="QUOTE"
+>"Please confirm delivery"</SPAN
+>, etc,
+	related to messages you never sent, raise your hands as well.
+	This is known as <A
+HREF="gloss.html#colspam"
+><I
+CLASS="glossterm"
+>Collateral Spam</I
+></A
+>.
+      </P
+><P
+>&#13;	This last form is particularly troublesome, because it is
+	harder to weed out than <SPAN
+CLASS="QUOTE"
+>"standard"</SPAN
+> spam or
+	malware, and because such messages can be quite confusing to
+	recipients who do not possess godly skills in parsing message
+	headers.  In the case of virus warnings, this often causes
+	unnecessary concern on the recipient's end; more generally, a
+	common tendency will be to ignore all such messages, thereby
+	missing out on legitimate DSNs.
+      </P
+><P
+>&#13;	Finally, I want those of you who have lost legitimate mail into
+	a big black hole - due to misclassification by spam or virus
+	scanners - to lift your feet.
+      </P
+><P
+>&#13;	If you were standing before and are still standing, I suggest
+	that you may not be fully aware of what is happening to your
+	mail.  If you have been doing any type of spam filtering, even
+	by manually moving mails to the trash can in your mail reader,
+	let alone by experimenting with primitive filtering techniques
+	such as DNS blacklists (SpamHaus, SPEWS, SORBS...), chances
+	are that you have lost some valid mail.
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="cause"
+></A
+>1.1.2. The Cause</H2
+><P
+>&#13;	Spam, just like many other artifacts of greed, is a social
+	disease.  Call it affluenza, or whatever you like; lower life
+	forms seek to destroy a larger ecosystem, and if successful,
+	will actually end up ruining their own habitat in the end.
+      </P
+><P
+>&#13;	Larger social issues and philosophy aside: You - the mail system
+	administrator - face the very concrete and real life dilemma of
+	finding a way to deal with all this junk.
+      </P
+><P
+>&#13;	As it turns out, there are some limitations with the
+	conventional way that mail is being processed and delegated by
+	the various components of mail transport and delivery
+	software.  In a traditional setup, one or more <A
+HREF="gloss.html#mx"
+><I
+CLASS="glossterm"
+>Mail Exchanger</I
+></A
+>(s) accept most or all incoming mail deliveries
+	to addresses within a domain.  Often, they then forward the
+	mail to one or more internal machines for further processing,
+	and/or delivery to the user's mailboxes.  If any of these
+	servers discovers that it is unable to perform the requested
+	delivery or function, it generates and returns a DSN back to
+	the sender address in the original mail.
+      </P
+><P
+>&#13;	As organizations started deploying spam and virus scanners,
+	they often found that the path of least resistance was to work
+	these into the message delivery path, as mail is transferred
+	from the incoming <A
+HREF="gloss.html#mx"
+><I
+CLASS="glossterm"
+>Mail Exchanger</I
+></A
+>(s) to internal delivery
+	hosts and/or software.  For instance, a common way filter out
+	spam is by <EM
+>routing</EM
+> the mail through
+	SpamAssassin or other software before it is delivered to a
+	user's mailbox, and/or rely on spam filtering capabilities in
+	the user's <A
+HREF="gloss.html#mua"
+><I
+CLASS="glossterm"
+>Mail User Agent</I
+></A
+>.
+      </P
+><P
+>&#13;	Options for dealing with mail that is classified as spam or
+	virus at this point are limited:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	    You can return a <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+> back to the sender.
+	    The problem is that nearly all spam and e-mail borne
+	    virii are delivered with faked sender addresses.  If you
+	    return this mail, it will invariably go to innocent third
+	    parties -- perhaps warning a grandmother in Sweden, who
+	    uses Mac OS X and does not know much about computers, that
+	    she is infected by the Blaster worm.  In other words, you
+	    will be generating <A
+HREF="gloss.html#colspam"
+><I
+CLASS="glossterm"
+>Collateral Spam</I
+></A
+>.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    You can drop the message into the bit bucket, without
+	    sending any notification back to the sender.  This is an
+	    even bigger problem in the case of <A
+HREF="gloss.html#falsepos"
+><I
+CLASS="glossterm"
+>False Positive</I
+></A
+>s, because neither the sender nor
+	    the receiver will ever know what happened to the message
+	    (or in the receiver's case, that it ever existed).
+	  </P
+></LI
+><LI
+><P
+>&#13;	    Depending on how your users access their mail (for
+	    instance, if they access it via the IMAP protocol or use a
+	    web-based mail reader, but not if they retreive it over
+	    POP-3), you may be able to file it into a separate junk
+	    folder for them -- perhaps as an option in their account
+	    settings.
+	  </P
+><P
+>&#13;	    This may be the best of these three options.  Even so, the
+	    messages may remain unseen for some time, or simply
+	    overlooked as the receiver more-or-less periodically scans
+	    through and deletes mail in their <SPAN
+CLASS="QUOTE"
+>"Junk"</SPAN
+>
+	    folder.
+	  </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="solution"
+></A
+>1.1.3. The Solution</H2
+><P
+>&#13;	As you would have guessed by now, the <EM
+>One
+	True</EM
+> solution to this problem is to do spam and
+	virus filtering during the SMTP dialogue from the remote host,
+	as the mail is being received by the inbound mail exchanger
+	for your domain.  This way, if the mail turns out to be
+	undesirable, you can issue a SMTP <EM
+>reject</EM
+>
+	response rather than face the dilemma described above.  As a
+	result:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	    You will be able to stop the delivery of most junk mail
+	    early in the SMTP transaction, before the actual message
+	    data has been received, thus saving you both network
+	    bandwidth and CPU processing.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    You will be able to deploy some spam filtering techniques
+	    that are not possible later, such as
+	    <A
+HREF="smtpdelays.html"
+>SMTP transaction delays</A
+> and
+	    <A
+HREF="greylisting.html"
+>Greylisting</A
+>.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    You will be able to notify the sender in case of a
+	    delivery failure (e.g. due to an invalid recipient
+	    address) without directly generating <A
+HREF="gloss.html#colspam"
+><I
+CLASS="glossterm"
+>Collateral Spam</I
+></A
+>
+	  </P
+><P
+>&#13;	    We will discuss how you can avoid causing collateral spam
+	    indirectly as a result of rejecting mail forwarded from
+	    trusted sources, such as mailing list servers or mail
+	    accounts on other sites
+	    <A
+NAME="AEN419"
+HREF="#FTN.AEN419"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>.
+	  </P
+></LI
+><LI
+><P
+>&#13;	    You will be able to protect yourself against collateral
+	    spam from others (such as bogus <SPAN
+CLASS="QUOTE"
+>"You have a
+	    virus"</SPAN
+> messages from anti-virus software).
+	  </P
+></LI
+></UL
+><P
+>&#13;	OK, you can lower your hands now.  If you were standing, and
+	your feet disappeared from under you, you can now also stand up
+	again.
+      </P
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN419"
+HREF="whysmtptime.html#AEN419"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;		Untrusted third party hosts may still generate
+		collateral spam if you reject the mail.  However,
+		unless that host is an <A
+HREF="gloss.html#openproxy"
+><I
+CLASS="glossterm"
+>Open Proxy</I
+></A
+> or
+		<A
+HREF="gloss.html#openrelay"
+><I
+CLASS="glossterm"
+>Open Relay</I
+></A
+>, it presumably delivers
+		mail only from legitimate senders, whose addresses are
+		valid.  If it <EM
+>is</EM
+> an Open Proxy or
+		SMTP Relay - well, it is better that you reject the
+		mail and let it freeze in <EM
+>their</EM
+>
+		outgoing mail queue than letting it freeze in yours.
+		Eventually, this ought to give the owners of that
+		server a clue.
+	      </P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="background.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="goodbadugly.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Background</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="background.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>The Good, The Bad, The Ugly</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

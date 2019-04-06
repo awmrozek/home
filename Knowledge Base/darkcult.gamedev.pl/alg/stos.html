@@ -1,0 +1,143 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Stos</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kolejka.html"><< Kolejka &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../algorytm.html"> Spis </A> &nbsp;
+<A HREF="selekcja.html">Selekcja >> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>Stos</H1>
+
+<P>
+Stos działa podobnie jak kolejka, ale pobieranie elementów odbywa się w odwrotnym kierunku, tzn. element dodany jako pierwszy będzie pobrany ze stosu jako ostatni. Najczęściej porównuje się to z kilkoma talerzami, ustawionymi jeden na drugim: nie możesz wziąć ostatniego, dopóki nie zdejmiesz wszystkich ustawionych na wierzchu. Oczywiście gdyby się uprzeć, można by to zrobić, ale ryzykujesz, że będziesz miał co zbierać przez najbliższą godzinę ;-). W programowaniu taki upór też może się nie opłacić, toteż będziemy pobierać elementy ze stosu tak, jak Pan Bóg przykazał ;-).
+</P>
+<P>
+Intuicja podpowiada, że implementacja stosu powinna być analogiczna do kolejki i tu się cholera jedna nie myli; niemniej są pewne drobne różnice:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> cSTOS<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>private</SPAN>:<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>struct</SPAN> tELEM<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;NOWY_TYP Dane;<BR>
+&nbsp;&nbsp;&nbsp;tELEM* Prev;<BR>
+&nbsp;&nbsp;} *Ostatni;<BR>
+&nbsp;&nbsp;DWORD elcount;<BR>
+&nbsp;<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;&nbsp;cSTOS();<BR>
+&nbsp;&nbsp;~cSTOS();<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>void</SPAN> Dodaj(NOWY_TYP elem);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>void</SPAN> Usun(NOWY_TYP* databuf);<BR>
+&nbsp;&nbsp;DWORD LiczbaEl();<BR>
+&nbsp;&nbsp;NOWY_TYP Status(DWORD index);<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Są różnice, ale na razie widać tylko jedną (oprócz nazwy wskaźnika w strukturze - <SPAN CLASS=T>Prev</SPAN> zamiast <SPAN CLASS=T>Next</SPAN>, co jednak oczywiście ma znikome znaczenie dla kompilatora). Otóż nie musimy tym razem nigdzie pamiętać adresu pierwszego elementu! Jak pamiętamy, w implementacji kolejki adres pierwszego elementu służył nam do odnajdywania pozostałych elementów w pamięci, natomiast adres ostatniego umożliwiał dodawanie elementów. W stosie obie te role spełnia adres ostatniego elementu, ponieważ zarówno dodawanie jak i usuwanie dotyczy zawsze tylko jego.
+</P>
+<P>
+Biorąc pod uwagę to wszystko można wywnioskować (i słusznie), że konstruktor i destruktor stosu nie różnią się niczym od ich odpowiedników w kolejce, z tym że oczywiście konstruktor nie musi zerować wskaźnika na pierwszy element, ponieważ wskaźnika tego tutaj nie ma ;-).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+cSTOS::cSTOS() { elcount=<SPAN CLASS=L>0</SPAN>; Ostatni = NULL; }<BR>
+<BR>
+cSTOS::~cSTOS()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;elcount; i++)<BR>
+&nbsp;&nbsp;Usun(NULL);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Funkcja umieszczająca element na stosie trochę nam się upraszcza:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> cSTOS::Dodaj(NOWY_TYP elem)<BR>
+{<BR>
+&nbsp;tELEM* Cur = <SPAN CLASS=K>new</SPAN> tELEM;<BR>
+&nbsp;Cur->Prev = (++elcount==<SPAN CLASS=L>1</SPAN>) ? NULL : Ostatni;<BR>
+&nbsp;Cur->Dane = elem;<BR>
+&nbsp;Ostatni = Cur;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pozostałe funkcje składowe są niemal identyczne z tymi w kolejce:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+void cSTOS::Usun(NOWY_TYP* databuf)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(elcount&lt;<SPAN CLASS=L>1</SPAN>) <SPAN CLASS=K>return</SPAN>;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(databuf!=NULL) *databuf=Ostatni->Dane; <SPAN CLASS=C>//zwróć usuwany element</SPAN><BR>
+&nbsp;tELEM *tmp = Ostatni->Prev; <SPAN CLASS=C>//zapamiętaj przedostatni element</SPAN><BR>
+&nbsp;<SPAN CLASS=K>delete</SPAN> Ostatni; <SPAN CLASS=C>//skasuj go</SPAN><BR>
+&nbsp;Ostatni = tmp; &nbsp;<SPAN CLASS=C>//przedostatni element staje się ostatnim</SPAN><BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(--elcount==<SPAN CLASS=L>0</SPAN>) Ostatni = NULL; <BR>
+}<BR>
+<BR>
+DWORD cSTOS::LiczbaEl() { <SPAN CLASS=K>return</SPAN> elcount; }<BR>
+<BR>
+NOWY_TYP cSTOS::Status(DWORD index)<BR>
+{<BR>
+&nbsp;tELEM* Cur = Ostatni;<BR>
+&nbsp;DWORD licznik=elcount;<BR>
+&nbsp;<SPAN CLASS=K>while</SPAN>(Cur!=NULL)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(--licznik==index) <SPAN CLASS=K>return</SPAN> Cur->Dane;<BR>
+&nbsp;&nbsp;Cur = Cur->Prev;<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> NOWY_TYP(<SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+That's all. Programu przykładowego nie będzie, bo mi się nie chce pisać ;-). Zresztą i tak byłby on identyczny z tym do kolejki, tylko działałby trochę inaczej - liczby podane w takiej samej kolejności byłyby wypisywane na ekranie "od końca". Ponadto działanie kolejki nieźle ilustruje algorytm poszukiwania najkrótszej trasy w labiryncie, który to algorytm również omawiam na tej stronce.
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kolejka.html"><< Kolejka &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../algorytm.html"> Spis >></A> &nbsp;
+<A HREF="selekcja.html">Selekcja >> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

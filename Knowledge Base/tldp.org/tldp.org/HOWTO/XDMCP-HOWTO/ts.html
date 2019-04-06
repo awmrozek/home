@@ -1,0 +1,396 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Troubleshooting</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux XDMCP HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="X11 Forwarding using SSH"
+HREF="ssh.html"><LINK
+REL="NEXT"
+TITLE="XDMCP and GDM (Gnome Display Manager)"
+HREF="gdm.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux XDMCP HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="ssh.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="gdm.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="TS"
+></A
+>4. Troubleshooting</H1
+><P
+>  <P
+></P
+><UL
+><LI
+><P
+>       If X cannot come up and is broken:
+     </P
+><P
+>       If X is broken and the connection fails, 
+       most of the time it has this error messages:
+     </P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>       _ FontTransSocketUNIXConnect: Can't connect: errno = 111
+       failed to set dafault font path 'unix:-1'
+       Fatal server error:
+       could not open default font 'fixed'
+     </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>       This is likely due to xfs not finding the correct port for
+       the Font Server or the font path is not set correctly!  To resolve this, check steps 1 and
+       8 above.  Make sure the configuration are pointing to (port)
+       7100 and make sure you have the following fonts installed (if
+       not re-install the XFree86 font packages from your CD).  Check the listing in <TT
+CLASS="FILENAME"
+>XF86Config</TT
+> file 
+       (if you are using XFree86 4.x, the file is <TT
+CLASS="FILENAME"
+>XF86Config-4</TT
+> and <TT
+CLASS="FILENAME"
+>xorg.conf</TT
+> in newer X11 version) 
+       at <TT
+CLASS="FILENAME"
+>/etc/X11</TT
+>:
+     </P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>         FontPath  "/usr/X11R6/lib/X11/fonts/75dpi/"
+         FontPath  "/usr/X11R6/lib/X11/fonts/misc/"
+         FontPath  "/usr/X11R6/lib/X11/fonts/CID/"
+         FontPath  "/usr/X11R6/lib/X11/fonts/Speedo/"
+         FontPath  "/usr/X11R6/lib/X11/fonts/100dpi/"
+	 FontPath  "/usr/X11R6/lib/X11/fonts/Type1/"
+     </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>       Use the command <B
+CLASS="COMMAND"
+>startx</B
+> (on local) to restart the X server (or use <B
+CLASS="COMMAND"
+>telinit 5</B
+> 
+       to switch the runlevel).  To restart xfs, use the command in step 1.  
+     </P
+><P
+>       I found out in my RH 7.3 that if my xfs is not setup, it will crash the Exceed connection if I use the GNOME.  (Using KDE is 
+       fine and it does not affect my Mandrake GNOME).  After I fix it and start up my xfs, it works fine.
+     </P
+></LI
+><LI
+><P
+>       If Exceed has no respond (in blank screen): 
+     </P
+><P
+>       In this case, most likely your xdm (or gdm, depending upon which
+       is used in <TT
+CLASS="FILENAME"
+>/etc/inittab</TT
+>) is not starting
+       correctly.  Issue the command: 
+       <B
+CLASS="COMMAND"
+>ps -ef | grep gdm</B
+> (or
+       xdm or kdm, replace it in the command).  Also, if your box has udp port turned on for XDMCP, you can type 
+       <B
+CLASS="COMMAND"
+>netstat -l | grep xdmcp</B
+> and you should see this:
+       </P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>udp    0    0  *:xdmcp		*:*</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>         If the process is not running, check the steps  on the setup above (make sure there are no typo's and that the correct path is given). Restart 
+         X using the command <B
+CLASS="COMMAND"
+>telinit 5</B
+>.  If the udp port is not there for XDMCP, do step 2 as above.
+       </P
+><P
+>         Another possibilities are that your DNS setup is incorrect and/or firewall is enabled.  An easy way to find out is simply <B
+CLASS="COMMAND"
+>ping</B
+> 
+	 or  <B
+CLASS="COMMAND"
+>telnet</B
+> your host and if the reply takes a long time, then that's DNS problem.  If by using <B
+CLASS="COMMAND"
+>telnet</B
+> 
+	 and you got a "<TT
+CLASS="FILENAME"
+>Connection Refused</TT
+>", then this is a firewall problem (assuming that you have your telnet daemon 
+	 turned on already)!  Check the section above for details how to resolve this.
+       </P
+></LI
+><LI
+><P
+>         PC Box with PPPoE (PPP over Ethernet): 
+       </P
+><P
+>         A user using PPPoE told me that if you have PPPoE, you might experience problem using XDMCP.  After uninstall it, he then is able 
+	 to get XDMCP working.  I personally do not have the environment to test this, so you can test it yourself.
+       </P
+></LI
+><LI
+><P
+>         Linux to Linux Display export: 
+       </P
+><P
+>         If you are using another Linux with X, you do not need to use XDMCP to manage your display.  You can actually export your display right 
+	 from your X box.  To do this, you must enable your access control to allow other to make connection to the X Server.  The common error 
+	 you will get without doing so are:
+       </P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>       xlib: Connection refused (error 111): unable to connect to X server xlib: No such process (error 3): Server error
+       </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>         To resolve the problem, use the command below:
+	 
+       <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>         $ xhost +
+         $ export DISPLAY=(your local host IP):0.0
+       </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+       </P
+><P
+>         Always remember to enable access control by using the command "<TT
+CLASS="FILENAME"
+>xhost -</TT
+>" again.  One thing to remind you, 
+	 you do not need this, if you are using PC as X-Terminal using XDMCP.  This is only required when you have Linux to Linux or
+	 Linux to UNIX connection.
+       </P
+><P
+>         If you are using many Linux X boxes and you would like to setup the Chooser to pick from which X to login, you need to enable the following in the 
+	 <TT
+CLASS="FILENAME"
+>/etc/X11/gdm/gdm.conf</TT
+>:
+
+	<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>	[daemon] Chooser=/usr/bin/gdmchooser --disable-sound --disable-crash-dialog
+	...
+	[xdmcp] Enable=1
+	HonorIndirect=1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	</P
+></LI
+><LI
+><P
+>         I got a "Signal 11" error:
+       </P
+><P
+>The "Signal 11" error, also called "Segmentation Fault", can sometimes be a problem of your hardware and/or software.  If you have this problem 
+in bring up the X Server, you need to fix it before configuring XDMCP.  Unfortunately, there is no simple way to fix the problem due to many possible causes.  For details,
+please check this <A
+HREF="http://www.bitwizard.nl/sig11/"
+TARGET="_top"
+>SIG 11 while compiling the Kernel.</A
+>
+	</P
+></LI
+></UL
+>
+  </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="ssh.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="gdm.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>X11 Forwarding using SSH</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>XDMCP and GDM (Gnome Display Manager)</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

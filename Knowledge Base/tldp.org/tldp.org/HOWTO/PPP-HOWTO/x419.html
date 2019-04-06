@@ -1,0 +1,257 @@
+<HTML
+><HEAD
+><TITLE
+>The syslog says "serial line is not 8 bit clean"</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.52"><LINK
+REL="HOME"
+TITLE="Linux PPP HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Debugging"
+HREF="problems.html"><LINK
+REL="PREVIOUS"
+TITLE="My modem connects but ppp never starts up"
+HREF="x412.html"><LINK
+REL="NEXT"
+TITLE="Default route not set"
+HREF="x452.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+><A
+HREF="http://www.linuxports.com/howto/ppp"
+TARGET="_top"
+>Linux PPP HOWTO</A
+></TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x412.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 8. Debugging</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x452.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN419"
+>8.3. The syslog says "serial line is not 8 bit clean"</A
+></H1
+><P
+>There are variations on this too - such as <TT
+CLASS="LITERAL"
+>serial line looped back</TT
+>
+etc., and the cause can be one (or a sequence) of a number of things.</P
+><P
+>To understand what is going on here, it is necessary to grasp a bit of
+what is going on behind the scenes in pppd itself.</P
+><P
+>When pppd starts up, it sends LCP (link control protocol) packets to the
+remote machine. If it receives a valid response it then goes on to the
+next stage (using IPCP - IP control protocol packets) and only when
+this negotiation completes is the actual IP layer started so that you
+can use the PPP link.</P
+><P
+>If there is no ppp server operating at the remote end when your PC sends
+lcp packets, these get reflected by the login process at the far end. As
+these packets use 8 bits, reflecting them strips the 8th bit (remember,
+ASCII is a 7 bit code). PPP sees this and complains accordingly.</P
+><P
+>There are several reasons this reflection can occur.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN427"
+>8.3.1. You are not correctly logging into the server</A
+></H2
+><P
+>When your chat script completes, pppd starts on your PC. However, if you
+have not completed the log in process to the server (including sending
+any command required to start PPP  on the server), PPP will not start.</P
+><P
+>So, the lcp packets are reflected and you receive this error.</P
+><P
+>You need to carefully check and correct (if necessary) your chat script
+(see above).</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN432"
+>8.3.2. You are not starting PPP on the server</A
+></H2
+><P
+>Some PPP servers require you to enter a command and/or a RETURN after
+completing the log in process before the remote end starts ppp.</P
+><P
+>Check your chat script (see above).</P
+><P
+>If you log in manually and find you need to send a RETURN after this to
+start PPP, simply add a blank expect/send pair to the end of your chat
+script (an empty send string actually sends a RETURN).</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN437"
+>8.3.3. The remote PPP process is slow to start</A
+></H2
+><P
+>This one is a bit tricksy!</P
+><P
+>By default, your Linux pppd is compiled to send a maximum of 10 lcp
+configuration requests. If the server is a bit slow to start up, all 10
+such requests can be sent before the remote PPP is ready to receive
+them.</P
+><P
+>On your machine, pppd sees all 10 requests reflected back (with the 8th
+bit stripped) and exits.</P
+><P
+>There are two ways round this:-</P
+><P
+>Add "<TT
+CLASS="LITERAL"
+>lcp-max-configure 30</TT
+>" to your ppp options. This increases
+the maximum number of lcp configure packets pppd sends before giving up.
+For really slow server, you may need even more than this.</P
+><P
+>Alternatively, you can get a bit tricksy in return. You may have noticed
+that when you logged in by hand to the PPP server and PPP started there,
+the <I
+CLASS="EMPHASIS"
+>first</I
+> character of the ppp garbage that appears was always the
+tilde character (&#732;).</P
+><P
+>Using this knowledge we can add a new <TT
+CLASS="LITERAL"
+>expect/send</TT
+> pair to the
+end of the chat script which expects a tilde and sends nothing. This
+would look like:-</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>\~	''</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Note: as the tilde character has a special meaning in the shell, it must
+be escaped (and hence the leading backslash).</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x412.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x452.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>My modem connects but ppp never starts up</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="problems.html"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Default route not set</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

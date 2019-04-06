@@ -1,0 +1,268 @@
+<HTML
+><HEAD
+><TITLE
+>The route classifier</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Advanced filters for (re-)classifying packets"
+HREF="lartc.adv-filter.html"><LINK
+REL="PREVIOUS"
+TITLE="The u32 classifier"
+HREF="lartc.adv-filter.u32.html"><LINK
+REL="NEXT"
+TITLE="Policing filters"
+HREF="lartc.adv-filter.policing.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.u32.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 12. Advanced filters for (re-)classifying packets</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.policing.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.ADV-FILTER.ROUTE"
+></A
+>12.2. The <TT
+CLASS="OPTION"
+>route</TT
+> classifier</H1
+><P
+>This classifier filters based on the results of the routing tables. When a
+packet that is traversing through the classes reaches one that is marked
+with the "route" filter, it splits the packets up based on information in
+the routing table.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth1 parent 1:0 protocol ip prio 100 route</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Here we add a route classifier onto the parent node 1:0 with priority 100. 
+When a packet reaches this node (which, since it is the root, will happen
+immediately) it will consult the routing table and if one matches will
+send it to the given class and give it a priority of 100. Then, to finally
+kick it into action, you add the appropriate routing entry:</P
+><P
+>The trick here is to define 'realm' based on either destination or source. 
+The way to do it is like this:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip route add Host/Network via Gateway dev Device realm RealmNumber</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>For instance, we can define our destination network 192.168.10.0 with a realm
+number 10:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip route add 192.168.10.0/24 via 192.168.10.1 dev eth1 realm 10</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>When adding route filters, we can use realm numbers to represent the
+networks or hosts and specify how the routes match the filters.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth1 parent 1:0 protocol ip prio 100 \
+  route to 10 classid 1:10</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>The above rule says packets going to the network 192.168.10.0 match class id
+1:10.</P
+><P
+>Route filter can also be used to match source routes. For example, there is 
+a subnetwork attached to the Linux router on eth2.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip route add 192.168.2.0/24 dev eth2 realm 2
+# tc filter add dev eth1 parent 1:0 protocol ip prio 100 \
+  route from 2 classid 1:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Here the filter specifies that packets from the subnetwork 192.168.2.0
+(realm 2) will match class id 1:2.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.u32.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.policing.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>The <TT
+CLASS="OPTION"
+>u32</TT
+> classifier</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Policing filters</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>SMB HOWTO: Running The Daemons</TITLE>
+ <LINK HREF="SMB-HOWTO-6.html" REL=next>
+ <LINK HREF="SMB-HOWTO-4.html" REL=previous>
+ <LINK HREF="SMB-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="SMB-HOWTO-6.html">Next</A>
+<A HREF="SMB-HOWTO-4.html">Previous</A>
+<A HREF="SMB-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="sec-daemons"></A> <A NAME="s5">5. Running The Daemons</A></H2>
+
+<P>The two SMB daemons are /usr/sbin/smbd and /usr/sbin/nmbd.  Under most Linux distributions, these are started, stoped and restarted via the startup script located in /etc/rc.d/init.d/smb and symlinked to the appropriate runlevels.
+<P>If you choose not to use the standard startup script, you can run the Samba daemons from inetd or as stand-alone processes.  Samba will respond slightly faster as a standalone daemon than running from inetd.
+<P>In either case, you should check the file /etc/services for lines that look like this:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+netbios-ns      137/tcp         nbns
+netbios-ns      137/udp         nbns
+netbios-dgm     138/tcp         nbdgm
+netbios-dgm     138/udp         nbdgm
+netbios-ssn     139/tcp         nbssn
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Make sure they are all uncommented.  Depending on your distribution, you may even need to add them.   Samba will not be able to bind to the appropriate ports unless /etc/services has these entries.
+<P>To run the daemons from inetd, place the following lines in the inetd configuration file, /etc/inetd.conf:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+    # SAMBA NetBIOS services (for PC file and print sharing)
+    netbios-ssn stream tcp nowait root /usr/sbin/smbd smbd
+    netbios-ns dgram udp wait root /usr/sbin/nmbd nmbd
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Then restart the inetd daemon by running the command:
+<P>
+<HR>
+<PRE>
+    kill -HUP `cat /var/run/inetd.pid`
+</PRE>
+<HR>
+<P>To run the daemons from the system startup scripts, put the following script in file called /etc/rc.d/init.d/smb (for most distributions) and symbolically link it to the files specified in the comments:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+    #!/bin/sh
+
+    #
+    # /etc/rc.d/init.d/smb - starts and stops SMB services.
+    #
+    # The following files should be synbolic links to this file:
+    # symlinks: /etc/rc.d/rc1.d/K35smb  (Kills SMB services on shutdown)
+    #           /etc/rc.d/rc3.d/S91smb  (Starts SMB services in multiuser mode)
+    #           /etc/rc.d/rc6.d/K35smb  (Kills SMB services on reboot)
+    #
+
+    # Source function library.
+    . /etc/rc.d/init.d/functions
+
+    # Source networking configuration.
+    . /etc/sysconfig/network
+
+    # Check that networking is up.
+    [ ${NETWORKING} = "no" ] &amp;&amp; exit 0
+
+    # See how we were called.
+    case "$1" in
+      start)
+        echo -n "Starting SMB services: "
+        daemon smbd -D  
+        daemon nmbd -D 
+        echo
+        touch /var/lock/subsys/smb
+        ;;
+      stop)
+        echo -n "Shutting down SMB services: "
+        killproc smbd
+        killproc nmbd
+        rm -f /var/lock/subsys/smb
+        echo ""
+        ;;
+      *)
+        echo "Usage: smb {start|stop}"
+        exit 1
+    esac
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>If when starting Samba you get an error that says something about the daemon failing to bind to port 139, then you probably have another Samba process already running that hasn't yet shut down.  Check a process list (with 'ps auxww | grep mbd') to determine if another Samba service is running.
+<P>
+<P>
+<HR>
+<A HREF="SMB-HOWTO-6.html">Next</A>
+<A HREF="SMB-HOWTO-4.html">Previous</A>
+<A HREF="SMB-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

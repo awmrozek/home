@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>SMB HOWTO: Sharing A Linux Printer With Windows Machines</TITLE>
+ <LINK HREF="SMB-HOWTO-10.html" REL=next>
+ <LINK HREF="SMB-HOWTO-8.html" REL=previous>
+ <LINK HREF="SMB-HOWTO.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="SMB-HOWTO-10.html">Next</A>
+<A HREF="SMB-HOWTO-8.html">Previous</A>
+<A HREF="SMB-HOWTO.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="s9">9. Sharing A Linux Printer With Windows Machines</A></H2>
+
+<P>To share a Linux printer with Windows machines, you need to make certain that your printer is set up to work under Linux.  If you can print from Linux, setting up an SMB share of the printer is stright forward.
+<P>Note that Windows users must have an account on the Linux/Samba server in order to print.  Windows 95/98 will attempt to authenticate to the print server using the username and password used on login to the Windows box.This means that if you clicked 'Cancel' when logging onto Windows, you can't print (or connect to other SMB services)!  Windows NT allows one to explicitely provide a username and password when connecting to a printer.
+<P>See the Printing HOWTO to set up local printing.
+<P>Add printing configuration to your smb.conf:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+[global]
+   printing = bsd
+   printcap name = /etc/printcap
+   load printers = yes
+   log file = /var/log/samba-log.%m
+   lock directory = /var/lock/samba
+
+[printers]
+   comment = All Printers
+   security = server
+   path = /var/spool/lpd/lp
+   browseable = no
+   printable = yes
+   public = yes
+   writable = no
+   create mode = 0700
+
+[ljet]
+   security = server
+   path = /var/spool/lpd/lp
+   printer name = lp
+   writable = yes
+   public = yes
+   printable = yes
+   print command = lpr -r -h -P %p %s
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Make certain that the printer path (in this case under [ljet]) matches the spool directory in /etc/printcap!
+<P>The lines:
+<P>
+<HR>
+<PRE>
+   printcap name = /etc/printcap
+   load printers = yes
+</PRE>
+<HR>
+<P>controls whether all the printers in /etc/printcap should be loaded by default.  If you do this, there is no reason to set up printers individually.  The section [printers] specifies options for the printers that you wish to explicitly difine.  If the printing subsystem you are using doesn't work this way (BSD), you need to set up a fake printcap file (or to use the 'print command' technique, see below).  For more information on the printcap system see the Printing HOWTO.
+<P>A useful technique to test the network connection is to change the print command to:
+<P>
+<HR>
+<PRE>
+   print command = cp %S /tmp/print.%P.%S
+</PRE>
+<HR>
+<P>The resulting file can then be analyzed.
+<P>NOTE:  There are some problems sharing printers on UNIX boxes with Windows NT machines using Samba.  One problem is with NT seeing the shared printer properly.  To fix this, see the notes in the Samba distribution in the file docs/WinNT.txt.  The other deals with password problems.  See the comments in the same file for an annoying gain of understanding and failure to fix the problem.
+<P>Oleg L. Machulskiy (
+<A HREF="mailto:machulsk@shade.msu.ru">machulsk@shade.msu.ru</A>) suggests that a better print command to use in the above example would be:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+print command = smb2ps %s | lpr -r -h -P %p
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>where 'smb2ps' is a script which transforms the spool file received from Windows into usual a usable Postscript file. It must cut off first 3 lines and last 2 lines, because these lines contain some PJL or PCL codes.
+<P>That approach is only needed if your Windows machine is printing PCL and not real Postscript.  I have found that Windows 95/98/NT don't have a generic Postscript driver per se, but the &quot;Digital turbo Printserver 20&quot; driver acts as a good general Postscript driver for most setups.  I have also heard that the &quot;Apple LaserWriter II NTX&quot; driver works for this purpose.
+<P>If you are creating a printer spool directory instead of using one created by a Linux distribution's installation utility, be careful of permissions!  Neil Fraser (
+<A HREF="mailto:neilf@necon.co.za">neilf@necon.co.za</A>) suggested setting the permissions of the spool directory (in his case, /var/spool/lpd/lpr) to 4755 (note the suid bit).  This worked for him when the owner of the directory was 'root' and the group was 'lp'.
+<P>Jeff Stern (
+<A HREF="mailto:jstern@eclectic.ss.uci.edu">jstern@eclectic.ss.uci.edu</A>) reported that he had to set the permissions on his spool directory to 777 in order for non-priviledged users to print, although he notes that he could have also added users to the 'lp' group.  This is a decision for local systems administrators;  if printing security is an issue, then lock it down.  In home environments, you will probably want everyone to be able to print.
+<P>Dr. Michael Langner (
+<A HREF="mailto:langner@fiz-chemie.de">langner@fiz-chemie.de</A>) points out that write permission problems on the /var/spool/lpd/ tree could be avoided by use something like &quot;path = /tmp&quot; and &quot;print command = lpr -r -P%p %s&quot; instead.
+<P>Sometimes, a Postscript parsing error will occur with Postscript printing from Windows machines that causes an extra page to be printed at the end of every print job.  The last page will always have &quot;%%[ Lastpage ]%%&quot; at the top of it.  This seems to happen with Windows 95 and 98 only and is because the Postscript is malformed.
+<P>One way to handle that is to use a script to remove that bit of bad Postscript from the spooled jobs.  Another way is to try to find a better Windows Postscript driver.  Probably the best way is to us LPRng instead of Postscript to print to a Samba server.
+<P>Erik Ratcliffe (
+<A HREF="mailto:erik@caldera.com">erik@caldera.com</A>) Caldera tells me that using LPRng means that any printer driver can be used from Windows machines.  On the Samba server, they used an /etc/printcap entry that looked like this:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+raw:\
+        :rw:sh:
+        :lp=/dev/lp1
+        :sd=/var/spool/lpd/raw
+        :fx=flp
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>LPRng doesn't require :\ at the end of every line.  A printer entry will still need to be made in /etc/smb.conf for the physical printer.  The print command line needs to use the &quot;raw&quot; entry in /etc/printcap and data must be sent to the printer in binary form.  Try a print command line like this:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+print command = lpr -b -Praw %s
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>You may also need to set the spooling on the Windows95 end to print directly to the printer instead of spooling.
+<P>If you constantly get a extra page printing at the end of print jobs from Windows clients, try adding an "sf" directive in /etc/printcap.  This will suppress form feeds separating jobs, but will not effect form feeds within documents.
+<P>
+<P>
+<HR>
+<A HREF="SMB-HOWTO-10.html">Next</A>
+<A HREF="SMB-HOWTO-8.html">Previous</A>
+<A HREF="SMB-HOWTO.html#toc9">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Secure POP via SSH mini-HOWTO: The Basic Technique</TITLE>
+ <LINK HREF="Secure-POP+SSH-3.html" REL=next>
+ <LINK HREF="Secure-POP+SSH-1.html" REL=previous>
+ <LINK HREF="Secure-POP+SSH.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Secure-POP+SSH-3.html">Next</A>
+<A HREF="Secure-POP+SSH-1.html">Previous</A>
+<A HREF="Secure-POP+SSH.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. The Basic Technique</A></H2>
+
+<P>
+<P>This technique relies on a fundamental feature of ssh: <EM>port forwarding</EM>
+<P>There are many variations on this theme, which depend on your desired mail
+setup. They all require ssh, which is available from
+<A HREF="http://www.ssh.fi/">http://www.ssh.fi/</A> and mirrors.
+RPMs are available at
+<A HREF="ftp://ftp.replay.com/pub/crypto/">ftp://ftp.replay.com/pub/crypto/</A>
+and Debian packages are available at
+<A HREF="ftp://non-us.debian.org/debian-non-US/">ftp://non-us.debian.org/debian-non-US/</A>
+(and their respective mirrors).
+<P>
+<H2><A NAME="ss2.1">2.1 Setting up Port Forwarding</A>
+</H2>
+
+<P>
+<P>To start port forwarding, run the following command:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ssh -C -f popserver -L 11110:popserver:110 sleep 5
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Let's take a closer look at that command:
+<P>
+<DL>
+<P>
+<DT><B><CODE>ssh</CODE></B><DD><P>The ssh binary itself, the magic program that does it all.
+<P>
+<DT><B><CODE>-C</CODE></B><DD><P>This enables compression of the datastream. It's optional, but usually useful,
+especially for dialup users.
+<P>
+<DT><B><CODE>-f</CODE></B><DD><P>Once ssh has done authentication and established port forwarding, fork to
+background so other programs can be run. Since we're just using the port
+forwarding features of ssh, we don't need a tty attached to it.
+<P>
+<DT><B><CODE>popserver</CODE></B><DD><P>The POP server we're connecting to.
+<P>
+<DT><B><CODE>-L 11110:popserver:110</CODE></B><DD><P>Forward local port 11110 to port 110 on the remote server <CODE>popserver</CODE>. We
+use a high local port (11110) so any user can create forwardings.
+<P>
+<DT><B><CODE>sleep 5</CODE></B><DD><P>After ssh has forked itself into the background, it runs a command. We use
+<CODE>sleep</CODE> so that the connection is maintained for enough time for our mail
+client to setup a connection to the server. 5 seconds is usually sufficient
+time for this to happen.
+<P>
+</DL>
+<P>You can use most other options to ssh when appropriate. A common setting
+may be a username, since it might be different on the POP server.
+<P>This <EM>requires</EM> sshd running on the remote server <CODE>popserver</CODE>. However,
+you do not need to have an active shell account there. The time it takes to
+print a message ``You cannot telnet here'' is enough to setup a connection.
+<P>
+<H2><A NAME="ss2.2">2.2 Testing it out</A>
+</H2>
+
+<P>
+<P>Once you've figured out the details command to run to establish port
+forwarding, you can try it. For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ ssh -C -f msingh@popserver -L 11110:popserver:110 sleep 1000
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><CODE>popserver</CODE> is the ol' POP server. My username on my local machine is
+<CODE>manish</CODE> so I need to explicitly specify the username <CODE>msingh</CODE>. (If
+your local and remote usernames are the same the <CODE>msingh@</CODE> part is
+unnecessary.
+<P>Then it prints:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+msingh@popserver's password:
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>And I type in my POP password (you may have different shell and POP passwords
+though, so use your shell one). Now we're done! So we can try:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ telnet localhost 11110
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>which should print something like:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+QUALCOMM POP v3.33 ready.
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Woohoo! It works! The data is sent out over the network encrypted, so the only
+cleartext is over the loopback interfaces of my local box and the POP server.
+<P>
+<HR>
+<A HREF="Secure-POP+SSH-3.html">Next</A>
+<A HREF="Secure-POP+SSH-1.html">Previous</A>
+<A HREF="Secure-POP+SSH.html#toc2">Contents</A>
+</BODY>
+</HTML>

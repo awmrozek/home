@@ -1,0 +1,940 @@
+<HTML
+><HEAD
+><TITLE
+>linux/arch/i386/kernel/head.S</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux i386 Boot Code HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="linux/arch/i386/boot/compressed/head.S"
+HREF="compressed_head.html"><LINK
+REL="NEXT"
+TITLE="linux/init/main.c"
+HREF="init_main.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux i386 Boot Code HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="compressed_head.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="init_main.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="kernel_head"
+></A
+>6. linux/arch/i386/kernel/head.S</H1
+><P
+>&#13;   Resident kernel image <TT
+CLASS="filename"
+>linux/vmlinux</TT
+> is in place finally!
+   It requires two inputs:
+   <P
+></P
+><UL
+><LI
+><P
+><EM
+>ESI</EM
+>, to indicate where
+       the 16-bit real mode code is located, aka INITSEG&#60;&#60;4;</P
+></LI
+><LI
+><P
+><EM
+>BX</EM
+>, to indicate
+       which CPU is running, 0 means BSP, other values for AP.</P
+></LI
+></UL
+>
+  </P
+><P
+>&#13;   ESI points to the parameter area from the 16-bit real mode code,
+   which will be copied to <EM
+>empty_zero_page</EM
+> later.
+   ESI is only valid for BSP.
+  </P
+><P
+>&#13;   BSP (BootStrap Processor) and APs (Application Processors) are
+   Intel terminologies.
+   Check IA-32 Manual
+   (Vol.3. Ch.7.5. Multiple-Processor (MP) Initialization) and
+<A
+HREF="http://www.intel.com/design/pentium/datashts/242016.htm"
+TARGET="_top"
+>&#13;   MultiProcessor Specification</A
+> for MP intialization issue.
+  </P
+><P
+>&#13;   From a software point of view, in a multiprocessor system, BSP and APs
+   share the physical memory but use their own register sets.
+   BSP runs the kernel code first, setups OS execution enviornment and
+   triggers APs to run over it too.
+   AP will be sleeping until BSP kicks it.
+  </P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="enable_paging"
+></A
+>6.1. Enable Paging</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>.text
+///////////////////////////////////////////////////////////////////////////////
+startup_32()
+{
+        /* set segments to known values */
+        cld;
+        DS = ES = FS = GS = __KERNEL_DS;
+
+#ifdef CONFIG_SMP
+#define cr4_bits mmu_cr4_features-__PAGE_OFFSET
+        /* long mmu_cr4_features defined in linux/arch/i386/kernel/setup.c
+         * __PAGE_OFFSET = 0xC0000000, i.e. 3G */
+
+        // AP with CR4 support (&#62; Intel 486) will copy CR4 from BSP
+        if (BX &#38;&#38; cr4_bits) {
+                // turn on paging options (PSE, PAE, ...)
+                CR4 |= cr4_bits;
+        } else
+#endif
+        {
+                /* only BSP initializes page tables (pg0..empty_zero_page-1)
+                 *   pg0 at .org 0x2000
+                 *   empty_zero_page at .org 0x4000
+                 *   total (0x4000-0x2000)/4 = 0x0800 entries */
+                pg0 = {
+                        0x00000007,             // 7 = PRESENT + RW + USER
+                        0x00001007,             // 0x1000 = 4096 = 4K
+                        0x00002007,
+                        ...
+                pg1:    0x00400007,
+                        ...
+                        0x007FF007              // total 8M
+                empty_zero_page:
+                };
+        }</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Why do we have to add "-__PAGE_OFFSET" when referring a kernel symbol,
+     for example, like <EM
+>pg0</EM
+>?
+    </P
+><P
+>&#13;     In <TT
+CLASS="filename"
+>linux/arch/i386/vmlinux.lds</TT
+>, we have:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>  . = 0xC0000000 + 0x100000;
+  _text = .;                    /* Text and read-only data */
+  .text : {
+        *(.text)
+...</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+   As <EM
+>pg0</EM
+> is at offset 0x2000 of section
+   <EM
+>.text</EM
+> in
+   <TT
+CLASS="filename"
+>linux/arch/i386/kernel/head.o</TT
+>,
+   which is the first file to be linked for <TT
+CLASS="filename"
+>linux/vmlinux</TT
+>,
+   it will be at offset 0x2000 in output section <EM
+>.text</EM
+>.
+   Thus it will be located at address 0xC0000000+0x100000+0x2000 after linking.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>[root@localhost boot]# nm --defined /boot/vmlinux-2.4.20-28.9 | grep 'startup_32
+\|mmu_cr4_features\|pg0\|\&#60;empty_zero_page\&#62;' | sort
+c0100000 t startup_32
+c0102000 T pg0
+c0104000 T empty_zero_page
+c0376404 B mmu_cr4_features</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     In protected mode without paging enabled, linear address will be
+     mapped directly to physical address.
+     "movl $pg0-__PAGE_OFFSET,%edi" will set EDI=0x102000,
+     which is equal to the physical address of <EM
+>pg0</EM
+>
+     (as <TT
+CLASS="filename"
+>linux/vmlinux</TT
+> is relocated to 0x100000).
+     Without this "-PAGE_OFFSET" scheme, it will access physical address
+     0xC0102000, which will be wrong and probably beyond RAM space.
+    </P
+><P
+>&#13;     <EM
+>mmu_cr4_features</EM
+> is in <EM
+>.bss</EM
+>
+     section and is located at physical address 0x376404 in the above example.
+    </P
+><P
+>&#13;     After page tables are initialized, paging can be enabled.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>        // set page directory base pointer, physical address
+        CR3 = swapper_pg_dir - __PAGE_OFFSET;
+        // paging enabled!
+        CR0 |= 0x80000000;      // set PG bit
+        goto 1f;                // flush prefetch-queue
+1:
+        EAX = &#38;1f;              // address following the next instruction
+        goto *(EAX);            // relocate EIP
+1:
+        SS:ESP = *stack_start;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Page directory <EM
+>swapper_pg_dir</EM
+> (see definition in
+     <A
+HREF="kernel_head.html#khead_misc"
+>Section 6.5</A
+>), together with
+     page tables <EM
+>pg0</EM
+> and <EM
+>pg1</EM
+>,
+     defines that both linear address 0..8M-1 and 3G..3G+8M-1 are mapped to
+     physical address 0..8M-1.
+     We can access kernel symbols without "-__PAGE_OFFSET" from now on,
+     because kernel space (resides in linear address &#62;=3G) will
+     be correctly mapped to its physical addresss after paging is enabled.
+    </P
+><P
+>&#13;     "lss stack_start,%esp" (SS:ESP = *stack_start)
+     is the first example to reference a symbol without "-PAGE_OFFSET",
+     which sets up a new stack.
+     For BSP, the stack is at the end of <EM
+>init_task_union</EM
+>.
+     For AP, <EM
+>stack_start.esp</EM
+> has been redefined by
+     <EM
+>linux/arch/i386/kernel/smpboot.c:do_boot_cpu()</EM
+> to be
+     "(void *) (1024 + PAGE_SIZE + (char *)idle)" in
+     <A
+HREF="smpboot.html#smp_init"
+>Section 8.2</A
+>.
+    </P
+><P
+>&#13;     For paging mechanism and data structures, refer to IA-32 Manual Vol.3.
+     (Ch.3.7. Page Translation Using 32-Bit Physical Addressing,
+     Ch.9.8.3. Initializing Paging,
+     Ch.9.9.1. Switching to Protected Mode, and
+     Ch.18.26.3. Enabling and Disabling Paging).
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="get_kernel_para"
+></A
+>6.2. Get Kernel Parameters</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>#define OLD_CL_MAGIC_ADDR       0x90020
+#define OLD_CL_MAGIC            0xA33F
+#define OLD_CL_BASE_ADDR        0x90000
+#define OLD_CL_OFFSET           0x90022
+#define NEW_CL_POINTER          0x228   /* Relative to real mode data */
+
+#ifdef CONFIG_SMP
+        if (BX) {
+                EFLAGS = 0;             // AP clears EFLAGS
+        } else
+#endif
+        {
+                // Initial CPU cleans BSS
+                clear BSS;              // i.e. __bss_start .. _end
+                setup_idt() {
+                        /* idt_table[256] defined in arch/i386/kernel/traps.c
+                         *   located in section .data.idt
+                        EAX = __KERNEL_CS &#60;&#60; 16 + ignore_int;
+                        DX = 0x8E00;    // interrupt gate, dpl = 0, present
+                        idt_table[0..255] = {EAX, EDX};
+                }
+                EFLAGS = 0;
+                /*
+                 * Copy bootup parameters out of the way. First 2kB of
+                 * _empty_zero_page is for boot parameters, second 2kB
+                 * is for the command line.
+                 */
+                move *ESI (real-mode header) to empty_zero_page, 2KB;
+                clear empty_zero_page+2K, 2KB;
+                ESI = empty_zero_page[NEW_CL_POINTER];
+                if (!ESI) {             // 32-bit command line pointer
+                        if (OLD_CL_MAGIC==(uint16)[OLD_CL_MAGIC_ADDR]) {
+                                ESI = [OLD_CL_BASE_ADDR]
+                                      + (uint16)[OLD_CL_OFFSET];
+                                move *ESI to empty_zero_page+2K, 2KB;
+                        }
+                } else {                // valid in 2.02+
+                        move *ESI to empty_zero_page+2K, 2KB;
+                }
+        }
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     For BSP, kernel parameters are copied from memory pointed by
+     <EM
+>ESI</EM
+> to <EM
+>empty_zero_page</EM
+>.
+     Kernel command line will be copied to
+     <EM
+>empty_zero_page+2K</EM
+> if applicable.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="check_cpu_type"
+></A
+>6.3. Check CPU Type</H2
+><P
+>&#13;     Refer to IA-32 Manual Vol.1.
+     (Ch.13. Processor Identification and Feature Determination) on
+     how to identify processor type and processor features.
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>struct cpuinfo_x86;     // see include/asm-i386/processor.h
+struct cpuinfo_x86 boot_cpu_data;       // see arch/i386/kernel/setup.c
+
+#define CPU_PARAMS      SYMBOL_NAME(boot_cpu_data)
+#define X86             CPU_PARAMS+0
+#define X86_VENDOR      CPU_PARAMS+1
+#define X86_MODEL       CPU_PARAMS+2
+#define X86_MASK        CPU_PARAMS+3
+#define X86_HARD_MATH   CPU_PARAMS+6
+#define X86_CPUID       CPU_PARAMS+8
+#define X86_CAPABILITY  CPU_PARAMS+12
+#define X86_VENDOR_ID   CPU_PARAMS+28
+
+checkCPUtype:
+{
+        X86_CPUID = -1;                 // no CPUID
+
+        X86 = 3;                        // at least 386
+        save original EFLAGS to ECX;
+        flip AC bit (0x40000) in EFLAGS;
+        if (AC bit not changed) goto is386;
+
+        X86 = 4;                        // at least 486
+        flip ID bit (0X200000) in EFLAGS;
+        restore original EFLAGS;        // for AC &#38; ID flags
+        if (ID bit can not be changed) goto is486;
+
+        // get CPU info
+        CPUID(EAX=0);
+        X86_CPUID = EAX;
+        X86_VENDOR_ID = {EBX, EDX, ECX};
+        if (!EAX) goto is486;
+
+        CPUID(EAX=1);
+        CL = AL;
+        X86 = AH &#38; 0x0f;                // family
+        X86_MODEL = (AL &#38; 0xf0) &#62;&#62; 4;   // model
+        X86_MASK = CL &#38; 0x0f;           // stepping id
+        X86_CAPABILITY = EDX;           // feature</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;    Refer to IA-32 Manual Vol.3.
+    (Ch.9.2. x87 FPU Initialization, and Ch.18.14. x87 FPU) on
+    how to setup x87 FPU.
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>is486:
+        // save PG, PE, ET and set AM, WP, NE, MP
+        EAX = (CR0 &#38; 0x80000011) | 0x50022;
+        goto 2f;                        // skip "is386:" processing
+is386:
+        restore original EFLAGS from ECX;
+        // save PG, PE, ET and set MP
+        EAX = (CR0 &#38; 0x80000011) | 0x02;
+
+        /* ET: Extension Type (bit 4 of CR0).
+         * In the Intel 386 and Intel 486 processors, this flag indicates
+         * support of Intel 387 DX math coprocessor instructions when set.
+         * In the Pentium 4, Intel Xeon, and P6 family processors,
+         * this flag is hardcoded to 1.
+         *     -- IA-32 Manual Vol.3. Ch.2.5. Control Registers (p.2-14) */
+
+2:      CR0 = EAX;
+        check_x87() {
+                /* We depend on ET to be correct.
+                 * This checks for 287/387. */
+                X86_HARD_MATH = 0;
+                clts;                   // CR0.TS = 0;
+                fninit;                 // Init FPU;
+                fstsw AX;               // AX = ST(0);
+                if (AL) {
+                        CR0 ^= 0x04;    // no coprocessor, set EM
+                } else {
+                        ALIGN
+1:                      X86_HARD_MATH = 1;
+                        /* IA-32 Manual Vol.3. Ch.18.14.7.14. FSETPM Instruction
+                         * inform 287 that processor is in protected mode
+                         * 287 only, ignored by 387 */
+                        fsetpm;
+                }
+        }
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Macro ALIGN, defined in <TT
+CLASS="filename"
+>linux/include/linux/linkage.h</TT
+>,
+     specifies 16-bytes alignment and fill value 0x90 (opcode for NOP). See also
+<A
+HREF="http://www.gnu.org/software/binutils/manual/gas-2.9.1/html_chapter/as_7.html#SEC70"
+TARGET="_top"
+>&#13;     Using as: Assembler Directives</A
+> for the meaning of
+     directive <EM
+>.align</EM
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="go_start_kernel"
+></A
+>6.4. Go Start Kernel</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>        ready:  .byte 0;        // global variable
+{
+        ready++;                // how many CPUs are ready
+        lgdt gdt_descr;         // use new descriptor table in safe place
+        lidt idt_descr;
+        goto __KERNEL_CS:$1f;   // reload segment registers after "lgdt"
+1:      DS = ES = FS = GS = __KERNEL_DS;
+#ifdef CONFIG_SMP
+        SS = __KERNEL_DS;       // reload segment only
+#else
+        SS:ESP = *stack_start;  /* end of init_task_union, defined
+                                 *   in linux/arch/i386/kernel/init_task.c */
+#endif
+        EAX = 0;
+        lldt AX;
+        cld;
+
+#ifdef CONFIG_SMP
+        if (1!=ready) {         // not first CPU
+                initialize_secondary();
+                // see linux/arch/i386/kernel/smpboot.c
+        } else
+#endif
+        {
+                start_kernel(); // see linux/init/main.c
+        }
+L6:     goto L6;
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     The first CPU (BSP) will call
+     <EM
+>linux/init/main.c:start_kernel()</EM
+> and
+     the others (AP) will call
+<EM
+>linux/arch/i386/kernel/smpboot.c:initialize_secondary()</EM
+>.
+     See <EM
+>start_kernel()</EM
+> in <A
+HREF="init_main.html"
+>Section 7</A
+>
+     and <EM
+>initialize_secondary()</EM
+> in
+     <A
+HREF="smpboot.html#initialize_secondary"
+>Section 8.4</A
+>.
+    </P
+><P
+>&#13;     <EM
+>init_task_union</EM
+> happens to be the task struct
+     for the first process, "idle" process (pid=0), whose stack grows
+     from the tail of <EM
+>init_task_union</EM
+>.
+     The following is the code related to <EM
+>init_task_union</EM
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>ENTRY(stack_start)
+        .long init_task_union+8192;
+        .long __KERNEL_DS;
+
+#ifndef INIT_TASK_SIZE
+# define INIT_TASK_SIZE 2048*sizeof(long)
+#endif
+
+union task_union {
+        struct task_struct task;
+        unsigned long stack[INIT_TASK_SIZE/sizeof(long)];
+};
+
+/* INIT_TASK is used to set up the first task table, touch at
+ * your own risk! Base=0, limit=0x1fffff (=2MB) */
+union task_union init_task_union
+        __attribute__((__section__(".data.init_task"))) =
+                { INIT_TASK(init_task_union.task) };</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;     <EM
+>init_task_union</EM
+> is for BSP "idle" process.
+     Don't confuse it with "init" process, which will be mentioned in
+     <A
+HREF="init_main.html#init_proc"
+>Section 7.2</A
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="khead_misc"
+></A
+>6.5. Miscellaneous</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+// default interrupt "handler"
+ignore_int() { printk("Unknown interrupt\n"); iret; }
+
+/*
+ * The interrupt descriptor table has room for 256 idt's,
+ * the global descriptor table is dependent on the number
+ * of tasks we can have..
+ */
+#define IDT_ENTRIES     256
+#define GDT_ENTRIES     (__TSS(NR_CPUS))
+
+.globl SYMBOL_NAME(idt)
+.globl SYMBOL_NAME(gdt)
+
+        ALIGN
+        .word 0
+idt_descr:
+        .word IDT_ENTRIES*8-1           # idt contains 256 entries
+SYMBOL_NAME(idt):
+        .long SYMBOL_NAME(idt_table)
+
+        .word 0
+gdt_descr:
+        .word GDT_ENTRIES*8-1
+SYMBOL_NAME(gdt):
+        .long SYMBOL_NAME(gdt_table)
+
+/*
+ * This is initialized to create an identity-mapping at 0-8M (for bootup
+ * purposes) and another mapping of the 0-8M area at virtual address
+ * PAGE_OFFSET.
+ */
+.org 0x1000
+ENTRY(swapper_pg_dir)   // "ENTRY" defined in linux/include/linux/linkage.h
+        .long 0x00102007
+        .long 0x00103007
+        .fill BOOT_USER_PGD_PTRS-2,4,0
+        /* default: 766 entries */
+        .long 0x00102007
+        .long 0x00103007
+        /* default: 254 entries */
+        .fill BOOT_KERNEL_PGD_PTRS-2,4,0
+
+/*
+ * The page tables are initialized to only 8MB here - the final page
+ * tables are set up later depending on memory size.
+ */
+.org 0x2000
+ENTRY(pg0)
+
+.org 0x3000
+ENTRY(pg1)
+
+/*
+ * empty_zero_page must immediately follow the page tables ! (The
+ * initialization loop counts until empty_zero_page)
+ */
+.org 0x4000
+ENTRY(empty_zero_page)
+
+/*
+ * Real beginning of normal "text" segment
+ */
+.org 0x5000
+ENTRY(stext)
+ENTRY(_stext)
+
+///////////////////////////////////////////////////////////////////////////////
+/*
+ * This starts the data section. Note that the above is all
+ * in the text section because it has alignment requirements
+ * that we cannot fulfill any other way.
+ */
+.data
+
+ALIGN
+/*
+ * This contains typically 140 quadwords, depending on NR_CPUS.
+ *
+ * NOTE! Make sure the gdt descriptor in head.S matches this if you
+ * change anything.
+ */
+ENTRY(gdt_table)
+        .quad 0x0000000000000000        /* NULL descriptor */
+        .quad 0x0000000000000000        /* not used */
+        .quad 0x00cf9a000000ffff        /* 0x10 kernel 4GB code at 0x00000000 */
+        .quad 0x00cf92000000ffff        /* 0x18 kernel 4GB data at 0x00000000 */
+        .quad 0x00cffa000000ffff        /* 0x23 user   4GB code at 0x00000000 */
+        .quad 0x00cff2000000ffff        /* 0x2b user   4GB data at 0x00000000 */
+        .quad 0x0000000000000000        /* not used */
+        .quad 0x0000000000000000        /* not used */
+        /*
+         * The APM segments have byte granularity and their bases
+         * and limits are set at run time.
+         */
+        .quad 0x0040920000000000        /* 0x40 APM set up for bad BIOS's */
+        .quad 0x00409a0000000000        /* 0x48 APM CS    code */
+        .quad 0x00009a0000000000        /* 0x50 APM CS 16 code (16 bit) */
+        .quad 0x0040920000000000        /* 0x58 APM DS    data */
+        .fill NR_CPUS*4,8,0             /* space for TSS's and LDT's */</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Macro ALIGN, before <EM
+>idt_descr</EM
+> and
+     <EM
+>gdt_table</EM
+>, is for performance consideration.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="khead_ref"
+></A
+>6.6. Reference</H2
+><P
+>&#13;    <P
+></P
+><UL
+><LI
+><P
+><A
+HREF="http://developer.intel.com/design/pentium4/manuals/"
+TARGET="_top"
+>&#13;        IA-32 Intel Architecture Software Developer's Manual</A
+></P
+></LI
+><LI
+><P
+>&#13;         <A
+HREF="http://www.intel.com/design/pentium/datashts/242016.htm"
+TARGET="_top"
+>&#13;         MultiProcessor Specification</A
+>
+        </P
+></LI
+><LI
+><P
+>&#13;         <A
+HREF="http://www.gnu.org/software/binutils/manual/gas-2.9.1/"
+TARGET="_top"
+>&#13;         Using as</A
+>
+        </P
+></LI
+><LI
+><P
+>&#13;         <A
+HREF="http://www.gnu.org/software/binutils/manual/"
+TARGET="_top"
+>&#13;         GNU Binary Utilities</A
+>
+        </P
+></LI
+></UL
+>
+    </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="compressed_head.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="init_main.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>linux/arch/i386/boot/compressed/head.S</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>linux/init/main.c</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

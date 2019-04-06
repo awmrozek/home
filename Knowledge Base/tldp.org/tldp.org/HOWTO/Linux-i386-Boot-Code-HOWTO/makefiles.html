@@ -1,0 +1,1965 @@
+<HTML
+><HEAD
+><TITLE
+>Linux Makefiles</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux i386 Boot Code HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Introduction"
+HREF="intro.html"><LINK
+REL="NEXT"
+TITLE="linux/arch/i386/boot/bootsect.S"
+HREF="bootsect.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux i386 Boot Code HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="intro.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="bootsect.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="makefiles"
+></A
+>2. Linux Makefiles</H1
+><P
+>&#13;   Before perusing Linux code, we should get some basic idea about
+   how Linux is composed, compiled and linked.
+   A straightforward way to achieve this goal is to understand Linux makefiles.
+   Check <A
+HREF="http://lxr.linux.no/source?v=2.4.20"
+TARGET="_top"
+>&#13;   Cross-Referencing Linux</A
+> if you prefer online source browsing.
+  </P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="linux_makefile"
+></A
+>2.1. linux/Makefile</H2
+><P
+>&#13;     Here are some well-known targets in this top-level makefile:
+     <P
+></P
+><UL
+><LI
+><P
+>&#13;          <EM
+>xconfig, menuconfig, config, oldconfig</EM
+>:
+          generate kernel configuration file
+          <TT
+CLASS="filename"
+>linux/.config</TT
+>;
+         </P
+></LI
+><LI
+><P
+>&#13;          <EM
+>depend, dep</EM
+>: generate dependency files, like
+          <TT
+CLASS="filename"
+>linux/.depend</TT
+>,
+          <TT
+CLASS="filename"
+>linux/.hdepend</TT
+> and
+          <TT
+CLASS="filename"
+>.depend</TT
+> in subdirectories;
+         </P
+></LI
+><LI
+><P
+>&#13;          <EM
+>vmlinux</EM
+>: generate resident kernel image
+          <TT
+CLASS="filename"
+>linux/vmlinux</TT
+>, the most important target;
+         </P
+></LI
+><LI
+><P
+>&#13;          <EM
+>modules, modules_install</EM
+>:
+          generate and install modules in
+          <TT
+CLASS="filename"
+>/lib/modules/$(KERNELRELEASE)</TT
+>;
+         </P
+></LI
+><LI
+><P
+>&#13;          <EM
+>tags</EM
+>: generate tag file
+          <TT
+CLASS="filename"
+>linux/tags</TT
+>, for source browsing with
+          <A
+HREF="http://vim.sourceforge.net"
+TARGET="_top"
+>vim</A
+>.
+         </P
+></LI
+></UL
+>
+    </P
+><P
+>&#13;     Overview of <TT
+CLASS="filename"
+>linux/Makefile</TT
+> is outlined below:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>include .depend
+include .config
+include arch/i386/Makefile
+
+vmlinux: generate linux/vmlinux
+        /* entry point "stext" defined in arch/i386/kernel/head.S */
+        $(LD) -T $(TOPDIR)/arch/i386/vmlinux.lds -e stext
+        /* $(HEAD) */
+        + from arch/i386/Makefile
+                arch/i386/kernel/head.o
+                arch/i386/kernel/init_task.o
+        init/main.o
+        init/version.o
+        init/do_mounts.o
+        --start-group
+        /* $(CORE_FILES) */
+        + from arch/i386/Makefile
+                arch/i386/kernel/kernel.o
+                arch/i386/mm/mm.o
+        kernel/kernel.o
+        mm/mm.o
+        fs/fs.o
+        ipc/ipc.o
+        /* $(DRIVERS) */
+        drivers/...
+                char/char.o
+                block/block.o
+                misc/misc.o
+                net/net.o
+                media/media.o
+                cdrom/driver.o
+                and other static linked drivers
+                + from arch/i386/Makefile
+                        arch/i386/math-emu/math.o (ifdef CONFIG_MATH_EMULATION)
+        /* $(NETWORKS) */
+        net/network.o
+        /* $(LIBS) */
+        + from arch/i386/Makefile
+                arch/i386/lib/lib.a
+        lib/lib.a
+        --end-group
+        -o vmlinux
+        $(NM) vmlinux | grep ... | sort &#62; System.map
+tags: generate linux/tags for vim
+modules: generate modules
+modules_install: install modules
+clean mrproper distclean: clean up build directory
+psdocs pdfdocs htmldocs mandocs: generate kernel documents
+
+include Rules.make
+
+rpm: generate an rpm</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     "--start-group" and "--end-group" are <B
+CLASS="command"
+>ld</B
+>
+     command line options to resolve symbol reference problem. Refer to
+<A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_2.html#SEC3"
+TARGET="_top"
+>&#13;     Using LD, the GNU linker: Command Line Options</A
+> for details.
+    </P
+><P
+>&#13;     <TT
+CLASS="filename"
+>Rules.make</TT
+> contains rules which are shared
+     between multiple Makefiles.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="vmlinux.lds"
+></A
+>2.2. linux/arch/i386/vmlinux.lds</H2
+><P
+>&#13;     After compilation, <B
+CLASS="command"
+>ld</B
+> combines a number of
+     object and archive files, relocates their data and
+     ties up symbol references.
+     <TT
+CLASS="filename"
+>linux/arch/i386/vmlinux.lds</TT
+> is designated by
+     <TT
+CLASS="filename"
+>linux/Makefile</TT
+> as the linker script used
+     in linking the resident kernel image <TT
+CLASS="filename"
+>linux/vmlinux</TT
+>.
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>/* ld script to make i386 Linux kernel
+ * Written by Martin Mares &#60;mj@atrey.karlin.mff.cuni.cz&#62;;
+ */
+OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
+OUTPUT_ARCH(i386)
+/* "ENTRY" is overridden by command line option "-e stext" in linux/Makefile */
+ENTRY(_start)
+/* Output file (linux/vmlinux) layout.
+ * Refer to <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_3.html#SEC17"
+TARGET="_top"
+>Using LD, the GNU linker: Specifying Output Sections</A
+> */
+SECTIONS
+{
+/* Output section .text starts at address 3G+1M.
+ * Refer to <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_3.html#SEC10"
+TARGET="_top"
+>Using LD, the GNU linker: The Location Counter</A
+> */
+  . = 0xC0000000 + 0x100000;
+  _text = .;                    /* Text and read-only data */
+  .text : {
+        *(.text)
+        *(.fixup)
+        *(.gnu.warning)
+        } = 0x9090
+/* Unallocated holes filled with 0x9090, i.e. opcode for "NOP NOP".
+ * Refer to <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_3.html#SEC21"
+TARGET="_top"
+>Using LD, the GNU linker: Optional Section Attributes</A
+> */
+
+  _etext = .;                   /* End of text section */
+
+  .rodata : { *(.rodata) *(.rodata.*) }
+  .kstrtab : { *(.kstrtab) }
+
+/* Aligned to next 16-bytes boundary.
+ * Refer to <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_3.html#SEC14"
+TARGET="_top"
+>Using LD, the GNU linker: Arithmetic Functions</A
+> */
+  . = ALIGN(16);                /* Exception table */
+  __start___ex_table = .;
+  __ex_table : { *(__ex_table) }
+  __stop___ex_table = .;
+
+  __start___ksymtab = .;        /* Kernel symbol table */
+  __ksymtab : { *(__ksymtab) }
+  __stop___ksymtab = .;
+
+  .data : {                     /* Data */
+        *(.data)
+        CONSTRUCTORS
+        }
+/* For "CONSTRUCTORS", refer to
+ * <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_3.html#SEC26"
+TARGET="_top"
+>Using LD, the GNU linker: Option Commands</A
+> */
+
+  _edata = .;                   /* End of data section */
+
+  . = ALIGN(8192);              /* init_task */
+  .data.init_task : { *(.data.init_task) }
+
+  . = ALIGN(4096);              /* Init code and data */
+  __init_begin = .;
+  .text.init : { *(.text.init) }
+  .data.init : { *(.data.init) }
+  . = ALIGN(16);
+  __setup_start = .;
+  .setup.init : { *(.setup.init) }
+  __setup_end = .;
+  __initcall_start = .;
+  .initcall.init : { *(.initcall.init) }
+  __initcall_end = .;
+  . = ALIGN(4096);
+  __init_end = .;
+
+  . = ALIGN(4096);
+  .data.page_aligned : { *(.data.idt) }
+
+  . = ALIGN(32);
+  .data.cacheline_aligned : { *(.data.cacheline_aligned) }
+
+  __bss_start = .;              /* BSS */
+  .bss : {
+        *(.bss)
+        }
+  _end = . ;
+
+/* Output section /DISCARD/ will not be included in the final link output.
+ * Refer to <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_3.html#SEC18"
+TARGET="_top"
+>Using LD, the GNU linker: Section Definitions</A
+> */
+  /* Sections to be discarded */
+  /DISCARD/ : {
+        *(.text.exit)
+        *(.data.exit)
+        *(.exitcall.exit)
+        }
+
+/* The following output sections are addressed at memory location 0.
+ * Refer to <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_3.html#SEC21"
+TARGET="_top"
+>Using LD, the GNU linker: Optional Section Attributes</A
+> */
+  /* Stabs debugging sections.  */
+  .stab 0 : { *(.stab) }
+  .stabstr 0 : { *(.stabstr) }
+  .stab.excl 0 : { *(.stab.excl) }
+  .stab.exclstr 0 : { *(.stab.exclstr) }
+  .stab.index 0 : { *(.stab.index) }
+  .stab.indexstr 0 : { *(.stab.indexstr) }
+  .comment 0 : { *(.comment) }
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="i386_makefile"
+></A
+>2.3. linux/arch/i386/Makefile</H2
+><P
+>&#13;     <TT
+CLASS="filename"
+>linux/arch/i386/Makefile</TT
+> is included by
+     <TT
+CLASS="filename"
+>linux/Makefile</TT
+> to provide i386 specific
+     items and terms.
+    </P
+><P
+>&#13;     All the following targets depend on target <EM
+>vmlinux</EM
+>
+     of <TT
+CLASS="filename"
+>linux/Makefile</TT
+>.
+     They are accomplished by making corresponding targets in
+     <TT
+CLASS="filename"
+>linux/arch/i386/boot/Makefile</TT
+> with some options.
+    <DIV
+CLASS="table"
+><A
+NAME="AEN153"
+></A
+><P
+><B
+>Table 1. Targets in linux/arch/i386/Makefile</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Target</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Command</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>zImage
+              <A
+NAME="AEN163"
+HREF="#FTN.AEN163"
+><SPAN
+CLASS="footnote"
+>[a]</SPAN
+></A
+>
+            </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>@$(MAKE) -C arch/i386/boot zImage</B
+>
+              
+              <A
+NAME="AEN169"
+HREF="#FTN.AEN169"
+><SPAN
+CLASS="footnote"
+>[b]</SPAN
+></A
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bzImage</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>@$(MAKE) -C arch/i386/boot bzImage</B
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>zlilo</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>@$(MAKE) -C arch/i386/boot BOOTIMAGE=zImage zlilo</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bzlilo</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>@$(MAKE) -C arch/i386/boot BOOTIMAGE=bzImage zlilo</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>zdisk</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>@$(MAKE) -C arch/i386/boot BOOTIMAGE=zImage zdisk</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bzdisk</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>@$(MAKE) -C arch/i386/boot BOOTIMAGE=bzImage zdisk</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>install</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>@$(MAKE) -C arch/i386/boot BOOTIMAGE=bzImage install</B
+>
+            </TD
+></TR
+></TBODY
+><TR
+><TD
+COLSPAN="2"
+>Notes:<BR><A
+NAME="FTN.AEN163"
+>a. </A
+>
+                 <EM
+>zImage</EM
+> alias:
+                 <EM
+>compressed</EM
+>;
+                <BR><A
+NAME="FTN.AEN169"
+>b. </A
+>
+                 "-C" is a MAKE command line option
+                 to change directory before reading makefiles;
+                <BR>Refer to
+<A
+HREF="http://www.gnu.org/software/make/manual/html_chapter/make_9.html#SEC102"
+TARGET="_top"
+>&#13;                 GNU make: Summary of Options</A
+> and
+<A
+HREF="http://www.gnu.org/software/make/manual/html_chapter/make_5.html#SEC58"
+TARGET="_top"
+>&#13;                 GNU make: Recursive Use of make</A
+>.
+                <BR></TD
+></TR
+></TABLE
+></DIV
+>
+    </P
+><P
+>&#13;     It is worth noticing that this makefile redefines
+     some environment variables which are exported by
+     <TT
+CLASS="filename"
+>linux/Makefile</TT
+>, specifically:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>OBJCOPY=$(CROSS_COMPILE)objcopy -O binary -R .note -R .comment -S</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     The effect will be passed to subdirectory makefiles and
+     will change the tool's behavior. Refer to
+<A
+HREF="http://www.gnu.org/software/binutils/manual/html_chapter/binutils_3.html"
+TARGET="_top"
+>&#13;     GNU Binary Utilities: objcopy</A
+>
+     for <B
+CLASS="command"
+>objcopy</B
+> command line option details.
+    </P
+><P
+>&#13;     Not sure why <EM
+>$(LIBS)</EM
+> includes
+     "$(TOPDIR)/arch/i386/lib/lib.a" twice:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>LIBS := $(TOPDIR)/arch/i386/lib/lib.a $(LIBS) $(TOPDIR)/arch/i386/lib/lib.a</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     It may be employed to work around linking problems with some toolchains.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="i386_boot_makefile"
+></A
+>2.4. linux/arch/i386/boot/Makefile</H2
+><P
+>&#13;     <TT
+CLASS="filename"
+>linux/arch/i386/boot/Makefile</TT
+> is somehow
+     independent as it is not included by either
+     <TT
+CLASS="filename"
+>linux/arch/i386/Makefile</TT
+>
+     or <TT
+CLASS="filename"
+>linux/Makefile</TT
+>.
+    </P
+><P
+>&#13;     However, they do have some relationship:
+     <P
+></P
+><UL
+><LI
+><P
+>&#13;          <TT
+CLASS="filename"
+>linux/Makefile</TT
+>: provides resident kernel image
+          <TT
+CLASS="filename"
+>linux/vmlinux</TT
+>;
+         </P
+></LI
+><LI
+><P
+>&#13;          <TT
+CLASS="filename"
+>linux/arch/i386/boot/Makefile</TT
+>:
+          provides bootstrap;
+         </P
+></LI
+><LI
+><P
+>&#13;          <TT
+CLASS="filename"
+>linux/arch/i386/Makefile</TT
+>:
+          makes sure <TT
+CLASS="filename"
+>linux/vmlinux</TT
+> is ready
+          before the bootstrap is constructed,
+          and exports targets (like <EM
+>bzImage</EM
+>)
+          to <TT
+CLASS="filename"
+>linux/Makefile</TT
+>.
+         </P
+></LI
+></UL
+>
+    </P
+><P
+>&#13;      $(BOOTIMAGE) value, which is for target <EM
+>zdisk, zlilo</EM
+>
+      or <EM
+>zdisk</EM
+>, comes from
+      <TT
+CLASS="filename"
+>linux/arch/i386/Makefile</TT
+>.
+    </P
+><P
+>&#13;    <DIV
+CLASS="table"
+><A
+NAME="AEN232"
+></A
+><P
+><B
+>Table 2. Targets in linux/arch/i386/boot/Makefile</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Target</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Command</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>zImage</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>$(OBJCOPY) compressed/vmlinux compressed/vmlinux.out
+tools/build bootsect setup compressed/vmlinux.out $(ROOT_DEV) &#62; zImage</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bzImage</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>$(OBJCOPY) compressed/bvmlinux compressed/bvmlinux.out
+tools/build -b bbootsect bsetup compressed/bvmlinux.out $(ROOT_DEV) \
+        &#62; bzImage</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>zdisk</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>dd bs=8192 if=$(BOOTIMAGE) of=/dev/fd0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>zlilo</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>if [ -f $(INSTALL_PATH)/vmlinuz ]; then mv $(INSTALL_PATH)/vmlinuz
+        $(INSTALL_PATH)/vmlinuz.old; fi
+if [ -f $(INSTALL_PATH)/System.map ]; then mv $(INSTALL_PATH)/System.map
+        $(INSTALL_PATH)/System.old; fi
+cat $(BOOTIMAGE) &#62; $(INSTALL_PATH)/vmlinuz
+cp $(TOPDIR)/System.map $(INSTALL_PATH)/
+if [ -x /sbin/lilo ]; then /sbin/lilo; else /etc/lilo/install; fi</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>install</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>sh -x ./install.sh $(KERNELRELEASE) $(BOOTIMAGE) $(TOPDIR)/System.map
+        "$(INSTALL_PATH)"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+            </TD
+></TR
+></TBODY
+></TABLE
+></DIV
+>
+     <B
+CLASS="command"
+>tools/build</B
+> builds boot image
+     <EM
+>zImage</EM
+> from
+     {bootsect, setup, compressed/vmlinux.out}, or
+     <EM
+>bzImage</EM
+> from
+     {bbootsect, bsetup, compressed/bvmlinux,out}.
+     <TT
+CLASS="filename"
+>linux/Makefile</TT
+> "export ROOT_DEV = CURRENT".
+     Note that $(OBJCOPY) has been redefined by
+     <TT
+CLASS="filename"
+>linux/arch/i386/Makefile</TT
+>
+     in <A
+HREF="makefiles.html#i386_makefile"
+>Section 2.3</A
+>.
+    </P
+><P
+>&#13;    <DIV
+CLASS="table"
+><A
+NAME="AEN267"
+></A
+><P
+><B
+>Table 3. Supporting targets in linux/arch/i386/boot/Makefile</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Target: Prerequisites</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Command</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>compressed/vmlinux: linux/vmlinux</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>@$(MAKE) -C compressed vmlinux</B
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>compressed/bvmlinux: linux/vmlinux</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>@$(MAKE) -C compressed bvmlinux</B
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>tools/build: tools/build.c</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(HOSTCC) $(HOSTCFLAGS) -o $@ $&#60; -I$(TOPDIR)/include</B
+>
+              <A
+NAME="AEN287"
+HREF="#FTN.AEN287"
+><SPAN
+CLASS="footnote"
+>[a]</SPAN
+></A
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bootsect: bootsect.o</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;              <B
+CLASS="command"
+>$(LD) -Ttext 0x0 -s --oformat binary bootsect.o</B
+>
+              <A
+NAME="AEN294"
+HREF="#FTN.AEN294"
+><SPAN
+CLASS="footnote"
+>[b]</SPAN
+></A
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bootsect.o: bootsect.s</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>$(AS) -o $@ $&#60;</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bootsect.s: bootsect.S ...</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(CPP) $(CPPFLAGS) -traditional $(SVGA_MODE) $(RAMDISK) $&#60; -o $@</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bbootsect: bbootsect.o</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(LD) -Ttext 0x0 -s --oformat binary $&#60; -o $@</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bbootsect.o: bbootsect.s</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>$(AS) -o $@ $&#60;</B
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bbootsect.s: bootsect.S ...</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(CPP) $(CPPFLAGS) -D__BIG_KERNEL__ -traditional $(SVGA_MODE) $(RAMDISK) $&#60; -o $@</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>setup: setup.o</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(LD) -Ttext 0x0 -s --oformat binary -e begtext -o $@ $&#60;</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>setup.o: setup.s</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>$(AS) -o $@ $&#60;</B
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>setup.s: setup.S video.S ...</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(CPP) $(CPPFLAGS) -D__ASSEMBLY__ -traditional $(SVGA_MODE) $(RAMDISK) $&#60; -o $@</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bsetup: bsetup.o</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(LD) -Ttext 0x0 -s --oformat binary -e begtext -o $@ $&#60;</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bsetup.o: bsetup.s</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><B
+CLASS="command"
+>$(AS) -o $@ $&#60;</B
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bsetup.s: setup.S video.S ...</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(CPP) $(CPPFLAGS) -D__BIG_KERNEL__ -D__ASSEMBLY__ -traditional $(SVGA_MODE) $(RAMDISK) $&#60; -o $@</B
+>
+            </TD
+></TR
+></TBODY
+><TR
+><TD
+COLSPAN="2"
+>Notes:<BR><A
+NAME="FTN.AEN287"
+>a. </A
+>
+                "$@" means target, "$&#60;" means first prerequisite; Refer to
+<A
+HREF="http://www.gnu.org/software/make/manual/html_chapter/make_10.html#SEC111"
+TARGET="_top"
+>&#13;                GNU make: Automatic Variables</A
+>;
+              <BR><A
+NAME="FTN.AEN294"
+>b. </A
+>
+                 "--oformat binary" asks for raw binary output,
+                 which is identical to the memory dump of the executable;
+                 Refer to <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_2.html#SEC3"
+TARGET="_top"
+>Using LD, the GNU linker: Command Line Options</A
+>.
+                <BR></TD
+></TR
+></TABLE
+></DIV
+>
+     Note that it has "-D__BIG_KERNEL__" when compile
+     <TT
+CLASS="filename"
+>bootsect.S</TT
+> to <TT
+CLASS="filename"
+>bbootsect.s</TT
+>, and
+     <TT
+CLASS="filename"
+>setup.S</TT
+> to <TT
+CLASS="filename"
+>bsetup.s</TT
+>.
+     They must be Place Independent Code (PIC), thus what "-Ttext" option is
+     doesn't matter.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="i386_boot_compressed_makefile"
+></A
+>2.5. linux/arch/i386/boot/compressed/Makefile</H2
+><P
+>&#13;     This makefile handles image (de)compression mechanism.
+    </P
+><P
+>&#13;     It is good to separate (de)compression from bootstrap.
+     This divide-and-conquer solution allows us to easily improve
+     (de)compression mechanism or to adopt a new bootstrap method.
+    </P
+><P
+>&#13;     Directory
+     <TT
+CLASS="filename"
+>linux/arch/i386/boot/compressed/</TT
+>
+     contains two source files:
+     <TT
+CLASS="filename"
+>head.S</TT
+> and <TT
+CLASS="filename"
+>misc.c</TT
+>.
+    </P
+><P
+>&#13;    <DIV
+CLASS="table"
+><A
+NAME="AEN354"
+></A
+><P
+><B
+>Table 4. Targets in linux/arch/i386/boot/compressed/Makefile</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Target</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Command</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>vmlinux<A
+NAME="AEN364"
+HREF="#FTN.AEN364"
+><SPAN
+CLASS="footnote"
+>[a]</SPAN
+></A
+>
+            </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(LD) -Ttext 0x1000 -e startup_32 -o vmlinux head.o misc.o piggy.o</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>bvmlinux</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(LD) -Ttext 0x100000 -e startup_32 -o bvmlinux head.o misc.o piggy.o</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>head.o</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<B
+CLASS="command"
+>$(CC) $(AFLAGS) -traditional -c head.S</B
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>misc.o</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>$(CC) $(CFLAGS) -DKBUILD_BASENAME=$(subst $(comma),_,$(subst -,_,$(*F)))
+        -c misc.c<A
+NAME="AEN382"
+HREF="#FTN.AEN382"
+><SPAN
+CLASS="footnote"
+>[b]</SPAN
+></A
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+            </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>piggy.o</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>tmppiggy=_tmp_$$$$piggy; \
+rm -f $$tmppiggy $$tmppiggy.gz $$tmppiggy.lnk; \
+$(OBJCOPY) $(SYSTEM) $$tmppiggy; \
+gzip -f -9 &#60; $$tmppiggy &#62; $$tmppiggy.gz; \
+echo "SECTIONS { .data : { input_len = .; \
+        LONG(input_data_end - input_data) input_data = .; \
+        *(.data) input_data_end = .; }}" &#62; $$tmppiggy.lnk; \
+$(LD) -r -o piggy.o -b binary $$tmppiggy.gz -b elf32-i386 \
+        -T $$tmppiggy.lnk; \
+rm -f $$tmppiggy $$tmppiggy.gz $$tmppiggy.lnk</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></TD
+></TR
+></TBODY
+><TR
+><TD
+COLSPAN="2"
+>Notes:<BR><A
+NAME="FTN.AEN364"
+>a. </A
+>
+              Target <EM
+>vmlinux</EM
+> here is different from
+              that defined in <TT
+CLASS="filename"
+>linux/Makefile</TT
+>;
+              <BR><A
+NAME="FTN.AEN382"
+>b. </A
+>"subst" is a MAKE function; Refer to
+<A
+HREF="http://www.gnu.org/software/make/manual/html_chapter/make_8.html#SEC85"
+TARGET="_top"
+>GNU make: Functions for String Substitution and Analysis</A
+>.
+              <BR></TD
+></TR
+></TABLE
+></DIV
+>
+    </P
+><P
+>&#13;     <TT
+CLASS="filename"
+>piggy.o</TT
+> contains
+     variable <EM
+>input_len</EM
+>
+     and gzipped <TT
+CLASS="filename"
+>linux/vmlinux</TT
+>.
+     <EM
+>input_len</EM
+> is at the beginning of
+     <TT
+CLASS="filename"
+>piggy.o</TT
+>, and it is equal to the size of
+     <TT
+CLASS="filename"
+>piggy.o</TT
+> excluding
+     <EM
+>input_len</EM
+> itself. Refer to
+<A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/html_chapter/ld_3.html#SEC20"
+TARGET="_top"
+>&#13;     Using LD, the GNU linker: Section Data Expressions</A
+>
+     for "LONG(expression)" in <EM
+>piggy.o</EM
+> linker script.
+    </P
+><P
+>&#13;     To be exact, it is not <TT
+CLASS="filename"
+>linux/vmlinux</TT
+> itself
+     (in ELF format) that is gzipped but its binary image,
+     which is generated by <B
+CLASS="command"
+>objcopy</B
+> command.
+     Note that $(OBJCOPY) has been redefined by
+     <TT
+CLASS="filename"
+>linux/arch/i386/Makefile</TT
+> in
+     <A
+HREF="makefiles.html#i386_makefile"
+>Section 2.3</A
+> to output raw binary
+     using "-O binary" option.
+    </P
+><P
+>&#13;     When linking {<EM
+>bootsect, setup</EM
+>} or
+     {<EM
+>bbootsect, bsetup</EM
+>}, $(LD) specifies
+     "--oformat binary" option to output them in binary format.
+     When making <EM
+>zImage</EM
+> (or <EM
+>bzImage</EM
+>),
+     $(OBJCOPY) generates an intermediate binary output from
+     <EM
+>compressed/vmlinux</EM
+>
+     (or <EM
+>compressed/bvmlinux</EM
+>) too.
+     It is vital that all components in <EM
+>zImage</EM
+> or
+     <EM
+>bzImage</EM
+> are in raw binary format,
+     so that the image can run by itself without asking a loader
+     to load and relocate it.
+    </P
+><P
+>&#13;     Both <EM
+>vmlinux</EM
+> and <EM
+>bvmlinux</EM
+>
+     prepend <TT
+CLASS="filename"
+>head.o</TT
+> and <TT
+CLASS="filename"
+>misc.o</TT
+>
+     before <TT
+CLASS="filename"
+>piggy.o</TT
+>,
+     but they are linked against different start addresses (0x1000 vs 0x100000).
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="i386_tools_build.c"
+></A
+>2.6. linux/arch/i386/tools/build.c</H2
+><P
+>&#13;     <TT
+CLASS="filename"
+>linux/arch/i386/tools/build.c</TT
+> is a host utility to
+     generate <EM
+>zImage</EM
+> or <EM
+>bzImage</EM
+>.
+    </P
+><P
+>&#13;     In <TT
+CLASS="filename"
+>linux/arch/i386/boot/Makefile</TT
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>tools/build bootsect setup compressed/vmlinux.out $(ROOT_DEV) &#62; zImage
+
+tools/build -b bbootsect bsetup compressed/bvmlinux.out $(ROOT_DEV) &#62; bzImage</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     "-b" means is_big_kernel, used to check whether system image is too big.
+    </P
+><P
+>&#13;     <B
+CLASS="command"
+>tools/build</B
+> outputs the following components
+     to stdout, which is redirected to <EM
+>zImage</EM
+>
+     or <EM
+>bzImage</EM
+>:
+     <P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>bootsect or bbootsect: from
+          <TT
+CLASS="filename"
+>linux/arch/i386/boot/bootsect.S</TT
+>, 512 bytes;
+         </P
+></LI
+><LI
+><P
+>setup or bsetup: from
+          <TT
+CLASS="filename"
+>linux/arch/i386/boot/setup.S</TT
+>,
+          4 sectors or more, sector aligned;
+         </P
+></LI
+><LI
+><P
+>compressed/vmlinux.out or compressed/bvmlinux.out, including:
+          <P
+></P
+><OL
+TYPE="a"
+><LI
+><P
+>head.o: from
+               <TT
+CLASS="filename"
+>linux/arch/i386/boot/compressed/head.S</TT
+>;
+              </P
+></LI
+><LI
+><P
+>misc.o: from
+               <TT
+CLASS="filename"
+>linux/arch/i386/boot/compressed/misc.c</TT
+>;
+              </P
+></LI
+><LI
+><P
+>piggy.o: from <EM
+>input_len</EM
+>
+               and gzipped <TT
+CLASS="filename"
+>linux/vmlinux</TT
+>.</P
+></LI
+></OL
+>
+         </P
+></LI
+></OL
+>
+    </P
+><P
+>&#13;     <B
+CLASS="command"
+>tools/build</B
+> will change some contents
+     of <EM
+>bootsect</EM
+> or <EM
+>bbootsect</EM
+>
+     when outputting to stdout:
+     <DIV
+CLASS="table"
+><A
+NAME="AEN456"
+></A
+><P
+><B
+>Table 5. Modification made by tools/build</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Offset</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Byte</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Variable</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Comment</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>1F1 (497)</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>1</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>setup_sectors</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>number of setup sectors, &#62;=4</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>1F4 (500)</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>2</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>sys_size</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>system size in 16-bytes, little-endian</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>1FC (508)</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>1</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>minor_root</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>root dev minor</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>1FD (509)</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>1</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>major_root</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>root dev major</TD
+></TR
+></TBODY
+></TABLE
+></DIV
+>
+    </P
+><P
+>&#13;     In the following chapters, compressed/vmlinux will be referred as
+     <EM
+>vmlinux</EM
+> and compressed/bvmlinux as
+     <EM
+>bvmlinux</EM
+>, if not confusing.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="makefile_ref"
+></A
+>2.7. Reference</H2
+><P
+>&#13;    <P
+></P
+><UL
+><LI
+><P
+>Linux Kernel Makefiles:
+        <TT
+CLASS="filename"
+>linux/Documentation/kbuild/makefiles.txt</TT
+></P
+></LI
+><LI
+><P
+><A
+HREF="http://tldp.org/HOWTO/Kernel-HOWTO/"
+TARGET="_top"
+>&#13;        The Linux Kernel HOWTO</A
+></P
+></LI
+><LI
+><P
+><A
+HREF="http://www.gnu.org/software/make/manual/"
+TARGET="_top"
+>&#13;        GNU make</A
+></P
+></LI
+><LI
+><P
+>&#13;         <A
+HREF="http://www.gnu.org/software/binutils/manual/ld-2.9.1/"
+TARGET="_top"
+>&#13;         Using LD, the GNU linker</A
+>
+        </P
+></LI
+><LI
+><P
+>&#13;         <A
+HREF="http://www.gnu.org/software/binutils/manual/"
+TARGET="_top"
+>&#13;         GNU Binary Utilities</A
+>
+        </P
+></LI
+><LI
+><P
+><A
+HREF="http://www.gnu.org/software/bash/manual/"
+TARGET="_top"
+>&#13;        GNU Bash</A
+></P
+></LI
+></UL
+>
+    </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="intro.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="bootsect.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Introduction</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>linux/arch/i386/boot/bootsect.S</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

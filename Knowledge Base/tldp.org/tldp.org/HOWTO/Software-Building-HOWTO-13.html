@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Building and Installing Software Packages for Linux: Fifth Example: XmDipmon</TITLE>
+ <LINK HREF="Software-Building-HOWTO-14.html" REL=next>
+ <LINK HREF="Software-Building-HOWTO-12.html" REL=previous>
+ <LINK HREF="Software-Building-HOWTO.html#toc13" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-Building-HOWTO-14.html">Next</A>
+<A HREF="Software-Building-HOWTO-12.html">Previous</A>
+<A HREF="Software-Building-HOWTO.html#toc13">Contents</A>
+<HR>
+<H2><A NAME="s13">13. Fifth Example: XmDipmon</A></H2>
+
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Bullwinkle: Hey Rocky, watch me pull a rabbit out of my hat.
+Rocky:      But that trick never works.
+Bullwinkle: This time for sure.
+            Presto!
+            Well, I'm gettin' close.
+Rocky:      And now it's time for another special feature.
+            --- "Rocky and His Friends"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>XmDipmon is a nifty little application that displays a button showing the
+status of an Internet connection. It flashes and beeps when the connection
+is broken, as is all too often the case in on rural telephone systems.
+Unfortunately, XmDipmon works only with <EM>dip</EM>, making it useless
+for those people, the majority, who use <EM>chat</EM> to connect.
+<P>Building XmDipmon is not a problem.  XmDipmon links to the <EM>Motif</EM>
+libraries, but it builds and works fine with <EM>Lesstif</EM>. The
+challenge is to alter the package to work when using <EM>chat</EM>. This
+involves actually tinkering with the source code, and necessarily requires
+some programming knowledge.
+<P>
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        "When xmdipmon starts up, it checks for a file called /etc/dip.pid
+         (you can let it look at another file by using the -pidfile
+         command line option).  This file contains the PID of the dip
+         deamon (dip switches itself into deamon mode once it has
+         established a connection)."
+                       --- from the XmDipmon README file
+</PRE>
+</CODE></BLOCKQUOTE>
+         
+<P>
+<P>Using the <EM>-pidfile</EM> option, the program can be directed to
+check for a different file upon startup, one that exists only during
+a successful <EM>chat</EM> login.  The obvious candidate is the modem
+lock file. We could therefore try invoking the program with <B>xmdipmon
+-pidfile /var/lock/LCK..ttyS3</B> (this assumes that the modem is on
+com port #4, ttyS3). This only solves part of the problem, however. The
+program continually monitors the <EM>dip daemon</EM>, and we need to
+change this so it instead polls a process associated with <EM>chat</EM>
+or <EM>ppp</EM>.
+<P>There is only a single source file, and fortunately it is
+well-commented. Scanning the <CODE>xmdipmon.c</CODE> file, we find the
+<EM>getProcFile</EM> function, whose header description reads as follows.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/*****
+* Name:                 getProcFile
+* Return Type:  Boolean
+* Description:  tries to open the /proc entry as read from the dip pid file.
+&lt;snip>
+*****/
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>We are hot on the trail now. Tracing into the body of the function...
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+                        /* we watch the status of the real dip deamon */
+                        sprintf(buf, "/proc/%i/status", pid);
+                        procfile = (String)XtMalloc(strlen(buf)*sizeof(char)+1);
+                        strcpy(procfile, buf);
+                        procfile[strlen(buf)] = '\0';
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The culprit is line 2383:
+<BLOCKQUOTE><CODE>
+<PRE>
+                        sprintf(buf, "/proc/%i/status", pid);
+                                      ^^^^^^^^^^^^^^^^^^^^^
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This checks whether the dip daemon process is running . So, how can we
+change this to monitor the pppd daemon instead?
+<P>Looking at the <EM>pppd</EM> manpage:
+<BLOCKQUOTE><CODE>
+<PRE>
+FILES
+       /var/run/pppn.pid (BSD or Linux), /etc/ppp/pppn.pid (others)
+                     Process-ID for pppd process on ppp interface unit n.
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Change line 2383 in <CODE>xmdipmon.c</CODE> to:
+<BLOCKQUOTE><CODE>
+<PRE>
+                        sprintf(buf, "/var/run/ppp0.pid" );
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Rebuild the revised package. No problems with the build. Now test it
+with the new command line argument. It works like a charm. The little
+blue button indicates when a <CODE>ppp</CODE> connection to the ISP has
+been established, and flashes and beeps when the connection is broken.
+Now we have a fully functional <EM>chat</EM> monitor.
+<P>
+<P>XmDipmon can be downloaded from 
+<A HREF="http://www.xs4all.nl/~ripley/RSD/linux.html">Ripley Linux Tools</A>.
+<P>
+<P>
+<HR>
+<A HREF="Software-Building-HOWTO-14.html">Next</A>
+<A HREF="Software-Building-HOWTO-12.html">Previous</A>
+<A HREF="Software-Building-HOWTO.html#toc13">Contents</A>
+</BODY>
+</HTML>

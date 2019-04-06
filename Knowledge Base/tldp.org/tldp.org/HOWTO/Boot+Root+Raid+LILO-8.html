@@ -1,0 +1,261 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Boot + Root + Raid + Lilo : Software Raid mini-HOWTO: Appendix D. - ide RAID1-10 with initrd</TITLE>
+ <LINK HREF="Boot+Root+Raid+LILO-7.html" REL=previous>
+ <LINK HREF="Boot+Root+Raid+LILO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+Next
+<A HREF="Boot+Root+Raid+LILO-7.html">Previous</A>
+<A HREF="Boot+Root+Raid+LILO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8. Appendix D. - ide RAID1-10 with initrd</A></H2>
+
+<P>This is a system made up of an assortment of odds and ends. The root mounted 
+raid device is comprised of a RAID1 made up of one RAID0 array from odd
+sized disks and a larger regular disk partition. 
+Examination of the lilo.conf files may give you better insight
+into the reasoning behind the various parameters.
+<P>
+<PRE>
+/dev/md0 is the /boot partition and is autostarted by the kernel
+/dev/md1 is one half of the mirror set for md2, autostarted by kernel
+/dev/hda3 is the other half of the mirror set for md2
+/dev/md2 is the RAID1 /dev/md1 + /dev/hda3, started by initrd
+
+df
+Filesystem           1k-blocks      Used Available Use% Mounted on
+/dev/md2                138381     74421     56815  57% /
+/dev/md0                  2011      1360       549  71% /boot
+
+# ----------------------------
+
+ fdisk -ul /dev/hda
+
+Disk /dev/hda: 8 heads, 46 sectors, 903 cylinders
+Units = sectors of 1 * 512 bytes
+
+   Device Boot    Start       End    Blocks   Id  System
+/dev/hda1            46      4415      2185   fd  Linux raid autodetect
+/dev/hda2          4416     43423     19504   82  Linux swap
+/dev/hda3         43424    332303    144440   83  Linux native
+
+# ----------------------------
+
+ fdisk -ul /dev/hdc
+
+Disk /dev/hdc: 8 heads, 39 sectors, 762 cylinders
+Units = sectors of 1 * 512 bytes
+
+   Device Boot    Start       End    Blocks   Id  System
+/dev/hdc1            39      4367      2164+  fd  Linux raid autodetect
+/dev/hdc2          4368     70199     32916   82  Linux swap
+/dev/hdc3         70200    237743     83772   fd  Linux raid autodetect
+
+# ----------------------------
+
+ fdisk -ul /dev/hdd
+
+Disk /dev/hdd: 4 heads, 39 sectors, 762 cylinders
+Units = sectors of 1 * 512 bytes
+
+   Device Boot    Start       End    Blocks   Id  System
+/dev/hdd1            39    118871     59416+  fd  Linux raid autodetect
+
+# ----------------------------
+
+# raidtab
+#
+raiddev /dev/md0
+        raid-level      1
+        nr-raid-disks   2
+        persistent-superblock   1
+        chunk-size      8
+        device          /dev/hdc1
+        raid-disk       1
+        device          /dev/hda1
+        raid-disk       0
+
+raiddev /dev/md1
+        raid-level      0
+        nr-raid-disks   2
+        persistent-superblock   1
+        chunk-size      8
+        device          /dev/hdc3
+        raid-disk       0
+        device          /dev/hdd1
+        raid-disk       1
+
+raiddev /dev/md2
+        raid-level      1
+        nr-raid-disks   2
+        persistent-superblock   1
+        chunk-size      8
+        device          /dev/md1
+        raid-disk       1
+        device          /dev/hda3
+        raid-disk       0
+
+# ----------------------------
+
+ cat linuxrc
+#!/bin/sh
+# ver 1.02 2-22-00
+#
+############# really BEGIN 'linuxrc' ###############
+#
+# mount the proc file system
+/bin/mount /proc
+
+# autostart /boot partition and raid0
+/bin/raidstart /dev/md2
+
+# tell the console what's happening
+/bin/cat /proc/mdstat
+
+# Everything is fine, let the kernel mount /dev/md2
+# tell the kernel to switch to /dev/md2 as the /root device
+# The 0x900 value is the device number calculated by:
+#  256*major_device_number + minor_device number
+echo "/dev/md2 mounted on root"
+echo 0x902>/proc/sys/kernel/real-root-dev
+
+# umount /proc to deallocate initrd device ram space
+/bin/umount /proc
+exit
+
+# ----------------------------
+
+contents of initrd.gz
+
+./bin
+./bin/ash
+./bin/echo
+./bin/raidstart
+./bin/mount
+./bin/umount
+./bin/cat
+./bin/sh
+./dev/tty1
+./dev/md0
+./dev/md1
+./dev/md2
+./dev/md3
+./dev/console
+./dev/hda
+./dev/hda1
+./dev/hda2
+./dev/hda3
+./dev/hdc
+./dev/hdc1
+./dev/hdc2
+./dev/hdc3
+./dev/hdd
+./dev/hdd1
+./dev/hdd2
+./dev/hdd3
+./dev/initrd
+./dev/ram0
+./dev/ram1
+./dev/ram2
+./dev/ram3
+./dev/ram4
+./dev/ram5
+./dev/ram6
+./dev/ram7
+./etc/raidtab
+./etc/fstab
+./lib/ld-2.1.2.so
+./lib/ld-linux.so.1
+./lib/ld-linux.so.1.9.9
+./lib/ld-linux.so.2
+./lib/ld.so
+./lib/libc-2.1.2.so
+./lib/libc.so.6
+./linuxrc
+./proc
+
+# ----------------------------
+
+ cat lilo.conf.hda
+# GLOBAL SECTION
+# device containing /boot directory
+disk=/dev/md2
+# geometry
+  bios=0x80
+  cylinders=903
+  heads=8
+  sectors=46
+# geometry for 2nd disk
+# bios will be the same because it will have to be moved to hda
+#  cylinders=762
+#  heads=8
+#  sectors=39
+
+# dummy
+  partition=/dev/md0
+# start of device "disk" above
+  start=46
+# second device
+#  start=39
+
+# seem to have some trouble with 2.2.14 recognizing the right IRQ
+  append = "ide1=0x170,0x376,12 ether=10,0x300,eth0 ether=5,0x320,eth1"
+
+boot=/dev/hda
+map=/boot/map
+install=/boot/boot.b
+
+initrd=/boot/initrd.gz
+
+image=/boot/zImage
+root=/dev/md2
+label=LinuxRaid
+read-only
+
+# ----------------------------
+
+ cat lilo.conf.hdc
+# GLOBAL SECTION
+# device containing /boot directory
+disk=/dev/md2
+# geometry
+  bios=0x80
+#  cylinders=903
+#  heads=8
+#  sectors=46
+# geometry for 2nd disk
+# bios will be the same because it will have to be moved to hda
+  cylinders=762
+  heads=8
+  sectors=39
+
+# dummy
+  partition=/dev/md0
+# start of device "disk" above
+#  start=46
+# second device
+  start=39
+
+# seem to have some trouble with 2.2.14 recognizing the right IRQ
+  append = "ide1=0x170,0x376,12 ether=10,0x300,eth0 ether=5,0x320,eth1"
+
+boot=/dev/hdc
+map=/boot/map
+install=/boot/boot.b
+
+initrd=/boot/initrd.gz
+
+image=/boot/zImage
+root=/dev/md2
+label=LinuxRaid
+read-only
+</PRE>
+<HR>
+Next
+<A HREF="Boot+Root+Raid+LILO-7.html">Previous</A>
+<A HREF="Boot+Root+Raid+LILO.html#toc8">Contents</A>
+</BODY>
+</HTML>

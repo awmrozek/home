@@ -1,0 +1,602 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<html>
+<head>
+  <meta http-equiv="content-type"
+ content="text/html; charset=windows-1250">
+  <meta name="Language" content="pl">
+  <meta name="Author" content="Twój nocny koszmar">
+  <meta name="Generator" content="Notatnik :-)">
+  <title>Dark Cult of C++ - Przestrzenie nazw</title>
+  <link rel="stylesheet" href="kurs.css" type="text/css">
+  <style type="text/css">
+<!--
+body { color: #000000; background-color: #000000; }
+.cpp1-assembler { color: #00FF00; }
+.cpp1-character { color: #FF00FF; }
+.cpp1-comment { color: #969696; font-style: italic; }
+.cpp1-float { color: #FF00FF; }
+.cpp1-hexadecimal { color: #FF00FF; }
+.cpp1-identifier { color: #00FF00; }
+.cpp1-illegalchar { background-color: #800000; color: #FF0000; }
+.cpp1-number { color: #FF00FF; }
+.cpp1-octal { color: #FF00FF; }
+.cpp1-preprocessor { color: #00FF00; }
+.cpp1-reservedword { color: #3366FF; font-weight: bold; }
+.cpp1-space { background-color: #464646; color: #FFFFFF; }
+.cpp1-string { color: #FF00FF; }
+.cpp1-symbol { color: #FFFF00; }
+code { color: #FFFF00; }
+-->
+  </style>
+</head>
+<body
+ style="font-family: Verdana; font-size: 9pt; color: rgb(204, 204, 204); background-color: rgb(70, 70, 70);">
+<table align="center">
+  <tbody>
+    <tr>
+      <td class="TDN">
+      <a href="kurs10a.html">&lt;&lt; Poprzednia czêœæ kursu</a> &nbsp;
+      <a href="../index.html" target="_top">Strona g³ówna</a> &nbsp;
+      <a href="../cpp.html"> Spis</a> &nbsp;
+      </td>
+    </tr>
+  </tbody>
+</table>
+<hr color="GRAY" width="90%" size="1">
+<h2>Problem konfliktu nazw
+</h2>
+<p>
+W miarê rozrastania siê naszych programów szybko zaczyna nam brakowaæ
+nazw dla zmiennych, funkcji, klas itd. Oczywiœcie liczba nazw mo¿liwych
+do stworzenia jest praktycznie nieograniczona, jednak cierpliwoœæ
+programisty, który bêdzie musia³ cholera jak czêsto te nazwy wklepywaæ
+- ju¿ nie bardzo ;-). Chcia³oby siê, ¿eby wszystkie nazwy by³y krótkie,
+a zarazem ¿eby siê nie powtarza³y.
+</p>
+<p>
+Podobnym problemem z nazwami, prowadz¹cym do tych samych objawów, jest
+u¿ywanie wielu zewnêtrznych bibliotek równoczeœnie. Dobrym przyk³adem
+jest tu silnik Irrlicht, która posiada w³asne implementacje niektórych
+struktur danych, wystêpuj¹cych równie¿ w STL, np. string, list. ¯eby
+by³o ciekawiej, nazwy metod obu tych klas s¹ niemal identyczne, jak w
+przypadku ich odpowiedników z STL. Nietrudno siê domyœliæ, ¿e próba
+u¿ywania jednoczeœnie STL i Irrlichta doprowadzi do konfliktu nazw -
+kompilator nie bêdzie móg³ rozstrzygn¹æ, której z dwóch dostêpnych
+implementacji ma u¿yæ i w rezultacie jedn¹ z nich uzna za b³êdn¹.
+</p>
+<p>
+Ju¿ podczas powstawania jêzyka C jego twórcy œwiadomi byli problemu
+konfliktu nazw, ale najlepszym œrodkiem zapobiegawczym, jaki uda³o im
+siê wymyœliæ, to operator zasiêgu globalnego, pozwalaj¹cy deklarowaæ
+lokalnie zmienne (lub funkcje) o tych samych nazwach, co wczeœniej
+zadeklarowane zmienne globalne. Do tych ostatnich, przes³oniêtych przez
+deklaracje zmiennych lokalnych mo¿na siê odwo³ywaæ przez wspomniany
+operator, np.:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;">
+<span class="cpp1-preprocessor">#include &lt;stdio.h&gt;<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">g</span><span class="cpp1-space"> </span><span
+ class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span
+ class="cpp1-number">5</span><span class="cpp1-symbol">;</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//globalna<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-reservedword">int</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">g</span><span
+ class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span
+ class="cpp1-space"> </span><span class="cpp1-number">3</span><span
+ class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span
+ class="cpp1-comment">//lokalna<br><br></span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">printf</span><span class="cpp1-symbol">(</span><span
+ class="cpp1-string">"lokalna: %i"</span><span class="cpp1-symbol">,</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">g</span><span
+ class="cpp1-symbol">);<br></span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">printf</span><span class="cpp1-symbol">(</span><span
+ class="cpp1-string">"globalna: %i"</span><span class="cpp1-symbol">,</span><span
+ class="cpp1-space"> </span><span class="cpp1-symbol">::</span><span
+ class="cpp1-identifier">g</span><span class="cpp1-symbol">);<br><br></span><span
+ class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span
+ class="cpp1-space"> </span><span class="cpp1-number">0</span><span
+ class="cpp1-symbol">;<br>}<br><br></span></span>
+</code></pre>
+<p>
+Nie by³o to nawet po³owiczne rozwi¹zanie, ale zawsze lepsze to, ni¿
+nic. Operator <code>::</code> przyj¹³ siê zreszt¹ i obecny jest
+równie¿ w jêzyku C++, chocia¿ raczej rzadko siê go u¿ywa.
+</p>
+<h2>
+Przestrzenie nazw
+</h2>
+<p>
+Podczas projektowania jêzyka C++ problemowi nazw poœwiêcono ju¿
+znacznie wiêcej czasu i tak oto powsta³o rozwi¹zanie, które jak na
+razie wydaje siê optymalne - s¹ to w³aœnie owe przestrzenie nazw. Jest
+to nic innego, jak tylko bloki z przypisan¹ nazw¹, np.:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">NowaPrzestrzen<br></span><span
+ class="cpp1-symbol">{<br><br></span><span class="cpp1-reservedword">class</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">A<br></span><span
+ class="cpp1-symbol">{<br>};<br><br></span><span
+ class="cpp1-reservedword">class</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">B<br></span><span class="cpp1-symbol">{<br>};</span><span
+ class="cpp1-space"> <br><br></span><span class="cpp1-symbol">}</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//namespace<br><br></span><span
+ class="cpp1-reservedword">class</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">C<br></span><span class="cpp1-symbol">{<br>};<br><br></span></span>
+</code></pre>
+<p>
+W powy¿szym kodzie klasy <code>A</code> i <code>B</code> umieœciliœmy
+w przestrzeni nazw <code>NowaPrzestrzen</code>, podczas gdy klasa <code>C</code>
+pozosta³a w globalnej przestrzeni nazw. W konsekwencji nie mo¿emy siê
+teraz "normalnie" odwo³ywaæ do klas <code>A</code> i <code>B</code>.
+Aby to uczyniæ, musimy oprócz nazwy klasy podaæ nazwê przestrzeni nazw
+(jak zwykle, w przypadku opisywania jêzyków programowania jêzyk mowy
+trochê szwankuje ;-)), w której znajduje siê ta klasa. Aby wiêc
+stworzyæ obiekt klasy <code>A</code>, piszemy:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-identifier">NowaPrzestrzen</span><span class="cpp1-symbol">::</span><span
+ class="cpp1-identifier">A</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">Obiekt</span><span class="cpp1-symbol">;<br></span></span>
+</code></pre>
+<p>
+Jak widaæ, do tego zadania twórcy C++ zaadaptowali wspomniany wczeœniej
+operator zasiêgu i to w taki sposób, ¿e jego nowa rola uzupe³nia siê ze
+star¹. Jeœli podamy nazwê przed operatorem <code>::</code>, to
+odwo³ujemy siê do przestrzeni o tej nazwie. Jeœli nie podamy nic, to
+odwo³ujemy siê domyœlnie do przestrzeni lokalnej lub do przestrzeni
+globalnej (jeœli w ¿adnej z dostêpnych przestrzeni lokalnych nazwa nie
+zosta³a odnaleziona).
+</p>
+<p>
+Oczywiœcie przestrzenie nazw nie zosta³y wprowadzone po to, by utrudniæ
+dostêp do klas. Za chwilê przekonamy siê, ¿e mechanizm owych
+przestrzeni pozwala nam deklarowaæ klasy (lub zmienne, sta³e, funkcje
+czy cokolwiek, co mo¿e mieæ nazwê) o tych samych nazwach bez
+powodowania konfliktu:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">PrzestrzenA<br></span><span class="cpp1-symbol">{<br><br></span><span
+ class="cpp1-reservedword">class</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">A<br></span><span class="cpp1-symbol">{<br>};<br><br>}</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//namespace A<br><br></span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">PrzestrzenB<br></span><span class="cpp1-symbol">{<br><br></span><span
+ class="cpp1-reservedword">class</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">A<br></span><span class="cpp1-symbol">{<br>};<br><br>}</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//namespace B<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">PrzestrzenA</span><span
+ class="cpp1-symbol">::</span><span class="cpp1-identifier">A</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">Obiekt1</span><span
+ class="cpp1-symbol">;<br></span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">PrzestrzenB</span><span class="cpp1-symbol">::</span><span
+ class="cpp1-identifier">A</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">Obiekt2</span><span class="cpp1-symbol">;<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//A ZlyObiekt;<br><br></span><span
+ class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span
+ class="cpp1-space"> </span><span class="cpp1-number">0</span><span
+ class="cpp1-symbol">;<br>}<br></span></span>
+</code></pre>
+<p>
+Mamy dwie deklaracjê klas, obie wykorzystuj¹ tê sam¹ nazwê <code>A</code>.
+Jednak konfliktu nie ma, poniewa¿ ka¿d¹ z tych dwóch klas umieœciliœmy
+w osobnej przestrzeni nazw. Aby zadeklarowaæ teraz obiekt klasy <code>A</code>,
+musimy tak¹ deklaracjê ujednoznaczniæ, czyli jawnie wskazaæ, o któr¹
+przestrzeñ nazw nam chodzi. Dlatego trzecia (wykomentowana) deklaracja
+jest b³êdna - nie podaje, do której przestrzeni nazw siê odwo³uje, wiêc
+zostaje domyœlnie przyjêta przestrzeñ globalna. Jednak w globalnej
+przestrzeni nie jest zadeklarowana klasa <code>A</code>, wiêc
+kompilator odrzuci³by tak¹ instrukcjê z komunikatem, ¿e nie mo¿e
+znaleŸæ deklaracji klasy <code>A</code>.
+</p>
+<h2>
+Zagnie¿d¿anie przestrzeni nazw
+</h2>
+<p>
+Przestrzenie nazw mo¿na zagnie¿d¿aæ. Powoduje to przede wszystkim
+komplikacje, ale zarazem umo¿liwia jeszcze lepsz¹ kontrolê nad nazwami,
+zw³aszcza w bardzo du¿ych projektach. Mo¿emy bowiem tworzyæ hierarchiê
+przestrzeni nazw. Przyk³adowo zagnie¿d¿one przestrzenie mog¹ wygl¹daæ
+tak:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">Duza<br></span><span class="cpp1-symbol">{<br></span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">Mala<br></span><span class="cpp1-symbol">{<br><br></span><span
+ class="cpp1-reservedword">class</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">A<br></span><span class="cpp1-symbol">{<br>};<br><br>}</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">// namespace Mala<br></span><span
+ class="cpp1-symbol">}</span><span class="cpp1-space"> </span><span
+ class="cpp1-comment">// namespaca Duza<br></span></span>
+</code></pre>
+<p>
+Dobrym zwyczajem jest brak wciêæ przy tworzeniu przestrzeni nazw,
+zw³aszcza tych zagnie¿d¿onych, a "jeszcze bardziej zw³aszcza", kiedy
+stosuje siê do robienia wciêæ tabulacje zamiast spacji. Powód jest
+oczywisty: zbyt du¿a liczba wciêæ zmniejsza znacznie czytelnoœæ
+programu, który "rozje¿d¿a siê" szybko na dwa i wiêcej ekranów.
+</p>
+<p>
+Drugim dobrym zwyczajem jest umieszczanie komentarzy przy odpowiednich
+nawiasach klamrowych, zamykaj¹cych przestrzeñ nazw. Powód jest taki sam
+- przy braku wciêæ (a nawet i z nimi) program bez takich komentarzy
+staje siê ma³o czytelny, klamry siê programiœcie myl¹, a to miewa
+zwykle katastrofalne skutki :-).
+</p>
+<p>
+Odwo³anie do nazwy, umieszczonej w zagnie¿d¿onej przestrzeni, jest
+intuicyjne - operator zasiêgu stosujemy wielokrotnie, podobnie jak w
+przypadku zagnie¿d¿onych klas:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-identifier">Duza</span><span class="cpp1-symbol">::</span><span
+ class="cpp1-identifier">Mala</span><span class="cpp1-symbol">::</span><span
+ class="cpp1-identifier">A</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">Obiekt</span><span class="cpp1-symbol">;</span><span
+ class="cpp1-identifier">aca</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">Duza<br></span></span>
+</code></pre>
+<h2>
+Korzystanie z przestrzeni nazw
+</h2>
+<p>
+Odwo³ywanie siê do nazw umieszczonych w przestrzeniach nazw (zw³aszcza
+zagnie¿d¿onych), co widaæ powy¿ej, bywa doœæ k³opotliwe i powoduje
+znaczne zmniejszenie czytelnoœci kodu. Jeœli jednak w danym momencie
+korzystamy tylko z jednej przestrzeni (albo z kilku, ale nie
+koliduj¹cych ze sob¹), to mo¿emy ten fakt zg³osiæ kompilatorowi poprzez
+using namespace. Od tej pory podana przestrzeñ nazw zostaje uznana za
+domyœln¹ - nie musimy jej w ogóle wpisywaæ w kodzie. Ka¿da
+nierozpoznana nazwa zmiennej, klasy itd. bêdzie najpierw szukana w
+globalnej przestrzeni nazw, a nastêpnie we wszystkich przestrzeniach
+podanych po s³owie <code>using namespace</code>, np:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-preprocessor">#include &lt;iostream&gt;<br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">std</span><span class="cpp1-symbol">;<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">cout</span><span
+ class="cpp1-space"> </span><span class="cpp1-symbol">&lt;&lt;</span><span
+ class="cpp1-space"> </span><span class="cpp1-string">"Hello, world!"</span><span
+ class="cpp1-space"> </span><span class="cpp1-symbol">&lt;&lt;</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">endl</span><span
+ class="cpp1-symbol">;<br></span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span
+ class="cpp1-number">0</span><span class="cpp1-symbol">;<br>}<br></span></span>
+</code></pre>
+<p>
+W tym prostym i doskonale nam znanym przyk³adzie u¿ycie wyra¿enia <code>using
+namespace std</code> zwalnia nas od poprzedzania wszelkich nazw z
+biblioteki standardowej C++ przedrostkiem <code>std::</code>. W
+przeciwnym razie musielibyœmy pisaæ:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-preprocessor">#include &lt;iostream&gt;<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">std</span><span
+ class="cpp1-symbol">::</span><span class="cpp1-identifier">cout</span><span
+ class="cpp1-space"> </span><span class="cpp1-symbol">&lt;&lt;</span><span
+ class="cpp1-space"> </span><span class="cpp1-string">"Hello, world!"</span><span
+ class="cpp1-space"> </span><span class="cpp1-symbol">&lt;&lt;</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">std</span><span
+ class="cpp1-symbol">::</span><span class="cpp1-identifier">endl</span><span
+ class="cpp1-symbol">;<br></span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span
+ class="cpp1-number">0</span><span class="cpp1-symbol">;<br>}<br></span></span>
+</code></pre>
+<p>
+Warto tutaj wspomnieæ, ¿e starsze wersje kompilatorów dopuszcza³y kod,
+w którym nie by³o ani <code>using namespace std</code>, ani
+przedrostków <code>std::</code>. Powód by³ prosty: kiedyœ powszechnie
+wykorzystywano plik <code>iostream.h</code>, w którym nie ma
+przestrzeni nazw. Obecnie jest on niezgodny z najnowszymi standardami,
+które nakazuj¹ korzystaæ z nowej wersji tego nag³ówka, zawartej w pliku
+<code>iostream</code>. W tym ostatnim wszystkie deklaracje umieszczone
+s¹ ju¿ w przestrzeni nazw <code>std</code>.
+</p>
+<p>
+Przez 'koliduj¹ce ze sob¹ przestrzenie nazw' rozumiemy takie, które
+zawieraj¹ przynajmniej jedn¹ wspóln¹ nazwê. Przyk³adem mo¿e byæ
+przestrzeñ <code>irr::core</code> z biblioteki Irrlicht, która zawiera
+w sobie klasê <code>string</code>, oraz przestrzeñ <code>std</code> z
+STL (równie¿ zawieraj¹ca klasê <code>string</code>). Nie mo¿emy zatem
+napisaæ takiego kodu:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-comment">// przyk³ad Bardzo Z³ego Kodu :-)<br><br></span><span
+ class="cpp1-preprocessor">#include &lt;string&gt;<br>#include &lt;irrlicht.h&gt;<br><br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">std</span><span class="cpp1-symbol">;<br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">irr</span><span class="cpp1-symbol">;<br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">core</span><span class="cpp1-symbol">;<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">string</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">s</span><span
+ class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span
+ class="cpp1-comment">//niejednoznaczna deklaracja<br></span><span
+ class="cpp1-space"> <br> </span><span class="cpp1-reservedword">return</span><span
+ class="cpp1-space"> </span><span class="cpp1-number">0</span><span
+ class="cpp1-symbol">;<br>}<br></span></span>
+</code></pre>
+<p>
+Kompilator nie przepuœci takiego kodu, gdy¿ nie bêdzie móg³
+rozstrzygn¹æ, czy chcemy tutaj skorzystaæ z <code>std::string</code>,
+czy z<code> irr::core::string</code>. Mo¿emy jednak go ³atwo poprawiæ,
+np.:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-preprocessor">#include &lt;string&gt;<br>#include &lt;irrlicht.h&gt;<br><br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">std</span><span class="cpp1-symbol">;<br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">irr</span><span class="cpp1-symbol">;<br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">core</span><span class="cpp1-symbol">;<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">irr</span><span
+ class="cpp1-symbol">::</span><span class="cpp1-identifier">core</span><span
+ class="cpp1-symbol">::</span><span class="cpp1-identifier">string</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">s</span><span
+ class="cpp1-symbol">;<br></span><span class="cpp1-space"> <br> </span><span
+ class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span
+ class="cpp1-number">0</span><span class="cpp1-symbol">;<br>}<br><br></span></span>
+</code></pre>
+<p>
+Ten kod te¿ siê nie skompiluje, ale ju¿ z innych powodów :-). Klasa <code>string</code>,
+zarówno w STL, jak i w Irrlichcie, jest szablonem. Jednak w tej drugiej
+bibliotece szablon ten ma jeden argument wymagany. Ale to ju¿ temat na
+inny artyku³ - dla nas wa¿ne jest teraz tylko to, ¿e pozbyliœmy siê
+niejednoznacznoœci.
+</p>
+<p>
+Zwróæmy uwagê na jedn¹ rzecz. Kompilator nie sprawdza, czy w podanych
+przestrzeniach nazw wystêpuj¹ jakiekolwiek potencjalne kolizje.
+Interesuje go tylko, czy w konkretnych przypadkach u¿ycia tych nazw (a
+takim jest na przyk³ad deklaracja zmiennej typu <code>string</code>)
+nie ma niejednoznacznoœci. Warto o tym pamiêtaæ, jeœli u¿ywamy
+przestrzeni nazw z kilku ró¿nych bibliotek, gdy¿ nie dostaniemy nawet
+ostrze¿enia, dopóki nie u¿yjemy jednej z koliduj¹cych nazw, a wtedy
+mo¿e byæ ju¿ za póŸno (oczywiœcie ka¿dy b³¹d mo¿na naprawiæ, ale jeœli
+spostrze¿emy siê za póŸno, to tego naprawiania mo¿e bardzo du¿o :-)).
+</p>
+<h2>
+Przyk³ad - przestrzenie biblioteki Irrlicht
+</h2>
+<p>
+Pos³u¿ymy siê teraz przyk³adem wspomnianego ju¿ kilkakrotnie Irrlichta,
+aby zrozumieæ trochê wiêcej z zasad u¿ywania przestrzeni nazw. Przyk³ad
+ten bêdzie u¿ywa³ dwóch przestrzeni - nadrzêdnej <code>irr</code>
+(obejmuj¹cych wszystko, co jest w bibliotece Irrlicht) i podrzêdnej<code>
+core</code> (zawartej wewn¹trz <code>irr</code>). Tak wiêc w plikach
+Ÿród³owych przestrzenie wygl¹daj¹ mniej wiêcej tak:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">irr<br></span><span class="cpp1-symbol">{<br>...<br></span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">core<br></span><span class="cpp1-symbol">{<br>...<br>}</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//namespace core<br></span><span
+ class="cpp1-symbol">}</span><span class="cpp1-space"> </span><span
+ class="cpp1-comment">//namespace irr<br></span></span>
+</code></pre>
+<p>
+Korzystaj¹c z wielu przestrzeni nazw trzeba wiedzieæ, ¿e deklaracja:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">irr</span><span class="cpp1-symbol">::</span><span
+ class="cpp1-identifier">core</span><span class="cpp1-symbol">;<br><br></span></span>
+</code></pre>
+<p>
+...nie jest wcale równoznaczna z tak¹:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">irr</span><span class="cpp1-symbol">;<br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">core</span><span class="cpp1-symbol">;<br></span></span>
+</code></pre>
+<p>
+Ta pierwsza oznacza bowiem wykorzystanie wy³¹cznie z podprzestrzeni <code>core</code>,
+nie z ca³ej przestrzeni <code>irr</code>. Z kolei druga deklaracja
+oznacza korzystanie z ca³ej przestrzeni <code>irr</code> i z ca³ej
+podprzestrzeni <code>core</code>. Mo¿e jaœniej bêdzie to wygl¹da³o na
+konkretnym przyk³adzie:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">irr</span><span class="cpp1-symbol">::</span><span
+ class="cpp1-identifier">core</span><span class="cpp1-symbol">;<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span
+ class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">irr</span><span
+ class="cpp1-symbol">::</span><span class="cpp1-identifier">s32</span><span
+ class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">rc2</span><span class="cpp1-symbol">;</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//dobrze<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">s32</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">n</span><span
+ class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span
+ class="cpp1-comment">//b³¹d <br></span><span class="cpp1-space"> <br> </span><span
+ class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span
+ class="cpp1-number">0</span><span class="cpp1-symbol">;<br>}<br></span></span>
+</code></pre>
+<p>
+Deklaracja zmiennej typu <code>rect</code> powiedzie siê, gdy¿ klasa<code>
+rect</code> jest w przestrzeni <code>irr::core</code>, ale ju¿ klasa <code>s32</code>
+(umieszczona bezpoœrednio w przestrzeni nazw <code>irr</code>) nie
+zostanie odnaleziona przez kompilator i nie ma tu znaczenia, ¿e <code>irr::s32</code>
+to zwyk³y<code> typedef</code> na typ<code> int</code>. Inny przyk³ad:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">irr</span><span class="cpp1-symbol">;<br></span><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">core</span><span class="cpp1-symbol">;<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span
+ class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span
+ class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">rc2</span><span class="cpp1-symbol">;</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//dobrze<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">s32</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">n</span><span
+ class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span
+ class="cpp1-comment">//dobrze <br></span><span class="cpp1-space"> <br> </span><span
+ class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span
+ class="cpp1-number">0</span><span class="cpp1-symbol">;<br>}<br></span></span>
+</code></pre>
+<p>
+Tym razem wszystko jest OK, gdy¿ u¿ywamy zarówno przestrzeni <code>irr</code>,
+jak i podprzestrzeni <code>core</code>. A teraz jeszcze inny przyk³ad:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">irr</span><span class="cpp1-symbol">;<br><br></span><span
+ class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>{<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span
+ class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span
+ class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">rc2</span><span class="cpp1-symbol">;</span><span
+ class="cpp1-space"> </span><span class="cpp1-comment">//Ÿle!<br></span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">s32</span><span
+ class="cpp1-space"> </span><span class="cpp1-identifier">n</span><span
+ class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span
+ class="cpp1-comment">//dobrze <br></span><span class="cpp1-space"> <br> </span><span
+ class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span
+ class="cpp1-number">0</span><span class="cpp1-symbol">;<br>}<br></span></span>
+</code></pre>
+<p>
+Mog³oby siê wydawaæ, ¿e u¿ycie przestrzeni<code> irr</code> (nadrzêdnej
+wobec wszystkich przestrzeni w Irrlichcie) zwalnia nas od stosowania <code>using
+namespace</code> do podprzestrzeni; tak jednak nie jest. Deklaracja <code>using
+namespace</code> NIE dzia³a rekurencyjnie i ka¿da podprzestrzeñ musi
+byæ ni¹ oznaczana oddzielnie. W powy¿szym przyk³adzie tylko klasa <code>s32</code>
+bêdzie odnaleziona przez kompilator, natomiast <code>rect</code> -
+nie, mimo i¿ znajduje siê on w tej samej "nadprzestrzeni". Mo¿na to
+porównaæ do dwóch much, z których obie s¹ nakryte tym samym du¿ym
+garnkiem, a jedna z nich - dodatkowo kubkiem. Jeœli zdejmiemy garnek,
+to tylko jedna mucha wyleci, mimo i¿ obie by³y pod garnkiem :-).
+</p>
+<h2>
+Podsumowanie
+</h2>
+<p>
+Jak mogliœmy zaobserwowaæ, przestrzenie nazw s¹ doœæ prostym i zarazem
+przydatnym wynalazkiem. Nie znaczy to jednak, ¿e nale¿y ich
+mechanicznie u¿ywaæ, kiedy tylko siê da. Zastanówmy siê wiêc, kiedy
+korzystanie z przestrzeni bêdzie sensowne. Na pewno zawsze wtedy, gdy
+tworzymy w³asn¹ bibliotekê. Mo¿emy siê wtedy spodziewaæ, ¿e
+wykorzystamy przynajmniej jedn¹ nazwê, która oka¿e siê duplikatem nazwy
+z innej biblioteki. Pó³ biedy, jeœli tworzon¹ przez nas bibliotekê
+bêdziemy u¿ywaæ sami; gorzej, gdy ma byæ ona przeznaczona do
+publicznego u¿ytku. Wed³ug starej zasady mocno ograniczonego zaufania
+do end-usera musimy zak³adaæ, ¿e u¿yje on dodatkowo jakiejœ innej
+biblioteki, powoduj¹c bardziej lub mniej œwiadomie konflikt nazw. Jako
+autorzy biblioteki, powinniœmy zrobiæ wszystko, by do tego nie
+dopuœciæ. A do zrobienia jest stosunkowo niewiele; wystarczy uj¹æ kod
+biblioteki w przestrzenie nazw.
+</p>
+<p>
+Drugim przypadkiem, znacznie zreszt¹ wa¿niejszym (bo czêœciej
+spotykanym), jest u¿ycie dowolnych dwóch ró¿nych bibliotek z
+przestrzeniami nazw lub jednej biblioteki z nazwami kolizyjnymi wobec
+tworzonego przez nas programu. W takiej sytuacji stosowanie przestrzeni
+nazw jest nieuniknione.
+</p>
+<p>
+Trzeci wreszcie przypadek, chyba najbardziej oczywisty, to
+wykorzystywanie dowolnej biblioteki z przestrzeniami nazw, choæby nawet
+nasz program nie deklarowa³ ¿adnych nazw, które by kolidowa³y z tymi z
+biblioteki. Przyk³ady takich sytuacji ju¿ znamy (STL, Irrlicht). Jeœli
+wiêc piszemy program, w którym jako API stosujemy wy³¹cznie STL, to
+prawdopodobnie umieœcimy w nim deklaracjê:
+</p>
+<pre><code><span
+ style="font-family: Courier New; font-style: normal; font-variant: normal; font-weight: normal; font-size: 10pt; line-height: normal; font-size-adjust: none; font-stretch: normal;"><span
+ class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span
+ class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span
+ class="cpp1-identifier">std</span><span class="cpp1-symbol">;<br></span></span>
+</code></pre>
+<p>
+Analogicznie za³atwimy sprawê z wiêkszoœci¹ bibliotek w tej sytuacji -
+po prostu zastosujemy <code>using namespace</code> dla ka¿dej
+przestrzeni, jaka wystêpuje w u¿ytej bibliotece i nie bêdziemy musieli
+sobie od tej pory wiêcej zawracaæ g³owê przestrzeniami nazw. Nie
+bêdziemy musieli nawet dobrze wiedzieæ, co to takiego.
+</p>
+<p>
+Z powy¿szych rozwa¿añ wynika jeden ogólny wniosek (od niego zreszt¹
+zaczêliœmy ten odcinek kursu), mianowicie: przestrzenie nazw stosujemy
+wtedy i tylko wtedy, gdy chcemy unikn¹æ konfliktu nazw. Jest to wówczas
+wcale wygodny sposób zarz¹dzania nazwami w naszym projekcie. Gdy
+konflikt [w danym miejscu] nie wystêpuje, a u¿ywana biblioteka posiada
+przestrzenie nazw, wówczas traktujemy je magiczn¹ broni¹ o nazwie <code>using
+namespace</code>. Gdy zaœ jesteœmy pewni, ¿e konfliktu nie bêdzie, a
+biblioteka nie korzysta z dobrodziejstw przestrzeni nazw, wtedy mo¿emy
+spokojnie zapomnieæ o tym wynalazku. Tak wiêc znajdujemy tu
+potwierdzenie starej programistycznej zasady, ¿e niczego nie nale¿y
+u¿ywaæ na si³ê, a tylko w miarê rzeczywistych potrzeb.
+</p>
+<hr color="GRAY" width="90%" size="1">
+<table align="center">
+  <tbody>
+    <tr>
+      <td class="TDN">
+      <a href="kurs10a.html">&lt;&lt; Poprzednia czêœæ kursu</a> &nbsp;
+      <a href="../index.html" target="_top">Strona g³ówna</a> &nbsp;
+      <a href="../cpp.html"> Spis</a> &nbsp;
+      </td>
+    </tr>
+  </tbody>
+</table>
+</body>
+</html>

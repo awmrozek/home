@@ -1,0 +1,213 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux UUCP HOWTO: Frequently Asked Questions about Linux UUCP</TITLE>
+ <LINK HREF="UUCP-HOWTO-7.html" REL=next>
+ <LINK HREF="UUCP-HOWTO-5.html" REL=previous>
+ <LINK HREF="UUCP-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="UUCP-HOWTO-7.html">Next</A>
+<A HREF="UUCP-HOWTO-5.html">Previous</A>
+<A HREF="UUCP-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Frequently Asked Questions about Linux UUCP</A></H2>
+
+<P>
+<!--
+UUCP!frequently asked questions (see UUCP, FAQ)
+-->
+
+<!--
+UUCP!FAQ
+-->
+<P>
+<H2><A NAME="ss6.1">6.1 Why is all the info here for UUCPs configured in "Taylor" rather than</A>
+"HDB" mode?</H2>
+
+<P>
+<!--
+UUCP!FAQ!Taylor versus HDB mode
+-->
+
+(religious mode on - I know some people are just as religious about "ease
+of use" as I am about "being standard".  That's why they make source code you
+can build your own from :-) )
+<P>Because IMHO it's the de-facto standard UUCP implementation at this time.
+There are thousands of sites with experienced admins &amp; there are many places
+you can get incredibly good information concerning the HDB setup.
+<P>Moreover, if you know what HDB is, you shouldn't be reading this HOWTO :-)
+<P>Use the <CODE>uuconv</CODE> utility in /usr/sbin to convert config files from
+one mode to another.
+<P>
+<H2><A NAME="ss6.2">6.2 Why do I get "timeout" on connections when I upgraded to uucp-1.04?</A>
+</H2>
+
+<P>
+<!--
+UUCP!FAQ!timeout with uucp-1.04
+-->
+
+<UL>
+<LI> from <EM>Ed Carp - erc at apple.com</EM> 
+<P>If you use a "Direct" device in the Devices file, there's now a
+10 second timeout compiled in.  Make the name of the Device anything
+other than "Direct".  If you tweak the example /etc/uucp files
+provided, you won't have problems with this one.
+<P>
+</LI>
+<LI> from <EM>Greg Naber - greg at squally.halcyon.com</EM> 
+<P>If you get chat script timeouts, you can tweak the sources by 
+editing at line 323 in uuconf/syssub.c &amp; changing the default
+timeouts from 10 seconds to something larger.
+<P>
+</LI>
+<LI> from <EM>Ed Rodda - ed at orca.wimsey.bc.ca</EM>
+<P>If you get chat script timeouts, typically connecting to other
+Taylor sites, a pause after login can fix this.
+<PRE>
+feed Any ACU,ag 38400 5551212 ogin: \c\d "" yourname word: passwd
+</PRE>
+  
+</LI>
+<LI> from <EM>Dr. Eberhard W. Lisse - el at lisse.NA</EM> 
+<P>Some kernels experience modems hanging up after a couple of seconds.
+The following patch sent by Ian Taylor might help.
+<BLOCKQUOTE><CODE>
+<PRE>
+*** conn.c.orig Mon Feb 22 20:25:24 1993
+--- conn.c      Mon Feb 22 20:33:10 1993
+***************
+*** 204,209 ****
+--- 204,212 ----
+
+     /* Make sure any signal reporting has been done before we set
+       fLog_sighup back to TRUE.  */
++   /* SMR: it seems to me if we don't care about SIGHUPS, we should clear
++      the flag before we return  */
++   afSignal[INDEXSIG_SIGHUP] = FALSE;
+    ulog (LOG_ERROR, (const char *) NULL);
+    fLog_sighup = TRUE;
+</PRE>
+</CODE></BLOCKQUOTE>
+ 
+</LI>
+</UL>
+<P>
+<H2><A NAME="ss6.3">6.3 Why doesn't HDB anonymous uucp seem to work?</A>
+</H2>
+
+<P>
+<!--
+UUCP!FAQ!HDB anonymous uucp failure
+-->
+
+Taylor in HDB mode seems to be sensitive to white space &amp; blank lines.
+To be safe, make sure that there are no blank lines or trailing spaces in the
+Permissions file.
+<P>Lastly, make sure that you have a file called <CODE>remote.unknown</CODE> in
+/usr/lib/uucp or /etc/uucp &amp; that it's <EM>*NOT*</EM> executable.
+<P>See the O'Reilly &amp; Associates book <CODE>"Managing UUCP &amp; USENET"</CODE> for
+details regarding this file.
+<P>
+<H2><A NAME="ss6.4">6.4 What does "no matching ports found" mean?</A>
+</H2>
+
+<P>
+<!--
+UUCP!FAQ!no matching ports error
+-->
+
+In all probability, you are attempting to use a dialer that doesn't exist, or
+the dialer you've specified in the port files doesn't match up with any
+valid devices in the dial file.
+<P>
+<H2><A NAME="ss6.5">6.5 What are known good config files for HDB mode?</A>
+</H2>
+
+<P>
+<!--
+UUCP!FAQ!config files, known good
+-->
+
+The following are "known-good" config files for Taylor 1.05 under Linux in
+HoneyDanBer mode.  They work on kernels of 0.99-8 or later. All files should
+be in /usr/lib/uucp or /etc/uucp unless you've tweaked the sources to put the
+uucp library elsewhere.
+<P>If you *HAVE* put things in non-standard places, be aware that things like
+sendmail might get very confused. You need to ensure that all
+communications-related programs agree on your idea of "standard" paths.
+<P>
+<PRE>
+#------------- Devices -------------
+# make sure the device (cua1 here) matches your system
+# cua N = COM N+1 
+#
+# here "scout" is the Digicom Scout Plus 19.2 modem I use
+# tbfast etc. is for a Telebit Trailblazer Plus modem's various speeds
+#
+ACU cua1 - 19200 scout
+ACU cua1 - 9600 tbfast
+ACU cua1 - 1200 tbslow
+ACU cua1 - 2400 tbmed
+
+#------------- dialers --------------
+# note the setting of the Trailblazer registers "on the fly"
+# "scout" is a Digicom Scout Plus (Hayes-like) modem I use here
+#
+scout   =W-,    "" ATM0DT\T CONNECT
+tbfast  =W-,    "" A\pA\pA\pT OK ATS50=255DT\T CONNECT\sFAST
+tbslow  =W-,    "" A\pA\pA\pT OK ATS50=2DT\T CONNECT\s1200
+tbmed   =W-,    "" A\pA\pA\pT OK ATS50=3DT\T CONNECT\s2400
+
+#-------------- Systems -------------
+# this is a very generic entry that will work for most systems
+#
+# the Any;1 means that you can call once per minute with using -f (force)
+# the ACU,g means force "g" protocol rather than Taylor's default "i"
+#
+fredsys Any;1 ACU,g 19200 scout5555555 "" \r ogin:--ogin: uanon word: uanon 
+
+#-------------------------------- Permissions -------------------------
+
+# Taylor UUCP in HDB mode appears to be sensitive to blank lines.
+# Make sure all Permissions lines are real or commented out.
+#       
+# this is a anonymous uucp entry
+#
+LOGNAME=nuucp MACHINE=OTHER \
+READ=/var/spool/uucp/nuucp \
+WRITE=/var/spool/uucp/nuucp \
+SENDFILES=yes REQUEST=yes \
+COMMANDS=/bin/rmail
+# # this is a normal setup for a remote system that talks to us
+# note the absolute path to rnews since this site puts things
+# in locations that aren't "standard"
+#
+LOGNAME=fredsys MACHINE=fredsys \
+READ=/var/spool/uucp/fredsys:/var/spool/uucp/uucppublic:/files \
+WRITE=/var/spool/uucp/fredsys:/var/spool/uucppublic \
+SENDFILES=yes REQUEST=yes \
+COMMANDS=/bin/rmail:/usr/bin/rnews
+#----------------------------------------------------------------------
+</PRE>
+<H2><A NAME="ss6.6">6.6 Getting uucico to call alternate numbers</A>
+</H2>
+
+<P>
+<!--
+UUCP!FAQ!uucico calling alternate numbers
+-->
+
+The new v1.05 has an added '-z' switch to uucico that will try alternate
+numbers for a remote system.
+<P>You can else use Taylor mode &amp; "systemyouarecalling-2" (see "sys" in config.
+files section for more details)
+<P>
+<HR>
+<A HREF="UUCP-HOWTO-7.html">Next</A>
+<A HREF="UUCP-HOWTO-5.html">Previous</A>
+<A HREF="UUCP-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

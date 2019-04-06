@@ -1,0 +1,1576 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>&#13;Connecting Apache
+and Tomcat
+using mod_jk2
+</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="
+  MMBase Installation HOWTO
+  "
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Running MMBase"
+HREF="x759.html"><LINK
+REL="NEXT"
+TITLE="
+Installing an Apache
+reverse proxy
+as a front-end
+to your MMBase server
+"
+HREF="x1037.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+><SPAN
+CLASS="application"
+>MMBase</SPAN
+> Installation HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x759.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x1037.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="JK2"
+></A
+>12. Connecting <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+and <SPAN
+CLASS="application"
+>Tomcat</SPAN
+>
+using <SPAN
+CLASS="systemitem"
+>mod_jk2</SPAN
+></H1
+><P
+>&#13;Since (for some odd reason) some network managers allow outgoing web
+connections only to <SPAN
+CLASS="systemitem"
+>TCP port 80</SPAN
+>,
+there might be people around that cannot access your
+<SPAN
+CLASS="application"
+>Tomcat</SPAN
+>
+(and <SPAN
+CLASS="application"
+>MMBase</SPAN
+>) server
+through <SPAN
+CLASS="systemitem"
+>port 8080</SPAN
+>.
+You can install a <SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> mapping or a reverse proxy
+in <SPAN
+CLASS="application"
+>Apache</SPAN
+>,
+so <SPAN
+CLASS="application"
+>Tomcat</SPAN
+>
+and <SPAN
+CLASS="application"
+>MMBase</SPAN
+>
+can be accessed through the
+<SPAN
+CLASS="application"
+>Apache</SPAN
+> web server
+at <SPAN
+CLASS="systemitem"
+>port 80</SPAN
+>.
+Apart from the port issue,
+this has the advantage that you can use
+<SPAN
+CLASS="application"
+>Apache</SPAN
+>
+to manage you <SPAN
+CLASS="acronym"
+>SSL</SPAN
+> connections
+and use your existing
+<SPAN
+CLASS="application"
+>Apache</SPAN
+>
+logs and statistics facilities
+for <SPAN
+CLASS="application"
+>Tomcat</SPAN
+>
+and <SPAN
+CLASS="application"
+>MMBase</SPAN
+> as well.
+</P
+><P
+>&#13;Here we describe the installation and configuration of
+the <SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+connecting <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+and <SPAN
+CLASS="application"
+>Tomcat</SPAN
+>.
+In this way,
+<SPAN
+CLASS="application"
+>Tomcat</SPAN
+> paths can be mapped
+into <SPAN
+CLASS="application"
+>Apache</SPAN
+>.
+</P
+><P
+>&#13;&#62;From the
+<SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+website
+(<A
+HREF="http://jakarta.apache.org/tomcat/tomcat-4.1-doc/config/jk2.html"
+TARGET="_top"
+>http://jakarta.apache.org/tomcat/tomcat-4.1-doc/config/jk2.html</A
+>):
+<A
+NAME="AEN844"
+></A
+><BLOCKQUOTE
+CLASS="BLOCKQUOTE"
+><P
+>&#13;<SPAN
+CLASS="QUOTE"
+>"
+The <SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+element represents
+a <TT
+CLASS="classname"
+>Connector</TT
+> component that communicates
+with a web connector via the <SPAN
+CLASS="acronym"
+>AJP</SPAN
+> protocol.
+This is used for cases where you wish
+to invisibly integrate <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> 4
+into an existing (or new)
+<SPAN
+CLASS="application"
+>Apache</SPAN
+> installation,
+and you want <SPAN
+CLASS="application"
+>Apache</SPAN
+> to handle
+the static content contained in the web application,
+and/or utilize <SPAN
+CLASS="application"
+>Apache's</SPAN
+>
+<SPAN
+CLASS="acronym"
+>SSL</SPAN
+> processing.
+In many application environments,
+this will result in better overall performance
+than running your applications
+under <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> stand-alone
+using the
+<SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>HTTP/1.1</SPAN
+> Connector</SPAN
+>.
+However, the only way to know for sure
+whether it will provide better performance for your application
+is to try it both ways.
+"</SPAN
+>
+</P
+></BLOCKQUOTE
+>
+</P
+><P
+>&#13;If you will only be needing a simple configuration--
+typically a single <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> server
+sitting on the same system as
+your <SPAN
+CLASS="application"
+>Apache server</SPAN
+>--
+<SPAN
+CLASS="application"
+>Apache</SPAN
+> reverse proxies might be
+an easier solution for you.
+Although these are simpler in terms of the interconnection features,
+reverse proxies provide more flexibility
+in fiddling with your paths and other options.
+The configuration of
+<SPAN
+CLASS="application"
+>Apache</SPAN
+> reverse proxies is
+described in the next section.
+</P
+><P
+>&#13;However, if you plan to build or grow to
+a farm of several <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> servers
+behind an <SPAN
+CLASS="application"
+>Apache</SPAN
+> front-end
+or build a high-performance system,
+deploying
+the <SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+is the way to go.
+</P
+><P
+>&#13;Download the sources of
+the <SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+from the <SPAN
+CLASS="application"
+>Apache Jakarta</SPAN
+> website:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  <A
+HREF="http://jakarta.apache.org/site/sourceindex.cgi"
+TARGET="_top"
+>http://jakarta.apache.org/site/sourceindex.cgi</A
+>
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;Extract and compile
+the <SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  tar -zxvf jakarta-tomcat-connectors-jk2-src-xxx.tar.gz
+  cd jakarta-tomcat-connectors-jk2-src/jk/native2/
+  ./configure \
+    --with-apxs2=/usr/local/apache/bin/apxs
+  make
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;Make sure your <TT
+CLASS="envar"
+>$JAVA_HOME</TT
+> environment variable is set
+and the <SPAN
+CLASS="application"
+>Java</SPAN
+> binaries are
+in your <TT
+CLASS="envar"
+>$PATH</TT
+>
+or add this option to your <B
+CLASS="command"
+>./configure</B
+> command:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  <TT
+CLASS="option"
+>--with-java-home=/usr/local/j2sdk</TT
+>
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;Copy the module files <TT
+CLASS="filename"
+>mod_jk2.so</TT
+> and
+<TT
+CLASS="filename"
+>jkjni.so</TT
+>
+to the <TT
+CLASS="filename"
+>modules/</TT
+> directory
+of <SPAN
+CLASS="application"
+>Apache</SPAN
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  cp -i ../build/jk2/apache2/*.so /usr/local/apache/modules/
+  chmod 755 /usr/local/apache/modules/mod_jk2.so
+  chown root:root /usr/local/apache/modules/mod_jk2.so
+  chmod 755 /usr/local/apache/modules/jkjni.so
+  chown root:root /usr/local/apache/modules/jkjni.so
+  libtool --finish /usr/local/apache/modules
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;Copy the sample configuration file
+<TT
+CLASS="filename"
+>workers2.properties</TT
+>
+to the configuration directory
+of <SPAN
+CLASS="application"
+>Apache</SPAN
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+
+  cp -i ../../jk/conf/workers2.properties /usr/local/apache/conf/
+  chown root:root /usr/local/apache/conf/workers2.properties
+  chmod 644 /usr/local/apache/conf/workers2.properties
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;and adjust it to your own needs.
+</P
+><P
+>&#13;Here is a simple configuration that should get you up and running:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  [logger]
+  # outcomment this in production use
+  level=DEBUG
+  
+  [config:]
+  file=${serverRoot}/conf/workers2.properties
+  debug=0
+  debugEnv=0
+  
+  [uriMap:]
+  info=Maps the requests. Options: debug
+  debug=1
+  
+  [shm:]
+  info=Scoreboard. Required for reconfiguration and status with multiprocess servers
+  file=${serverRoot}/logs/jk2.shm
+  size=1000000
+  debug=0
+  disabled=0
+  
+  [workerEnv:]
+  info=Global server options
+  timing=1
+  debug=0
+  
+  [status:]
+  info=Status worker, displays runtime informations
+  
+  [uri:&#60;hostname&#62;/jkstatus/*]
+  info=Display status information and checks the config file for changes.
+  group=status:
+  
+  [channel.socket:localhost:8009]
+  info=Ajp13 forwarding over socket
+  
+  # Define the worker
+  [ajp13:localhost:8009]
+  channel=channel.socket:localhost:8009
+  
+  [uri:&#60;hostname&#62;/mmbase-webapp/*]
+  info=MMBase
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;Most of this configuration is pretty standard.
+The last <TT
+CLASS="classname"
+>uri</TT
+> declaration
+(replace <TT
+CLASS="replaceable"
+><I
+>&#60;hostname&#62;</I
+></TT
+> with your hostname)
+is what this is all about;
+it maps all client requests starting with
+<TT
+CLASS="filename"
+>/mmbase-webapp/</TT
+>
+from <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+to your <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> server.
+</P
+><P
+>&#13;<DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;When we made a virtual host mapping,
+somehow the general mappings no longer worked for this virtual host
+(other virtual hosts on the same
+<SPAN
+CLASS="systemitem"
+>IP address</SPAN
+> had no problem at all).
+We had to explicitly add the general mappings for this virtual host
+to make these work again.
+A bug?
+Or a consequence of the way
+<SPAN
+CLASS="application"
+>Apache</SPAN
+>
+implements name based virtual hosts?
+</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+</P
+><P
+>&#13;So now, the same application you accessed
+through <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> as
+(replace <TT
+CLASS="replaceable"
+><I
+>&#60;hostname&#62;</I
+></TT
+> with your hostname):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  http://&#60;hostname&#62;:8080/mmbase-webapp/
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;will be available through
+<SPAN
+CLASS="application"
+>Apache</SPAN
+> as:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  http://&#60;hostname&#62;/mmbase-webapp/
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;<DIV
+CLASS="important"
+><P
+></P
+><TABLE
+CLASS="important"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/important.gif"
+HSPACE="5"
+ALT="Important"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;Only name based virtual hosts are supported this way.
+Make sure you add the virtual host name
+(pointing to this very same (web) server)
+to the <TT
+CLASS="filename"
+>/etc/hosts</TT
+> file
+(replace <TT
+CLASS="replaceable"
+><I
+>&#60;hostname&#62;</I
+></TT
+> with your hostname):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  192.168.3.17 &#60;hostname&#62;
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;or things will not work
+(running <SPAN
+CLASS="acronym"
+>DNS</SPAN
+> is not sufficient here!).
+</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+</P
+><P
+>&#13;If your <SPAN
+CLASS="application"
+>Apache</SPAN
+> installation
+is serving only a single website,
+you can leave out the hostname:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  [uri:/mmbase-webapp/*]
+  info=MMBase
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;which will serve the
+mapped <TT
+CLASS="filename"
+>/mmbase-webapp/</TT
+> directory
+on every address and site
+of your <SPAN
+CLASS="application"
+>Apache</SPAN
+> installation.
+</P
+><P
+>&#13;<DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;Using
+<SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK</SPAN
+> Connector</SPAN
+>
+version 2,
+all configuration settings will be in the
+<TT
+CLASS="filename"
+>workers2.properties</TT
+> file.
+Even though <SPAN
+CLASS="application"
+>Tomcat</SPAN
+>
+comes with its own
+<SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> configuration file
+<TT
+CLASS="filename"
+>/usr/local/tomcat/conf/jk2.properties</TT
+>,
+there's no need to edit this
+as long as you stick with the standard
+<SPAN
+CLASS="systemitem"
+>port 8009</SPAN
+>.
+</P
+><P
+>&#13;If you do have to edit this file
+(for example when changing the port),
+make sure that you do it
+when your <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> server
+is not running;
+the file is auto-edited
+by <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> itself.
+</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+</P
+><P
+>&#13;After adding the <SPAN
+CLASS="systemitem"
+>mod_jk2</SPAN
+> module
+to your <SPAN
+CLASS="application"
+>Apache</SPAN
+> configuration
+(in the file
+<TT
+CLASS="filename"
+>/etc/httpd/conf/httpd.conf</TT
+>
+or in a new file <TT
+CLASS="filename"
+>jk2.conf</TT
+>
+in the <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+configuration directory
+<TT
+CLASS="filename"
+>/etc/httpd/conf.d</TT
+>):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  # Load mod_jk2 module
+  LoadModule jk2_module modules/mod_jk2.so
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  chown root:root /etc/httpd/conf.d/jk2.conf
+  chmod 644 /etc/httpd/conf.d/jk2.conf
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;you can now restart <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+and give your new entrance a try:
+(replace <TT
+CLASS="replaceable"
+><I
+>&#60;hostname&#62;</I
+></TT
+> with your hostname):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  http://&#60;hostname&#62;/mmbase-webapp/
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;To check the status of
+the <SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+(replace <TT
+CLASS="replaceable"
+><I
+>&#60;hostname&#62;</I
+></TT
+> with your hostname):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  http://&#60;hostname&#62;/jkstatus/
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;<DIV
+CLASS="tip"
+><P
+></P
+><TABLE
+CLASS="tip"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/tip.gif"
+HSPACE="5"
+ALT="Tip"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;You can reread the configuration in
+<TT
+CLASS="filename"
+>/usr/local/apache/conf/workers2.properties</TT
+>
+by (re)loading the <SPAN
+CLASS="guimenu"
+>JK Status</SPAN
+> page.
+This allows you to add new mappings
+without restarting <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+or having it reload its configuration.
+However, existing mappings can not be removed this way
+and require <SPAN
+CLASS="application"
+>Apache</SPAN
+> to reconfigure.
+</P
+><P
+>&#13;Although it's also possible to place the <SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> configurations
+(in a slightly different form)
+in your <SPAN
+CLASS="application"
+>Apache</SPAN
+> configuration file,
+this is a good reason to stick with the
+<TT
+CLASS="filename"
+>workers2.properties</TT
+> setup.
+</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+</P
+><P
+>&#13;<DIV
+CLASS="important"
+><P
+></P
+><TABLE
+CLASS="important"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/important.gif"
+HSPACE="5"
+ALT="Important"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;To protect access to the <SPAN
+CLASS="guimenu"
+>JK Status</SPAN
+> page,
+add an authentication declaration
+to the <SPAN
+CLASS="application"
+>Apache</SPAN
+> configuration.
+For example:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  &#60;Location /jkstatus/&#62;
+  AuthType Basic
+  AuthName "JK 2 Connector Status"
+  AuthUserFile /etc/httpd/conf/users
+  AuthGroupFile /etc/httpd/conf/groups
+  Require group admin
+  &#60;/Location&#62;
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;This will prompt for a login from a user
+from the <SPAN
+CLASS="systemitem"
+>admin</SPAN
+> group.
+</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+</P
+><P
+>&#13;In case of any problems,
+check
+the <SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+log messages
+that will be written to your <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+<TT
+CLASS="filename"
+>error_log</TT
+>.
+</P
+><P
+>&#13;<DIV
+CLASS="tip"
+><P
+></P
+><TABLE
+CLASS="tip"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/tip.gif"
+HSPACE="5"
+ALT="Tip"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;In case the
+<SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+has difficulties connecting to
+<SPAN
+CLASS="application"
+>Tomcat</SPAN
+>,
+check whether <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> is indeed
+available on
+<SPAN
+CLASS="systemitem"
+>port 8009</SPAN
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  netstat -tln
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+</P
+><P
+>&#13;Access requests mapping to <SPAN
+CLASS="application"
+>Tomcat</SPAN
+>
+will be logged in the <TT
+CLASS="filename"
+>access_log</TT
+>'s
+and <TT
+CLASS="filename"
+>error_log</TT
+>'s
+of <SPAN
+CLASS="application"
+>Apache</SPAN
+>.
+</P
+><P
+>&#13;For more information on the
+<TT
+CLASS="filename"
+>workers2.properties</TT
+> configuration,
+check the documentation at:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  <A
+HREF="http://jakarta.apache.org/tomcat/tomcat-4.1-doc/jk2/jk2/configwebcom.html"
+TARGET="_top"
+>http://jakarta.apache.org/tomcat/tomcat-4.1-doc/jk2/jk2/configwebcom.html</A
+>
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;There you will read about
+setting up more (remote)
+<SPAN
+CLASS="application"
+>Tomcat</SPAN
+> workers,
+grouping these together in load-balancing pools,
+setting up <SPAN
+CLASS="acronym"
+>RPC</SPAN
+> channels,
+using <SPAN
+CLASS="systemitem"
+>Unix</SPAN
+> sockets,
+using the
+<SPAN
+CLASS="systemitem"
+>Java Native Interface (<SPAN
+CLASS="acronym"
+>JNI</SPAN
+></SPAN
+>)
+to interconnect with
+<SPAN
+CLASS="application"
+>Tomcat</SPAN
+> directly (in-process),
+setting up alternative loggers, 
+and optimizing your time-outs.
+</P
+><P
+>&#13;<DIV
+CLASS="tip"
+><P
+></P
+><TABLE
+CLASS="tip"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/tip.gif"
+HSPACE="5"
+ALT="Tip"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;<SPAN
+CLASS="application"
+>Apache</SPAN
+> is far more efficient
+than <SPAN
+CLASS="application"
+>Tomcat</SPAN
+>
+in serving ordinary content files.
+You could have both the <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+and <SPAN
+CLASS="application"
+>Tomcat</SPAN
+> document directories
+point to the same directory on your filesystem
+and only forward requests for <SPAN
+CLASS="acronym"
+>JSP</SPAN
+> pages
+and <SPAN
+CLASS="systemitem"
+>Java Servlets</SPAN
+>.
+For example (in <TT
+CLASS="filename"
+>workers2.conf</TT
+>):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  #[uri:/examples/servlet/*]
+  #info=Prefix mapping
+
+  #[uri:/examples/*.jsp]
+  #info=Extension mapping
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;However, now you need to protect
+<SPAN
+CLASS="application"
+>Tomcat's</SPAN
+>
+<TT
+CLASS="filename"
+>WEB-INF/</TT
+> directories
+(and other directories and files you don't want visitors to have access to)
+from being served by <SPAN
+CLASS="application"
+>Apache</SPAN
+>.
+For example (in <SPAN
+CLASS="application"
+>Apache</SPAN
+>'s
+<TT
+CLASS="filename"
+>httpd.conf</TT
+>):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  
+  &#60;Location "/examples/WEB-INF/"&#62;
+  AllowOverride None
+  deny from all
+  &#60;Location&#62;
+  
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;Also, realize that a setup like this bypasses
+any security constraints you may have configured
+in the file
+<TT
+CLASS="filename"
+>/usr/local/tomcat/webapps/examples/WEB-INF/web.xml</TT
+>.
+</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+</P
+><P
+>&#13;You can find more general information about
+the <SPAN
+CLASS="systemitem"
+><SPAN
+CLASS="acronym"
+>JK 2</SPAN
+> Connector</SPAN
+>
+at:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  <A
+HREF="http://jakarta.apache.org/tomcat/tomcat-4.1-doc/jk2/"
+TARGET="_top"
+>http://jakarta.apache.org/tomcat/tomcat-4.1-doc/jk2/</A
+>
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x759.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x1037.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Running <SPAN
+CLASS="application"
+>MMBase</SPAN
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Installing an <SPAN
+CLASS="application"
+>Apache</SPAN
+>
+reverse proxy
+as a front-end
+to your <SPAN
+CLASS="application"
+>MMBase</SPAN
+> server</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

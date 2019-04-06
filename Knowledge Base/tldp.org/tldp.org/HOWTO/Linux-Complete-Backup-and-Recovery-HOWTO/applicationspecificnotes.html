@@ -1,0 +1,511 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Application Specific Notes</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Complete Backup and Recovery HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Distribution Specific Notes"
+HREF="distributionspecificnotes.html"><LINK
+REL="NEXT"
+TITLE="Some Advice for Disaster Recovery"
+HREF="someadvicefordisasterrecovery.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Complete Backup and Recovery HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="distributionspecificnotes.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="someadvicefordisasterrecovery.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="APPLICATIONSPECIFICNOTES"
+></A
+>8. Application Specific Notes</H1
+><P
+>Here are some notes about backing up particular applications.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="LVM"
+></A
+>8.1. Logical Volume Manager</H2
+><P
+>Handling logical volumes turns out to be a bit of a trick: use the <A
+HREF="http://www.finnix.org/"
+TARGET="_top"
+>finnix</A
+> distribution's startup code to turn LVM on and off. This results in distribution specific code for the first stage of restoration. It is generated in <A
+HREF="thescripts.html#MAKE.FDISK"
+><TT
+CLASS="FILENAME"
+>make.fdisk</TT
+></A
+>. To edit it, search <A
+HREF="thescripts.html#MAKE.FDISK"
+><TT
+CLASS="FILENAME"
+>make.fdisk</TT
+></A
+> on <SPAN
+CLASS="QUOTE"
+>"Hideous"</SPAN
+>.</P
+><P
+>LVM required the addition of two new LVM specific scripts, <A
+HREF="thescripts.html#MAKE.LVS"
+>make.lvs</A
+> and <A
+HREF="thescripts.html#MOUNT.LVS"
+>mount.lvs</A
+>. They are only generated and used if there are logical volumes present.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SELINUX"
+></A
+>8.2. Selinux</H2
+><P
+>Selinux is disabled on the test machines. <TT
+CLASS="FILENAME"
+>/selinux</TT
+> is not backed up in any of these scripts. At a guess, you should probably disable selinux after the first stage restoration, and you will probably have some selinux specific tasks to perform before turning it back on.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="GRUB"
+></A
+>8.3. GRUB</H2
+><P
+>The default bootloader in <A
+HREF="distributionspecificnotes.html#FEDORA3"
+>Fedora</A
+> is the <A
+HREF="http://www.gnu.org/software/grub/"
+TARGET="_top"
+>Grand Unified Bootloader (GRUB)</A
+>. It has to run at the end of the first stage, or you won't be able to boot thereafter. To preserve it for first stage restoration, make the following changes:</P
+><P
+></P
+><UL
+><LI
+><P
+>Edit the penultimate stanza of <A
+HREF="thescripts.html#RESTORE.METADATA"
+><TT
+CLASS="FILENAME"
+>restore.metadata</TT
+></A
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+># Now install the boot sector.
+# chroot $target /sbin/lilo -C /etc/lilo.conf
+chroot $target /sbin/grub-install /dev/hda</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></LI
+><LI
+><P
+>Add the following stanza to <A
+HREF="thescripts.html#SAVE.METADATA"
+><TT
+CLASS="FILENAME"
+>save.metadata</TT
+></A
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+># Grub requires these at installation time.
+if [ -d  usr/share/grub ] ; then # Red Hat/Fedora
+  crunch usr.share.grub usr/share/grub
+fi
+if [ -d  usr/lib/grub ] ; then # SuSE
+  crunch usr.lib.grub usr/lib/grub
+fi</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="TRIPWIRE"
+></A
+>8.4. Tripwire</H2
+><P
+>If you run Tripwire or any other application that maintains a database of file metadata, rebuild that database immediately after restoring.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SQUID"
+></A
+>8.5. Squid</H2
+><P
+>Squid is a HTTP proxy and cache. As such it keeps a lot of temporary data on the hard drive. There is no point in backing that up. Insert <SPAN
+CLASS="QUOTE"
+>"--exclude /var/spool/squid"</SPAN
+> into the appropriate tar command in your second stage backup script. Then, get squid to rebuild its directory structure for you. Tack onto the tail end of the second stage restore script a command for squid to initialize itself. Here is how I did it over ssh in <A
+HREF="thescripts.html#RESTORE.TESTER"
+><TT
+CLASS="FILENAME"
+>restore.tester</TT
+></A
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>ssh $target "mkdir /var/spool/squid ; chown squid:squid /var/spool/squid;\
+      /usr/sbin/squid -z;touch /var/spool/squid/.OPB_NOBACKUP"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The last command creates a file of length 0 called .OPB_NOBACKUP. This is for the benefit of <A
+HREF="applicationspecificnotes.html#ARKEIA"
+>Arkeia</A
+>, and tells Arkeia not to back up below this directory</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="ARKEIA"
+></A
+>8.6. Arkeia</H2
+><P
+>These notes are based on testing with Arkeia 4.2.</P
+><P
+><A
+HREF="http://www.arkeia.com/"
+TARGET="_top"
+>Arkeia</A
+> is a backup and restore program that runs on a wide variety of platforms. You can use Arkeia as part of a bare metal restoration scheme, but there are two caveats.</P
+><P
+>The first is probably the most problematic, as absent any more elegant solution you have to hand select the directories to restore in the navigator at restoration time. The reason is that, apparently, Arkeia has no mechanism for not restoring files already present on the disk, nothing analogous to <B
+CLASS="COMMAND"
+>tar</B
+>'s -p option. If you simply allow a full restore, the restore will crash as Arkeia over-writes a library which is in use at restore time, e.g. <TT
+CLASS="FILENAME"
+>lib/libc-2.1.1.so</TT
+>. Hand selection of directories to restore is at best dicey, so I recommend against it.</P
+><P
+>The second caveat is that you have to back up the Arkeia data dictionary and/or programs. To do that, modify the <TT
+CLASS="FILENAME"
+>save.metatdata</TT
+> script by adding Arkeia to the list of directories to save:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+># arkeia specific:
+tar cf - usr/knox | gzip -c &#62; $zip/arkeia.tar.gz</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You <EM
+>must</EM
+> back up the data dictionary this way because Arkeia does not back up the data dictionary. This is one of my complaints about Arkeia, and I solve it on my own computer by saving the data dictionary to tape with <A
+HREF="http://www.estinc.com/"
+TARGET="_top"
+>The TOLIS Group's BRU</A
+>.</P
+><P
+>The data dictionary will be restored in the script <TT
+CLASS="FILENAME"
+>restore.metadata</TT
+> automatically.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AMANDA"
+></A
+>8.7. Amanda</H2
+><P
+><A
+HREF="http://www.amanda.org/"
+TARGET="_top"
+>Amanda</A
+> (The Advanced Maryland Automatic Network Disk Archiver) works quite well with this set of scripts. Use the normal Amanda back-up process, and build your first stage data as usual. Amanda stores the data on tape in GNU tar or cpio format, and you can recover from individual files to entire backup images. The nice thing about recovering entire images is that you can then use variants on the scripts in this HOWTO to restore from the images, or direct from tape. I was able to restore my test machine with the directions from W. Curtis Preston's <A
+HREF="http://www.oreilly.com/catalog/unixbr/"
+TARGET="_top"
+><I
+CLASS="CITETITLE"
+>Unix Backup &#38; Recovery</I
+></A
+>. For more information on it, see the <A
+HREF="resources.html"
+>Resources</A
+>. The Amanda chapter from the book is <A
+HREF="http://www.backupcentral.com/amanda.html"
+TARGET="_top"
+>on line</A
+>.</P
+><P
+>I made two changes to the script <A
+HREF="thescripts.html#RESTORE.TESTER"
+><TT
+CLASS="FILENAME"
+>restore.tester</TT
+></A
+>. First, I changed it to accept a file name as an argument. Then, since Amanda's <B
+CLASS="COMMAND"
+>amrestore</B
+> decompresses the data as it restores it, I rewrote it to cat the file into the pipe instead of decompressing it.</P
+><P
+>The resulting line looks like this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>cat $file | ssh $target "umask 000 ; cd / ; tar -xpkf - "</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>where <B
+CLASS="COMMAND"
+>$file</B
+> is the script's argument, the image recovered from the tape by <B
+CLASS="COMMAND"
+>amrestore</B
+>.</P
+><P
+>Since the command line arguments to <B
+CLASS="COMMAND"
+>tar</B
+> prohibit over-writing, restore from images in the <EM
+>reverse</EM
+> of the order in which they were made. Restore most recent first.</P
+><P
+>Amanda does require setting ownership by hand if you back up the amanda data directory with <A
+HREF="thescripts.html#SAVE.METADATA"
+><TT
+CLASS="FILENAME"
+>save.metadata</TT
+></A
+>. Something like:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>bash# <B
+CLASS="COMMAND"
+>chown -R amanda:disk /var/lib/amanda</B
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You can also add that line to your scripts for second state restoration, such as <A
+HREF="thescripts.html#RESTORE.TESTER"
+><TT
+CLASS="FILENAME"
+>restore.tester</TT
+></A
+>.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="NTFS"
+></A
+>8.8. NTFS</H2
+><P
+>OK, NTFS isn't an application. It is a file system used by Microsoft operating system Windows NT and its descendents, including Windows 2000 and Windows XP. You can back it up and restore to it from Linux with <B
+CLASS="COMMAND"
+>ntfsclone</B
+>, one of the NTFS utilities in the ntfsprogs suite, available from <A
+HREF="http://linux-ntfs.sourceforge.net/downloads.html"
+TARGET="_top"
+>http://linux-ntfs.sourceforge.net/downloads.html</A
+>.</P
+><P
+>These scripts will create NTFS partitions, but will not put a file system on them. It is not clear from the docs whether <B
+CLASS="COMMAND"
+>ntfsclone</B
+> will lay down a file system on a virgin partition or not.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="distributionspecificnotes.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="someadvicefordisasterrecovery.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Distribution Specific Notes</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Some Advice for Disaster Recovery</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

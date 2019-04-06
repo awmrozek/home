@@ -1,0 +1,853 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<style type="text/css">
+<!--
+body { color: #000000; background-color: #000000; }
+.cpp1-assembler { color: #00FF00; }
+.cpp1-character { color: #FF00FF; }
+.cpp1-comment { color: #969696; font-style: italic; }
+.cpp1-float { color: #FF00FF; }
+.cpp1-hexadecimal { color: #FF00FF; }
+.cpp1-identifier { color: #00FF00; }
+.cpp1-illegalchar { background-color: #800000; color: #FF0000; }
+.cpp1-number { color: #FF00FF; }
+.cpp1-octal { color: #FF00FF; }
+.cpp1-preprocessor { color: #00FF00; }
+.cpp1-reservedword { color: #3366FF; font-weight: bold; }
+.cpp1-space { background-color: #464646; color: #FFFFFF; }
+.cpp1-string { color: #FF00FF; }
+.cpp1-symbol { color: #FFFF00; }
+-->
+</style>
+
+<TITLE>Dark Cult of C++ - Własne kontrolki w Irrlichcie</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN><A HREF="../cpp.html">&lt;&lt; Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A>
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>Własne kontrolki w Irrlichcie</H1>
+
+<p>
+Irrlicht generalnie jest silnikiem 3D, ale umożliwia też stworzenie prostego interfejsu graficznego. Zaimplementowane są wszystkie podstawowe kontrolki znane z Windows. Co prawda ich funkcjonalność niekiedy pozostawia sporo do życzenia, niemniej są i do prostych zastosowań w zupełności wystarczą. A jeśli nie wystarczą... W tym artykule postaram się omówić rozszerzanie tego prostego GUI o własne kontrolki lub też dodatkowe cechy dla kontrolek już istniejących.
+</p>
+<p>
+Zanim jednak zabierzemy się do dzieła, przypomnijmy sobie krótko, jak w ogóle odpalić najprostszą aplikację wykorzystującą Irrlichta. Zakładamy, że biblioteka jest już zainstalowana. Jeśli korzystamy ze środowiska Visual C++, dobrym pomysłem będzie dodanie do naszej solucji całego projektu z kodem źródłowym Irrlichta. Będzie pod ręką - przyda się jako ściągawka lub nawet źrodło gotowych fragmentów kodu.
+</p>
+<p>
+Przede wszystkim dołączamy odpowiedni nagłówek:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-preprocessor">#include &lt;irrlicht.h&gt;
+</span></span>
+</code>
+
+<p>
+Irrlicht intensywnie korzysta z przestrzeni nazw, więc by ułatwić sobie życie, napiszmy:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">irr</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">scene</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">video</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">io</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-reservedword">using</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">gui</span><span class="cpp1-symbol">;<br>
+
+</span></span>
+</code>
+<p>
+Nie zapominamy o dolinkowaniu biblioteki. Aby nie grzebać się w licznych zakładkach z opcjami, robimy tak:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-preprocessor">#pragma comment(lib, &quot;Irrlicht.lib&quot;)
+</span></span>
+</code>
+
+<p>
+Trzeba jeszcze zapewnić dostęp do pliku Irrlicht.dll. Najprościej umieścić go w folderze systemowym (np. c:\windows\system32\), wtedy będzie dostępny dla wszystkich aplikacji. Można też wrzucić go tam, gdzie ma być nasza aplikacja.
+</p>
+<p>
+Irrlicht to biblioteka wieloplatformowa, dlatego nawet jeśli piszemy pod Windows, nie umieszczamy naszego kodu w funkcji WinMain, tylko w "starym dobrym" main. Pierwszą rzeczą, którą musimy zrobić, jest utworzenie głównego urządzenia Irrlichta:
+</p>
+
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span class="cpp1-identifier">main</span><span class="cpp1-symbol">()<br>
+{<br>
+
+</span><span class="cpp1-identifier">&nbsp;IrrlichtDevice</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">device</span><span class="cpp1-space"> </span><span class="cpp1-symbol">= 
+</span><span class="cpp1-space">		</span><span class="cpp1-identifier">createDevice</span><span class="cpp1-symbol"> (</span><span class="cpp1-space"></span><span class="cpp1-identifier">EDT_SOFTWARE2</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">dimension2d</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-number">640</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">480</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-number">16</span><span class="cpp1-symbol">,
+</span><span class="cpp1-space">			</span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">);<br>
+</span></span>
+</code>
+
+<p>
+Powyższy kod odpala naszą aplikację w oknie, ustawiając zarazem wybrany tryb graficzny. Używamy jednego z dwóch dostępnych rendererów software'owych. Moglibyśmy oczywiście wyświetlać grafikę za pomocą DirectX czy OpenGL, ale do zrobienia dwuwymiarowego GUI nie jest nam to potrzebne, tym bardziej że autorowi tego artykułu nie chce się dodatkowo poruszać zagadnień instalacji tych bibliotek ;-).
+</p>
+<p>
+Pierwszy tutorial Irrlichta, z którego właśnie bezczelnie kopiujemy kod, robi jeszcze kilka innych ciekawych rzeczy, ale nam one są niepotrzebne. Chcemy tylko jak najszybciej przebrnąć przez podstawy. Na szczęście nie zostało ich już wiele. Przede wszystkim potrzebujemy jeszcze głównej pętli. Robimy ją tak:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">IVideoDriver</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">driver</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">device</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getVideoDriver</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-identifier">IGUIEnvironment</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">guienv</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">device</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getGUIEnvironment</span><span class="cpp1-symbol">();<br>
+<br>
+</span><span class="cpp1-reservedword">while</span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">device</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">run</span><span class="cpp1-symbol">())<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">driver</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">beginScene</span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">SColor</span><span class="cpp1-symbol">(</span><span class="cpp1-number">255</span><span class="cpp1-symbol">,</span><span class="cpp1-number">100</span><span class="cpp1-symbol">,</span><span class="cpp1-number">101</span><span class="cpp1-symbol">,</span><span class="cpp1-number">140</span><span class="cpp1-symbol">));<br>
+<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">guienv</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">drawAll</span><span class="cpp1-symbol">();<br>
+<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">driver</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">endScene</span><span class="cpp1-symbol">();<br>
+}<br>
+</span></span>
+</code>
+
+<p>
+Pierwsza linijka pobiera wskaźnik do interfejsu sterownika karty graficznej. Obiekt ten jest nam potrzebny do renderowania sceny. Tutaj oczywiście nie mamy sceny z prawdziwego zdarzenia, aczkolwiek jeśli chcemy cokolwiek narysować na ekranie (a chcemy), musimy zrobić to między wywołaniami <code>beginScene()</code> a <code>endScene()</code>. Druga linijka pobiera w podobny sposób wskaźnik do środowiska GUI. Ten wskaźnik potrzebny jest nam na razie tylko do wywołania <code>drawAll()</code>. Zapamiętaj tę metodę, gdyż jej zadaniem jest rysowanie wszelkich elementów GUI - jeśli jej nie wywołamy, nic się nie pokaże na ekranie (oprócz naszego głównego okienka, które tak naprawdę jest rysowane przez system operacyjny, nie przez Irrlichta).
+</p>
+<p>
+Ostatnimi czynnościami które musimy wykonać by naszą aplikacyjkę pobudzić do życia (a właściwie to wręcz przeciwnie ;-)) jest zniszczenie urządzenia Irrlichta i tradycyjne zwrócenie 0. Oczywiście dzieje się to po wyjściu z głównej pętli, co w naszym przypadku może nastąpić tylko po zamknięciu głównego okna:
+</p>
+
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">&nbsp;device</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">drop</span><span class="cpp1-symbol">();<br>
+
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+}
+</span></span>
+</code>
+
+<p>
+To wszystko, mamy szkielet aplikacji. Teraz przystąpimy do właściwej zabawy, czyli tworzenia własnej kontrolki. W naszym przykładzie będzie to obiekt wyświetlający w kilku rzędach ikony i pozwalający wybrać jedną z nich.
+</p>
+<p>
+Ponieważ Irrlicht jest napisany obiektowo, nasza kontrolka będzie miała swoją klasę. Dlatego też tworzymy dla niej nowy plik źródłowy i plik nagłówkowy. Klasę nazwiemy, wzorując się na nazwach klas Irrlichta, <code>CGUIImageSelect</code>. Dobrym zwyczajem jest nazywanie plików tak samo, jak klasę - a więc u nas <code>CGUIImageSelect.cpp</code> i <code>CGUIImageSelect.h</code>.
+</p>
+<p>
+Przeglądając źródła Irrlichta możemy zauważyć, iż kontrolki składają się zazwyczaj z trzech plików. "Właściwy" plik nagłówkowy jest przechowywany w tym samym folderze, co plik CPP, natomiast "upubliczniony" (w folderze <code>\include</code>) jest drugi plik nagłówkowy, na przykład IGUIButton.h. W plikach takich znajdują się tak zwane interfejsy klas. Są to klasy abstrakcyjne, same w sobie bezużyteczne, ale dziedziczą po nich "właściwe" klasy kontrolek. Irrlicht nie zawiera w gruncie rzeczy na tyle dużo kontrolek, aby ta koncepcja dawała nam jakiekolwiek korzyści, dlatego nie będziemy jej stosowali dla naszej nowej kontrolki. W przypadku gdybyśmy mieli kilka bardzo podobnych kontrolek i chcielibyśmy im zapewnić ten sam interfejs (lub część interfejsu), takie rozwiązanie mogłoby nam to nieco ułatwić.
+</p>
+<p>
+Zacznijmy od pliku nagłówkowego. Jego początek może wyglądać tak:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-preprocessor">#ifndef __C_GUI_IMAGE_SELECT_H_INCLUDED__<br>
+#define __C_GUI_IMAGE_SELECT_H_INCLUDED__<br>
+<br>
+#include &lt;Irrlicht.h&gt;<br>
+#include &quot;GUIIcons.h&quot;<br>
+<br>
+</span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">irr<br>
+</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">gui<br>
+</span><span class="cpp1-symbol">{<br>
+</span></span>
+</code>
+
+<p>
+Po co włączamy <code>GUIIcons.h</code> - zaraz się dowiemy. Na razie zwróćmy tylko uwagę, że otwieramy przestrzeń nazw irr::gui. W przestrzeni tej znajdują się w Irrlichcie wszystkie rzeczy związane z GUI, więc naturalne jest, że i nasza kontrolka tam będzie. Dzięki temu będziemy mieli łatwiejszy dostęp do różnych potrzebnych typów danych, stałych itp.
+</p>
+<p>
+Warto dodać, że plik <code>GUIIcons.h</code> znajduje się w folderze ze źrodłami Irrlichta. Jeśli nie mamy tych źródeł, musimy podać do niego jawnie ścieżkę albo skopiować ten plik do folderu z naszą aplikacją.
+</p>
+<p>
+Każda kontrolka powinna dziedziczyć - pośrednio lub bezpośrednio - po <code>IGUIElement</code>. Zapewni nam to podstawową funkcjonalność, wspólną dla wszystkich kontrolek Irrlichta. Warto zajrzeć do pliku <code>IGUIElement.h</code> i przekonać się, jaka to funkcjonalność. Dowiemy się przy okazji, że klasa <code>IGUIElement</code> dziedziczy po <code>IUnknown</code> (co zapewnia naszej kontrolce mechanizm zliczania referencji - będzie można tworzyć dynamicznie obiekty naszej klasy nie martwiąc się o ich zwalnianie) oraz po <code>IEventReceiver</code> (co zapewni naszej kontrolce odbieranie komunikatów od środowiska GUI).
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">class</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-space"> </span><span class="cpp1-symbol">:</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">public</span><span class="cpp1-space"> </span><span class="cpp1-identifier">IGUIElement<br>
+</span><span class="cpp1-symbol">{
+</span></span>
+</code>
+
+<p>
+Mamy więc już działającą kontrolkę, która jednak niewiele potrafi. Zaraz to zmienimy. Zajmijmy się najpierw sekcją chronioną naszej klasy:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">protected</span><span class="cpp1-symbol">:<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">struct</span><span class="cpp1-space"> </span><span class="cpp1-identifier">TImgInfo<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space"> &nbsp;</span><span class="cpp1-identifier">video</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">ITexture</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> &nbsp;</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">clip</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> &nbsp;</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">stringw</span><span class="cpp1-space"> </span><span class="cpp1-identifier">name</span><span class="cpp1-symbol">;</span><span class="cpp1-space"><br>
+ </span><span class="cpp1-symbol">};<br>
+<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">static</span><span class="cpp1-space"> </span><span class="cpp1-identifier">IrrlichtDevice</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">m_pDevice</span><span class="cpp1-symbol">;<br>
+<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgWidth</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgHeight</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_NumPages</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> 
+ </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">array</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">TImgInfo</span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> 
+ </span><span class="cpp1-identifier">IGUIStaticText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">m_lblTip</span><span class="cpp1-symbol">,</span><span class="cpp1-space">  </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">m_lblPage</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">IGUIButton</span><span class="cpp1-space">     </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">m_btnPrev</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">m_btnNext</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">m_btnFrst</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">m_btnLast</span><span class="cpp1-symbol">;
+</span></span>
+</code>
+
+<p>
+Co my tu mamy? Po pierwsze, struktura <code>TImgInfo</code>. Będzie ona przechowywała informację o pojedynczej ikonie. Zawiera wskaźnik na odpowiednią bitmapę (w Irrlichcie wszystkie bitmapy przechowywane są właściwie jako tekstury, co jednak wcale nam nie przeszkadza - musimy tylko pamiętać, jeśli mamy jedną ze starszych wersji silnika, by wymiary bitmapy były potęgą dwójki, np 256x512), informację o kadrze (czyli wskazówkę, gdzie w bitmapie znajduje się nasza ikonka) oraz stringa z nazwą ikonki (będzie ona wyświetlana pod wszystkimi ikonami, gdy użytkownik wskaże daną ikonkę myszą).
+</p>
+<p>
+Druga rzecz to statyczny wskaźnik na urządzenie Irrlichta. Potrzebujemy go między innymi po to, by uzyskać dostęp do środowiska GUI, które zarządza wszystkimi kontrolkami. Wskaźnik ten będzie inicjalizowany w (również statycznej) funkcji Init. Oznacza to, że osoba korzystająca z naszej kontrolki będzie musiała wywołać naszą funkcję <code>Init()</code> zanim stworzy jakąkolwiek kontrolkę klasy <code>CGUIImageSelect</code>.
+</p>
+<p>
+Następna seria zmiennych składowych (wszystkie mają przedrostek "<code>m_</code>", od "<code>member</code>" - bardzo dobry zwyczaj) przechowuje informacje o stanie kontrolki. Odpowiednio: liczba rzędów ikon, liczba kolumn (obie są ustawiane w konstruktorze i nie można ich już później zmienić), indeks aktualnie wybranej ikonki, wymiary ikonki (a więc wszystkie ikony muszą być tego samego rozmiaru), odstęp między ikonami w pionie i w poziomie (nie jest ustawiany w konstruktorze, ale można go zmienić w każdej chwili wywołując odpowiednią metodę, pomówimy o niej później).
+</p>
+<p>
+Kolejne dwie zmienne to: aktualna strona (<code>m_Page</code>) i liczba wszystkich stron (<code>m_NumPages</code>). Nasza kontrolka bowiem będzie mogła wyświetlić naraz tylko tyle ikon, ile określił użytkownik, podając w konstruktorze wartości do <code>m_RowCount</code> i <code>m_ColCount</code>. Jednak dodamy też przyciski, umożliwiając wyświetlenie pozostałych ikon (jeśli oczywiście jest ich więcej, niż mieści się za jednym razem) na następnych stronach.
+</p>
+<p>
+Dalej mamy tablicę <code>m_ImgList</code>, w której trzymamy informację o naszych ikonach. Szablon <code>core::array</code> pochodzi z Irrlichta, zastępując standardowe konstrukcje z STL, które ponoć ponoć powodują jakieś tam problemy (w co autor niniejszego artykułu pozwala sobie nie wierzyć, aczkolwiek nie ma nic przeciwko zastosowaniu tutaj klasy <code>core::array</code>, co robi się dokładnie tak samo, jak na przykład z klasą <code>std::vector</code>).
+</p>
+<p>
+Reszta zmiennych składowych to wskaźniki na kontrolki już w Irrlichcie istniejące - <code>IGUIStaticText</code> i <code>IGUIButton</code>. Nic bowiem nie stoi na przeszkodzie, by wykorzystać je do naszych celów. O roli przycisków już sobie powiedzieliśmy, natomiast co do etykietek: <code>m_lblTip</code> będzie wyświetlać "podpowiedzi" do poszczególnych ikonek (zawartość zmiennej name struktury <code>TImgInfo</code>), zaś <code>m_lblPage</code> - numer aktualnej strony.
+</p>
+<p>
+W sekcji <code>protected</code> pozostały nam jeszcze dwie deklaracje:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">RefreshLabel</span><span class="cpp1-space">    </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">ChangePage</span><span class="cpp1-space">      </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<p>
+Funkcje te nie muszą być publiczne, ponieważ korzystać z nich będziemy tylko wewnętrznie, a co dokładnie będą robić - dowiemy się w swoim czasie. Na razie przejdźmy do sekcji publicznej:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">public</span><span class="cpp1-symbol">:<br>&nbsp;
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-space">      </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">IGUIElement</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">parent</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">cols</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rows</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img_w</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img_h</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">s32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">id</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-number">1</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+</p>
+Konstruktor przede wszystkim musi zainicjalizować niektóre zmienne z klasy bazowej <code>IGUIElement</code>. Chodzi oczywiście o wskaźnik na rodzica, prostokąt wyznaczający obszar zajmowany przez naszą kontrolkę oraz jej identyfikator. Wszystkie pozostałe argumenty konstruktora inicjalizują "nasze własne" zmienne - czyli te, które deklarujemy już w klasie <code>CGUIImageSelect</code>.
+</p>
+<p>
+Funkcję <code>Init()</code> już wymieniliśmy; wiemy też, czym się zajmuje:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">static</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">Init</span><span class="cpp1-space">     </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">IrrlichtDevice</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">dev</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<p>
+Więcej do powiedzenia jest o dwóch bardzo ważnych funkcjach wirtualnych, <code>OnEvent()</code> i <code>draw()</code>. Wirtualnych, czyli zadeklarowanych pierwotnie w klasie bazowej <code>IGUIElement</code>:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">virtual</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">bool</span><span class="cpp1-space"> </span><span class="cpp1-identifier">OnEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">SEvent</span><span class="cpp1-space"> </span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-reservedword">virtual</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">draw</span><span class="cpp1-space">    </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);</span><span class="cpp1-space"> 
+</span></span>
+</code>
+
+<p>
+Zredefiniowanie ich umożliwi nam rozbudowę funkcjonalności dziedziczonej po <code>IGUIElement</code>. Do <code>OnEvent()</code> będą trafiać wszystkie "surowe" komunikaty od środowiska GUI (zdarzenia myszy i klawiatury), a także te "bardziej złożone", jak komunikaty od naszych składowych kontrolek (czyli owych czterech przycisków). Tam też będziemy je przekształcać w nasze własne eventy. Natomiast metoda <code>draw()</code>, jak sama nazwa wskazuje, zajmie się rysowaniem kontrolki.
+</p>
+<p>
+Pozostaje jeszcze garść metod specyficznych dla naszej kontrolki. Zaprezentujemy teraz tylko ich sygnatury, szczegóły zostawimy na moment, gdy zajmiemy się ich implementacją:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">AddImage</span><span class="cpp1-space">        </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">video</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">ITexture</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">const</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;&amp;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">clip</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">const</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">stringw</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img_name</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;&quot;</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">RemoveAllImages</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">SetSpacing</span><span class="cpp1-space">      </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">spacing</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space">  </span><span class="cpp1-identifier">&nbsp;GetSpacing</span><span class="cpp1-space">      </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">SetSelected</span><span class="cpp1-space">     </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">index</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">SetSelected</span><span class="cpp1-space">     </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">column</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">row</span><span class="cpp1-symbol">);
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space">  </span><span class="cpp1-identifier">GetSelected</span><span class="cpp1-space">     </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space">  </span><span class="cpp1-identifier">&nbsp;GetPage</span><span class="cpp1-space">         </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">SetPage</span><span class="cpp1-space">         </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">page</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<p>
+Na koniec deklarujemy typ wyliczeniowy, który umożliwi nam rozróżnianie komunikatów GUI, które będzie nasza kontrolka generować:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">enum</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EIMGS_EVENT_TYPE<br>
+</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;   </span><span class="cpp1-identifier">EET_IMAGE_SELECT_EVENT</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EET_USER_EVENT</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">,<br>
+<br>
+</span><span class="cpp1-space">&nbsp;   </span><span class="cpp1-identifier">EIMGS_SEL_CHANGED</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EGET_COMBO_BOX_CHANGED</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">,<br>
+</span><span class="cpp1-space">&nbsp;   </span><span class="cpp1-identifier">EIMGS_PAGE_CHANGED</span><span class="cpp1-symbol">,<br>
+</span><span class="cpp1-space">    <br>
+&nbsp;  </span><span class="cpp1-identifier">EIMGS_EVENT_TYPE_COUNT<br>
+</span><span class="cpp1-symbol">};<br>
+<br>
+<br>
+}</span><span class="cpp1-space"> </span><span class="cpp1-comment">// end namespace gui<br>
+</span><span class="cpp1-symbol">}</span><span class="cpp1-space"> </span><span class="cpp1-comment">// end namespace irr<br>
+<br>
+</span><span class="cpp1-preprocessor">#endif<br>
+</span></span>
+</code>
+
+<p>
+Pierwszego elementu wyliczenia, <code>EET_IMAGE_SELECT_EVENT</code>, będziemy używać dla oznaczenia wszelkich zdarzeń generowanych w naszej kontrolce. Natomiast następne dwie stałe, <code>EIMGS_SEL_CHANGED</code> i <code>EIMGS_PAGE_CHANGED</code> identyfikują dokładniej rodzaj zdarzenia (odpowiednio: zaznaczenie ikony i zmiana wyświetlanej strony). Ostatnia wartość <code>EIMGS_EVENT_TYPE_COUNT</code> nie jest używana, ale gdybyśmy stworzyli inną nową kontrolkę, moglibyśmy użyć tej wartości by wiedzieć, jakich wartości możemy użyć w tej nowej kontrolce, by uniknąć konfliktu ze "starą". Autorzy Irrlichta tego nie uczynili, dlatego musimy stosować ten wybieg z <code>EGET_COMBO_BOX_CHANGED</code> (nie wygląda to zbyt elegancko, bo przecież nasza kontrolka z ComboBox-em nie ma zbyt wiele wspólnego).
+</p>
+<p>
+Pora zaimplementować to wszystko. Przede wszystkim włączamy nasz nagłówek, otwieramy przestrzeń nazw i definiujemy stałą <code>m_mDevice</code>, o której już mówiliśmy:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-preprocessor">#include &quot;CGUIImageSelect.h&quot;<br>
+<br>
+</span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">irr<br>
+</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-reservedword">namespace</span><span class="cpp1-space"> </span><span class="cpp1-identifier">gui<br>
+</span><span class="cpp1-symbol">{<br>
+<br>
+</span><span class="cpp1-identifier">IrrlichtDevice</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">m_pDevice</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+</span></span>
+</code>
+
+<p>
+Nieco więcej pisaniny mamy z konstruktorem, który musi ustawić sporo zmiennych. Przede wszystkim przekazujemy odpowiednie wartości do klasy bazowej. Wspomnieliśmy o trzech, dwie pozostałe to <code>EGUIET_ELEMENT</code> (typ kontrolki; wszystkie kontrolki zdefiniowane przez użytkownika (czyli przez nas) autorzy silnika zalecają oznaczać właśnie tą stałą, co też czynimy) oraz wskaźnik na środowisko GUI, który otrzymujemy, wywołując metodę <code>getGUIEnvironment()</code> dla głównego urządzenia, na które już mamy statyczny wskaźnik.
+</p>
+<p>
+Pierwsza linijka ciała konstruktora istnieje tylko dla skrócenia zapisu - wskaźnik na środowisko GUI przechowywany jest przez klasę bazową w zmiennej <code>Environment</code> - strasznie długie słowo i trudne ;-). Skracamy je sobie do <code>env</code>:
+</p>
+
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">IGUIElement</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">parent</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">cols</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rows</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img_w</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img_h</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">s32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">id</span><span class="cpp1-space"> 
+
+</span><span class="cpp1-comment">/*= -1*/</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-symbol">:</span><span class="cpp1-space"> </span><span class="cpp1-identifier">IGUIElement</span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">EGUIET_ELEMENT</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_pDevice</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getGUIEnvironment</span><span class="cpp1-symbol">(),</span><span class="cpp1-space"> </span><span class="cpp1-identifier">parent</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">id</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp; </span><span class="cpp1-identifier">IGUIEnvironment</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">env</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">Environment</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp; 
+ </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-space">&nbsp; </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">rows</span><span class="cpp1-space">&nbsp; </span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">?</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rows</span><span class="cpp1-space"> </span><span class="cpp1-symbol">:</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp; </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space">  </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">cols</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">?</span><span class="cpp1-space"> </span><span class="cpp1-identifier">cols</span><span class="cpp1-space"> </span><span class="cpp1-symbol">:</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp; 
+ </span><span class="cpp1-identifier">m_ImgWidth</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img_w</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp; </span><span class="cpp1-identifier">m_ImgHeight</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img_h</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp; 
+ </span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp; </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space">      </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp; </span><span class="cpp1-identifier">m_NumPages</span><span class="cpp1-space">  </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;
+ </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-space">  </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+</span></span>
+</code>
+
+<p>
+Zerowania czy inicjalizacji zmiennych nie trzeba raczej omawiać. Większym problemem może się okazać stworzenie "podkontrolek", czyli naszych dwóch etykiet i czterech przycisków. Nie narzekajmy jednak, w WinAPI byłoby to jeszcze trudniejsze ;-). Do dzieła:
+</p> 
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-space"> </span><span class="cpp1-identifier">m_lblTip</span><span class="cpp1-space">    </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">addStaticText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;&quot;</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-number">5</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">80</span><span class="cpp1-symbol">,</span><span class="cpp1-space">  </span><span class="cpp1-number">5</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-symbol">-
+
+</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">10</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">80</span><span class="cpp1-space">  </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-number">1</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_lblPage</span><span class="cpp1-space">   </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">addStaticText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;&quot;</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-number">5</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">5</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-symbol">-
+
+</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">10</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-number">1</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_btnFrst</span><span class="cpp1-space">   </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">addButton</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">100</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> 
+
+</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">100</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-number">1</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;|&lt;&quot;</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_btnPrev</span><span class="cpp1-space">   </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">addButton</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space">  </span><span class="cpp1-number">75</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> 
+
+</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space">  </span><span class="cpp1-number">75</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-number">1</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">GUI_ICON_CURSOR_LEFT</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_btnNext</span><span class="cpp1-space">   </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">addButton</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space">  </span><span class="cpp1-number">50</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> 
+
+</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space">  </span><span class="cpp1-number">50</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-number">1</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">GUI_ICON_CURSOR_RIGHT</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_btnLast</span><span class="cpp1-space">   </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">addButton</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space">  </span><span class="cpp1-number">25</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> 
+
+</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space">  </span><span class="cpp1-number">25</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">105</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">20</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-number">1</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;&gt;|&quot;</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<p>
+Tak, wiem, to wygląda strasznie (nie widzieliście jeszcze kodu HTML tego fragmentu :D). Cóż jednak poradzić na to, że autorzy silnika tak niefrasobliwie podeszli do swojej klasy reprezentującej prostokąt? (Notabene kiedyś myślałem, że nie da się stworzyć bardziej topornego prostokąta, niż <code>RECT</code> z WinAPI; myliłem się, jak widać.)
+</p>
+<p>
+No, dość tego marudzenia. Powyższy kod nie należy może do krótkich i czytelnych, ale też nie jest skomplikowany. Jedyną niezrozumiałą rzeczą może tu być użycie stałych: <code>GUI_ICON_CURSOR_LEFT</code> i <code>GUI_ICON_CURSOR_RIGHT</code> w miejscu, gdzie powienien być tekst wyświetlany na przycisku. Otóż jest to taka mała sztuczka, wykorzystywana przez autorów Irrlichta do rysowania na kontrolkach różnych symboli. My na przykład chcemy mieć na naszych przyciskach do przewijania stron strzałki. Użyte przez nas stałe zawierają kody znaków, które wyglądają jak strzałki właśnie. Jednak nie muszą te znaki występować w każdym zestawie czcionek. Jeśli więc chcemy mieć gwarancję, że na naszym przycisku wyrysuje się dokładnie taki symbol, jaki chcemy, musimy ustawić temu przyciskowi wbudowaną czcionkę Irrlichta:
+</p>
+ 
+<code><span style="font: 10pt Courier New;"><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_btnFrst</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setOverrideFont</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getBuiltInFont</span><span class="cpp1-symbol">());<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_btnPrev</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setOverrideFont</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getBuiltInFont</span><span class="cpp1-symbol">());<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_btnNext</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setOverrideFont</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getBuiltInFont</span><span class="cpp1-symbol">());<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_btnLast</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setOverrideFont</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getBuiltInFont</span><span class="cpp1-symbol">());<br>
+}
+</span></span>
+</code>
+
+<p>
+To już koniec konstruktora. Jednak właściwa zabawa dopiero się zaczyna. Najpierw - znana już funkcja <code>Init()</code>:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">Init</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">IrrlichtDevice</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">dev</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_pDevice</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">dev</span><span class="cpp1-symbol">;<br>
+}<br>
+</span></span>
+</code>
+
+<p>
+Dużo bardziej skomplikowana będzie implementacja <code>OnEvent()</code>. Musimy tu określić, jak nasza kontrolka będzie reagowała na poczynania użytkownika:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">bool</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">OnEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">SEvent</span><span class="cpp1-space"> </span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">EventType</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EET_MOUSE_INPUT_EVENT</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">mx</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">my</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rc</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getAbsolutePosition</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">position2di</span><span class="cpp1-space"> </span><span class="cpp1-identifier">pos</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rc</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">mx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">MouseInput</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-identifier">pos</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">/</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgWidth</span><span class="cpp1-space">  </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">my</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">MouseInput</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-identifier">pos</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">/</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgHeight</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space">                
+&nbsp;&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">MouseInput</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Event</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EMIE_LMOUSE_PRESSED_DOWN</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br></span><span class="cpp1-space">	   	        	        
+&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">sel</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">my</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">mx</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">mx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">||</span><span class="cpp1-space"> </span><span class="cpp1-identifier">my</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">sel</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">size</span><span class="cpp1-symbol">())</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">;<br></span><span class="cpp1-space">	
+	           
+&nbsp;&nbsp;&nbsp; </span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">sel</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> <br>	
+	        
+&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">SEvent</span><span class="cpp1-space"> </span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">EventType</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">EEVENT_TYPE</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EET_IMAGE_SELECT_EVENT</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserData1</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EIMGS_SEL_CHANGED</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserData2</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">Parent</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">OnEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">);</span><span class="cpp1-space"> <br>      		                
+&nbsp;&nbsp;</span><span class="cpp1-symbol">}</span><span class="cpp1-space">  
+</span></span>
+</code>  
+
+<p>
+Wszystkie najbardziej niezbędne informacje o nadchodzącym zdarzeniu mamy w zmiennej event. Przede wszystkim musimy sprawdzić rodzaj zdarzenia, co też czynimy powyżej. Ten akurat fragment kodu przede wszystkim sprawdza, czy mamy do czynienia ze zdarzeniem myszy. Jeśli tak, to przelicza współrzędne kursora w pikselach na współrzędne ikonki, nad którą kursor się znajduje, biorąc pod uwagę wymiary ikony i odstępy między nimi. Jak widać, kalkulacja jest uproszczona i najechanie na owe odstępy pomiędzy ikonami również potraktuje jako najechanie na samą ikonę.
+</p>
+<p>
+Dalej dokonujemy sprawdzenia, jakie dokładnie zdarzenie nastąpiło. Jeśli jest to wciśnięcie lewego przycisku myszy, to wyliczamy numer ikony z obliczonych przed chwilą współrzędnych (<code>mx</code> i <code>my</code>). Sprawdzamy, czy rzeczywiście jest tam jakaś ikona, czy też może pusta przestrzeń (co może się zdarzyć, jeśli ikon na stronie jest mniej niż wskazuje iloczyn <code>m_RowCount * m_ColCount</code>). Jeśli tak, przenosimy tam selekcję (<code>m_Selected</code>).
+</p>
+<p>
+Następnie generujemy zdarzenie <code>EET_IMAGE_SELECT_EVENT</code>. Ponieważ stała <code>EET_IMAGE_SELECT_EVENT</code> jest innego typu, niż pole <code>EventType</code> struktury <code>SEvent</code>, musimy dokonać konwersji jawnej. Jak wiemy z "lektury" plików nagłówkowych Irrlichta (co warto uczynić, jeśli go rozszerzamy), <code>SEvent</code> jest właściwie unią, dzielącą swój obszar między kilka struktur, z których każda reprezentuje inne zdarzenie. Zakładając, że nie chcemy naruszać źródeł Irrlichta, nie możemy sobie tam dodać jakiejś własnej struktury. Na szczęście ktoś o nas pomyślał i stworzył tam strukturę <code>UserEvent</code> do użytku uniwersalnego. Ma tylko trzy pola (dwa typu <code>s32</code>, czyli <code>int</code>, oraz jedno typu <code>f32</code>, czyli <code>float/double</code>). Pola te zowią się odpowiednio: <code>UserData1, UserData2</code> i <code>UserData3</code>. Mało tego, ale powinno nam wystarczyć. Moglibyśmy też grymasić, że nazwy pól niezbyt ładne, no ale co robić. Po wypełnieniu wszystkich pól wysyłamy strukturę do rodzica, który następnie przekaże ją gdzie trzeba (do funkcji <code>OnEvent()</code> aplikacji wykorzystującej naszą kontrolkę albo do diabła, w zależności od sytuacji ;-) ).
+</p>
+<p>
+Warto w tym miejscu zauważyć, że nie zapamiętujemy w naszej strukturze <code>UserEvent</code> wskaźnika lub identyfikatora kontrolki, która zdarzenie wygenerowała. Po prostu zabrakło nam na to miejsca (przechowywanie wskaźnika w polu <code>UserData3</code>, które jest typu <code>f32</code>, nie jest zbyt bezpieczne). Przez to możemy albo mieć tylko jedną kontrolkę <code>CGUIImageSelect</code> w aplikacji, albo w ogóle nie obsługiwać jej zdarzeń, bo nie będziemy w stanie rozróżnić, od którego "egzemplarza" kontrolki pochodzą.
+Oczywiście najlepszym rozwiązaniem byłoby zmodyfikowanie kodu źródłowego Irrlichta tak, aby znalazła tam się bardziej elastyczna struktura opisująca zdarzenia naszej kontrolki. To już oczywiście zostawiam tobie :-).
+</p>
+<p>
+Dalsza część naszej metody <code>OnEvent()</code> będzie wyglądać tak:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">else</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">MouseInput</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Event</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EMIE_MOUSE_MOVED</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">	    </span><span class="cpp1-symbol">{<br></span><span class="cpp1-space">	        
+&nbsp;</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">sel</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">my</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">mx</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">mx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">||</span><span class="cpp1-space"> </span><span class="cpp1-identifier">my</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">{</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_lblTip</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;&quot;</span><span class="cpp1-symbol">);</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">sel</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">size</span><span class="cpp1-symbol">())</span><span class="cpp1-space"> </span><span class="cpp1-symbol">{</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_lblTip</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;&quot;</span><span class="cpp1-symbol">);</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">	        
+&nbsp;</span><span class="cpp1-identifier">m_lblTip</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">sel</span><span class="cpp1-symbol">].</span><span class="cpp1-identifier">name</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">c_str</span><span class="cpp1-symbol">());</span><span class="cpp1-space">	        
+	    </span><span class="cpp1-symbol"><br>}<br>
+</span></span>
+</code>
+
+<p>
+Jak domyślić się nietrudno, obsługujemy tutaj ruch myszy nad naszą kontrolką. Tu jest prościej; musimy tylko wyliczyć numer ikony (analogicznie jak powyżej) i wyświetlić odpowiedni tekst.
+</p>
+<p>
+Ostatni fragment funkcji jest najdłuższy, ale i najprostszy:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">else</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">EventType</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EET_GUI_EVENT</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space"></span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">GUIEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">EventType</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EGET_BUTTON_CLICKED</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-symbol">{<br></span><span class="cpp1-space">	       
+&nbsp;&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">GUIEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Caller</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_btnPrev</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-symbol">--;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">ChangePage</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">}<br></span><span class="cpp1-space"> 	        
+&nbsp;&nbsp;</span><span class="cpp1-reservedword">else</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">GUIEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Caller</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_btnNext</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_NumPages</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-symbol">++;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">ChangePage</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-symbol">}<br></span><span class="cpp1-space"> 
+&nbsp;&nbsp;</span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-reservedword">else</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">GUIEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Caller</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_btnFrst</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">ChangePage</span><span class="cpp1-symbol">();<br></span><span class="cpp1-space">           
+&nbsp;&nbsp;</span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-reservedword">else</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">GUIEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Caller</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_btnLast</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_NumPages</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">ChangePage</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">	</span><span class="cpp1-symbol">}<br>
+</span></span>
+</code>
+
+
+<p>
+Obsługujemy tutaj kliknięcia na przyciskach. Co te przyciski robią, widać jak na dłoni - modyfikują odpowiednio numer aktualnej strony i wywołują prywatną procedurę <code>ChangePage()</code>, która aktualizuje zawartość etykiety z numerem strony oraz generuje zdarzenie <code>EIMGS_PAGE_CHANGED</code>:
+</p>
+
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">ChangePage</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">RefreshLabel</span><span class="cpp1-symbol">();<br>
+
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">SEvent</span><span class="cpp1-space"> </span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">EventType</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">EEVENT_TYPE</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EET_IMAGE_SELECT_EVENT</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> &nbsp;</span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserData1</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EIMGS_PAGE_CHANGED</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserData2</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">Parent</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">OnEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">user_event</span><span class="cpp1-symbol">);<br>
+}
+</span></span>
+</code>
+
+<p>
+Drugą, po obsłudze zdarzeń, niezmiernie istotną dla kontrolkowej egzystencji sprawą jest jej wygląd. Ustalamy go w całości poprzez metodę wirtualną <code>draw()</code>.  Na początek, dla uproszczenia:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">draw</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> 
+</span><span class="cpp1-symbol"><br>{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">i</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rc</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getAbsolutePosition</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rcLbl</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_lblTip</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getRelativePosition</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">IGUIEnvironment</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">env</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_pDevice</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getGUIEnvironment</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">IGUISkin</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-identifier">skin</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">env</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getSkin</span><span class="cpp1-symbol">();<br>
+</span></span>
+</code>
+
+<p>
+Pobieramy kolejno: prostokąt z bezwzględnymi współrzędnymi naszej kontrolki, względne współrzędne obiektu m_lblTip, wskaźnik na środowisko GUI, wskaźnik na aktualną skórkę. Czym jest ta skóra? Z grubsza tym samym, co skóry w WinAmp-ie i podobnych programach (swoją drogą, co za irytujące zjawisko - czy naprawdę każdy cholerny program musi mieć własną skórę?). Obiekt <code>IGUISkin</code> działa w ten sposób, że definiuje metody w rodzaju użytej poniżej <code>draw3DSunkenPane()</code>, które to metody rysują jakiś element kontrolki (pasek, panel, ramkę itp.). Dzięki temu podmieniając obiekt typu <code>IGUISkin</code> przez środowisko GUI, zmieniamy wygląd wszystkich kontrolek. Kontrolki bowiem nie rysują się same, tylko wywołują sobie odpowiednie metody z klasy <code>IGUISkin</code>. Proste, nieprawdaż? My podejdziemy jednak do tego rozwiązania z pewnym dystansem (pewnie dlatego, że autor tego artykułu nie lubi skórek ;-P) i nie zdefiniujemy własnej "skórkowej" klasy, choć nasza kontrolka i tak będzie podatna na zmianę aktualnej skóry - ze względu na wyżej wspomnianą (a niżej użytą) metodę <code>draw3DSunkenPane()</code>:
+</p>
+ 
+<code><span style="font: 10pt Courier New;"><span class="cpp1-space"> </span><span class="cpp1-identifier">rcLbl</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rc</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rcLbl</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-=</span><span class="cpp1-space"> </span><span class="cpp1-number">5</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rcLbl</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">LowerRightCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+=</span><span class="cpp1-space"> </span><span class="cpp1-number">5</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">skin</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">draw3DSunkenPane</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">this</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">video</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">SColor</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">196</span><span class="cpp1-symbol">,</span><span class="cpp1-number">90</span><span class="cpp1-symbol">,</span><span class="cpp1-number">90</span><span class="cpp1-symbol">,</span><span class="cpp1-number">90</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rcLbl</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<p>
+Narysowaliśmy właśnie ramkę dla etykietki z nazwą pokazywanej myszą ikony. Warto zwrócić uwagę, że struktura koloru w Irrlichcie zawiera również pole ze współczynnikiem alfa, czyli innymi słowy współczynnikiem przezroczystości, umożliwiającym nam uzyskanie gadżeciarskich przezroczystych kontrolek ;-).
+</p>
+<p>
+Powyższa ramka rysowana jest zawsze. Natomiast do narysowania mamy jeszcze wszystkie nasze ikonki, a także prostokątną obwódkę pokazującą nam, która ikona jest akurat wybrana przez użytkownika. To jednak czynimy oczywiście tylko wówczas, gdy w ogóle mamy jakieś ikony w tablicy:
+</p>
+
+ 
+<code><span style="font: 10pt Courier New;"><span class="cpp1-space"> </span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">size</span><span class="cpp1-symbol">()</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">video</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">IVideoDriver</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">driver</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_pDevice</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getVideoDriver</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">%</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">ry</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">/</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">bx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rc</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgWidth</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">by</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rc</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">ry</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgHeight</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rcBig</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">bx</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">by</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">bx</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgWidth</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">2</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">by</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgHeight</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">2</span><span class="cpp1-symbol">);<br></span><span class="cpp1-space">
+&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)<br></span><span class="cpp1-space">
+&nbsp;&nbsp;</span><span class="cpp1-identifier">driver</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">draw2DRectangle</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">video</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">SColor</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">255</span><span class="cpp1-symbol">,</span><span class="cpp1-number">255</span><span class="cpp1-symbol">,</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-number">0</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rcBig</span><span class="cpp1-symbol">);<br>
+</span></span>
+</code>
+
+<p>
+To była pierwsza część zadania, czyli narysowanie obwódki - bieżącego zaznaczania. W tym celu wyliczyliśmy numer kolumny i rzędu elementu o indeksie danym przez m_Selected. Stąd wyliczyliśmy współrzędne, pod którymi rysujemy naszą obwódkę. Funkcje rysujące prymitywne kształty 2D dostępne są poprzez obiekt reprezentujący naszą kartę wideo (<code>driver</code>); oczywiście musimy najpierw pobrać do niego wskaźnik od urządzenia głównego.
+</p>
+<p>
+Teraz rysujemy ikonki. Wystarczy przejechać podwójną pętlą po tablicy z danymi ikonek; mamy w niej wskaźniki na odpowiednie tekstury oraz niezbędne współrzędne. Reszta to detal:
+</p>
+
+
+
+     
+<code><span style="font: 10pt Courier New;"><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">position2di</span><span class="cpp1-space"> </span><span class="cpp1-identifier">pos</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">for</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">y</span><span class="cpp1-symbol">=</span><span class="cpp1-number">0</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span class="cpp1-symbol">++</span><span class="cpp1-identifier">y</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">  </span><span class="cpp1-reservedword">for</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">x</span><span class="cpp1-symbol">=</span><span class="cpp1-number">0</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">x</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span class="cpp1-symbol">++</span><span class="cpp1-identifier">x</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">  </span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">i</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">x</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">i</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">size</span><span class="cpp1-symbol">())<br></span><span class="cpp1-space">
+&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">pos</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">position2di</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">rc</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">X</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">x</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgWidth</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rc</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UpperLeftCorner</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">Y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">y</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgHeight</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-symbol">));<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">driver</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">draw2DImage</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">i</span><span class="cpp1-symbol">].</span><span class="cpp1-identifier">img</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">pos</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">i</span><span class="cpp1-symbol">].</span><span class="cpp1-identifier">clip</span><span class="cpp1-symbol">);<br></span><span class="cpp1-space">&nbsp;</span><span class="cpp1-symbol">}<br></span><span class="cpp1-space"> 
+  </span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space"> </span><span class="cpp1-symbol">}</span><span class="cpp1-space">     
+</span></span>
+</code>
+
+<p>
+Nie powinniśmy zapomnieć o wywołaniu bazowej wersji <code>draw()</code>. Oczywiście klasa <code>IGUIElement</code> nie posiada żadnej reprezentacji graficznej, jako że jest to tylko szkielet dla kontrolki. Nie oznacza to jednak, że <code>IGUIElement::draw()</code> nic nie robi. Zapewnia nam dość istotną rzecz: wywołuje <code>draw()</code> dla wszystkich kontrolek potomnych. Wprawdzie może to mieć znaczenie tylko dla kontrolek będących kontenerami (zawierających inne kontrolki), a to dla naszej kontrolki nie wydaje się zbyt sensowne, jednak skoro już dziedziczymy po <code>IGUIElement</code>, to raczej nie mamy sposobu, by powstrzymać użytkownika od dodawania kontrolek potomnych do naszej kontrolki <code>CGUIImageSelect</code>. A skoro już będzie je dodawał, to niech mu się te kontrolki prawidłowo rysują :-).
+</p>
+
+
+
+
+
+
+<code><span style="font: 10pt Courier New;">
+<span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">IGUIElement</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">draw</span><span class="cpp1-symbol">();<br>
+}
+</span></span>
+</code>
+
+<p>
+Musimy teraz umożliwić użytkownikowi dodawanie ikon, jako że domyślnie nasza kontrolka żadnych nie posiada. Metoda <code>AddImage()</code>bierze od użytkownika wszystkie niezbędne informacje o dodawanej ikonie: użytą bitmapę, kadr i nazwę ikony, po czym ładuje to wszystko do tablicy. Po dodaniu nowej ikony trzeba zaktualizować informacje o aktualnej stronie; dla uproszczenia ustawiamy pierwszą stronę:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">AddImage</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">video</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">ITexture</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">const</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;&amp;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">clip</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">const</span><span class="cpp1-space"> </span><span class="cpp1-identifier">core</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">stringw</span><span class="cpp1-space"> </span><span class="cpp1-identifier">img_name</span><span class="cpp1-comment">/* = L&quot;&quot;*/</span><span class="cpp1-symbol">)<br>
+{<br></span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">TImgInfo</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">ii</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">ii</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">img</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">img</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">ii</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">clip</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">clip</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">ii</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">name</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">img_name</span><span class="cpp1-symbol">;<br>
+<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">push_back</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">ii</span><span class="cpp1-symbol">);<br><br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_NumPages</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">size</span><span class="cpp1-symbol">()</span><span class="cpp1-space"> </span><span class="cpp1-symbol">/</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-number">1</span><span class="cpp1-symbol">;<br><br>
+
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br><br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">RefreshLabel</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_lblTip</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;&quot;</span><span class="cpp1-symbol">);<br>
+}
+</span></span>
+</code>
+
+<p>
+Dobra wiadomość: najtrudniejsze za nami. Zostało nam zdefiniowanie już kilkakrotnie użytej funkcji <code>RefreshLabel()</code>:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">RefreshLabel</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">const</span><span class="cpp1-space"> </span><span class="cpp1-identifier">size_t</span><span class="cpp1-space"> </span><span class="cpp1-identifier">BUF_SIZE</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-number">100</span><span class="cpp1-symbol">;<br></span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">wchar_t</span><span class="cpp1-space"> </span><span class="cpp1-identifier">buf</span><span class="cpp1-symbol">[</span><span class="cpp1-identifier">BUF_SIZE</span><span class="cpp1-symbol">];<br>
+</span><span class="cpp1-preprocessor">#ifdef _MSC_VER<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-preprocessor">#define MY_SPRINTF _snwprintf_s<br>
+#else<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-preprocessor">#define MY_SPRINTF _snwprintf<br>
+#endif <br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">MY_SPRINTF</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">buf</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">BUF_SIZE</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;%i/%i&quot;</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-symbol">+</span><span class="cpp1-number">1</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_NumPages</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_lblPage</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">buf</span><span class="cpp1-symbol">);<br>
+}
+</span></span>
+</code>
+
+<p>
+Funkcję <code>printf()</code> znamy doskonale, <code>sprintf()</code> robi to samo, tylko że zamiast na ekran pisze do podanego bufora, zaś swprintf() - zamiast na jednobajtowych znakach operuje na znakach Unicode (ponieważ ten właśnie standard jest domyślnie używany w Irrlichcie). To tak gwoli wyjaśnienia tych skomplikowanych konwencji nazewnictwa funkcji ze standardowej biblioteki ;-). Ale to jeszcze nie wszystko. Żeby było zabawniej, dla platformy Windows Irrlicht zamiast <code>swprintf()</code> używa... <code>_snwprintf()</code>, ponieważ funkcja ta w przeciwieństwie do tamtej spełnia wymogi ISO. Jednak różni się składnią, a dokładniej: musimy podać jej rozmiar użytego bufora. Jeśli jednak używamy nowego Visual Studio, to jego kompilator może się z kolei i do tej funkcji przyczepić, gdyż uzna ją za nie dość bezpieczną i każe użyć <code>_snwprinf_s()</code>... której z kolei "nie zna" GCC, używany domyslnie w Dev-C++. Stąd ta zabawa dyrektywami preprocesora (jakimś cudem obydwie funkcje mają tę samą składnię). Ech, ciężkie jest życie programisty ;-).
+</p>
+<p>
+Przyda nam się (a raczej użytkownikowi naszych kontrolek :-)) metoda do usuwania ikonek z kontrolki:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">RemoveAllImages</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">clear</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-symbol">-</span><span class="cpp1-number">1</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_NumPages</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space">  </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space">     </span><span class="cpp1-symbol">=</span><span class="cpp1-space">  </span><span class="cpp1-number">0</span><span class="cpp1-symbol">;<br>
+
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">RefreshLabel</span><span class="cpp1-symbol">();<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_lblTip</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setText</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;&quot;</span><span class="cpp1-symbol">);<br>
+}
+</span></span>
+</code>
+
+<p>
+No i cała reszta, czyli akcesory wszelakie. Omawiać ich chyba nie potrzeba:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">SetSpacing</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">spacing</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">spacing</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">spacing</span><span class="cpp1-symbol">;<br>
+}<br>
+<br>
+
+</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">GetSpacing</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Spacing</span><span class="cpp1-symbol">;<br>
+}<br>
+<br>
+
+</span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">SetSelected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">index</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">index</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&amp;&amp;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">index</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ImgList</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">size</span><span class="cpp1-symbol">())<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">index</span><span class="cpp1-symbol">;<br>
+}<br>
+<br>
+
+</span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">SetSelected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">column</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">row</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">column</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&amp;&amp;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">row</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&amp;&amp;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">column</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&amp;&amp;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">row</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">row</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">+</span><span class="cpp1-space"> </span><span class="cpp1-identifier">column</span><span class="cpp1-symbol">;<br></span><span class="cpp1-space">   
+</span><span class="cpp1-symbol">}<br>
+<br>
+
+</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">GetSelected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-symbol">;<br>
+}<br>
+<br>
+
+</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">GetPage</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">void</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-symbol">;<br>
+}<br>
+<br>
+
+</span><span class="cpp1-reservedword">void</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">SetPage</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">u32</span><span class="cpp1-space"> </span><span class="cpp1-identifier">page</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-space"> </span><span class="cpp1-symbol">||</span><span class="cpp1-space"> </span><span class="cpp1-identifier">page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&gt;=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_NumPages</span><span class="cpp1-symbol">)</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">return</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">page</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">m_Selected</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_Page</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_ColCount</span><span class="cpp1-space"> </span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">m_RowCount</span><span class="cpp1-symbol">;<br>
+}<br>
+<br>
+
+}</span><span class="cpp1-space"> </span><span class="cpp1-comment">// end namespace gui<br>
+</span><span class="cpp1-symbol">}</span><span class="cpp1-space"> </span><span class="cpp1-comment">// end namespace irr<br>
+</span></span>
+</code>
+
+<p>
+No i mamy naszą kontrolkę w pełni sprawną i gotową do użycia. Teraz dopiero zobaczymy, cośmy natworzyli :-). Przede wszystkim musimy włączyć napisany przed chwilą nagłówek:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-preprocessor">#include &quot;CGUIImageSelect.h&quot;
+</span></span>
+</code>
+
+<p>
+Teraz, o czym już wspominaliśmy, trzeba zainicjalizować klasę, przekazując jej wskaźnik do urządzenia. Nie muszę chyba mówić, że robimy to dopiero po utworzeniu tegoż urządzenia:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">Init</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">device</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<p>
+Ponieważ kontrolce nie zapewniliśmy żadnych ramek, ładniej będzie wyglądała, gdy umieścimy ją w jakimś okienku:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">IGUIWindow</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">wnd</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">guienv</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">addWindow</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-number">190</span><span class="cpp1-symbol">,</span><span class="cpp1-number">320</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;Image Select&quot;</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<p>
+Następnie tworzymy kontrolkę. Możemy też od razu ustawić jej odstępy, wywołując naszą metodę <code>SetSpacing()</code>:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">imgSelect</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">new</span><span class="cpp1-space"> </span><span class="cpp1-identifier">CGUIImageSelect</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">wnd</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-number">5</span><span class="cpp1-symbol">,</span><span class="cpp1-number">25</span><span class="cpp1-symbol">,</span><span class="cpp1-number">185</span><span class="cpp1-symbol">,</span><span class="cpp1-number">320</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-number">5</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">10</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">32</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">32</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">10000</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-identifier">imgSelect</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">SetSpacing</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">3</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+
+<p>
+Pozostaje załadowanie jakiejś tekstury, możemy też ustawić jej kolor maski na różowy, umożliwiając rysowanie ikonek bez tła:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">ITexture</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">texture</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-identifier">driver</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">getTexture</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-string">&quot;bestyje.bmp&quot;</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space">    </span><span class="cpp1-identifier">driver</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">makeColorKeyTexture</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">texture</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">SColor</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-number">255</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">255</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">0</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-number">255</span><span class="cpp1-symbol">));
+</span></span>
+</code>
+
+<p>
+...i dodanie kilku ikonek, by można było wreszcie cieszyć się widokiem w pełni działającej kontrolki:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">for</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-reservedword">int</span><span class="cpp1-space"> </span><span class="cpp1-identifier">i</span><span class="cpp1-symbol">=</span><span class="cpp1-number">0</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span class="cpp1-identifier">i</span><span class="cpp1-space"> </span><span class="cpp1-symbol">&lt;</span><span class="cpp1-space"> </span><span class="cpp1-number">10</span><span class="cpp1-symbol">;</span><span class="cpp1-space"> </span><span class="cpp1-symbol">++</span><span class="cpp1-identifier">i</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-identifier">imgSelect</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">AddImage</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">texture</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">rect</span><span class="cpp1-symbol">&lt;</span><span class="cpp1-identifier">s32</span><span class="cpp1-symbol">&gt;(</span><span class="cpp1-identifier">i</span><span class="cpp1-symbol">*</span><span class="cpp1-number">32</span><span class="cpp1-symbol">,</span><span class="cpp1-number">0</span><span class="cpp1-symbol">,(</span><span class="cpp1-identifier">i</span><span class="cpp1-symbol">+</span><span class="cpp1-number">1</span><span class="cpp1-symbol">)*</span><span class="cpp1-number">32</span><span class="cpp1-symbol">,</span><span class="cpp1-number">32</span><span class="cpp1-symbol">),</span><span class="cpp1-space"> </span><span class="cpp1-identifier">L</span><span class="cpp1-string">&quot;Ikona&quot;</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/imgselect.gif" ALT="Gotowa kontrolka CGUIImageSelect w akcji">
+</P>
+
+<p>
+Żeby nie było żadnych niedomówień, sprawdźmy jeszcze, jak się obsługuje zdarzenia wygenerowane w naszej kontrolce. Jak wiemy z tutoriali Irrlichta, musimy w tym celu stworzyć sobie klasę zwaną <SPAN CLASS="Inglisz">event receiver</SPAN>, czyli "otrzymujący zdarzenia":
+</p>
+
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">class</span><span class="cpp1-space"> </span><span class="cpp1-identifier">MyReceiver</span><span class="cpp1-space"> </span><span class="cpp1-symbol">:</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">public</span><span class="cpp1-space"> </span><span class="cpp1-identifier">IEventReceiver<br>
+</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-reservedword">public</span><span class="cpp1-symbol">:<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">virtual</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">bool</span><span class="cpp1-space"> </span><span class="cpp1-identifier">OnEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">SEvent</span><span class="cpp1-space"> </span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">);<br>
+};<br>
+</span></span>
+</code>
+
+<p>
+Następnie w funkcji <code>main()</code> tworzymy obiekt tej klasy i ustawiamy go jako aktualny "otrzymywacz zdarzeń":
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-identifier">IEventReceiver</span><span class="cpp1-symbol">*</span><span class="cpp1-space"> </span><span class="cpp1-identifier">MyReceiver</span><span class="cpp1-space"> </span><span class="cpp1-symbol">=</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">new</span><span class="cpp1-space"> </span><span class="cpp1-identifier">MyReceiverClass</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-identifier">device</span><span class="cpp1-symbol">-&gt;</span><span class="cpp1-identifier">setEventReceiver</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">MyReceiver</span><span class="cpp1-symbol">);
+</span></span>
+</code>
+
+<p>
+Po zakończeniu głównej pętli będziemy musieli zwolnić ten obiekt, gdyż sam interfejs <code>IEventReceiver</code> nie zapewnia zliczania referencji:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">delete</span><span class="cpp1-space"> </span><span class="cpp1-identifier">MyReceiver</span><span class="cpp1-symbol">;
+</span></span>
+</code>
+
+<p>
+Przykładowe zdarzenie z naszej kontrolki możemy obsłużyć następująco:
+</p>
+
+<code><span style="font: 10pt Courier New;"><span class="cpp1-reservedword">bool</span><span class="cpp1-space"> </span><span class="cpp1-identifier">MyReceiverClass</span><span class="cpp1-symbol">::</span><span class="cpp1-identifier">OnEvent</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">SEvent</span><span class="cpp1-space"> </span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">)<br>
+{<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">switch</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">EventType</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-reservedword">case</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EET_IMAGE_SELECT_EVENT</span><span class="cpp1-symbol">:<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-reservedword">if</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserData1</span><span class="cpp1-space"> </span><span class="cpp1-symbol">==</span><span class="cpp1-space"> </span><span class="cpp1-identifier">EIMGS_SEL_CHANGED</span><span class="cpp1-symbol">)<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-symbol">{<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="cpp1-identifier">printf</span><span class="cpp1-space"> </span><span class="cpp1-symbol">(</span><span class="cpp1-string">&quot;Uzytkownik zaznaczyl ikone nr %i\n&quot;</span><span class="cpp1-symbol">,</span><span class="cpp1-space"> </span><span class="cpp1-identifier">event</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserEvent</span><span class="cpp1-symbol">.</span><span class="cpp1-identifier">UserData2</span><span class="cpp1-symbol">);<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;&nbsp;</span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">true</span><span class="cpp1-symbol">;<br>
+</span><span class="cpp1-space">&nbsp;&nbsp;</span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-symbol">}<br>
+</span><span class="cpp1-space">&nbsp;</span><span class="cpp1-reservedword">return</span><span class="cpp1-space"> </span><span class="cpp1-reservedword">false</span><span class="cpp1-symbol">;<br></span><span class="cpp1-space">        
+</span><span class="cpp1-symbol">}
+
+</span></span>
+</code>
+
+
+<p>
+Myślę, że teraz wszystko jest jasne.
+</p>
+<p>
+Nasza nowa kontrolka może być wykorzystana na przykład do wyboru obiektu w edytorze map do jakiejś gry (zresztą po to właśnie została pierwotnie stworzona :-)) albo jako prosty toolbar. Na pewno znalazłoby się jeszcze bardzo wiele rzeczy, które można by (a nawet by należało) tutaj jeszcze zaimplementować, ale wiadomo, że w tego typu artykułach nie chodzi o drobiazgowość aż do bólu. Zresztą gdybym wyczerpał wszystkie możliwości, co zostałoby tobie, czytelnikuk, do samodzielnego eksperymentowania?
+</p>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN><A HREF="../cpp.html">&lt;&lt; Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A>
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+
+</FONT>
+
+</HTML>
+
+

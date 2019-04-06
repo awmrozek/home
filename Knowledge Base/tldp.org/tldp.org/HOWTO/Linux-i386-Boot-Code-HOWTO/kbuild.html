@@ -1,0 +1,350 @@
+<HTML
+><HEAD
+><TITLE
+>Kernel Build Example</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux i386 Boot Code HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="SMP Boot"
+HREF="smpboot.html"><LINK
+REL="NEXT"
+TITLE="Internal Linker Script"
+HREF="internel_lds.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux i386 Boot Code HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="smpboot.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="internel_lds.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="kbuild"
+></A
+>A. Kernel Build Example</H1
+><P
+>&#13;   Here is a kernel build example
+   (in <A
+HREF="http://www.redhat.com"
+TARGET="_top"
+>Redhat</A
+> 9.0).
+   Statements between "/*" and "*/" are in-line comments, not console output.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+><B
+CLASS="command"
+>[root@localhost root]# ln -s /usr/src/linux-2.4.20 /usr/src/linux</B
+>
+<B
+CLASS="command"
+>[root@localhost root]# cd /usr/src/linux</B
+>
+<B
+CLASS="command"
+>[root@localhost linux]# make xconfig</B
+>
+        <EM
+>/* Create .config
+         *   1. "Load Configuration from File" -&#62;
+         *        /boot/config-2.4.20-28.9, or whatever you like
+         *   2. Modify kernel configuration parameters
+         *   3. "Save and Exit" */</EM
+>
+<B
+CLASS="command"
+>[root@localhost linux]# make oldconfig</B
+>
+        <EM
+>/* Re-check .config, optional */</EM
+>
+<B
+CLASS="command"
+>[root@localhost linux]# vi Makefile</B
+>
+        <EM
+>/* Modify EXTRAVERSION in linux/Makefile, optional */</EM
+>
+<B
+CLASS="command"
+>[root@localhost linux]# make dep</B
+>
+        <EM
+>/* Create .depend and more */</EM
+>
+<B
+CLASS="command"
+>[root@localhost linux]# make bzImage</B
+>
+        <EM
+>/* ... Some output omitted */</EM
+>
+ld -m elf_i386 -T /usr/src/linux-2.4.20/arch/i386/vmlinux.lds -e stext arch/i386
+/kernel/head.o arch/i386/kernel/init_task.o init/main.o init/version.o init/do_m
+ounts.o \
+        --start-group \
+        arch/i386/kernel/kernel.o arch/i386/mm/mm.o kernel/kernel.o mm/mm.o fs/f
+s.o ipc/ipc.o \
+         drivers/char/char.o drivers/block/block.o drivers/misc/misc.o drivers/n
+et/net.o drivers/media/media.o drivers/char/drm/drm.o drivers/net/fc/fc.o driver
+s/net/appletalk/appletalk.o drivers/net/tokenring/tr.o drivers/net/wan/wan.o dri
+vers/atm/atm.o drivers/ide/idedriver.o drivers/cdrom/driver.o drivers/pci/driver
+.o drivers/net/pcmcia/pcmcia_net.o drivers/net/wireless/wireless_net.o drivers/p
+np/pnp.o drivers/video/video.o drivers/net/hamradio/hamradio.o drivers/md/mddev.
+o drivers/isdn/vmlinux-obj.o \
+        net/network.o \
+        /usr/src/linux-2.4.20/arch/i386/lib/lib.a /usr/src/linux-2.4.20/lib/lib.
+a /usr/src/linux-2.4.20/arch/i386/lib/lib.a \
+        --end-group \
+        -o vmlinux
+nm vmlinux | grep -v '\(compiled\)\|\(\.o$\)\|\( [aUw] \)\|\(\.\.ng$\)\|\(LASH[R
+L]DI\)' | sort &#62; System.map
+make[1]: Entering directory `/usr/src/linux-2.4.20/arch/i386/boot'
+gcc -E -D__KERNEL__ -I/usr/src/linux-2.4.20/include -D__BIG_KERNEL__ -traditiona
+l -DSVGA_MODE=NORMAL_VGA  bootsect.S -o bbootsect.s
+as -o bbootsect.o bbootsect.s
+bootsect.S: Assembler messages:
+bootsect.S:239: Warning: indirect lcall without `*'
+ld -m elf_i386 -Ttext 0x0 -s --oformat binary bbootsect.o -o bbootsect
+gcc -E -D__KERNEL__ -I/usr/src/linux-2.4.20/include -D__BIG_KERNEL__ -D__ASSEMBL
+Y__ -traditional -DSVGA_MODE=NORMAL_VGA  setup.S -o bsetup.s
+as -o bsetup.o bsetup.s
+setup.S: Assembler messages:
+setup.S:230: Warning: indirect lcall without `*'
+ld -m elf_i386 -Ttext 0x0 -s --oformat binary -e begtext -o bsetup bsetup.o
+make[2]: Entering directory `/usr/src/linux-2.4.20/arch/i386/boot/compressed'
+tmppiggy=_tmp_$$piggy; \
+rm -f $tmppiggy $tmppiggy.gz $tmppiggy.lnk; \
+objcopy -O binary -R .note -R .comment -S /usr/src/linux-2.4.20/vmlinux $tmppigg
+y; \
+gzip -f -9 &#60; $tmppiggy &#62; $tmppiggy.gz; \
+echo "SECTIONS { .data : { input_len = .; LONG(input_data_end - input_data) inpu
+t_data = .; *(.data) input_data_end = .; }}" &#62; $tmppiggy.lnk; \
+ld -m elf_i386 -r -o piggy.o -b binary $tmppiggy.gz -b elf32-i386 -T $tmppiggy.l
+nk; \
+rm -f $tmppiggy $tmppiggy.gz $tmppiggy.lnk
+gcc -D__ASSEMBLY__ -D__KERNEL__ -I/usr/src/linux-2.4.20/include -traditional -c
+head.S
+gcc -D__KERNEL__ -I/usr/src/linux-2.4.20/include -Wall -Wstrict-prototypes -Wno-
+trigraphs -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -pipe -mpref
+erred-stack-boundary=2 -march=i686 -DKBUILD_BASENAME=misc -c misc.c
+ld -m elf_i386 -Ttext 0x100000 -e startup_32 -o bvmlinux head.o misc.o piggy.o
+make[2]: Leaving directory `/usr/src/linux-2.4.20/arch/i386/boot/compressed'
+gcc -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -o tools/build tools/buil
+d.c -I/usr/src/linux-2.4.20/include
+objcopy -O binary -R .note -R .comment -S compressed/bvmlinux compressed/bvmlinu
+x.out
+tools/build -b bbootsect bsetup compressed/bvmlinux.out CURRENT &#62; bzImage
+Root device is (3, 67)
+Boot sector 512 bytes.
+Setup is 4780 bytes.
+System is 852 kB
+make[1]: Leaving directory `/usr/src/linux-2.4.20/arch/i386/boot'
+<B
+CLASS="command"
+>[root@localhost linux]# make modules modules_install</B
+>
+        <EM
+>/* ... Some output omitted */</EM
+>
+cd /lib/modules/2.4.20; \
+mkdir -p pcmcia; \
+find kernel -path '*/pcmcia/*' -name '*.o' | xargs -i -r ln -sf ../{} pcmcia
+if [ -r System.map ]; then /sbin/depmod -ae -F System.map  2.4.20; fi
+<B
+CLASS="command"
+>[root@localhost linux]# cp arch/i386/boot/bzImage /boot/vmlinuz-2.4.20</B
+>
+<B
+CLASS="command"
+>[root@localhost linux]# cp vmlinux /boot/vmlinux-2.4.20</B
+>
+<B
+CLASS="command"
+>[root@localhost linux]# cp System.map /boot/System.map-2.4.20</B
+>
+<B
+CLASS="command"
+>[root@localhost linux]# cp .config /boot/config-2.4.20</B
+>
+<B
+CLASS="command"
+>[root@localhost linux]# mkinitrd /boot/initrd-2.4.20.img 2.4.20</B
+>
+<B
+CLASS="command"
+>[root@localhost linux]# vi /boot/grub/grub.conf</B
+>
+        <EM
+>/* Add the following lines to grub.conf:
+title Linux (2.4.20)
+        kernel /vmlinuz-2.4.20 ro root=LABEL=/
+        initrd /initrd-2.4.20.img
+         */</EM
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>&#13;   Refer to <A
+HREF="http://kernelnewbies.org/faq/index.php3#compile"
+TARGET="_top"
+>&#13;   Kernelnewbies FAQ: How do I compile a kernel</A
+> and
+   <A
+HREF="http://www.digitalhermit.com/linux/kernel.html"
+TARGET="_top"
+>&#13;   Kernel Rebuild Procedure</A
+> for more details.
+  </P
+><P
+>&#13;   To build the kernel in <A
+HREF="http://www.debian.org"
+TARGET="_top"
+>Debian</A
+>,
+   also refer to
+<A
+HREF="http://www.debian.org/releases/stable/i386/ch-post-install.en.html#s-kernel-baking"
+TARGET="_top"
+>Debian Installation Manual: Compiling a New Kernel</A
+>,
+<A
+HREF="http://www.debian.org/doc/manuals/debian-faq/ch-kernel.en.html"
+TARGET="_top"
+>The Debian GNU/Linux FAQ: Debian and the kernel</A
+> and
+<A
+HREF="http://www.debian.org/doc/manuals/reference/ch-kernel.en.html"
+TARGET="_top"
+>Debian Reference: The Linux kernel under Debian</A
+>.
+   Check "<B
+CLASS="command"
+>zless /usr/share/doc/kernel-package/Problems.gz</B
+>"
+   if you encounter problems.
+  </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="smpboot.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="internel_lds.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>SMP Boot</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Internal Linker Script</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

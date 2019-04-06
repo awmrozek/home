@@ -1,0 +1,331 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Subclassing i superclassing</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apireg.html">&lt;&lt; Rejestr</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidll.html">DLL &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h2>
+SUBCLASSING POJEDYNCZEGO OKNA
+</h2>
+
+<P>
+Zapewne zdążyłeś już zauważyć, że wszelkie kontrolki twojej aplikacji mogą się okazać w pewnych sytuacjach upierdliwą przeszkodą. Jeśli na przykład tworzysz sobie edytor tekstu i chcesz, by wciśnięcie F12 powodowało zapisanie aktualnie otwartego dokumentu do pliku, to kontrolka <SPAN CLASS=L>EDIT</SPAN>, która przecież jest sercem twojego programu, w momencie otrzymania fokusa będzie przechwytywała wszelkie komunikaty od klawiatury (w tym również ten wywołany przez naciśnięcie F12) i interpretowała je po swojemu (np. strzałki będą poruszały kursorem, Enter - przejście do następnego wiersza itp.). W ten sposób twój klawisz odpowiedzialny za quick-save dokumentu będzie "działał" tylko wtedy, gdy pole tekstowe (EDIT) nie będzie miało fokusa.
+</P>
+<P>
+W skrócie: nie mamy kontroli nad komunikatami przechwyconymi przez kontrolkę! Taka sytuacja jest czasami dobra, a czasami zła (jak w przykładzie powyżej). W tym drugim przypadku mamy jednak sposób, żeby temu zaradzić: jest to właśnie subclassing. Z definicji:
+</P>
+
+<P class=UWAGA>
+Subclassing jest to zmiana wskaźnika do procedury okna dla pojedynczego okna lub całej klasy okien.
+</P>
+
+<P>
+Może to brzmieć nieco zawile (jak większość definicji), ale w gruncie rzeczy jest bardzo proste :-). Każde okno ma swoją własną procedurę okna, czego zresztą doświadczyliśmy na własnej skórze już w pierwszym odcinku kursu WinAPI (musieliśmy dla naszego głównego okna napisać procedurę okna i podać wskaźnik do niej przy rejestracji klasy okna). Jeśli mamy do czynienia z dwoma oknami tej samej klasy, to współdzielą one tę samą procedurę okna, np. wszystkie okna klasy <SPAN CLASS=L>EDIT</SPAN> (pola tekstowe) korzystają z procedury okna, która sprawia, że wciskanie klawiszy powoduje wyświetlanie w polu tekstowym literek, że działa zaznaczanie tekstu myszą, że kliknięcie prawym przyciskiem myszy wywołuje menu kontekstowe do edycji itp. Mimo to mamy możliwość zmiany procedury okna dla każdego okna z osobna.
+</P>
+
+<P class=UWAGA>
+Zmiana procedury okna powoduje powstanie podklasy (ang. <SPAN CLASS=Inglisz>subclass</SPAN>) dla klasy tego okna.
+</P>
+
+<P>
+Wniosek z tych rozważań jest prosty - podmieniając domyślną procedurę okna danej kontrolki możemy zmusić ją do interpretowania przechwyconych przez nią komunikatów w taki sposób, jaki NAM najbardziej odpowiada.
+</P>
+<P>
+Pora zabrać się wreszcie do roboty. Naszym zadaniem będzie zmuszenie pola tekstowego (załóżmy, że już je stworzyliśmy pod uchwytem <SPAN CLASS=T>g_hText</SPAN>), żeby reagowało jakoś na wciśnięcie klawiszy. Dodamy sobie tzw. sprzężenie zwrotne (ktoś jeszcze pamięta czasy Atari? ;-)), czyli wkurzający sygnał dźwiękowy po każdym wciśnięciu klawisza. Na początku spróbujemy zrobić to "normalnie", czyli dopisując odpowiedni kod do głównej procedury okna:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_KEYDOWN:<BR>
+{<BR>
+&nbsp;Beep(<SPAN CLASS=L>0, 0</SPAN>);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać (lub raczej słychać), wciśnięcie każdego klawisza daje nam sygnał dźwiękowy, o ile pole tekstowe nie ma fokusa. Jeśli spróbujemy cokolwiek w nim napisać i dopiero wtedy wcisnąć coś, sygnału nie będzie. Przyczynę już znamy - pole tekstowe przechwytuje wszystkie naciśnięcia klawiszy i nie chce ich oddać do głównego okna. Zaraz mu powiemy, co o tym myślimy.
+</P>
+<P>
+Zacznijmy od napisania nowej procedury okna dla pola tekstowego - jej zadaniem będzie wywołanie funkcji <SPAN CLASS=T>Beep </SPAN>w przypadku naciśnięcia klawisza (czyli to samo, co robi obecnie główna procedura okna):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LRESULT CALLBACK NewWndProc(HWND hwnd, UINT mesg, WPARAM wParam, LPARAM lParam)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(mesg)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_KEYDOWN:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;Beep(<SPAN CLASS=L>0, 0</SPAN>);<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Na razie nie jest to zbyt dobry kod, ponieważ skopiowaliśmy to, co już mieliśmy w innym miejscu napisane (chodzi o <SPAN CLASS=T>Beep)</SPAN> - to zły nawyk :-). Nie przejmujemy się tym jednak w tej chwili i idziemy dalej. Musimy teraz "podmienić" procedurę okna pola tekstowego. Służy do tego funkcja <SPAN CLASS=T>SetWindowLong</SPAN>. Pamiętaj, żeby wywołać ją już PO utworzeniu pola tekstowego:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+// <-- utworzenie pola tekstowego o uchwycie g_hText<BR></SPAN>
+<BR>
+SetWindowLong(g_hText, GWL_WNDPROC, (LONG)NewWndProc);<BR>
+<BR><SPAN CLASS=C>
+// <-- wejście w pętlę komunikatów<BR></SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Hmmm, podejrzane - nasze pole tekstowe diabli wzięli! Gdzie się podziało? Bez obaw, jest ciągle tam, gdzie wcześniej, tylko po prostu się nie narysowało :-). Powód - "zabierając" mu domyślną procedurę okna pozbawiliśmy je jednocześnie całej funkcjonalności; teraz jest więc właściwie bezużyteczne. Stąd wniosek, że aby dokonać prawidłowego subclassingu, musimy nie tylko napisać nową procedurę okna, ale też zachować "starą" i wywołać ją w odpowiednim momencie, żeby pole tekstowe mogło sobie obsłużyć pozostałe, nie interesujące nas komunikaty (a niezbędne do jego normalnego funkcjonowania).
+</P>
+<P>
+Do "ręcznego" wywoływania procedury okna służy funkcja <SPAN CLASS=T>CallWindowProc</SPAN>. Oczywiście, aby wywołać "starą" procedurę okna pola tekstowego, musimy gdzieś zapamiętać wskaźnik do niej. Tak więc musimy ten wskaźnik zadeklarować (jako zmienną globalną najlepiej):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+WNDPROC g_OldWndProc;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+...oraz poprawić wywołanie <SPAN CLASS=T>SetWindowLong</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+g_OldWndProc = (WNDPROC)SetWindowLong(g_hText, GWL_WNDPROC, (LONG)NewWndProc);
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz dysponujemy już wskaźnikiem do domyślnej procedury okna dla wszystkich pól tekstowych Windowsa i nie zawahamy się go użyć ;-). Wprowadźmy w tym celu korektę do naszej nowej procedury okna:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LRESULT CALLBACK NewWndProc(HWND hwnd, UINT mesg, WPARAM wParam, LPARAM lParam)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(mesg)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_KEYDOWN:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;Beep(<SPAN CLASS=L>0, 0</SPAN>);<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> CallWindowProc(g_OldWndProc, hwnd, mesg, wParam, lParam);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Od tej pory wszystko zaczęło działać tak, jak sobie tego życzyliśmy. Pozostaje tylko zadbać o jeden szczegół: otóż jak wspomniałem wcześniej, zrobiliśmy małe powtórzenie (dwa razy wywołujemy funkcję <SPAN CLASS=T>Beep</SPAN> w odpowiedzi na to samo zdarzenie - osobno dla głównego okna, osobno dla pola tekstowego). Powinniśmy zmienić to tak, żeby wciśnięcie klawisza w polu tekstowym było przekazywane do procedury głównego okna aplikacji. Teraz już wiemy, jak to można zrobić - posłużymy się po raz drugi znaną już funkcją <SPAN CLASS=T>CallWindowProc</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LRESULT CALLBACK NewWndProc(HWND hwnd, UINT mesg, WPARAM wParam, LPARAM lParam)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(mesg)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_KEYDOWN:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;CallWindowProc(WndProc, hwnd, mesg, wParam, lParam);<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> CallWindowProc(g_OldWndProc, hwnd, mesg, wParam, lParam);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście zakładam tutaj, że twoja główna procedura okna nazywa się właśnie <SPAN CLASS=T>WndProc</SPAN>. Dzięki powyższemu zabiegowi uzyskaliśmy po prostu to, że od tej pory pole tekstowe nie zachowuje naciśnięć klawiszy wyłącznie dla siebie, lecz przekazuje je najpierw do głównego okna, a dopiero potem samo je sobie obsługuje (jeśli musi).
+</P>
+<P>
+Taki rodzaj subclassingu, któremu poddajemy tylko pojedyncze okienka, nazywamy <SPAN CLASS=Wazne>subclassingiem wystąpienia</SPAN> (<SPAN CLASS=Inglisz>instance subclassing</SPAN>).
+</P>
+
+<h2>
+TWORZENIE PODKLASY OKIEN
+</H2>
+
+<P>
+Gdybyśmy po użyciu subclassingu wystąpienia na klasie <SPAN CLASS=L>EDIT</SPAN> stworzyli następne pola tekstowe, to zachowywałyby się już one normalnie (czyli nie wydawałyby żadnych głupich dźwięków ;-)). Czasami może nam jednak zależeć na czymś więcej - zmodyfikowaniu całej klasy kontrolek, np. właśnie pól tekstowych, tak aby wydawały one dźwięki podczas pisania.
+</P>
+<P>
+Możemy to uczynić dzięki funkcji <SPAN CLASS=T>SetClassLong</SPAN>. Funkcja ta zmienia parametry klasy, tak więc zmiany będą dotyczyć tylko tych okien, które zostaną utworzone PO modyfikacji klasy. Taki rodzaj subclassingu nazywamy <SPAN CLASS=Wazne>globalnym subclassingiem</SPAN>.
+</P>
+<P>
+Argumenty funkcji <SPAN CLASS=T>SetClassLong</SPAN> są w zasadzie takie same, jak w przypadku <SPAN CLASS=T>SetWindowLong</SPAN>, zmienia się jednak nieco ich znaczenie. Przede wszystkim parametry klasy to zupełnie co innego, niż parametry okna. Dzięki <SPAN CLASS=T>SetClassLong</SPAN> możemy więc zmienić np. kolor tła okna, domyślny kursor, menu, ikonę, style klasy (nie mylić ze stylami okna). Jedyna wspólna rzecz z funkcją <SPAN CLASS=T>SetWindowLong</SPAN> to możliwość zmiany procedury okna, i tę właśnie możliwość wykorzystamy do globalnego subclassingu.
+</P>
+<P>
+Warto zwrócić uwagę, że <SPAN CLASS=T>SetClassLong</SPAN> nie pobiera nazwy klasy, którą modyfikujemy, lecz uchwyt do okna tej klasy (który pośrednio również identyfikuje klasę). Tak więc...
+</P>
+
+<P class=UWAGA>
+Aby dokonać globalnego subclassingu, musimy dysponować uchwytem do już utworzonego okna danej klasy.
+</P>
+
+<P>
+Jeżeli akurat nie mamy takiego okna, to możemy je sobie stworzyć. Nie musi ono być widoczne, tak więc jeśli będzie nam w aplikacji potrzebne wyłącznie do subclassingu, to "zapominamy" dać mu flagę <SPAN CLASS=T>WS_VISIBLE</SPAN>. Nie musimy też martwić się zbytnio o pozostałe jego parametry ani tym bardziej o rozszerzone style (możemy więc skorzystać z nieco prostszego <SPAN CLASS=T>CreateWindow</SPAN> zamiast <SPAN CLASS=T>CreateWindowEx</SPAN>) - potrzebujemy tylko jakiegokolwiek okna tej klasy - w tym przypadku pola tekstowego:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+g_hDummy = CreateWindow(<SPAN CLASS=L>"EDIT"</SPAN>, NULL, WS_CHILD <SPAN CLASS=C>/*| WS_VISIBLE*/</SPAN>,<SPAN CLASS=L> 0, 0, 0, 0</SPAN>, hwnd, NULL, hThisInstance, NULL);
+</TD></TR>
+</TABLE>
+
+<P>
+Następnym krokiem będzie zastąpienie "starej" procedury okna nową:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+g_OldWndProc = (WNDPROC)SetClassLong(g_hDummy, GCL_WNDPROC, (LONG)NewWndProc);
+</TD></TR>
+</TABLE>
+
+<P>
+Od tej pory każde nowo utworzone okienko klasy <SPAN CLASS=L>EDIT</SPAN> będzie wydawało irytujące dźwięki przy pisaniu ;-). Sprawdźmy zresztą:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+CreateWindowEx(WS_EX_CLIENTEDGE, <SPAN CLASS=L>"EDIT"</SPAN>, NULL, WS_CHILD | WS_VISIBLE | WS_BORDER, <SPAN CLASS=L>50, 50, 150, 25</SPAN>, hwnd, NULL, hThisInstance, NULL);<BR>
+CreateWindowEx(WS_EX_CLIENTEDGE, <SPAN CLASS=L>"EDIT"</SPAN>, NULL, WS_CHILD | WS_VISIBLE | WS_BORDER, <SPAN CLASS=L>50, 85, 150, 25</SPAN>, hwnd, NULL, hThisInstance, NULL);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wszystko się zgadza; mamy dwa pola tekstowe, a obydwa wydają dźwięki, nawet jeśli usuniemy z procedury <SPAN CLASS=T>WndProc</SPAN> wywołanie funkcji <SPAN CLASS=T>Beep</SPAN>. Warto jeszcze zadbać o to, żeby nam się system nie wykrzaczył, co teoretycznie można spowodować, zapominając o usunięciu subclassingu z systemowej klasy <SPAN CLASS=L>EDIT</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_DESTROY: <SPAN CLASS=C>//do głównej procedury okna</SPAN><BR>
+{<BR>
+&nbsp;SetClassLong(g_hDummy, GCL_WNDPROC, (LONG)g_OldWndProc);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;
+</TD></TR>
+</TABLE>
+
+<P>
+W przypadku subclassingu wystąpienia nie musieliśmy tego robić, ponieważ tam eksperymentowaliśmy tylko na pojedynczych oknach, których żywot kończył się wraz z działaniem naszej aplikacji. Tym razem modyfikujemy całą klasę, a więc wprowadzone przez nas zmiany mogą dotyczyć całego systemu.
+</P>
+<P>
+Na koniec jeszcze jedna przestroga:
+</P>
+
+<P class=UWAGA>
+Ten przykład to jeszcze jeden z serii "dzieci, nie róbcie tego w domu!". Microsoft nie zaleca modyfikowania systemowych klas okien, takich jak EDIT. Jeśli chcemy masowo tworzyć okna o zmienionym przez nas zachowaniu, powinniśmy korzystać z superclassingu.
+</P>
+
+<h2>
+SUPERCLASSING
+</h2>
+
+<P>
+Oprócz "psucia" istniejących już klas możemy na ich podstawie utworzyć własną, całkowicie nową klasę (przypomina to nieco mechanizm dziedziczenia w C++). To jest właśnie <SPAN CLASS=Wazne>superclassing</SPAN>. Jest on techniką stuprocentowo bezpieczną (w przeciwieństwie do subclassingu), ponieważ taka superklasa "widoczna" jest tylko w obrębie naszej aplikacji i na resztę systemu w żaden sposób nie wpływa.
+</P>
+<P>
+Zabawę w superclassing zaczynamy od pobrania informacji o klasie bazowej - na przykład <SPAN CLASS=L>EDIT</SPAN>. Robi się to przy pomocy <SPAN CLASS=T>GetClassInfo</SPAN> bądź <SPAN CLASS=T>GetClassInfoEx</SPAN>. Funkcje te wypełniają żądanymi informacjami odpowiednią strukturę - w pierwszym przypadku <SPAN CLASS=T>WNDCLASS</SPAN>, w drugim - <SPAN CLASS=T>WNDCLASSEX</SPAN>. Jak być może pamiętasz z pierwszego odcinka kursu, jedyną właściwie różnicą pomiędzy tymi strukturami jest brak w tej pierwszej pola odpowiedzialnego za małą ikonkę, tak więc jako lenie patentowane wybieramy drogę na skróty i bierzemy funkcję <SPAN CLASS=T>GetClassInfo</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+WNDCLASS wc;<BR>
+GetClassInfo(hThisInstance, <SPAN CLASS=L>"EDIT"</SPAN>, &wc);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jako się rzekło, struktura ma zostać wypełniona aż po brzegi niezbędnymi informacjami. No, może z tymi brzegami to lekka przesada, ponieważ aż trzy pola struktury nie są przez <SPAN CLASS=T>GetClassInfo</SPAN> w ogóle ruszane: <SPAN CLASS=T>lpszMenuName, lpszClassName, hInstance</SPAN>. Powody są w sumie oczywiste; możesz się ich sam domyślić. Wszystkie te trzy pola wypełniamy sami:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+wc.lpszMenuName = NULL;<BR>
+wc.lpszClassName = <SPAN CLASS=L>"Nowy, lepszy EDIT ;-)"</SPAN>;<BR>
+wc.hInstance = hThisInstance;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pole <SPAN CLASS=T>lpszClassName</SPAN> ma zawierać nową nazwę klasy - tu wpisz, co chcesz. Z kolei pole <SPAN CLASS=T>hInstance</SPAN> powinno zawierać uchwyt wystąpienia naszej aplikacji. Menu nie mamy, więc <SPAN CLASS=T>lpszMenuName</SPAN> możemy po prostu olać.
+</P>
+<P>
+Pozostaje najważniejsza część zadania, czyli wstawienie nowej procedury okna (użyjemy tej zdefiniowanej w poprzednich przykładach, wprowadzającej dźwięki towarzyszące klawiszom), a także zapamiętanie wskaźnika do "starej" procedury:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+g_OldWndProc = wc.lpfnWndProc;<BR>
+wc.lpfnWndProc = NewWndProc;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Struktura z informacjami o nowej klasie jest już gotowa do użycia; możemy teraz tę klasę zarejestrować. Proces ten jest nam już znany z poczatków kursu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(!RegisterClass(&wc))<BR>
+{<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Nie udało się zarejestrować nowej klasy.", "Yh..."</SPAN>, MB_ICONSTOP);<BR>
+&nbsp;DestroyWindow(hwnd);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jeśli wszystko poszło OK, to dysponujemy od tego momentu klasą o wdzięcznej nazwie <SPAN CLASS=L>"Nowy, lepszy EDIT ;-)"</SPAN> i możemy tworzyć kontrolki tej klasy, podając taką właśnie nazwę jako argument funkcji <SPAN CLASS=T>CreateWindowEx</SPAN>. Jeśli natomiast utworzymy kontrolkę, podająć nazwę <SPAN CLASS=L>"EDIT"</SPAN>, to utworzone zostanie najzwyklejsze pole tekstowe, bez żadnych dźwięków. Zauważ, że w przeciwieństwie do globalnego subclassingu nie musimy wykonywać tutaj żadnego sprzątania, czyli przywracać "starej" procedury okna klasie przy kończeniu działania aplikacji, ponieważ klasa ta będzie "odrejestrowana" automatycznie (jak wszystkie klasy zarejestrowane przez naszą aplikację).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apireg.html">&lt;&lt; Rejestr</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidll.html">DLL &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>

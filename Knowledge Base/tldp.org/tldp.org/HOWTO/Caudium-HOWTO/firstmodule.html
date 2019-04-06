@@ -1,0 +1,417 @@
+<HTML
+><HEAD
+><TITLE
+>Your first module</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Caudium HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Developing with Caudium"
+HREF="developing.html"><LINK
+REL="PREVIOUS"
+TITLE="Your first Pike script"
+HREF="firstpikescript.html"><LINK
+REL="NEXT"
+TITLE="How to use a backtrace"
+HREF="backtrace.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Caudium HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="firstpikescript.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 6. Developing with Caudium</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="backtrace.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="firstmodule">6.4. Your first module</H1
+><P
+>&#13;      With a custom module you can do all sorts of things:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	  You can create a professional quality administration center very easily.
+	</P
+></LI
+><LI
+><P
+>&#13;	  You don't need any more <SPAN
+CLASS="QUOTE"
+>"&#38;"</SPAN
+> symbols in the URL.
+	</P
+></LI
+><LI
+><P
+>&#13;	  You can also use <TT
+CLASS="option"
+>per user variables</TT
+>, also known as <TT
+CLASS="option"
+>session variables</TT
+>.
+	</P
+></LI
+><LI
+><P
+>&#13;	  You'll get better performance since the module is part of the server.
+	</P
+></LI
+><LI
+><P
+>&#13;	  You can separate big projects into different modules, and do calls
+	  between different modules. This way, your project is not a big complex
+	  of messy code, but a set of simple, easy to extend code modules. 
+	</P
+></LI
+><LI
+><P
+>&#13;	  You can separate data from code by using tags and containers. This also
+	  allows you to delegate the appearance to your webmaster, and lets you focus
+	  on the important code. 
+	</P
+></LI
+><LI
+><P
+>&#13;	  You can easily share your code with the Caudium community. If your code
+	  is good and useful, it can become part of the Caudium distribution. This way
+	  more people will test it, you will have more feedback, and some people may
+	  help you with your project, and may even maintain it. 
+	</P
+></LI
+></UL
+><P
+>&#13;      There are different types of modules, for example:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;	  Location:
+	</P
+><P
+>&#13;	  This is the most common module, your code is called when
+	  the user hits the URL you specify in the mount point.
+	</P
+></LI
+><LI
+><P
+>&#13;	  Parser:
+	</P
+><P
+>&#13;	  Your code is called when Caudium parse a file containing 
+	  the tags and/or containers you define.
+	</P
+></LI
+><LI
+><P
+>&#13;	  Authentication:
+	</P
+><P
+>&#13;	  Used to authenticate users with, for example, LDAP,
+	  shadow, or SQL.
+	</P
+></LI
+><LI
+><P
+>&#13;	  Directory:
+	</P
+><P
+>&#13;	  For indexing files in a directory.
+	</P
+></LI
+><LI
+><P
+>&#13;	  First module:
+	</P
+><P
+>&#13;	  Module that is called just after the authentication
+	  module, thus letting you handle the whole request before normal processing.
+	</P
+></LI
+></UL
+><P
+>&#13;      There are other module types.  For a complete reference see the Roxen 1.3
+      Programmer's Guide at 
+      <A
+HREF="http://caudium.info/"
+TARGET="_top"
+>http://caudium.info/</A
+>.
+    </P
+><P
+>&#13;      For an example on how to write a container, see <TT
+CLASS="filename"
+>fnord.pike</TT
+> in
+      <TT
+CLASS="filename"
+>/Caudium/sources</TT
+>. Because the location module is a must, here is another
+      example:
+    </P
+><DIV
+CLASS="example"
+><A
+NAME="AEN988"><P
+><B
+>Example 6-6. A sample module.</B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;// It is intended to show a simple example of a location module.
+
+// This module output the result of the who(1) command. It is not meant to
+// be really useful since it would be better to do a &#60;who /&#62; tag thus
+// having data in the HTML files and code here
+
+// This variable is shown in the configuration interface as the
+// version of the module.
+string CVS_version = "$Id";
+
+// Tell Caudium that this module is 'thread safe', that is, there is no
+// request-specific data in global variables.
+int thread_safe=1;
+
+#include &#60;module.h&#62;
+inherit "module";
+// for the http_string_answer API
+inherit "caudiumlib"; 
+ 
+// Documentation:
+ 
+constant module_type = MODULE_LOCATION;
+constant module_name = "Who";
+constant module_doc  = "Send the result of the who(1) command ";
+constant module_unique = 1;
+
+// The constructor of this module.
+// This function is called each time you/Caudium load the module
+void create()
+{
+  defvar("location", "/who", "Mount point", TYPE_LOCATION, 
+  "The mount point of this module"); 
+  /* each string have to be on a single
+   line, don't do: "The mount point of
+   this module".
+   You can however do "The mount point of "
+   "this module";
+   */
+  defvar("path2who", "/usr/bin/who", 
+  "Path to the who command", TYPE_FILE);
+  defvar("options2who", "-a", 
+  "Options given to who", TYPE_STRING);
+  defvar("codebeforewho", "&#60;html&#62;&#60;body&#62;&#60;p&#62;", 
+  "The code to output before who", TYPE_STRING);
+  defvar("codeafterwho", "&#60;/p&#62;&#60;/body&#62;&#60;/html&#62;", "The code to output after who",
+  TYPE_STRING);
+}
+
+// This function is called when a user access mount point
+// path is the path to the URL he used
+// id contains Caudium global variables such as browser name,...
+mixed find_file(string path, object id)
+{
+  // get the contents of the CIF. variables path2who and options2who 
+  // and put a single space between it.
+  string command = QUERY(path2who)+" "+QUERY(options2who);
+  // this will write the result of command to the debug log file
+  // very useful for debug
+  write(sprintf("command=%s\n", command));
+  string result = Process.popen(command);
+  // replacing \n by \n&#60;br /&#62; for better output
+  result = replace(result, "\n","\n&#60;br /&#62;");
+  return http_string_answer(QUERY(codebeforewho)+result+QUERY(codeafterwho));
+}
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>&#13;      Put this code in <TT
+CLASS="filename"
+>../local/modules/who.pike</TT
+> relative to 
+      <TT
+CLASS="filename"
+>/usr/local/caudium/server</TT
+> 
+      in our example. Log into the <SPAN
+CLASS="abbrev"
+>CIF.</SPAN
+>, if it is not
+      the case and go into the main <TT
+CLASS="option"
+>Action</TT
+> tab -&#62; <TT
+CLASS="option"
+>Cache</TT
+> -&#62; 
+      <TT
+CLASS="option"
+>Flush caches</TT
+>. Check the <TT
+CLASS="option"
+>Module cache</TT
+> check the box and press
+      <TT
+CLASS="option"
+>Next</TT
+>, then <TT
+CLASS="option"
+>OK</TT
+>.
+    </P
+><P
+>&#13;      Come back to the main <TT
+CLASS="option"
+>Virtual servers</TT
+> tab and choose one of your
+      servers. Do <TT
+CLASS="option"
+>Add module</TT
+> and select the <TT
+CLASS="option"
+>who</TT
+> module. If you don't have the
+      who module, check your events log.
+    </P
+><P
+>&#13;      You don't need to compile to have a working module. You
+      don't even need to restart the web server. When you develop a module and
+      change the code every 30 seconds, you just have to push the <TT
+CLASS="option"
+>Reload</TT
+> button
+      to get the changes. It takes about one second and if there was a
+      compilation error the old copy remains for users.
+    </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="firstpikescript.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="backtrace.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Your first Pike script</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="developing.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>How to use a backtrace</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,832 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>KernelAnalysis-HOWTO: Fundamentals</TITLE>
+ <LINK HREF="KernelAnalysis-HOWTO-4.html" REL=next>
+ <LINK HREF="KernelAnalysis-HOWTO-2.html" REL=previous>
+ <LINK HREF="KernelAnalysis-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="KernelAnalysis-HOWTO-4.html">Next</A>
+<A HREF="KernelAnalysis-HOWTO-2.html">Previous</A>
+<A HREF="KernelAnalysis-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Fundamentals</A></H2>
+
+<H2><A NAME="ss3.1">3.1 What is the kernel?</A>
+</H2>
+
+<P>The kernel is the "core" of any computer system: it is the  "software"
+which allows users to share computer resources.
+<P>
+<P>The kernel can be thought as the main software of the OS (Operating
+System), which may also include graphics management. 
+<P>
+<P>For example, under Linux (like other Unix-like OSs), the XWindow
+environment doesn't belong to the Linux Kernel, because it manages
+only graphical operations (it uses user mode I/O to access video
+card devices). 
+<P>
+<P>By contrast, Windows environments (Win9x, WinME, WinNT, Win2K,
+WinXP, and so on) are a mix between a graphical environment and kernel.
+<P>
+<H2><A NAME="ss3.2">3.2 What is the difference between User Mode and Kernel Mode?</A>
+</H2>
+
+<H3>Overview</H3>
+
+<P>Many years ago, when computers were as big as a room, users ran
+their applications with much difficulty and, sometimes, their applications
+crashed the computer. 
+<P>
+<H3>Operative modes</H3>
+
+<P>To avoid having applications that constantly crashed, newer OSs
+were designed with 2 different operative modes:
+<P>
+<P>
+<OL>
+<LI>Kernel Mode: the machine operates with critical data structure,
+direct hardware (IN/OUT or memory mapped), direct memory, IRQ, DMA,
+and so on.</LI>
+<LI>User Mode: users can run applications.
+</LI>
+</OL>
+<P>
+<PRE>
+                      
+               |          Applications           /|\
+               |         ______________           |
+               |         | User Mode  |           |  
+               |         ______________           | 
+               |               |                  |  
+Implementation |        _______ _______           |   Abstraction
+    Detail     |        | Kernel Mode |           |
+               |        _______________           |
+               |               |                  |
+               |               |                  | 
+               |               |                  |
+              \|/          Hardware               |
+</PRE>
+<P>Kernel Mode "prevents" User Mode applications from damaging the
+system or its features.
+<P>
+<P>Modern microprocessors implement in hardware at least 2 different
+states. For example under Intel, 4 states determine the PL (Privilege
+Level). It is possible to use 0,1,2,3 states, with 0 used in Kernel
+Mode. 
+<P>
+<P>Unix OS requires only 2 privilege levels, and we will use such
+a paradigm as point of reference.
+<P>
+<H2><A NAME="ss3.3">3.3 Switching from User Mode to Kernel Mode</A>
+</H2>
+
+<H3>When do we switch?</H3>
+
+<P>Once we understand that there are 2 different modes, we have
+to know when we switch from one to the other.
+<P>
+<P>Typically, there are 2 points of switching:
+<P>
+<P>
+<OL>
+<LI>When calling a System Call: after calling a System Call, the
+task voluntary calls pieces of code living in Kernel Mode</LI>
+<LI>When an IRQ (or exception) comes: after the IRQ an IRQ handler
+(or exception handler) is called, then control returns back to the
+task that was interrupted like nothing was happened.
+</LI>
+</OL>
+<H3>System Calls</H3>
+
+<P>System calls are like special functions that manage OS routines
+which live in Kernel Mode.
+<P>
+<P>A system call can be called when we:
+<P>
+<P>
+<UL>
+<LI>access an I/O device or a file (like read or write)</LI>
+<LI>need to access privileged information (like pid, changing scheduling
+policy or other information)</LI>
+<LI>need to change execution context (like forking or executing some
+other application) </LI>
+<LI>need to execute a particular command (like ''chdir'', ''kill",
+''brk'', or ''signal'')
+</LI>
+</UL>
+<P>
+<PRE>
+                                 |                |
+                         -------&gt;| System Call i  | (Accessing Devices)
+|                |       |       |  [sys_read()]  |
+| ...            |       |       |                |
+| system_call(i) |--------       |                |
+|   [read()]     |               |                |
+| ...            |               |                |
+| system_call(j) |--------       |                |  
+|   [get_pid()]  |       |       |                |
+| ...            |       -------&gt;| System Call j  | (Accessing kernel data structures)
+|                |               |  [sys_getpid()]|
+                                 |                | 
+ 
+    USER MODE                        KERNEL MODE
+ 
+  
+                        Unix System Calls Working 
+</PRE>
+<P>System calls are almost the only interface used by User Mode
+to talk with low level resources (hardware). The only exception to
+this statement is when a process uses ''ioperm'' system call. In
+this case a device can be accessed directly by User Mode process
+(IRQs cannot be used).
+<P>
+<P>NOTE: Not every ''C'' function is a system call, only some of
+them.
+<P>
+<P>Below is a list of System Calls under Linux Kernel 2.4.17, from
+[ arch/i386/kernel/entry.S ]
+<P>
+<P>
+<PRE>
+        .long SYMBOL_NAME(sys_ni_syscall)       /* 0  -  old &quot;setup()&quot; system call*/
+        .long SYMBOL_NAME(sys_exit)
+        .long SYMBOL_NAME(sys_fork)
+        .long SYMBOL_NAME(sys_read)
+        .long SYMBOL_NAME(sys_write)
+        .long SYMBOL_NAME(sys_open)             /* 5 */
+        .long SYMBOL_NAME(sys_close)
+        .long SYMBOL_NAME(sys_waitpid)
+        .long SYMBOL_NAME(sys_creat)
+        .long SYMBOL_NAME(sys_link)
+        .long SYMBOL_NAME(sys_unlink)           /* 10 */
+        .long SYMBOL_NAME(sys_execve)
+        .long SYMBOL_NAME(sys_chdir)
+        .long SYMBOL_NAME(sys_time)
+        .long SYMBOL_NAME(sys_mknod)
+        .long SYMBOL_NAME(sys_chmod)            /* 15 */
+        .long SYMBOL_NAME(sys_lchown16)
+        .long SYMBOL_NAME(sys_ni_syscall)                               /* old break syscall holder */
+        .long SYMBOL_NAME(sys_stat)
+        .long SYMBOL_NAME(sys_lseek)
+        .long SYMBOL_NAME(sys_getpid)           /* 20 */
+        .long SYMBOL_NAME(sys_mount)
+        .long SYMBOL_NAME(sys_oldumount)
+        .long SYMBOL_NAME(sys_setuid16)
+        .long SYMBOL_NAME(sys_getuid16)
+        .long SYMBOL_NAME(sys_stime)            /* 25 */
+        .long SYMBOL_NAME(sys_ptrace)
+        .long SYMBOL_NAME(sys_alarm)
+        .long SYMBOL_NAME(sys_fstat)
+        .long SYMBOL_NAME(sys_pause)
+        .long SYMBOL_NAME(sys_utime)            /* 30 */
+        .long SYMBOL_NAME(sys_ni_syscall)                               /* old stty syscall holder */
+        .long SYMBOL_NAME(sys_ni_syscall)                               /* old gtty syscall holder */
+        .long SYMBOL_NAME(sys_access)
+        .long SYMBOL_NAME(sys_nice)
+        .long SYMBOL_NAME(sys_ni_syscall)       /* 35 */                /* old ftime syscall holder */
+        .long SYMBOL_NAME(sys_sync)
+        .long SYMBOL_NAME(sys_kill)
+        .long SYMBOL_NAME(sys_rename)
+        .long SYMBOL_NAME(sys_mkdir)
+        .long SYMBOL_NAME(sys_rmdir)            /* 40 */
+        .long SYMBOL_NAME(sys_dup)
+        .long SYMBOL_NAME(sys_pipe)
+        .long SYMBOL_NAME(sys_times)
+        .long SYMBOL_NAME(sys_ni_syscall)                               /* old prof syscall holder */
+        .long SYMBOL_NAME(sys_brk)              /* 45 */
+        .long SYMBOL_NAME(sys_setgid16)
+        .long SYMBOL_NAME(sys_getgid16)
+        .long SYMBOL_NAME(sys_signal)
+        .long SYMBOL_NAME(sys_geteuid16)
+        .long SYMBOL_NAME(sys_getegid16)        /* 50 */
+        .long SYMBOL_NAME(sys_acct)
+        .long SYMBOL_NAME(sys_umount)                                   /* recycled never used phys() */
+        .long SYMBOL_NAME(sys_ni_syscall)                               /* old lock syscall holder */
+        .long SYMBOL_NAME(sys_ioctl)
+        .long SYMBOL_NAME(sys_fcntl)            /* 55 */
+        .long SYMBOL_NAME(sys_ni_syscall)                               /* old mpx syscall holder */
+        .long SYMBOL_NAME(sys_setpgid)
+        .long SYMBOL_NAME(sys_ni_syscall)                               /* old ulimit syscall holder */
+        .long SYMBOL_NAME(sys_olduname)
+        .long SYMBOL_NAME(sys_umask)            /* 60 */
+        .long SYMBOL_NAME(sys_chroot)
+        .long SYMBOL_NAME(sys_ustat)
+        .long SYMBOL_NAME(sys_dup2)
+        .long SYMBOL_NAME(sys_getppid)
+        .long SYMBOL_NAME(sys_getpgrp)          /* 65 */
+        .long SYMBOL_NAME(sys_setsid)
+        .long SYMBOL_NAME(sys_sigaction)
+        .long SYMBOL_NAME(sys_sgetmask)
+        .long SYMBOL_NAME(sys_ssetmask)
+        .long SYMBOL_NAME(sys_setreuid16)       /* 70 */
+        .long SYMBOL_NAME(sys_setregid16)
+        .long SYMBOL_NAME(sys_sigsuspend)
+        .long SYMBOL_NAME(sys_sigpending)
+        .long SYMBOL_NAME(sys_sethostname)
+        .long SYMBOL_NAME(sys_setrlimit)        /* 75 */
+        .long SYMBOL_NAME(sys_old_getrlimit)
+        .long SYMBOL_NAME(sys_getrusage)
+        .long SYMBOL_NAME(sys_gettimeofday)
+        .long SYMBOL_NAME(sys_settimeofday)
+        .long SYMBOL_NAME(sys_getgroups16)      /* 80 */
+        .long SYMBOL_NAME(sys_setgroups16)
+        .long SYMBOL_NAME(old_select)
+        .long SYMBOL_NAME(sys_symlink)
+        .long SYMBOL_NAME(sys_lstat)
+        .long SYMBOL_NAME(sys_readlink)         /* 85 */
+        .long SYMBOL_NAME(sys_uselib)
+        .long SYMBOL_NAME(sys_swapon)
+        .long SYMBOL_NAME(sys_reboot)
+        .long SYMBOL_NAME(old_readdir)
+        .long SYMBOL_NAME(old_mmap)             /* 90 */
+        .long SYMBOL_NAME(sys_munmap)
+        .long SYMBOL_NAME(sys_truncate)
+        .long SYMBOL_NAME(sys_ftruncate)
+        .long SYMBOL_NAME(sys_fchmod)
+        .long SYMBOL_NAME(sys_fchown16)         /* 95 */
+        .long SYMBOL_NAME(sys_getpriority)
+        .long SYMBOL_NAME(sys_setpriority)
+        .long SYMBOL_NAME(sys_ni_syscall)                               /* old profil syscall holder */
+        .long SYMBOL_NAME(sys_statfs)
+        .long SYMBOL_NAME(sys_fstatfs)          /* 100 */
+        .long SYMBOL_NAME(sys_ioperm)
+        .long SYMBOL_NAME(sys_socketcall)
+        .long SYMBOL_NAME(sys_syslog)
+        .long SYMBOL_NAME(sys_setitimer)
+        .long SYMBOL_NAME(sys_getitimer)        /* 105 */
+        .long SYMBOL_NAME(sys_newstat)
+        .long SYMBOL_NAME(sys_newlstat)
+        .long SYMBOL_NAME(sys_newfstat)
+        .long SYMBOL_NAME(sys_uname)
+        .long SYMBOL_NAME(sys_iopl)             /* 110 */
+        .long SYMBOL_NAME(sys_vhangup)
+        .long SYMBOL_NAME(sys_ni_syscall)       /* old &quot;idle&quot; system call */
+        .long SYMBOL_NAME(sys_vm86old)
+        .long SYMBOL_NAME(sys_wait4)
+        .long SYMBOL_NAME(sys_swapoff)          /* 115 */
+        .long SYMBOL_NAME(sys_sysinfo)
+        .long SYMBOL_NAME(sys_ipc)
+        .long SYMBOL_NAME(sys_fsync)
+        .long SYMBOL_NAME(sys_sigreturn)
+        .long SYMBOL_NAME(sys_clone)            /* 120 */
+        .long SYMBOL_NAME(sys_setdomainname)
+        .long SYMBOL_NAME(sys_newuname)
+        .long SYMBOL_NAME(sys_modify_ldt)
+        .long SYMBOL_NAME(sys_adjtimex)
+        .long SYMBOL_NAME(sys_mprotect)         /* 125 */
+        .long SYMBOL_NAME(sys_sigprocmask)
+        .long SYMBOL_NAME(sys_create_module)
+        .long SYMBOL_NAME(sys_init_module)
+        .long SYMBOL_NAME(sys_delete_module)
+        .long SYMBOL_NAME(sys_get_kernel_syms)  /* 130 */
+        .long SYMBOL_NAME(sys_quotactl)
+        .long SYMBOL_NAME(sys_getpgid)
+        .long SYMBOL_NAME(sys_fchdir)
+        .long SYMBOL_NAME(sys_bdflush)
+        .long SYMBOL_NAME(sys_sysfs)            /* 135 */
+        .long SYMBOL_NAME(sys_personality)
+        .long SYMBOL_NAME(sys_ni_syscall)       /* for afs_syscall */
+        .long SYMBOL_NAME(sys_setfsuid16)
+        .long SYMBOL_NAME(sys_setfsgid16)
+        .long SYMBOL_NAME(sys_llseek)           /* 140 */
+        .long SYMBOL_NAME(sys_getdents)
+        .long SYMBOL_NAME(sys_select)
+        .long SYMBOL_NAME(sys_flock)
+        .long SYMBOL_NAME(sys_msync)
+        .long SYMBOL_NAME(sys_readv)            /* 145 */
+        .long SYMBOL_NAME(sys_writev)
+        .long SYMBOL_NAME(sys_getsid)
+        .long SYMBOL_NAME(sys_fdatasync)
+        .long SYMBOL_NAME(sys_sysctl)
+        .long SYMBOL_NAME(sys_mlock)            /* 150 */
+        .long SYMBOL_NAME(sys_munlock)
+        .long SYMBOL_NAME(sys_mlockall)
+        .long SYMBOL_NAME(sys_munlockall)
+        .long SYMBOL_NAME(sys_sched_setparam)
+        .long SYMBOL_NAME(sys_sched_getparam)   /* 155 */
+        .long SYMBOL_NAME(sys_sched_setscheduler)
+        .long SYMBOL_NAME(sys_sched_getscheduler)
+        .long SYMBOL_NAME(sys_sched_yield)
+        .long SYMBOL_NAME(sys_sched_get_priority_max)
+        .long SYMBOL_NAME(sys_sched_get_priority_min)  /* 160 */
+        .long SYMBOL_NAME(sys_sched_rr_get_interval)
+        .long SYMBOL_NAME(sys_nanosleep)
+        .long SYMBOL_NAME(sys_mremap)
+        .long SYMBOL_NAME(sys_setresuid16)
+        .long SYMBOL_NAME(sys_getresuid16)      /* 165 */
+        .long SYMBOL_NAME(sys_vm86)
+        .long SYMBOL_NAME(sys_query_module)
+        .long SYMBOL_NAME(sys_poll)
+        .long SYMBOL_NAME(sys_nfsservctl)
+        .long SYMBOL_NAME(sys_setresgid16)      /* 170 */
+        .long SYMBOL_NAME(sys_getresgid16)
+        .long SYMBOL_NAME(sys_prctl)
+        .long SYMBOL_NAME(sys_rt_sigreturn)
+        .long SYMBOL_NAME(sys_rt_sigaction)
+        .long SYMBOL_NAME(sys_rt_sigprocmask)   /* 175 */
+        .long SYMBOL_NAME(sys_rt_sigpending)
+        .long SYMBOL_NAME(sys_rt_sigtimedwait)
+        .long SYMBOL_NAME(sys_rt_sigqueueinfo)
+        .long SYMBOL_NAME(sys_rt_sigsuspend)
+        .long SYMBOL_NAME(sys_pread)            /* 180 */
+        .long SYMBOL_NAME(sys_pwrite)
+        .long SYMBOL_NAME(sys_chown16)
+        .long SYMBOL_NAME(sys_getcwd)
+        .long SYMBOL_NAME(sys_capget)
+        .long SYMBOL_NAME(sys_capset)           /* 185 */
+        .long SYMBOL_NAME(sys_sigaltstack)
+        .long SYMBOL_NAME(sys_sendfile)
+        .long SYMBOL_NAME(sys_ni_syscall)               /* streams1 */
+        .long SYMBOL_NAME(sys_ni_syscall)               /* streams2 */
+        .long SYMBOL_NAME(sys_vfork)            /* 190 */
+        .long SYMBOL_NAME(sys_getrlimit)
+        .long SYMBOL_NAME(sys_mmap2)
+        .long SYMBOL_NAME(sys_truncate64)
+        .long SYMBOL_NAME(sys_ftruncate64)
+        .long SYMBOL_NAME(sys_stat64)           /* 195 */
+        .long SYMBOL_NAME(sys_lstat64)
+        .long SYMBOL_NAME(sys_fstat64)
+        .long SYMBOL_NAME(sys_lchown)
+        .long SYMBOL_NAME(sys_getuid)
+        .long SYMBOL_NAME(sys_getgid)           /* 200 */
+        .long SYMBOL_NAME(sys_geteuid)
+        .long SYMBOL_NAME(sys_getegid)
+        .long SYMBOL_NAME(sys_setreuid)
+        .long SYMBOL_NAME(sys_setregid)
+        .long SYMBOL_NAME(sys_getgroups)        /* 205 */
+        .long SYMBOL_NAME(sys_setgroups)
+        .long SYMBOL_NAME(sys_fchown)
+        .long SYMBOL_NAME(sys_setresuid)
+        .long SYMBOL_NAME(sys_getresuid)
+        .long SYMBOL_NAME(sys_setresgid)        /* 210 */
+        .long SYMBOL_NAME(sys_getresgid)
+        .long SYMBOL_NAME(sys_chown)
+        .long SYMBOL_NAME(sys_setuid)
+        .long SYMBOL_NAME(sys_setgid)
+        .long SYMBOL_NAME(sys_setfsuid)         /* 215 */
+        .long SYMBOL_NAME(sys_setfsgid)
+        .long SYMBOL_NAME(sys_pivot_root)
+        .long SYMBOL_NAME(sys_mincore)
+        .long SYMBOL_NAME(sys_madvise)
+        .long SYMBOL_NAME(sys_getdents64)       /* 220 */
+        .long SYMBOL_NAME(sys_fcntl64)
+        .long SYMBOL_NAME(sys_ni_syscall)       /* reserved for TUX */
+        .long SYMBOL_NAME(sys_ni_syscall)       /* Reserved for Security */
+        .long SYMBOL_NAME(sys_gettid)
+        .long SYMBOL_NAME(sys_readahead)        /* 225 */
+
+
+</PRE>
+<H3>IRQ Event</H3>
+
+<P>When an IRQ comes, the task that is running is interrupted in
+order to service the IRQ Handler.
+<P>
+<P>After the IRQ is handled, control returns backs exactly to point
+of interrupt, like nothing  happened.
+<P>
+<P>
+<PRE>
+
+           
+              Running Task 
+             |-----------|          (3)
+NORMAL       |   |       | [break execution] IRQ Handler
+EXECUTION (1)|   |       |     -------------&gt;|---------| 
+             |  \|/      |     |             |  does   |         
+ IRQ (2)----&gt;| ..        |-----&gt;             |  some   |      
+             |   |       |&lt;-----             |  work   |       
+BACK TO      |   |       |     |             |  ..(4). |
+NORMAL    (6)|  \|/      |     &lt;-------------|_________|
+EXECUTION    |___________|  [return to code]
+                                    (5)
+               USER MODE                     KERNEL MODE
+
+         User-&gt;Kernel Mode Transition caused by IRQ event
+     
+</PRE>
+<P>The numbered steps below refer to the sequence of events in the
+diagram above:
+<P>
+<P>
+<OL>
+<LI>Process is executing</LI>
+<LI>IRQ comes while the task is running.</LI>
+<LI>Task is interrupted to call an "Interrupt handler".</LI>
+<LI>The "Interrupt handler" code is executed.</LI>
+<LI>Control returns back to task user mode (as if nothing happened)</LI>
+<LI>Process returns back to normal execution
+</LI>
+</OL>
+<P>Special interest has the Timer IRQ, coming every TIMER ms to
+manage:
+<P>
+<P>
+<OL>
+<LI>Alarms</LI>
+<LI>System and task counters (used by schedule to decide when stop
+a process or for accounting)</LI>
+<LI>Multitasking based on wake up mechanism after TIMESLICE time.
+</LI>
+</OL>
+<H2><A NAME="ss3.4">3.4 Multitasking</A>
+</H2>
+
+<H3>Mechanism</H3>
+
+<P>The key point of modern OSs is the "Task". The Task is an application
+running in memory sharing all resources (included CPU and Memory)
+with other Tasks.
+<P>
+<P>This "resource sharing" is managed by the  "Multitasking Mechanism".
+The Multitasking Mechanism switches from one task to another after
+a "timeslice" time. Users have the "illusion" that they own all resources.
+We can also imagine a single user scenario, where a user can have
+the "illusion" of running many tasks at the same time.
+<P>
+<P>To implement this multitasking, the task uses "the state" variable,
+which can be:
+<P>
+<P>
+<OL>
+<LI>READY, ready for execution</LI>
+<LI>BLOCKED, waiting for a resource
+</LI>
+</OL>
+<P>The task state is managed by its presence in a relative list:
+READY list and BLOCKED list.
+<P>
+<H3>Task Switching</H3>
+
+<P>The movement from one task to another is called ''Task Switching''.
+many computers have a hardware instruction which automatically performs
+this operation. Task Switching occurs in the following cases:
+<P>
+<P>
+<OL>
+<LI>After Timeslice ends: we need to schedule a "Ready for execution"
+task and give it access.</LI>
+<LI>When a Task has to wait for a device: we need to schedule a new
+task and switch to it *
+</LI>
+</OL>
+<P>* We schedule another task to prevent   "Busy Form Waiting", which
+occurs when we are waiting for a device instead performing other
+work.
+<P>
+<P>Task Switching is managed by the "Schedule" entity.
+<P>
+<P>
+<PRE>
+ 
+Timer    |           |
+ IRQ     |           |                            Schedule
+  |      |           |                     ________________________
+  |-----&gt;|   Task 1  |&lt;------------------&gt;|(1)Chooses a Ready Task |
+  |      |           |                    |(2)Task Switching       |
+  |      |___________|                    |________________________|   
+  |      |           |                               /|\
+  |      |           |                                | 
+  |      |           |                                |
+  |      |           |                                |
+  |      |           |                                |      
+  |-----&gt;|   Task 2  |&lt;-------------------------------|
+  |      |           |                                |
+  |      |___________|                                |
+  .      .     .     .                                .
+  .      .     .     .                                .
+  .      .     .     .                                .
+  |      |           |                                |
+  |      |           |                                |
+  ------&gt;|   Task N  |&lt;--------------------------------
+         |           |
+         |___________| 
+    
+            Task Switching based on TimeSlice
+ 
+</PRE>
+<P>A typical Timeslice for Linux is about 10 ms.
+<P>
+<P>
+<PRE>
+
+ 
+
+ |           |            
+ |           | Resource    _____________________________
+ |   Task 1  |-----------&gt;|(1) Enqueue Resource request |
+ |           |  Access    |(2)  Mark Task as blocked    |
+ |           |            |(3)  Choose a Ready Task     |
+ |___________|            |(4)    Task Switching        |
+                          |_____________________________|
+                                       |
+                                       |
+ |           |                         |
+ |           |                         |
+ |   Task 2  |&lt;-------------------------
+ |           |  
+ |           |
+ |___________|
+ 
+     Task Switching based on Waiting for a Resource
+ 
+</PRE>
+<H2><A NAME="ss3.5">3.5 Microkernel vs Monolithic OS</A>
+</H2>
+
+<H3>Overview</H3>
+
+<P>Until now we viewed so called Monolithic OS, but there is also
+another kind of OS: ''Microkernel''.
+<P>
+<P>A Microkernel OS uses Tasks, not only for user mode processes,
+but also as a real kernel manager, like Floppy-Task, HDD-Task, Net-Task
+and so on. Some examples are Amoeba, and Mach. 
+<P>
+<H3>PROs and CONTROs of Microkernel OS </H3>
+
+<P>PROS:
+<P>
+<P>
+<UL>
+<LI>OS is simpler to maintain because each Task manages a single
+kind of operation. So if you want to modify networking, you modify
+Net-Task (ideally, if it is not needed a structural update).
+</LI>
+</UL>
+<P>CONS:
+<P>
+<P>
+<UL>
+<LI>Performances are worse than Monolithic OS, because you have to
+add 2*TASK_SWITCH times (the first to enter the specific Task, the
+second to go out from it).
+</LI>
+</UL>
+<P>My personal opinion is that, Microkernels are a good didactic
+example (like Minix) but they are not ''optimal'', so not really
+suitable. Linux uses a few Tasks, called "Kernel Threads" to implement
+a little microkernel structure (like kswapd, which is used to retrieve
+memory pages from mass storage). In this case there are no problems
+with perfomance because swapping is a very slow job.
+<P>
+<H2><A NAME="ss3.6">3.6 Networking</A>
+</H2>
+
+<H3>ISO OSI levels</H3>
+
+<P>Standard ISO-OSI describes a network architecture with the following
+levels:
+<P>
+<P>
+<OL>
+<LI>Physical level (examples: PPP and Ethernet)</LI>
+<LI>Data-link level (examples: PPP and Ethernet)</LI>
+<LI>Network level (examples: IP, and X.25)</LI>
+<LI>Transport level (examples: TCP, UDP)</LI>
+<LI>Session level (SSL)</LI>
+<LI>Presentation level (FTP binary-ascii coding)</LI>
+<LI>Application level (applications like Netscape)
+</LI>
+</OL>
+<P>The first 2 levels listed above are often implemented in hardware.
+Next levels are in software (or firmware for routers).
+<P>
+<P>Many protocols are used by an OS: one of these is TCP/IP (the
+most important living on 3-4 levels).
+<P>
+<H3>What does the kernel?</H3>
+
+<P>The kernel doesn't know anything (only addresses) about first
+2 levels of ISO-OSI.
+<P>
+<P>In RX it:
+<P>
+<P>
+<OL>
+<LI>Manages handshake with low levels devices (like ethernet card
+or modem) receiving "frames" from them.</LI>
+<LI>Builds TCP/IP "packets" from "frames" (like Ethernet or PPP ones),
+ </LI>
+<LI>Convers ''packets'' in ''sockets'' passing them to the right
+application (using port number) or</LI>
+<LI>Forwards packets to the right queue
+</LI>
+</OL>
+<P>
+<PRE>
+frames         packets              sockets
+NIC ---------&gt; Kernel ----------&gt; Application
+                  |    packets
+                  --------------&gt; Forward
+                        - RX - 
+</PRE>
+<P>In TX  stage it:
+<P>
+<P>
+<OL>
+<LI>Converts sockets or </LI>
+<LI>Queues datas into TCP/IP ''packets''</LI>
+<LI>Splits ''packets" into "frames" (like Ethernet or PPP ones)</LI>
+<LI>Sends ''frames'' using HW drivers
+</LI>
+</OL>
+<P>
+<PRE>
+sockets       packets                     frames
+Application ---------&gt; Kernel ----------&gt; NIC
+              packets     /|\    
+Forward  -------------------
+                        - TX -  
+
+
+</PRE>
+<H2><A NAME="ss3.7">3.7 Virtual Memory</A>
+</H2>
+
+<H3>Segmentation</H3>
+
+<P>Segmentation is the first method to solve memory allocation problems:
+it allows you to compile source code without caring where the application
+will be placed in memory. As a matter of fact, this feature helps
+applications developers to develop in a independent fashion from
+the OS e also from the hardware.
+<P>
+<P>
+<PRE>
+     
+            |       Stack        |
+            |          |         |
+            |         \|/        |
+            |        Free        | 
+            |         /|\        |     Segment &lt;---&gt; Process    
+            |          |         |
+            |        Heap        |
+            | Data uninitialized |
+            |  Data initialized  |
+            |       Code         |
+            |____________________|  
+ 
+                   Segment  
+
+</PRE>
+<P>We can say that a segment is the logical entity of an application,
+or the image of the application in memory.
+<P>
+<P>When programming, we don't care where our data is put in memory,
+we only care about the offset inside our segment (our application).
+<P>
+<P>We use to assign a Segment to each Process and vice versa. In
+Linux this is not true. Linux uses only 4 segments for either Kernel
+and all Processes.
+<P>
+<H3>Problems of Segmentation</H3>
+
+<P>
+<PRE>
+ 
+                                 ____________________
+                          -----&gt;|                    |-----&gt;
+                          | IN  |     Segment A      | OUT
+ ____________________     |     |____________________|   
+|                    |____|     |                    |   
+|     Segment B      |          |     Segment B      |
+|                    |____      |                    |   
+|____________________|    |     |____________________|   
+                          |     |     Segment C      |   
+                          |     |____________________|
+                          -----&gt;|     Segment D      |-----&gt; 
+                            IN  |____________________| OUT 
+ 
+                     Segmentation problem
+
+
+</PRE>
+<P>In the diagram above, we want to get exit processes A, and D
+and enter process B. As we can see there is enough space for B, but
+we cannot split it in 2 pieces, so we CANNOT load it (memory out).
+<P>
+<P>The reason this problem occurs is because pure segments are continuous
+areas (because they are logical areas) and cannot be split.
+<P>
+<H3>Pagination</H3>
+
+<P>
+<PRE>
+ 
+             ____________________
+            |     Page 1         |
+            |____________________|
+            |     Page 2         |
+            |____________________| 
+            |      ..            |     Segment &lt;---&gt; Process    
+            |____________________|
+            |     Page n         |
+            |____________________|
+            |                    |
+            |____________________|
+            |                    |
+            |____________________|  
+ 
+                   Segment  
+ 
+</PRE>
+<P>Pagination splits memory in &quot;n&quot; pieces, each one with
+a fixed length.
+<P>
+<P>A process may be loaded in one or more Pages. When memory is
+freed, all pages are freed (see Segmentation Problem, before).
+<P>
+<P>Pagination is also used for another important purpose, "Swapping".
+If a page is not present in physical memory then it generates an
+EXCEPTION, that will make the Kernel search for a new page in storage
+memory. This mechanism allow OS to load more applications than the
+ones allowed by physical memory only.
+<P>
+<H3>Pagination Problem</H3>
+
+<P>
+<PRE>
+             ____________________
+   Page   X |     Process Y      |
+            |____________________|
+            |                    |
+            |       WASTE        |
+            |       SPACE        |
+            |____________________|  
+   
+              Pagination Problem
+ 
+</PRE>
+<P>In the diagram above, we can see what is wrong with the pagination
+policy: when a Process Y loads into Page X, ALL memory space of the
+Page is allocated, so the remaining space at the end of Page is wasted.
+<P>
+<H3>Segmentation and Pagination</H3>
+
+<P>How can we solve segmentation and pagination problems? Using
+either 2 policies.
+<P>
+<P>
+<PRE>
+ 
+                                  |      ..            |
+                                  |____________________|
+                            -----&gt;|      Page 1        |
+                            |     |____________________|
+                            |     |      ..            |
+ ____________________       |     |____________________|
+|                    |      |----&gt;|      Page 2        |
+|      Segment X     |  ----|     |____________________|
+|                    |      |     |       ..           |
+|____________________|      |     |____________________|
+                            |     |       ..           |
+                            |     |____________________|
+                            |----&gt;|      Page 3        |
+                                  |____________________|
+                                  |       ..           |
+ 
+</PRE>
+<P>Process X, identified by Segment X, is split in 3 pieces and
+each of one is loaded in a page.
+<P>
+<P>We do not have:
+<P>
+<P>
+<OL>
+<LI>Segmentation problem: we allocate per Pages, so we also free
+Pages and we manage free space in an optimized way.</LI>
+<LI>Pagination problem: only last page wastes space, but we can decide
+to use very small pages, for example 4096 bytes length (losing at
+maximum 4096*N_Tasks bytes) and manage hierarchical paging (using
+2 or 3 levels of paging)
+</LI>
+</OL>
+<P>
+<PRE>
+ 
+ 
+
+                          |         |           |         |
+                          |         |   Offset2 |  Value  |
+                          |         |        /|\|         |
+                  Offset1 |         |-----    | |         |
+                      /|\ |         |    |    | |         |
+                       |  |         |    |   \|/|         | 
+                       |  |         |    ------&gt;|         |
+                      \|/ |         |           |         |
+ Base Paging Address ----&gt;|         |           |         |
+                          | ....... |           | ....... |
+                          |         |           |         |    
+ 
+                     Hierarchical Paging
+</PRE>
+<HR>
+<A HREF="KernelAnalysis-HOWTO-4.html">Next</A>
+<A HREF="KernelAnalysis-HOWTO-2.html">Previous</A>
+<A HREF="KernelAnalysis-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

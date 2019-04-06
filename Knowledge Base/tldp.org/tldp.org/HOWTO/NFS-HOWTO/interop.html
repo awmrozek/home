@@ -1,0 +1,980 @@
+<HTML
+><HEAD
+><TITLE
+>Using Linux NFS with Other OSes</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Linux NFS-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Troubleshooting"
+HREF="troubleshooting.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux NFS-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="troubleshooting.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+>&nbsp;</TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="INTEROP">8. Using Linux NFS with Other OSes</H1
+><P
+>   Every operating system, Linux included, has quirks and deviations
+   in the behavior of its NFS implementation -- sometimes because
+   the protocols are vague, sometimes because they leave gaping
+   security holes.  Linux will work properly with all major vendors'
+   NFS implementations, as far as we know.  However, there may be
+   extra steps involved to make sure the two OSes are communicating
+   clearly with one another.  This section details those steps.
+ </P
+><P
+>   In general, it is highly ill-advised to attempt to use a Linux
+   machine with a kernel before 2.2.18 as an NFS server for non-Linux
+   clients.  Implementations with older kernels may work fine as 
+   clients; however if you are using one of these kernels and get
+   stuck, the first piece of advice we would give is to upgrade
+   your kernel and see if the problems go away.  The user-space NFS
+   implementations also do not work well with non-Linux clients.
+ </P
+><P
+>   Following is a list of known issues for using Linux together with
+   major operating systems.
+ </P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AIX">8.1. AIX</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AIXSERVER">8.1.1. Linux Clients and AIX Servers</H3
+><P
+>      The format for the <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> file for our example in <A
+HREF="server.html"
+>Section 3</A
+> is:
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>  /usr   slave1.foo.com:slave2.foo.com,access=slave1.foo.com:slave2.foo.com
+  /home  slave1.foo.com:slave2.foo.com,rw=slave1.foo.com:slave2.foo.com
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AIXCLIENTS">8.1.2. AIX clients and Linux Servers</H3
+><P
+>     AIX uses the file <TT
+CLASS="FILENAME"
+>/etc/filesystems</TT
+> instead of <TT
+CLASS="FILENAME"
+>/etc/fstab</TT
+>.
+     A sample entry, based on the example in <A
+HREF="client.html"
+>Section 4</A
+>, looks like this:
+   <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>/mnt/home:
+        dev             = "/home"
+        vfs             = nfs
+        nodename        = master.foo.com
+        mount           = true
+        options         = bg,hard,intr,rsize=1024,wsize=1024,vers=2,proto=udp
+        account         = false
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>   <P
+></P
+><OL
+TYPE="i"
+><LI
+><P
+>       Version 4.3.2 of AIX, and possibly earlier versions as well,
+       requires that file systems be exported with
+       the <TT
+CLASS="USERINPUT"
+><B
+>insecure</B
+></TT
+> option, which 
+       causes NFS to listen to requests from 
+       insecure ports (i.e., ports above 1024, to which non-root users can 
+       bind).  Older versions of AIX do not seem to require this.
+     </P
+></LI
+><LI
+><P
+>       AIX clients will default to mounting version 3 NFS over TCP.
+       If your Linux server does not support this, then you may need
+       to specify <TT
+CLASS="USERINPUT"
+><B
+>vers=2</B
+></TT
+> and/or 
+       <TT
+CLASS="USERINPUT"
+><B
+>proto=udp</B
+></TT
+> in your mount options.
+     </P
+></LI
+><LI
+><P
+>       Using netmasks in <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+>
+       seems to sometimes cause clients
+       to lose mounts when another client is reset.  This can be fixed
+       by listing out hosts explicitly.
+     </P
+></LI
+><LI
+><P
+>       Apparently automount in AIX 4.3.2 is rather broken.
+     </P
+></LI
+></OL
+>
+ </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="BSD">8.2. BSD</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="BSDSERVER">8.2.1. BSD servers and Linux clients</H3
+><P
+>       BSD kernels tend to work better with larger block sizes.
+     </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="BSDCLIENT">8.2.2. Linux servers and BSD clients</H3
+><P
+>       Some versions of BSD may make requests to the server from insecure ports,
+       in which case you will need to export your volumes with the 
+       <TT
+CLASS="USERINPUT"
+><B
+>insecure</B
+></TT
+>
+       option.  See the man page for <EM
+>exports(5)</EM
+> 
+       for more details.
+     </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="TRU64">8.3. Tru64 Unix</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="TRU64SERVER">8.3.1. Tru64 Unix Servers and Linux Clients</H3
+><P
+>      In general, Tru64 Unix servers work quite smoothly with Linux clients.
+      The format for the <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> file for our example in <A
+HREF="server.html"
+>Section 3</A
+> is:
+   <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>     
+/usr         slave1.foo.com:slave2.foo.com \
+     -access=slave1.foo.com:slave2.foo.com \
+
+/home        slave1.foo.com:slave2.foo.com \
+         -rw=slave1.foo.com:slave2.foo.com \
+       -root=slave1.foo.com:slave2.foo.com 
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+   </P
+><P
+> (The <TT
+CLASS="USERINPUT"
+><B
+>root</B
+></TT
+> option is listed in the last 
+ entry for informational purposes only; its use is not recommended
+ unless necessary.)
+     </P
+><P
+>     Tru64 checks the <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> file every time there is a mount request
+     so you do not need to run the <B
+CLASS="COMMAND"
+>exportfs</B
+> command; in fact on many
+     versions of Tru64 Unix the command does not exist.
+    </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="TRU64CLIENT">8.3.2. Linux Servers and Tru64 Unix Clients</H3
+><P
+>      There are two issues to watch out for here.  First, Tru64 Unix mounts
+      using Version 3 NFS by default.  You will see mount errors if your
+      Linux server does not support Version 3 NFS.  Second, in Tru64 Unix
+      4.x, NFS locking requests are made by 
+      <TT
+CLASS="COMPUTEROUTPUT"
+>daemon</TT
+>.  You will therefore
+      need to specify the <TT
+CLASS="USERINPUT"
+><B
+>insecure_locks</B
+></TT
+> option on all volumes you export
+      to a Tru64 Unix 4.x client; see the <B
+CLASS="COMMAND"
+>exports</B
+> man pages for details.
+    </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="HPUX">8.4. HP-UX</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="HPUXSERVER">8.4.1. HP-UX Servers and Linux Clients</H3
+><P
+>       A sample <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> entry on HP-UX looks like this:
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>/usr -ro,access=slave1.foo.com:slave2.foo.com
+/home -rw=slave1.foo.com:slave2.fo.com:root=slave1.foo.com:slave2.foo.com
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+       (The <TT
+CLASS="USERINPUT"
+><B
+>root</B
+></TT
+> option is listed in the last entry for informational
+       purposes only; its use is not recommended unless necessary.)
+     </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="HPUXCLIENT">8.4.2. Linux Servers and HP-UX Clients</H3
+><P
+>     HP-UX diskless clients will require at least a kernel version 2.2.19
+     (or patched 2.2.18) for device files to export correctly.  Also, any
+     exports to an HP-UX client will need to be exported with the 
+     <TT
+CLASS="USERINPUT"
+><B
+>insecure_locks</B
+></TT
+> option.
+   </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="IRIX">8.5. IRIX</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="IRIXSERVER">8.5.1. IRIX Servers and Linux Clients</H3
+><P
+>    A sample <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> entry on IRIX looks like this:
+  <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>/usr -ro,access=slave1.foo.com:slave2.foo.com
+/home -rw=slave1.foo.com:slave2.fo.com:root=slave1.foo.com:slave2.foo.com
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    (The <TT
+CLASS="USERINPUT"
+><B
+>root</B
+></TT
+> option is listed in the last entry for informational
+    purposes only; its use is not recommended unless necessary.)
+  </P
+><P
+>   There are reportedly problems when using the nohide option on
+   exports to linux 2.2-based systems.  This problem is fixed in the
+   2.4 kernel.  As a workaround, you can export and mount lower-down
+   file systems separately.
+  </P
+><P
+>   As of Kernel 2.4.17, there continue to be several minor interoperability
+   issues that may require a kernel upgrade.  In particular:
+  <P
+></P
+><UL
+><LI
+><P
+>      Make sure that Trond Myklebust's <SPAN
+CLASS="APPLICATION"
+>seekdir</SPAN
+> 
+      (or <SPAN
+CLASS="APPLICATION"
+>dir</SPAN
+>) kernel patch is applied.
+      The latest version (for 2.4.17) is located at:
+     </P
+><P
+>      <A
+HREF="http://www.fys.uio.no/~trondmy/src/2.4.17/linux-2.4.17-seekdir.dif"
+TARGET="_top"
+>      http://www.fys.uio.no/~trondmy/src/2.4.17/linux-2.4.17-seekdir.dif</A
+>
+     </P
+></LI
+><LI
+><P
+>      IRIX servers do not always use the same 
+      <TT
+CLASS="COMPUTEROUTPUT"
+>fsid</TT
+> attribute field across
+      reboots, which results in <TT
+CLASS="COMPUTEROUTPUT"
+>inode number mismatch</TT
+> 
+      errors on a Linux
+      client if the mounted IRIX server reboots. A patch is available from:
+     </P
+><P
+><A
+HREF="http://www.geocrawler.com/lists/3/SourceForge/789/0/7777454/"
+TARGET="_top"
+>      http://www.geocrawler.com/lists/3/SourceForge/789/0/7777454/</A
+>
+     </P
+></LI
+><LI
+><P
+>      Linux kernels v2.4.9 and above have problems reading large directories
+      (hundreds of files) from exported IRIX XFS file systems that were made
+      with <TT
+CLASS="USERINPUT"
+><B
+>naming version=1</B
+></TT
+>.  
+      The reason for the problem can be found at:
+     </P
+><P
+>      <A
+HREF="http://www.geocrawler.com/archives/3/789/2001/9/100/6531172/"
+TARGET="_top"
+>       http://www.geocrawler.com/archives/3/789/2001/9/100/6531172/</A
+>
+     </P
+><P
+>       The naming version can be found by using (on the IRIX server):
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	xfs_growfs -n mount_point
+     </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+> 
+      The workaround is to export these file systems using the 
+      <TT
+CLASS="USERINPUT"
+><B
+>-32bitclients</B
+></TT
+>
+      option in the <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> file.
+      The fix is to convert the file system to 'naming version=2'.
+      Unfortunately the only way to do this is by a 
+      <TT
+CLASS="USERINPUT"
+><B
+>backup</B
+></TT
+>/<TT
+CLASS="USERINPUT"
+><B
+>mkfs</B
+></TT
+>/<TT
+CLASS="USERINPUT"
+><B
+>restore</B
+></TT
+>.
+      </P
+><P
+>       <B
+CLASS="COMMAND"
+>mkfs_xfs</B
+> on IRIX 6.5.14 (and above) 
+       creates <TT
+CLASS="USERINPUT"
+><B
+>naming version=2</B
+></TT
+> XFS file
+       systems by default. On IRIX 6.5.5 to 6.5.13, use:
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	mkfs_xfs -n version=2 device
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>        Versions of IRIX prior to 6.5.5 do not support 
+        <TT
+CLASS="USERINPUT"
+><B
+>naming version=2</B
+></TT
+> XFS file systems.
+      </P
+></LI
+></UL
+>
+   </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="IRIXCLIENT">8.5.2. IRIX clients and Linux servers</H3
+><P
+>   Irix versions up to 6.5.12 have problems mounting file systems exported
+   from Linux boxes - the mount point "gets lost," e.g.,
+  <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	# mount linux:/disk1 /mnt
+	# cd /mnt/xyz/abc
+	# pwd
+	/xyz/abc
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+   </P
+><P
+>    This is known IRIX bug (SGI bug 815265 - IRIX not liking file handles of
+    less than 32 bytes), which is fixed in <SPAN
+CLASS="APPLICATION"
+>IRIX 6.5.13</SPAN
+>.
+    If it is not possible 
+    to upgrade to <SPAN
+CLASS="APPLICATION"
+>IRIX 6.5.13</SPAN
+>, then the unofficial 
+    workaround is to force the Linux <B
+CLASS="COMMAND"
+>nfsd</B
+> 
+    to always use 32 byte file handles. 
+   </P
+><P
+>    A number of patches exist - see:
+   <P
+></P
+><UL
+><LI
+><P
+>    <A
+HREF="http://www.geocrawler.com/archives/3/789/2001/8/50/6371896/"
+TARGET="_top"
+>    http://www.geocrawler.com/archives/3/789/2001/8/50/6371896/</A
+>
+   </P
+></LI
+><LI
+><P
+>   <A
+HREF="http://oss.sgi.com/projects/xfs/mail_archive/0110/msg00006.html"
+TARGET="_top"
+>    http://oss.sgi.com/projects/xfs/mail_archive/0110/msg00006.html</A
+>
+   </P
+></LI
+></UL
+>
+  </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SOLARIS">8.6. Solaris</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="SOLARISSERVER">8.6.1. Solaris Servers</H3
+><P
+>     Solaris has a slightly different format on the server end from
+     other operating systems.  Instead of 
+     <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+>, the configuration
+     file is <TT
+CLASS="FILENAME"
+>/etc/dfs/dfstab</TT
+>.  Entries are of 
+     the form of a <B
+CLASS="COMMAND"
+>share</B
+> command, where the syntax
+     for the example in <A
+HREF="server.html"
+>Section 3</A
+> would look like
+   <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>share -o rw=slave1,slave2 -d "Master Usr" /usr
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     and instead of running <B
+CLASS="COMMAND"
+>exportfs</B
+> after editing, you run <B
+CLASS="COMMAND"
+>shareall</B
+>.
+   </P
+><P
+>     Solaris servers are especially sensitive to packet size. If you
+     are using a Linux client with a Solaris server, be sure to set
+     <TT
+CLASS="USERINPUT"
+><B
+>rsize</B
+></TT
+> and <TT
+CLASS="USERINPUT"
+><B
+>wsize</B
+></TT
+>
+     to 32768 at mount time.
+   </P
+><P
+>     Finally, there is an issue with root squashing on Solaris: root gets
+     mapped to the user <TT
+CLASS="COMPUTEROUTPUT"
+>noone</TT
+>, which 
+     is not the same as the user <TT
+CLASS="COMPUTEROUTPUT"
+>nobody</TT
+>.
+     If you are having trouble with file permissions as root on the client
+     machine, be sure to check that the mapping works as you expect.
+   </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="SOLARISCLIENT">8.6.2. Solaris Clients</H3
+><P
+>     Solaris clients will regularly produce the following message:
+    </P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>svc: unknown program 100227 (me 100003)
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>    This happens because Solaris clients, when they mount, try to obtain
+    ACL information - which Linux obviously does not have. The messages
+    can safely be ignored. 
+  </P
+><P
+>    There are two known issues with diskless Solaris clients: First, a kernel
+    version of at least 2.2.19 is needed to get <TT
+CLASS="FILENAME"
+>/dev/null</TT
+> to export 
+    correctly.  Second, the packet size may need to be set extremely
+    small (i.e., 1024) on diskless sparc clients because the clients
+    do not know how to assemble packets in reverse order.  This can be
+    done from <TT
+CLASS="FILENAME"
+>/etc/bootparams</TT
+> on the clients.
+   </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SUNOS">8.7. SunOS</H2
+><P
+>    SunOS only has NFS Version 2 over UDP.
+  </P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="SUNOSSERVER">8.7.1. SunOS Servers</H3
+><P
+>     On the server end, SunOS uses the most traditional format for its 
+     <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> file. The example in <A
+HREF="server.html"
+>Section 3</A
+> would look like:
+   <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>/usr    -access=slave1.foo.com,slave2.foo.com
+/home   -rw=slave1.foo.com,slave2.foo.com, root=slave1.foo.com,slave2.foo.com
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>   Again, the <TT
+CLASS="USERINPUT"
+><B
+>root</B
+></TT
+> option is listed for informational
+   purposes and is not recommended unless necessary.
+  </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="SUNOSCLIENT">8.7.2. SunOS Clients</H3
+><P
+>    Be advised that SunOS makes all NFS locking requests 
+    as <TT
+CLASS="COMPUTEROUTPUT"
+>daemon</TT
+>, and 
+    therefore you will need to add the <TT
+CLASS="USERINPUT"
+><B
+>insecure_locks</B
+></TT
+> option to any 
+    volumes you export to a SunOS machine.  See the <B
+CLASS="COMMAND"
+>exports</B
+> man page
+    for details.
+  </P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="troubleshooting.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>&nbsp;</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Troubleshooting</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>&nbsp;</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

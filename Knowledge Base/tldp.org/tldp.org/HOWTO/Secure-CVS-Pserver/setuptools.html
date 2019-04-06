@@ -1,0 +1,826 @@
+<HTML
+><HEAD
+><TITLE
+>Setting up the tools</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Secure CVS Pserver Mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Getting the tools"
+HREF="gettools.html"><LINK
+REL="NEXT"
+TITLE="Alternatives to the Pserver"
+HREF="pserveralternatives.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Secure CVS Pserver Mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="gettools.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="pserveralternatives.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="setuptools"
+></A
+>3. Setting up the tools</H1
+><P
+>&#13;  Now that CVS and cvsd are built, let's set them up.
+ </P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="createrepository"
+></A
+>3.1. Creating the CVS Repository</H2
+><P
+>&#13;   Before we begin, I strongly recommend you read the CVS manual that 
+   was installed with the rest of CVS. If the stand-alone info browser 
+   or the texinfo package is installed on your system, you can see 
+   this manual by typing the command <B
+CLASS="command"
+>info cvs</B
+> at your shell.
+  </P
+><P
+>&#13;   First, plan out where you want your repository. Debian defaults to 
+   <TT
+CLASS="filename"
+>/var/lib/cvs</TT
+>. My repository 
+   is under the directory <TT
+CLASS="filename"
+>/cvs/root</TT
+>, 
+   and is on its own small partition. What you do depends on your needs 
+   and can vary widely.
+   <DIV
+CLASS="important"
+><P
+></P
+><TABLE
+CLASS="important"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/important.gif"
+HSPACE="5"
+ALT="Important"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;    Make sure that the repository is a subdirectory of an empty directory! For example, if you are installing it into <TT
+CLASS="filename"
+>/var/lib/cvs</TT
+>, put the repository in <TT
+CLASS="filename"
+>/var/lib/cvs/root</TT
+> (or whatever you want for the last directory). This is because we create a chroot jail for the Pserver!
+          </P
+></TD
+></TR
+></TABLE
+></DIV
+>
+  </P
+><P
+>&#13;   After you have planned where you want to put your repository, 
+   made the necessary partitions, if desired, and run the following command 
+   (we assume that it will be at <TT
+CLASS="filename"
+>/cvs/root</TT
+>):
+  </P
+><DIV
+CLASS="informalexample"
+><A
+NAME="AEN103"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;<TT
+CLASS="prompt"
+>$</TT
+> cvs -d /cvs/root init
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+><P
+>&#13;   That will initialize your repository and set up the necessary 
+   <TT
+CLASS="envar"
+>CVSROOT</TT
+> files.
+  </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="setupjail"
+></A
+>3.2. Setting up the jail</H2
+><P
+>&#13;   Now that we have the <TT
+CLASS="envar"
+>CVSROOT</TT
+> set up, we need to copy the 
+   appropriate libraries and files for cvsd, which runs the 
+   Pserver in the chroot jail.
+  </P
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="copyfiles"
+></A
+>3.2.1. Transferring the necessary files</H3
+><P
+>&#13;     <DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>If you installed cvsd from a package management system like 
+      RPM, this may already be done for you. If that is the case, 
+      skip ahead to the next step.</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+     Change your directory to <TT
+CLASS="filename"
+>/cvs</TT
+> (or whatever the directory before your root is) and enter the following commands:
+   </P
+><DIV
+CLASS="informalexample"
+><A
+NAME="AEN118"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;<TT
+CLASS="prompt"
+>$</TT
+> cvsd-buildroot /cvs
+<TT
+CLASS="prompt"
+>$</TT
+> mkdir -p var/lock
+<TT
+CLASS="prompt"
+>$</TT
+> adduser cvsd
+<TT
+CLASS="prompt"
+>$</TT
+> addgroup cvsd
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+><P
+>&#13;    Thankfully, cvsd comes with the script <B
+CLASS="command"
+>cvsd-buildroot</B
+>, so we don't have to do all the necessary copying by hand. However, you should edit the <TT
+CLASS="filename"
+>/cvs/etc/passwd</TT
+> file, and remove the entry for <SPAN
+CLASS="QUOTE"
+>"root,"</SPAN
+> as it's unneeded.
+   </P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="configcvsd"
+></A
+>3.2.2. Configuring cvsd</H3
+><P
+>&#13;    The defaults in <TT
+CLASS="filename"
+>/etc/cvsd/cvsd.conf</TT
+> are okay, but can be less than desirable. Make sure that <TT
+CLASS="envar"
+>RootJail</TT
+> is set to wherever the chroot jail you built is, and the repository is the directory where the repository is <EM
+>relative to the chroot jail</EM
+>. Set <TT
+CLASS="varname"
+>maxconnections</TT
+> to whatever you desire, and make sure that Uid and Gid are set to cvsd. If you are lacking an already-built <TT
+CLASS="filename"
+>cvsd.conf</TT
+> file, here is mine:
+   </P
+><DIV
+CLASS="example"
+><A
+NAME="AEN136"
+></A
+><P
+><B
+>Example 1. My <TT
+CLASS="filename"
+>cvsd.conf</TT
+></B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Uid cvsd
+Gid cvsd
+PidFile /var/run/cvsd.pid
+RootJail /cvs
+MaxConnections 10
+Nice 1
+Listen * 2401
+Repos /root
+Limit coredumpsize 0
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="addanonaccess"
+></A
+>3.3. Adding anonymous access</H2
+><P
+>&#13;   It's back to configuring CVS, but don't worry, we are almost 
+   there! We have to edit a couple of necessary files to allow for 
+   anonymous access. First, making sure you aren't in the CVS directory, 
+   check out the CVSROOT module:
+  </P
+><DIV
+CLASS="informalexample"
+><A
+NAME="AEN143"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;<TT
+CLASS="prompt"
+>#</TT
+> cvs -d /cvs/root checkout CVSROOT
+<TT
+CLASS="prompt"
+>#</TT
+> cd CVSROOT
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+><P
+>&#13;   Now edit the file <TT
+CLASS="filename"
+>READERS</TT
+>. Create it if it isn't there, and add a line that reads <SPAN
+CLASS="QUOTE"
+>"anonymous"</SPAN
+>.
+   <DIV
+CLASS="important"
+><P
+></P
+><TABLE
+CLASS="important"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/important.gif"
+HSPACE="5"
+ALT="Important"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>You NEED to have an extra line at the end of the file!</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+   The file <TT
+CLASS="filename"
+>READERS</TT
+> is a list of users who have 
+   read-only access to the CVS repository. People with write access 
+   are listed in the file <TT
+CLASS="filename"
+>WRITERS</TT
+>. Read the cvs 
+   manual <A
+NAME="AEN154"
+HREF="#FTN.AEN154"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+> 
+   for more information on these files.
+  </P
+><P
+>&#13;   Now commit the repository with the command below. We assume 
+   that your current working directory is <TT
+CLASS="envar"
+>CVSROOT</TT
+>. If it 
+   isn't, forget the <B
+CLASS="command"
+>cd</B
+> step.
+  </P
+><DIV
+CLASS="informalexample"
+><A
+NAME="AEN160"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;<TT
+CLASS="prompt"
+>#</TT
+> cd ../
+<TT
+CLASS="prompt"
+>#</TT
+> cvs -d /cvs/root commit
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+><P
+>&#13;   You should now get a message that says something like <TT
+CLASS="computeroutput"
+>Re-building administrative files</TT
+>, which means that it was successful.
+  </P
+><P
+>&#13;   One last step and we're all done! Run the following command, 
+   and when prompted for a password, just press <B
+CLASS="keycap"
+>ENTER</B
+>:
+  </P
+><DIV
+CLASS="informalexample"
+><A
+NAME="AEN168"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;<TT
+CLASS="prompt"
+>#</TT
+> cvsd-passwd /cvs/root anonymous
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+><P
+>&#13;   Congratulations! You now have secure, anonymous CVS Pserver access 
+   to the repository!
+  </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="lockfilelocation"
+></A
+>3.4. Not quite done yet! Changing lock file locations</H2
+><P
+>&#13;   There is one small feature here that is really beyond the scope 
+   of this Mini-HOWTO but is worth noting nonetheless. It is the 
+   ability to change the directory where the Pserver will place lock files. 
+  </P
+><P
+>&#13;   Normally the Pserver will place lock files in the same directory 
+   as the files that you are trying to check out, but this can cause 
+   permissions mayhem. Step back to when we built the chroot 
+   jail for cvsd; we also created the directory <TT
+CLASS="filename"
+>var/lock</TT
+>. This is where we will place the lockfiles instead.
+  </P
+><P
+>&#13;   So use the following example, replacing <TT
+CLASS="filename"
+>/cvs</TT
+> with wherever your <TT
+CLASS="envar"
+>chroot</TT
+> environment is, and <TT
+CLASS="filename"
+>var</TT
+> with wherever the locks are going to be placed. Mine are placed in <TT
+CLASS="filename"
+>var/lock</TT
+>, and there is nothing else under <TT
+CLASS="filename"
+>var</TT
+>, so a <B
+CLASS="command"
+>chown -R</B
+> is safe. Also, replace the cvsd user and group ids with the user and group ids that cvsd runs as.
+  </P
+><DIV
+CLASS="informalexample"
+><A
+NAME="AEN184"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;<TT
+CLASS="prompt"
+>#</TT
+> cd /cvs
+<TT
+CLASS="prompt"
+>#</TT
+> chown -R cvsd:cvsd var
+<TT
+CLASS="prompt"
+>#</TT
+> chmod -R 775 var
+<TT
+CLASS="prompt"
+>#</TT
+> cd
+<TT
+CLASS="prompt"
+>#</TT
+> cvs -d /cvs/root checkout CVSROOT
+<TT
+CLASS="prompt"
+>#</TT
+> cd CVSROOT
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+><P
+>&#13;   Now we want to edit the file <TT
+CLASS="filename"
+>config</TT
+>. Change 
+   lock dir to the directory you want the locks to be placed, in our 
+   case <TT
+CLASS="filename"
+>/var/lock</TT
+>.
+   <DIV
+CLASS="important"
+><P
+></P
+><TABLE
+CLASS="important"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/important.gif"
+HSPACE="5"
+ALT="Important"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>Note that this applies to the Pserver <EM
+>&#13;    AS WELL AS THE NON-CHROOT SSH LOGIN METHOD!</EM
+>
+    Ensure that this directory is not only in existence, but that you can  
+    write to it as well, relative to your root directory. This is why I have 
+    chosen <TT
+CLASS="filename"
+>/var/lock</TT
+>, because it satisfies those conditions.</P
+></TD
+></TR
+></TABLE
+></DIV
+>
+   Now commit the changes:
+  </P
+><DIV
+CLASS="informalexample"
+><A
+NAME="AEN199"
+></A
+><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;<TT
+CLASS="prompt"
+>#</TT
+> cd ../
+<TT
+CLASS="prompt"
+>#</TT
+> cvs -d /cvs/root commit
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+><P
+>&#13;   And that's it!
+  </P
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN154"
+HREF="setuptools.html#AEN154"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>info cvs, if you have the stand-alone 
+   <B
+CLASS="command"
+>info</B
+> viewer installed on your system</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="gettools.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="pserveralternatives.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Getting the tools</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Alternatives to the Pserver</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

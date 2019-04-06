@@ -1,0 +1,438 @@
+<HTML
+><HEAD
+><TITLE
+>Your first Pike script</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Caudium HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Developing with Caudium"
+HREF="developing.html"><LINK
+REL="PREVIOUS"
+TITLE="The Pike tag"
+HREF="thepiketag.html"><LINK
+REL="NEXT"
+TITLE="Your first module"
+HREF="firstmodule.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Caudium HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="thepiketag.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 6. Developing with Caudium</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="firstmodule.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="firstPikescript">6.3. Your first Pike script</H1
+><P
+>&#13;      A Pike script is quite like a Perl script. It is executed when the user
+      tries to access it. So a Pike script is usually where your public web files
+      are. This is a good choice if you already have a Perl background and want
+      to try Pike.
+    </P
+><P
+>&#13;      You have two choices when doing this. You can execute Pike as a CGI script
+      or internally within the server. If you don't know what CGI is, look up the
+      Apache-Overview-HOWTO at 
+      <A
+HREF="http://www.tldp.org/"
+TARGET="_top"
+>http://www.tldp.org/</A
+>.
+    </P
+><P
+>&#13;      Here, we will run Pike scripts internally within Caudium. To achieve this,
+      you have to load another module in your server by selecting <TT
+CLASS="option"
+>Load module</TT
+>
+      in the <SPAN
+CLASS="abbrev"
+>CIF.</SPAN
+>. You now have the list of all modules available in Caudium. As
+      you see, there are a lot of modules and reading this page should give you
+      some ideas for future development. To select the Pike script module, just
+      click on the image named <SPAN
+CLASS="QUOTE"
+>"Pike script support"</SPAN
+> if you use a graphical
+      browser.
+    </P
+><P
+>&#13;      You can now create a .pike file containing, for example, 
+    </P
+><DIV
+CLASS="example"
+><A
+NAME="AEN923"><P
+><B
+>Example 6-3. A basic Pike script.</B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;// you have to inherit caudiumlib to have some basic things
+// like the id object and response mapping
+inherit "caudiumlib";
+
+// the same as the main
+// if you modify this script and you see that Caudium don't take your
+// modification into account, reload the Pike script support module
+// This is because Caudium uses a cache for performance reasons
+string parse(object id)
+{
+  string html = "&#60;html&#62;&#60;body&#62;The id object contain some "
+  "very useful information&#60;br /&#62;";
+  html += sprintf("The id-&#62;variables contain a list of "
+  "arguments given to this script %O\n", id-&#62;variables);
+  return html;
+}  
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>&#13;       Pike scripts are usually used for little internal development. Pike scripts can be very useful in this case because you can create something with very little lines. Here is an example of such a script:
+    </P
+><DIV
+CLASS="example"
+><A
+NAME="AEN927"><P
+><B
+>Example 6-4. A real world script.</B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;/* Here is a Pike script (not a Caudium module).
+   This script is less than 20 lines (comments
+   and blank lines excluded) and will randomly
+   return one file to the web browser from a list of files.
+   This script was kindly provided by Xavier Beaudouin */
+
+// first we need to inherit from caudiumlib in order to get
+// the parse, http_redirect functions and id object
+// recognized.
+inherit "caudiumlib";
+
+// we declare an array of files
+array (string)files;
+
+// an ASCII text containing the name of a file
+// on the real filesystem.
+// Each file name in this file will be
+// randomly return (the files name have to be on
+// a separate line).
+#define FILELIST "/list"
+
+#define BASEDIR "/thepath2yourfiles/"
+
+// this function is the constructor, it will be loaded first
+void create () {
+ // the array of strings 'files' will contain
+ // all the files we serve provided the file
+ // FILELIST list each file name on one line.
+ files = Stdio.read_bytes(FILELIST)/"\n";
+}
+
+// if no_reload return 1, Caudium will cache the
+// result of this script for maximum performances
+// and will not execute it a second time.
+// As a result, If you give the argument 
+// ?reload=1 to your script, Caudium will 
+// reload it. 
+// This is useful to use cache for average
+// content delivery unless you are doing
+// developpement
+int no_reload(object id)
+{
+ if(!id-&#62;variables-&#62;reload)
+   return 1;
+ return 0;
+}
+
+// As this is a simple pike script (CGI like), this function
+// will be called by Caudium and should return a string that
+// will be display to the client's browser.
+// It can also return a mapping containing all the HTTP response
+// (headers + text)
+mapping parse(object id)
+{
+ // We randomly return one of the file we list in the FILELIST file
+ // (relative to BASEDIR directory).
+ // http_redirect will send a HTTP 301 header telling the browser
+ // where to get randomly selected file.
+ return http_redirect(BASEDIR + files[random(sizeof(files))],id);
+}
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>&#13;      But you can also create some powerful scripts:
+    </P
+><DIV
+CLASS="example"
+><A
+NAME="AEN931"><P
+><B
+>Example 6-5. A script for the power user.</B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;inherit "caudiumlib";
+
+string|mapping|object parse( object id )
+{
+  id-&#62;my_fd-&#62;write(id-&#62;clientprot + " 200 Ok\r\n");
+  id-&#62;my_fd-&#62;write("Server: Caudium !\r\n");
+  id-&#62;my_fd-&#62;write("Expires: 0\r\n");
+  id-&#62;my_fd-&#62;write("Content-Type: text/html\r\n");
+  id-&#62;my_fd-&#62;write("pragma: no-cache\r\n\r\n");
+  id-&#62;my_fd-&#62;set_id( ({ id-&#62;my_fd }) );
+  id-&#62;my_fd-&#62;set_nonblocking(0,send_data);
+  return http_pipe_in_progress();
+}
+
+void send_data(array (object) id)
+{
+
+  id[0]-&#62;write("&#60;pre&#62;");
+  id[0]-&#62;write("test......................\n");
+  id[0]-&#62;write("test......................\n");
+  id[0]-&#62;write("test......................\n");
+  id[0]-&#62;write("sleep for 10 sec\n");
+  sleep(10);
+  id[0]-&#62;write("Done&#60;/pre&#62;");
+  id[0]-&#62;close();
+  destruct(id[0]);
+}
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>&#13;      This example uses non-blocking sockets. my_fd is the file descriptor of the
+      HTTP socket. Here we change the type of the HTTP socket from blocking
+      sockets (default type) to non-blocking sockets. Non-blocking sockets are
+      sockets that won't block the program waiting for data. Instead, a <TT
+CLASS="function"
+>read</TT
+> and
+      <TT
+CLASS="function"
+>write</TT
+> function (the so-called callback functions) will be called
+      automatically when there is some data to read or write to the HTTP
+      socket. Moreover, we return here a special function,
+      <TT
+CLASS="function"
+>http_pipe_in_progress</TT
+>. This is because as the HTTP socket is set to
+      non-blocking, Caudium won't be able to wait for processing the HTTP stuff
+      like headers and so on. So we have to tell it not to wait for us and send a
+      <TT
+CLASS="function"
+>http_pipe_in_progress</TT
+>.
+    </P
+><P
+>&#13;      This mechanism is very useful when you have to do some communication with
+      slow sockets on a single process server (multi-threaded one). In the case
+      of a single process, when you wait for a socket it is all the server, which
+      will wait. So all your users will be stalled. With non blocking sockets
+      there is no problem anymore; the server won't wait for each socket. Example
+      of such code includes CAMAS IMAP/NNTP clients. If you don't understand,
+      don't worry, you usually don't have to understand these mechanisms.
+    </P
+><P
+>&#13;      However, the Pike script allows you to write some complex code it is not 
+      well suited for big projects. If this is the case, read the next paragraph and enjoy. 
+    </P
+><DIV
+CLASS="note"
+><P
+></P
+><TABLE
+CLASS="note"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>&#13;	The Caudium API is available at 
+	<A
+HREF="http://caudium.net/"
+TARGET="_top"
+>http://caudium.net/</A
+>. You should also
+	read the Roxen 1.3 PDF available at 
+	<A
+HREF="http://caudium.info/"
+TARGET="_top"
+>http://caudium.info/</A
+>.
+	Pike scripts are blocking, and allow your users to run scripts with
+	the same privilege as the server. Blocking means that the server will
+	be stalled if a socket from a pike script is stalled (usually waiting for
+	something). This applies even if you use non-blocking sockets
+	in your script. You don't have this problem with modules.
+      </P
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="thepiketag.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="firstmodule.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>The Pike tag</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="developing.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Your first module</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

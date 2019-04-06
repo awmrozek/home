@@ -1,0 +1,330 @@
+<HTML
+><HEAD
+><TITLE
+>Terminology</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Queueing Disciplines for Bandwidth Management"
+HREF="lartc.qdisc.html"><LINK
+REL="PREVIOUS"
+TITLE="Advice for when to use which queue"
+HREF="lartc.qdisc.advice.html"><LINK
+REL="NEXT"
+TITLE="Classful Queueing Disciplines"
+HREF="lartc.qdisc.classful.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.qdisc.advice.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 9. Queueing Disciplines for Bandwidth Management</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.qdisc.classful.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.QDISC.TERMINOLOGY"
+></A
+>9.4. Terminology</H1
+><P
+>To properly understand more complicated configurations it is necessary to
+explain a few concepts first. Because of the complexity and he relative
+youth of the subject, a lot of different words are used when people in fact
+mean the same thing.</P
+><P
+>The following is loosely based on 
+<TT
+CLASS="FILENAME"
+>draft-ietf-diffserv-model-06.txt</TT
+>,
+<I
+CLASS="CITETITLE"
+>An Informal Management Model for Diffserv Routers</I
+>.
+It can currently be found at 
+<A
+HREF="http://www.ietf.org/internet-drafts/draft-ietf-diffserv-model-06.txt"
+TARGET="_top"
+>  http://www.ietf.org/internet-drafts/draft-ietf-diffserv-model-06.txt</A
+>.</P
+><P
+>Read it for the strict definitions of the terms used.
+<P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>Queueing Discipline</DT
+><DD
+><P
+>An algorithm that manages the queue of a device, either incoming (ingress)
+or outgoing (egress).</P
+></DD
+><DT
+>Classless qdisc</DT
+><DD
+><P
+>A qdisc with no configurable internal subdivisions. </P
+></DD
+><DT
+>Classful qdisc</DT
+><DD
+><P
+>A classful qdisc contains multiple classes. Each of these classes contains a
+further qdisc, which may again be classful, but need not be. According to
+the strict definition, pfifo_fast *is* classful, because it contains three
+bands which are, in fact, classes. However, from the user's configuration
+perspective, it is classless as the classes can't be touched with the tc
+tool. </P
+></DD
+><DT
+>Classes</DT
+><DD
+><P
+>A classful qdisc may have many classes, which each are internal to the
+qdisc. Each of these classes may contain a real qdisc.</P
+></DD
+><DT
+>Classifier</DT
+><DD
+><P
+>Each classful qdisc needs to determine to which class it needs to send a
+packet. This is done using the classifier.</P
+></DD
+><DT
+>Filter</DT
+><DD
+><P
+>Classification can be performed using filters. A filter contains a number of
+conditions which if matched, make the filter match.</P
+></DD
+><DT
+>Scheduling</DT
+><DD
+><P
+>A qdisc may, with the help of a classifier, decide that some packets need to
+go out earlier than others. This process is called Scheduling, and is
+performed for example by the pfifo_fast qdisc mentioned earlier. Scheduling
+is also called 'reordering', but this is confusing.</P
+></DD
+><DT
+>Shaping</DT
+><DD
+><P
+>The process of delaying packets before they go out to make traffic confirm
+to a configured maximum rate. Shaping is performed on egress. Colloquially, 
+dropping packets to slow traffic down is also often called Shaping.</P
+></DD
+><DT
+>Policing</DT
+><DD
+><P
+>Delaying or dropping packets in order to make traffic stay below a
+configured bandwidth. In Linux, policing can only drop a packet and not
+delay it - there is no 'ingress queue'.</P
+></DD
+><DT
+>Work-Conserving</DT
+><DD
+><P
+>A work-conserving qdisc always delivers a packet if one is available. In
+other words, it never delays a packet if the network adaptor is ready to
+send one (in the case of an egress qdisc).</P
+></DD
+><DT
+>non-Work-Conserving</DT
+><DD
+><P
+>Some queues, like for example the Token Bucket Filter, may need to hold on
+to a packet for a certain time in order to limit the bandwidth. This means
+that they sometimes refuse to give up a packet, even though they have one
+available.</P
+></DD
+></DL
+></DIV
+></P
+><P
+>Now that we have our terminology straight, let's see where all these things
+are.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>                Userspace programs
+                     ^
+                     |
+     +---------------+-----------------------------------------+
+     |               Y                                         |
+     |    -------&#62; IP Stack                                    |
+     |   |              |                                      |
+     |   |              Y                                      |
+     |   |              Y                                      |
+     |   ^              |                                      |
+     |   |  / ----------&#62; Forwarding -&#62;                        |
+     |   ^ /                           |                       |
+     |   |/                            Y                       |
+     |   |                             |                       |
+     |   ^                             Y          /-qdisc1-\   |
+     |   |                            Egress     /--qdisc2--\  |
+  ---&#62;-&#62;Ingress                       Classifier ---qdisc3---- | -&#62;
+     |   Qdisc                                   \__qdisc4__/  |
+     |                                            \-qdiscN_/   |
+     |                                                         |
+     +----------------------------------------------------------+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Thanks to Jamal Hadi Salim for this ASCII representation.</P
+><P
+>The big block represents the kernel. The leftmost arrow represents traffic
+entering your machine from the network. It is then fed to the Ingress
+Qdisc which may apply Filters to a packet, and decide to drop it. This
+is called 'Policing'.</P
+><P
+>This happens at a very early stage, before it has seen a lot of the kernel.
+It is therefore a very good place to drop traffic very early, without
+consuming a lot of CPU power.</P
+><P
+>If the packet is allowed to continue, it may be destined for a local
+application, in which case it enters the IP stack in order to be processed,
+and handed over to a userspace program. The packet may also be forwarded
+without entering an application, in which case it is destined for egress.
+Userspace programs may also deliver data, which is then examined and
+forwarded to the Egress Classifier.</P
+><P
+>There it is investigated and enqueued to any of a number of qdiscs. In the
+unconfigured default case, there is only one egress qdisc installed, the
+pfifo_fast, which always receives the packet. This is called 'enqueueing'.</P
+><P
+>The packet now sits in the qdisc, waiting for the kernel to ask for
+it for transmission over the network interface. This is called 'dequeueing'.</P
+><P
+>This picture also holds in case there is only one network adaptor - the
+arrows entering and leaving the kernel should not be taken too literally.
+Each network adaptor has both ingress and egress hooks.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.advice.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.classful.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Advice for when to use which queue</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.qdisc.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Classful Queueing Disciplines</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

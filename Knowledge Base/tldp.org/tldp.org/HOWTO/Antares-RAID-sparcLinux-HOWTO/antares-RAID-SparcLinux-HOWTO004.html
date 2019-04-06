@@ -1,0 +1,222 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"
+            "http://www.w3.org/TR/REC-html40/loose.dtd">
+<HTML>
+<HEAD>
+
+<META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<META name="GENERATOR" content="hevea 1.06">
+<TITLE>
+ Introduction
+</TITLE>
+</HEAD>
+<BODY >
+<A HREF="antares-RAID-SparcLinux-HOWTO003.html"><IMG SRC ="previous_motif.gif" ALT="Previous"></A>
+<A HREF="index.html"><IMG SRC ="contents_motif.gif" ALT="Up"></A>
+<A HREF="antares-RAID-SparcLinux-HOWTO005.html"><IMG SRC ="next_motif.gif" ALT="Next"></A>
+<HR>
+
+<H1><A NAME="htoc5">Chapter&nbsp;2</A>&nbsp;&nbsp;Introduction</H1>
+The Antares 5070 is a high performance, versatile, yet relatively inexpensive
+host based RAID controller. Its embedded operating system (K9 kernel) is modelled
+on the Plan 9 operating system whose design is discussed in several papers from
+AT&amp;T (see the "Further Reading" section). K9 is a kernel
+targeted at embedded controllers of small to medium complexity (e.g. ISDN-ethernet
+bridges, RAID controllers, etc). It supports multiple lightweight processes
+(i.e. without memory management) on a single CPU with a non-preemptive scheduler.
+Device driver architecture is based on Plan 9 (and Unix SVR4) streams. Concurrency
+control mechanisms include semaphores and signals. <BR>
+The 5070 has three single ended ultra 1 SCSI channels and two onboard serial
+interfaces one of which provides command line access via a connected serial
+terminal or modem. The other is used to upgrade the firmware. The command line
+is robust, implementing many of the essential Unix commands (e.g. dd, ls, cat,
+etc.) and a scaled down Bourne shell for scripting. The Unix command set is
+augmented with RAID specific configuration commands and scripts. In addition
+to the command line interface an ASCII text based GUI is provided to permit
+easy configuration of level 0, 1, 3, 4, and 5 RAIDs. <BR>
+<BR>
+<A NAME="toc4"></A>
+<H2><A NAME="htoc6">2.1</A>&nbsp;&nbsp;5070 features5070 Main Features</H2>
+<UL><LI>
+RAID levels 0, 1, 3, 4, and 5 are supported.
+<LI>Text based GUI for easy configuration for all supported RAID levels.
+<LI>A Multidisk RAID volume appears as an individual SCSI drive to the operating
+system and can be managed with the standard utilities (fdisk, mkfs, fsck,etc.).
+RAID Volumes may be assigned to different SCSI IDs or the same SCSI IDs but
+different LUNs. 
+<LI>No special RAID drivers required for the host operating system.
+<LI>Multiple RAID volumes of different levels can be mixed among the drives forming
+the physical plant. For example in a hypothetical drive plant consisting of
+9 drives: 
+<UL><LI>
+2 drives form a level 3 RAID assigned to SCSI ID 5, LUN 0
+<LI>2 drives form a level 0 RAID assigned to SCSI ID 5, LUN 1
+<LI>5 drives form a level 5 RAID assigned to SCSI ID 6, LUN 0
+</UL>
+<LI>Three single ended SCSI channels which can accommodate 6 drives each (18 drives
+total).
+<LI>Two serial interfaces. The first permits configuration/control/monitoring of
+the RAID from a local serial terminal. The second serial port is used to upload
+new programming into the 5070 (using PPP and TFTP). 
+<LI>Robust Unix-like command line and NVRAM based file system.
+<LI>Configurable ASCII SCSI communication channel for passing commands to the 5070's
+command line interpreter. Allows programming running on host OS to directly
+configure/control/monitor all parameters of the 5070.
+</UL>
+<A NAME="toc5"></A>
+<H2><A NAME="htoc7">2.2</A>&nbsp;&nbsp;Background</H2>
+Much of the information/knowledge pertaining to RAID levels in this section
+is adapted from the software-raid-HOWTO by Linas Vepstas . See the acknowledgements
+section for the URL where the full document may be obtained. <BR>
+<BR>
+RAID is an acronym for "Redundant Array of Inexpensive Disks"
+and is used to create large, reliable disk storage systems out of individual
+hard disk drives. There are two basic ways of implementing a RAID, software
+or hardware. The main advantage of a software RAID is low cost. However, since
+the OS of the host system must manage the RAID directly there is a substantial
+penalty in performance. Furthermore if the RAID is also the boot device, a drive
+failure could prove disastrous since the operating system and utility software
+needed to perform the recovery is located on the RAID. The primary advantages
+of hardware RAID is performance and improved reliability. Since all RAID operations
+are handled by a dedicated CPU on the controller, the host system's CPU is never
+bothered with RAID related tasks. In fact the host OS is completely oblivious
+to the fact that its SCSI drives are really virtual RAID drives. When a drive
+fails on the 5070 it can be replaced on-the-fly with a drive from the spares
+pool and its data reconstructed without the host's OS ever knowing anything
+has happened.<BR>
+<BR>
+
+<H3><A NAME="htoc8">2.2.1</A>&nbsp;&nbsp;RAID levelsRaid Levels </H3>
+The different RAID levels have different performance, redundancy, storage capacity,
+reliability and cost characteristics. Most, but not all levels of RAID offer
+redundancy against drive failure. There are many different levels of RAID which
+have been defined by various vendors and researchers. The following describes
+the first 7 RAID levels in the context of the Antares 5070 hardware RAID implementation.<BR>
+<BR>
+
+<H3><A NAME="htoc9">2.2.2</A>&nbsp;&nbsp;RAID linearRAID Linear</H3>
+RAID-linear is a simple concatenation of drives to create a larger virtual drive.
+It is handy if you have a number small drives, and wish to create a single,
+large drive. This concatenation offers no redundancy, and in fact decreases
+the overall reliability: if any one drive fails, the combined drive will fail.<BR>
+<BR>
+
+<H5>SUMMARY</H5>
+<UL><LI>
+Enables construction of a large virtual drive from a number of smaller drives
+<LI>No protection, less reliable than a single drive
+<LI>RAID 0 is a better choice due to better I/O performance
+</UL>
+
+<H3><A NAME="htoc10">2.2.3</A>&nbsp;&nbsp;RAID 1Level 1 </H3>
+Also referred to as "mirroring". Two (or more) drives, all
+of the same size, each store an exact copy of all data, disk-block by disk-block.
+Mirroring gives strong protection against drive failure: if one drive fails,
+there is another with the an exact copy of the same data. Mirroring can also
+help improve performance in I/O-laden systems, as read requests can be divided
+up between several drives. Unfortunately, mirroring is also one of the least
+efficient in terms of storage: two mirrored drives can store no more data than
+a single drive.<BR>
+<BR>
+
+<H5>SUMMARY</H5>
+<UL><LI>
+Good read/write performance
+<LI>Inefficient use of storage space (half the total space available for data)
+<LI>RAID 6 may be a better choice due to better I/O performance. 
+</UL>
+
+<H3><A NAME="htoc11">2.2.4</A>&nbsp;&nbsp;stripingStriping</H3>
+Striping is the underlying concept behind all of the other RAID levels. A stripe
+is a contiguous sequence of disk blocks. A stripe may be as short as a single
+disk block, or may consist of thousands. The RAID drivers split up their component
+drives into stripes; the different RAID levels differ in how they organize the
+stripes, and what data they put in them. The interplay between the size of the
+stripes, the typical size of files in the file system, and their location on
+the drive is what determines the overall performance of the RAID subsystem.<BR>
+<BR>
+
+<H3><A NAME="htoc12">2.2.5</A>&nbsp;&nbsp;RAID 0Level 0 </H3>
+Similar to RAID-linear, except that the component drives are divided into stripes
+and then interleaved. Like RAID-linear, the result is a single larger virtual
+drive. Also like RAID-linear, it offers no redundancy, and therefore decreases
+overall reliability: a single drive failure will knock out the whole thing.
+However, the 5070 hardware RAID 0 is the fastest of any of the schemes listed
+here.<BR>
+<BR>
+
+<H5>SUMMARY:</H5>
+<UL><LI>
+Use RAID 0 to combine smaller drives into one large virtual drive.
+<LI>Best Read/Write performance of all the schemes listed here.
+<LI>No protection from drive failure.
+<LI>ADVICE: Buy very reliable hard disk drives if you plan to use this scheme.
+</UL>
+
+<H3><A NAME="htoc13">2.2.6</A>&nbsp;&nbsp;RAID 2RAID 3Level 2 and 3</H3>
+RAID-2 is seldom used anymore, and to some degree has been made obsolete by
+modern hard disk technology. RAID-2 is similar to RAID-4, but stores ECC information
+instead of parity. Since all modern disk drives incorporate ECC under the covers,
+this offers little additional protection. RAID-2 can offer greater data consistency
+if power is lost during a write; however, battery backup and a clean shutdown
+can offer the same benefits. RAID-3 is similar to RAID-4, except that it uses
+the smallest possible stripe size.<BR>
+<BR>
+
+<H5>SUMMARY</H5>
+<UL><LI>
+RAID 2 is largely obsolete
+<LI>Use RAID 3 to combine separate drives together into one large virtual drive.
+<LI>Protection against single drive failure,
+<LI>Good read/write performance.
+</UL>
+
+<H3><A NAME="htoc14">2.2.7</A>&nbsp;&nbsp;RAID 4Level 4 </H3>
+RAID-4 interleaves stripes like RAID-0, but it requires an additional drive
+to store parity information. The parity is used to offer redundancy: if any
+one of the drives fail, the data on the remaining drives can be used to reconstruct
+the data that was on the failed drive. Given N data disks, and one parity disk,
+the parity stripe is computed by taking one stripe from each of the data disks,
+and XOR'ing them together. Thus, the storage capacity of a an (N+1)-disk RAID-4
+array is N, which is a lot better than mirroring (N+1) drives, and is almost
+as good as a RAID-0 setup for large N. Note that for N=1, where there is one
+data disk, and one parity disk, RAID-4 is a lot like mirroring, in that each
+of the two disks is a copy of each other. However, RAID-4 does NOT offer the
+read-performance of mirroring, and offers considerably degraded write performance.
+In brief, this is because updating the parity requires a read of the old parity,
+before the new parity can be calculated and written out. In an environment with
+lots of writes, the parity disk can become a bottleneck, as each write must
+access the parity disk. <BR>
+<BR>
+
+<H5>SUMMARY</H5>
+<UL><LI>
+Similar to RAID 0
+<LI>Protection against single drive failure.
+<LI>Poorer I/O performance than RAID 3
+<LI>Less of the combined storage space is available for data [than RAID 3] since
+an additional drive is needed for parity information.
+</UL>
+
+<H3><A NAME="htoc15">2.2.8</A>&nbsp;&nbsp;RAID 5Level 5</H3>
+RAID-5 avoids the write-bottleneck of RAID-4 by alternately storing the parity
+stripe on each of the drives. However, write performance is still not as good
+as for mirroring, as the parity stripe must still be read and XOR'ed before
+it is written. Read performance is also not as good as it is for mirroring,
+as, after all, there is only one copy of the data, not two or more. RAID-5's
+principle advantage over mirroring is that it offers redundancy and protection
+against single-drive failure, while offering far more storage capacity when
+used with three or more drives. <BR>
+<BR>
+
+<H5>SUMMARY</H5>
+<UL><LI>
+Use RAID 5 if you need to make the best use of your available storage space
+while gaining protection against single drive failure.
+<LI>Slower I/O performance than RAID 3
+</UL>
+<HR>
+<A HREF="antares-RAID-SparcLinux-HOWTO003.html"><IMG SRC ="previous_motif.gif" ALT="Previous"></A>
+<A HREF="index.html"><IMG SRC ="contents_motif.gif" ALT="Up"></A>
+<A HREF="antares-RAID-SparcLinux-HOWTO005.html"><IMG SRC ="next_motif.gif" ALT="Next"></A>
+</BODY>
+</HTML>

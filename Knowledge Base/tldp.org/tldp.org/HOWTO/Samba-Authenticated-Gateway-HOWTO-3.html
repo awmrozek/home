@@ -1,0 +1,440 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Samba Authenticated Gateway HOWTO: Linux box setup</TITLE>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO-4.html" REL=next>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO-2.html" REL=previous>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-4.html">Next</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-2.html">Previous</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3.</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc3">Linux box setup</A></H2>
+
+<P>This Howto assumes you have a kernel from the 2.4 series as it
+uses iptables. Other than that, there are no known issues why this
+should not work on a 2.2 kernel box with the scripts adapted to ipchains.</P>
+
+<P>Of course, you need to install the iptables userland tools, an
+apache http server if you want to run a CGI tool to change passwords
+and SAMBA. And you will need a kernel compiled with iptables modules.</P>
+
+<P>You may wish to use DHCP. If so, it is easy to set up. Remember
+to configure the dhcp server to give the nameserver IP address and
+the gateway IP address as well. The Windows machines will make good
+use of this information.</P>
+
+<H2><A NAME="ss3.1">3.1</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc3.1">Basic system setup</A>
+</H2>
+
+<P>Generally any basic system setup from the common Linux distributions
+will fit in this gateway example. Just check if you have Samba and
+IPTABLES.</P>
+
+<H2><A NAME="ss3.2">3.2</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc3.2">Additional directory hierarchy</A>
+</H2>
+
+<P>The additional directory hierarchy will be required to accomplish
+the example of this howto:</P>
+
+<P>This is used to keep track of the users and IP addresses:</P>
+
+<P>
+<PRE>
+/var/run/smbgate/
+</PRE>
+</P>
+<P>This is where I place user specific scripts:</P>
+
+<P>
+<PRE>
+/etc/smbgate/users/
+</PRE>
+</P>
+<P>And group specific scripts:</P>
+
+<P>
+<PRE>
+/etc/smbgate/groups/
+</PRE>
+</P>
+<P>Directory for the netlogon share:</P>
+
+<P>
+<PRE>
+/home/samba/netlogon/
+</PRE>
+</P>
+<P>Directory for the tracking share:</P>
+
+<P>
+<PRE>
+/home/samba/samba/
+</PRE>
+</P>
+<P>These hierarchies are required by some of the scripts and daemons
+of the example.</P>
+
+<H2><A NAME="ss3.3">3.3</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc3.3">Firewall setup</A>
+</H2>
+
+<P>Its very unlikely that your distribution's kernel won't be compiled
+with Iptables and the userland tools won't be installed either. Anyway,
+if you don't have it, refer to 
+<A HREF="http://www.netfilter.org">http://www.netfilter.org</A> or 
+<A HREF="http://www.iptables.org">http://www.iptables.org</A> to get the software and the documentation.</P>
+
+<P>You will need a basic firewall setup in order to get the gateway
+working. Take a look at the iptables tutorial at 
+<A HREF="http://www.netfilter.org/documentation/tutorials/blueflux/iptables-tutorial.html">IPTABLES TUTORIAL</A>. It's an interesting
+reading. Anyway, if you have no time to spend, the following code
+is somewhat (very) loose but it may fit your needs:</P>
+
+<P>
+<PRE>
+#!/bin/sh
+IPTABLES=/usr/sbin/iptables
+/sbin/depmod -a
+/sbin/insmod ip_tables
+/sbin/insmod ip_conntrack
+/sbin/insmod ip_conntrack_ftp
+/sbin/insmod ip_conntrack_irc
+/sbin/insmod iptable_nat
+/sbin/insmod ip_nat_ftp
+echo &quot;1&quot; &gt; /proc/sys/net/ipv4/ip_forward
+echo &quot;1&quot; &gt; /proc/sys/net/ipv4/ip_dynaddr
+$IPTABLES -P INPUT ACCEPT
+$IPTABLES -F INPUT 
+$IPTABLES -P OUTPUT ACCEPT
+$IPTABLES -F OUTPUT
+$IPTABLES -P FORWARD ACCEPT
+$IPTABLES -F FORWARD 
+$IPTABLES -t nat -F
+</PRE>
+</P>
+<P>You will notice that this code actually does nothing, but load
+the kernel modules related to nat and firewalling and turns the packet
+routing on. You can (and should) place any rules there to give your
+gateway a standard behavior, but the big magic will be done by scripts
+called by the SAMBA daemon.</P>
+
+<P>Please, remember that this code doesn't have the least bit of
+security! Don't use these examples in production environments. This
+example intends only to be educational. You have to add a firewall
+configuration that suits your systems.</P>
+
+<P>You have been warned!</P>
+
+<H2><A NAME="ss3.4">3.4</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc3.4">SAMBA setup</A>
+</H2>
+
+<P>Check if you have Samba installed. If your distribution doesn't
+come with Samba pre-packaged then refer to 
+<A HREF="http://www.samba.org">http://www.samba.org</A> to get the packages and
+for documentation on how to install Samba. Brows around their web
+site and learn about it. The site has plenty of documentation and
+maybe your LINUX distribution also has plenty of SAMBA documentation.</P>
+
+<P>We will need to setup SAMBA as a Primary Domain Controller. I
+will give an example configuration file here, but you should read
+the 
+<A HREF="http://www.samba.org/samba/docs/man/Samba-HOWTO-Collection.html">Samba HOWTO Collection</A> and learn all you can about a PDC.</P>
+
+<H3>Basic SAMBA setup.</H3>
+
+<P>Since I do not intend to rewrite the SAMBA documentation, here
+goes a sample smb.conf file:</P>
+
+<P>
+<PRE>
+# Global parameters
+[global]
+workgroup = DOMAIN
+netbios name = LINUX
+server string = Linux PDC
+encrypt passwords = Yes
+map to guest = Bad Password
+passwd program = /usr/bin/passwd
+unix password sync = Yes
+max log size = 50
+time server = Yes
+socket options = TCP_NODELAY SO_RCVBUF=8192 SO_SNDBUF=8192
+add user script = /usr/sbin/useradd -d /dev/null -g 100 -s /bin/false -M %u
+logon script = %a.bat
+domain logons = Yes
+os level = 64
+lm announce = True
+preferred master = True
+domain master = True
+dns proxy = No
+printing = lprng
+[homes]
+comment = Home Directories
+path = /home/%u
+read only = No
+[printers]
+comment = All Printers
+path = /var/spool/samba
+printable = Yes
+browseable = No
+available = No
+[netlogon]
+comment = NetLogon ShARE
+path = /home/samba/netlogon
+guest account = 
+[samba]
+comment = login tracking share
+path = /home/samba/samba
+browseable = No
+root preexec = /usr/local/bin/netlogon.sh %u %I
+root postexec = /usr/local/bin/netlogoff.sh %u
+</PRE>
+</P>
+<P>You will have to do with it or read the SAMBA documentation if
+you really want to control your server and network.</P>
+
+<H3>The "logon script"</H3>
+
+<P>Using "logon script = %a.bat" makes samba evaluate the guest
+os and call an appropriated logon script. If you want a static script,
+just change to "logon script = netlogon.bat". Actually you can do anything
+here and even generate any script during the logon.</P>
+
+<H3>The netlogon and the tracking shares</H3>
+
+<P>The netlogon share is where the Windows workstations download
+the logon script from. We need this share in order to place there
+a logon script, which will tell the workstation to mount a share
+that will be used to track the users ip addresses.</P>
+
+<P>As you can see, there must be a line like the following in your
+smb.conf</P>
+
+<P>
+<PRE>
+logon script = netlogon.bat
+</PRE>
+</P>
+<P>This line will tell your Windows client to download and execute
+the script named netlogon.bat. This script must be placed at the
+netlogon share. So, we will also need a netlogon.bat script to your
+Windows workstations. You can use the following example and place
+it at the netlogon share, in this case: /home/samba/netlogon/NETLOGON.BAT.</P>
+
+<P>
+<PRE>
+REM NETLOGON.BAT
+net use z: \\linux\samba /yes
+</PRE>
+</P>
+<P>This script will tell the Windows workstation to mount the specified
+share, and so we will be able to keep track of the user and workstation
+through the output of the smbstatus program.</P>
+
+<P>Quite simple! But not enough...</P>
+
+<P>As you could see, we will need also a tracking share which, in
+this example, I named samba. You can see the tracking share configuration
+in smb.conf:</P>
+
+<P>
+<PRE>
+[samba]
+comment = login tracking share
+path = /home/samba/samba
+browseable = No
+root preexec = /usr/local/bin/netlogon.sh %u %I
+root postexec = /usr/local/bin/netlogoff.sh %u
+</PRE>
+</P>
+<P>As you can guess or know if you read the SAMBA documentation,
+the root preexec and the root postexec lines tell SAMBA to run the
+indicated scripts when a user mounts or unmounts the share. In this
+case, we are passing the username to the script as a parameter. Note
+the %u at the end of the lines. These scripts are the beasts
+which will call a script or program to modify our gateway's packet
+filtering rules.</P>
+
+<P>Note that the netlogon.sh script must check if the refered workstation
+has already mounted the tracking share.</P>
+
+<P>Take a look at the netlogon.sh and netlogoff.sh scripts:</P>
+
+<P>
+<PRE>
+#!/bin/sh
+#
+# netlogon.sh
+#
+# usage:
+# netlogon.sh &lt;username&gt;
+#
+if [ -f /var/run/smbgate/$1 ] ; then
+    exit 0
+fi
+echo $2 &gt; /var/run/smbgate/$1
+IPTABLES='/usr/sbin/iptables'
+EXTIF='eth0'
+COMMAND='-A'
+ADDRESS=`cat /var/run/smbgate/$1`
+GROUP=`groups $1 | gawk '// { print $3 }'`
+if [ -f /etc/smbgate/users/$1 ] ; then
+    /etc/smbgate/users/$1 $COMMAND $ADDRESS $EXTIF
+else
+    if [ -f /etc/smbgate/groups/$GROUP ] ; then
+        /etc/smbgate/groups/$GROUP $COMMAND $ADDRESS $EXTIF
+    else
+        /etc/smbgate/users/default.sh $COMMAND $ADDRESS $EXTIF
+    fi
+fi
+
+</PRE>
+</P>
+<P>This script (netlogon.sh) is intended to run when the user logs
+in and will select the which scripts will be executed based on the
+user name and to which group the user belongs. The user's ip address
+will be written to a file at /var/run/smbgate for tracking purposes.
+The file will take the user's name and will be later used when the
+user log off. The IP address will be passed as an argument to a script
+with the users' name which will finally update the firewall.</P>
+
+<P>Notice that this netlogon.sh script tries a user script, then
+if it can't find the user script it tries a group script, and finally
+if it can't find the group script it tries the default.sh script.
+You can modify this logic and behavior as you wish and need, just
+remember to modify the others accordingly. </P>
+
+<P>Chances are if the user belong to more than one that these scripts
+will fail. I did not have time to write a better code.</P>
+
+<P>
+<PRE>
+#!/bin/sh
+#
+# netlogoff.sh
+#
+# usage:
+# netlogoff.sh &lt;username&gt;
+#
+IPTABLES='/usr/sbin/iptables'
+EXTIF='ppp0'
+COMMAND='-D'
+TRACKSHARE=&quot;samba&quot;
+ADDRESS=`cat /var/run/smbgate/$1`
+GROUP=`groups $1 | gawk '// { print $3 }'`
+NM=`smbstatus -u $1 | grep $TRACKSHARE | wc -l`
+if [ $NM -gt 0 ]; then
+    exit
+fi
+if [ -f /etc/smbgate/users/$1 ] ; then
+    /etc/smbgate/users/$1 $COMMAND $ADDRESS $EXTIF
+else
+    if [ -f /etc/smbgate/groups/$GROUP ] ; then
+        /etc/smbgate/groups/$GROUP $COMMAND $ADDRESS $EXTIF
+    else
+        /etc/smbgate/users/default.sh $COMMAND $ADDRESS $EXTIF
+    fi
+fi
+rm -f /var/run/smbgate/$1
+</PRE>
+</P>
+<P>This script (netlogoff.sh) is intended to run when the user logs
+off and will get the address from the /var/run/smbgate/user file
+which will be passed as an argument to the /etc/smbgate/users/user
+script which will update the firewall to the state desired when the
+user is not logged in.</P>
+
+<P>Some versions of Windows, such as Windows 2000, mount the tracking
+share more than once per login. This may cause problems with the
+netlogon.sh and netlogoff.sh, triggering the scripts more the once.
+This can make a real mess. So, you may prefer to use a logout checking
+script at cron instead of a netlogoff.sh script triggered by SAMBA.
+Here is an example:</P>
+
+<P>
+<PRE>
+#!/bin/sh
+# checklogout.sh
+#
+# usage:
+# intended to run at cron (maybe each 10 minutes)
+
+TRACKDIR=&quot;/var/run/smbgate&quot;
+DIRLENGTH=${#TRACKDIR}
+TRACKSHARE=&quot;samba&quot;
+EXTIF='eth0'
+COMMAND='-D'
+if [ -d $TRACKDIR ]; then
+  for n in $TRACKDIR/*; do
+    [ -d $n ] &amp;&amp; continue;
+    if [ -f $n ] ; then 
+      IPADDRESS=`cat $n`
+      USERNAME=${n:$DIRLENGTH+1}
+      NMS=`smbstatus -u $USERNAME | grep $TRACKSHARE | grep $IPADDRESS | grep -v grep | wc -l`
+      if [ $NMS == 0 ] ; then
+        rm -f $n
+        GROUP=`groups $USERNAME | gawk '// { print $3 }'`
+        if [ -f /etc/smbgate/users/$USERNAME ] ; then
+          /etc/smbgate/users/$USERNAME $COMMAND $IPADDRESS $EXTIF
+        else
+          if [ -f /etc/smbgate/groups/$GROUP ] ; then
+            /etc/smbgate/groups/$GROUP $COMMAND $IPADDRESS $EXTIF
+          else
+            /etc/smbgate/users/default.sh $COMMAND $IPADDRESS $EXTIF
+          fi
+        fi
+      fi
+    else
+      exit 0
+    fi
+  done
+fi 
+</PRE>
+</P>
+<P>In that case you should remove the root postexec clause from
+the tracking share on smb.conf:</P>
+
+<P>
+<PRE>
+root postexec = /usr/local/bin/netlogoff.sh %u
+</PRE>
+</P>
+<P>The following is a standard /etc/smbgate/users/user script. This
+is the one which will actually modify the firewall rules.</P>
+
+<P>
+<PRE>
+#!/bin/sh
+#
+COMMAND=$1
+ADDRESS=$2
+EXTIF=$3
+IPTABLES='/usr/sbin/iptables'
+$IPTABLES $COMMAND POSTROUTING -t nat -s $ADDRESS -o $EXTIF -j MASQUERADE
+</PRE>
+</P>
+<P>We should also have a default.sh script at /etc/smbgate/users/
+to give the gateway a default behavior.</P>
+
+<P>
+<PRE>
+#!/bin/sh
+#
+# default.sh
+COMMAND=$1
+ADDRESS=$2
+EXTIF=$3
+IPTABLES='/usr/sbin/iptables'
+#$IPTABLES $COMMAND POSTROUTING -t nat -s $ADDRESS -o $EXTIF -j MASQUERADE
+exit 0
+</PRE>
+</P>
+<HR>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-4.html">Next</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-2.html">Previous</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

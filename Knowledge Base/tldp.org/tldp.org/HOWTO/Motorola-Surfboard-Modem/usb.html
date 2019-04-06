@@ -1,0 +1,436 @@
+<HTML
+><HEAD
+><TITLE
+>Using the USB interface instead of an ethernet card</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Motorola Surfboard 4100 + 4200 Series USB Cable Modem mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Prerequisites"
+HREF="prerequisites.html"><LINK
+REL="NEXT"
+TITLE="Troubleshooting"
+HREF="troubleshooting.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Motorola Surfboard 4100 + 4200 Series USB Cable Modem mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="prerequisites.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="troubleshooting.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="usb"
+></A
+>3. Using the USB interface instead of an ethernet card</H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN129"
+></A
+>3.1. USB CDCEther</H2
+><P
+>&#13;If you wish to use the USB interface to accept data you will need USB subsystem support in your kernel, whether USB-ohci, USB-ehci, or whichever USB host controller driver type your system prefers. For a more in-depth discussion of this, I direct you to the <A
+HREF="http://www.linux-usb.org/"
+TARGET="_top"
+>Linux-USB project site</A
+>.
+</P
+><P
+>&#13;Assuming you have USB subsystem support, to find out if your kernel supports the CDCEther (Communications Device Class Ethernet) driver as a module, in a shell, issue the command <B
+CLASS="command"
+>lsmod</B
+> as root.
+</P
+><P
+>&#13;You should see output similar to the following, though a number of entries have been edited, and you shouldn't worry too much if you don't see the exact entries displayed here:
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;CDCEther               11040   0  (unused)
+usb-ohci               17888   0  (unused)
+usbcore                56768   1  [scanner CDCEther usb-ohci]
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;If you don't see CDCEther listed among the modules try loading the module directly:
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+> #  modprobe CDCEther </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;If all goes well you should see the following message in your system log files, or with <B
+CLASS="command"
+>dmesg</B
+>:
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;Mar  2 11:00:52 K7 kernel: CDCEther.c: 0.98.6 7 Jan 2002 Brad Hards and another
+Mar  2 11:00:52 K7 kernel: usb.c: registered new driver CDCEther
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;If you don't have it compiled as a module, check the output of <B
+CLASS="command"
+>dmesg </B
+> (you may need to pipe it through 'less' or 'more' like so: <B
+CLASS="command"
+>dmesg | less</B
+>); if the driver loads as a module you will see a message similar to the above at boo- up. If not, and you want to use the USB conduit of this device, you will need to recompile your kernel to support it. You will need the 2.4.3 kernel or later. For detailed instructions on recompiling your kernel, I direct you to <A
+HREF="http://www.tldp.org/HOWTO/Kernel-HOWTO.html"
+TARGET="_top"
+>the Kernel-HOWTO</A
+>. The options shown next will need to be selected. As an aside, you should be aware that compiling things as modules, rather than statically within the kernel, gives you a greater degree of control and greatly simplifies troubleshooting.
+</P
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="kernel"
+></A
+>3.1.1. Kernel Requirements</H3
+><P
+>&#13;In addition to the 'TCP/IP networking' listed in <A
+HREF="prerequisites.html"
+>Section 2</A
+>, the following should be compiled in your kernel in the 'USB support' menu (assuming you are using <B
+CLASS="command"
+>menuconfig</B
+>):</P
+><P
+>&#13;<P
+></P
+><UL
+><LI
+><P
+>&#13;	USB support
+	</P
+></LI
+><LI
+><P
+>&#13;	USB Communication Class Ethernet device support
+	</P
+></LI
+></UL
+>
+</P
+></DIV
+><DIV
+CLASS="sect3"
+><H3
+CLASS="sect3"
+><A
+NAME="device-iface"
+></A
+>3.1.2. Grabbing the Correct Interface</H3
+><P
+> 
+Now we have to select the correct ethernet interface (<TT
+CLASS="filename"
+>/dev/ethX</TT
+>) to be the receipient of the DHCP service. If you run <B
+CLASS="command"
+>ifconfig</B
+> as root you get a list of open devices:
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>eth0 Link encap:Ethernet HWaddr 00:D0:09:DE:D4:6F
+	inet addr:192.168.1.1
+	Bcast:192.168.1.255 Mask:255.255.255.0
+	BROADCAST RUNNING MULTICAST MTU:1500 Metric:1
+	RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+	TX packets:0 errors:0 dropped:0 overruns:0 carrier:0 
+	collisions:0 txqueuelen:100
+	RX bytes:0 (0.0 b) TX bytes:0 (0.0 b) Interrupt:12 Base address:0xc400
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>lo Link encap:Local Loopback
+	inet addr:127.0.0.1 Mask:255.0.0.0
+	UP LOOPBACK RUNNING MTU:16436 Metric:1
+	RX packets:5168 errors:0 dropped:0 overruns:0 frame:0
+	TX packets:5168 errors:0 dropped:0 overruns:0 carrier:0
+	collisions:0 txqueuelen:0 
+	RX bytes:1695104 (1.6 MiB)  TX bytes:1695104 (1.6 MiB)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>...where eth0 is a standard NIC, pre-configured to the IP address 192.168.1.1.
+</P
+><P
+>&#13;Note the HWaddr field, or hardware address, on the first line. This is the same as the MAC, or Media Access Control address, and is how we will specify the interface for each action. If you are running a Debian system, you can alter the <TT
+CLASS="filename"
+>/etc/network/interfaces</TT
+> file to look like this:
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;	# /etc/network/interfaces -- configuration file for ifup(8), ifdown(8)
+	# The loopback interface
+	auto lo
+	iface lo inet loopback
+	auto eth0
+ 	iface eth0 inet static
+	address 192.168.1.1
+	netmask 255.255.255.0
+	network 192.168.1.0
+	hwaddress ether 00:D0:09:DE:D4:6F
+	
+	auto eth1
+	iface eth1 inet dhcp
+	hwaddress ether 00:04:BD:DE:42:0B
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+</P
+><P
+>&#13;The <B
+CLASS="command"
+>auto eth0</B
+> and <B
+CLASS="command"
+>auto eth1</B
+> are required to have the interfaces configured at bootup. Note that some versions of dhcp clients by default always grab eth0 for the dhcpc interface.
+So even after doing all the above, unless you specifically run <B
+CLASS="command"
+>/sbin/dhcpcd-bin eth1</B
+>
+it won't work. The easy way to do this at boot-up is to make an init script to load the dhcp address to the correct interface. For most distributions, such a script is in <TT
+CLASS="filename"
+>/etc/rc.d</TT
+> or a similar location. If you have an <TT
+CLASS="filename"
+>rc.local</TT
+> script, as in Slackware, you can simply add <B
+CLASS="command"
+>/sbin/dhclient</B
+> to the end of the file. If you have a model rc.d script (such as <TT
+CLASS="filename"
+>/etc/init.d/skeleton</TT
+> in Debian) you can convert that to such a purpose. Whatever the case (either at the command line manually or appended to an init script), the command to run is as follows:
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+># ifconfig ethX hw ether 00:D0:09:DE:D4:6F up </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>You can confirm it worked by calling <B
+CLASS="command"
+>ifconfig</B
+> without options after your next reboot.
+</P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="prerequisites.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="troubleshooting.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Prerequisites</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Troubleshooting</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

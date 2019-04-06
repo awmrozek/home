@@ -1,0 +1,349 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - DLL</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apiclass.html">&lt;&lt; Subclassing i superclassing</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>DLL</H1>
+
+<p>
+DLL, czyli <span class=Inglisz>Dynamic Link Libraries</span>, jak sama nazwa wskazuje, są bibliotekami dynamicznie linkowanymi. Oznacza to, w dużym uproszczeniu, że kod wykonywalny zawartych w tych bibliotekach funkcji nie jest dołączany do twojego programu, lecz wywoływany dopiero podczas jego działania. Takie rozwiązanie ma dwie podstawowe zalety: ten sam kod może być współdzielony przez wiele różnych aplikacji, a rozmiar twoich plików wykonywalnych jest mniejszy. Wady większość z nas poznała już na własnej skórze: DLL-ki mają tę przykrą cechę, że często się "gubią" i trzeba je potem sprowadzać z rozmaitych zakątków internetu tudzież płyt instalacyjnych. Bywa też, że mamy potrzebną DLL-kę, ale w nieodpowiedniej wersji. Poza tym dynamiczne linkowanie jest oczywiście również mniej wydajne.
+</p>
+<p>
+Jeśli mimo wszystko dalej czytasz ten artykuł, zdecydowałeś się jednak stworzyć własną bibliotekę dynamiczną, choćby z ciekawości. Do dzieła więc.
+</P>
+<h2>
+Najprostsza DLL
+</h2>
+<P>
+Najbardziej typową rzeczą, którą eksportujemy z DLL, jest oczywiście zwykła funkcja. Żeby zanadto nie komplikować sobie zadania, załóżmy, że nasza funkcja ma po prostu obliczać kwadrat danej liczby. Oczywiście nie będzie to zbyt praktyczne, skoro istnieje świetnie działająca funkcja <SPAN CLASS=T>pow</SPAN>, ale - jak już powiedziałem - nie komplikujmy sobie zadania ;-).
+</P>
+<P>
+Ponieważ tworzenie biblioteki nieco się różni od tworzenia aplikacji, więc sporo czynności z tym związanych zależnych jest od IDE. Tutaj pokażemy sobie to na przykładzie środowiska Dev-C++, które większość mokrej roboty odwala za nas. Do dyspozycji mamy bowiem gotowy szablon projektu DLL. Wystarczy wybrać go podczas tworzenia nowego projektu i już mamy szkielet prostego DLL. Składa się on z dwóch plików, <SPAN CLASS=C>dllmain.cpp</SPAN> i <SPAN CLASS=C>dll.h</SPAN> (oczywiście te nazwy możesz sobie zmienić). Pierwszy z nich przedstawia się następująco:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>/* Replace "dll.h" with the name of your header */</SPAN><BR>
+<SPAN CLASS=C>#include "dll.h"<BR>
+#include &lt;windows.h&gt;</SPAN><BR>
+<BR>
+DllClass::DllClass()<BR>
+{<BR>
+<BR>
+}<BR>
+<BR>
+DllClass::~DllClass()<BR>
+{<BR>
+<BR>
+}<BR>
+<BR>
+BOOL APIENTRY DllMain (HINSTANCE hInst    <SPAN CLASS=C> /* Library instance handle. */</SPAN>,<BR>
+&nbsp;DWORD reason        <SPAN CLASS=C>/* Reason this function is being called. */</SPAN>,<BR>
+&nbsp;LPVOID reserved     <SPAN CLASS=C>/* Not used. */</SPAN>)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(reason)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> DLL_PROCESS_ATTACH:<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> DLL_PROCESS_DETACH:<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> DLL_THREAD_ATTACH:<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> DLL_THREAD_DETACH:<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>/* Returns TRUE on success, FALSE on failure */</SPAN><BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> TRUE;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Widzimy włączenie nagłówka <SPAN CLASS=C>windows.h</SPAN> (co jest oczywiste), naszego <SPAN CLASS=C>dll.h</SPAN> (o którym zaraz pogadamy), puste ciała konstruktora i destruktora jakiejś klasy oraz funkcję <SPAN CLASS=T>DllMain</SPAN>. Ta ostatnia, jak zapewne się domyślasz, jest czymś w rodzaju punktu wyjściowego DLL-ki, odpowiednikiem <SPAN CLASS=T>WinMain</SPAN> w "normalnym" projekcie. Można w niej wykonać inicjalizację naszej DLL, o ile to potrzebne. Jeśli nie, to w ogóle nie musimy takiej funkcji umieszczać w naszej bibliotece. Skoro jednak Dev nam ją wstawił, to niech sobie zostanie ;-).
+</P>
+<P>
+Więcej ciekawych rzeczy w pliku <SPAN CLASS=C>dllmain.cpp</SPAN> nie ma, więc przejdźmy do <SPAN CLASS=C>dll.h</SPAN>. Jest on trochę krótszy, ale też w tym momencie znacznie dla nas ważniejszy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#ifndef _DLL_H_<BR>
+#define _DLL_H_<BR>
+<BR>
+#if BUILDING_DLL<BR>
+# define DLLIMPORT __declspec (dllexport)<BR>
+#else /* Not BUILDING_DLL */<BR>
+# define DLLIMPORT __declspec (dllimport)<BR>
+#endif /* Not BUILDING_DLL */<BR></SPAN>
+<BR>
+<SPAN CLASS=K>class</SPAN> DLLIMPORT DllClass<BR>
+{<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;DllClass();<BR>
+&nbsp;<SPAN CLASS=K>virtual</SPAN> ~DllClass(<SPAN CLASS=K>void</SPAN>);<BR>
+<BR>
+<SPAN CLASS=K>private:</SPAN><BR>
+<BR>
+};<BR>
+<SPAN CLASS=C>
+#endif /* _DLL_H_ */
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+W tej chwili mamy tu jedynie deklarację owej pustej klasy, której obecność zauważyliśmy przy omawianiu <SPAN CLASS=C>dllmain.cpp</SPAN>. Oczywiście nie pełni ona żadnej roli w DLL - jest to tylko makieta klasy, którą możemy sobie zastąpić własną deklaracją, jeśli będziemy chcieli napisać i wyeksportować jakąś własną klasę. O tym jednak później.
+</P>
+<P>
+Znacznie ważniejszą rzeczą jest definicja makra <SPAN CLASS=T>DLLIMPORT</SPAN>. Widzimy, że jest to proste zastąpienie słowa kluczowego <SPAN CLASS=K>__declspec</SPAN> . O wartość <SPAN CLASS=T>BUILDING_DLL</SPAN> nie musisz się martwić - wszystko załatwią odpowiednie przełączniki dla kompilatora, które zostały już automatycznie ustawione (możesz sprawdzić w opcjach projektu). Wstawiając <SPAN CLASS=T>DLLIMPORT</SPAN> do deklaracji funkcji lub klasy określasz, że ma ona być wyeksportowana "na zewnątrz" (ten sam plik nagłówkowy jest wykorzystywany do zbudowania DLL-ki oraz w aplikacjach wykorzystujących jej statyczną wersję, stąd konieczność stosowania takiego makra).
+</P>
+<P>
+Otrzaskaliśmy się mniej więcej z budową kodu źródłowego DLL, więc możemy się zabrać za stworzenie naszej funkcji liczącej kwadrat liczby. Najpierw definicja w pliku <SPAN CLASS=C>dllmain.cpp</SPAN> - banał:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>double</SPAN> kwadrat(<SPAN CLASS=K>double</SPAN> liczba)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> liczba*liczba;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz część ważniejsza - deklaracja funkcji w <SPAN CLASS=C>dll.h</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>double</SPAN> DLLIMPORT kwadrat(<SPAN CLASS=K>double</SPAN> liczba);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+To wszystko, czego potrzebujemy, by zbudować DLL-kę z naszą funkcją. Włączamy więc kompilację i patrzymy, co się stało. Powinno przybyć kilka plików. Oprócz wszystkiego tego, co zwykle tworzy się podczas kompilacji, mamy jeszcze plik <SPAN CLASS=C>libNazwaProjektu.a</SPAN>, który można wykorzystać do statycznego linkowania naszej biblioteki, plik <SPAN CLASS=C>*.DEF</SPAN> (zawierający informacje o tym, co dokładnie eksportujemy) oraz upragnioną DLL-kę :-).
+</P>
+<P>
+Jeśli już w tym miejscu przejdziesz do następnego rozdziału i spróbujesz zdobyć adres wyeksportowanej funkcji w celu jej użycia, spotka cię niemiłe rozczarowanie. Funkcja o nazwie <SPAN CLASS=L>"kwadrat"</SPAN> nie zostanie odnaleziona. Powodem jest tzw. wikłanie nazw, czyli dodawanie do nich przez kompilator dodatkowych ciągów znaków. Nie jest to oczywiście proces uboczny ani przypadkowy, niemniej jednak wikłanie utrudnia nam mocno korzystanie z funkcji bibliotecznych - tym bardziej, że różne kompilatory generują różne nazwy. Na szczęście wikłanie można po prostu wyłączyć, a to w taki sposób:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>extern</SPAN> <SPAN CLASS=L>"C"</SPAN><BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>double</SPAN> DLLIMPORT kwadrat(<SPAN CLASS=K>double</SPAN> liczba);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+Statyczne linkowanie funkcji i klas
+</H2>
+
+<P>
+Można się do woli zachwycać naszą nową DLL-ką, ale oczywiście nic nam po niej, jeśli nie będziemy potrafili wywołać zawartych w niej funkcji z innego programu. Jak uczynić te funkcje dostępnymi dla naszej aplikacji? Do wyboru są dwie możliwości. Możemy użyć linkowania podczas ładowania programu (<SPAN CLASS=Inglisz>load-time linking</SPAN>), zwanego też linkowaniem statycznym, wykorzystując do tego utworzony przed chwilą plik <SPAN CLASS=C>lib*.a</SPAN>, lub podczas jego działania (<SPAN CLASS=Inglisz>run-time linking</SPAN>, linkowanie dynamiczne). Ta druga metoda jest generalnie lepsza, gdyż nie wymaga statycznego dołączania pliku *.a, a poza tym umożliwia dalsze działanie naszego programu nawet wtedy, gdyby jakiś niecny user skasował nam niezbędną DLL-kę (będziemy mogli wówczas np. poprosić go, ażeby był łaskaw wrzucić ją z powrotem na właściwe miejsce).
+</P>
+<P>
+Zacznijmy jednak od linkowania statycznego. Opiera się ono (jak już wspomniałem) na dołączeniu pliku <SPAN CLASS=C>lib*.a </SPAN>do listy plików linkowanych wraz z naszym projektem. Oczywiście musimy też dołączyć plik nagłówkowy (ten sam, który utworzyliśmy wraz z projektem DLL). Teraz - o ile posiadamy do tego gotową DLL-kę - możemy używać zawartych w niej funkcji i klas tak, jakby znajdowały się one bezpośrednio w naszym projekcie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//użycie funkcji z DLL</SPAN><BR>
+DWORD L = (DWORD)kwadrat(<SPAN CLASS=L>256</SPAN>);<BR>
+wsprintf(buf, <SPAN CLASS=L>"256 do potęgi 2 jest równe %lu."</SPAN>, L);<BR>
+MessageBox(hwnd, buf, <SPAN CLASS=L>"Test"</SPAN>, MB_ICONINFORMATION);<BR>
+<BR>
+<SPAN CLASS=C>//użycie klasy z DLL</SPAN><BR>
+DllClass D;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Zalety statycznego linkowania widać na pierwszy rzut oka. Nie potrzeba żadnych dodatkowych czarów - dołączamy nagłówek i lib-a, mamy dostęp do zawartości biblioteki. Główną wadą jest sama nazwa (statyczne linkowanie dynamicznie linkowanej biblioteki?). O innej wadzie już wspomnieliśmy - po skasowaniu, przeniesieniu lub zmianie nazwy DLL-ki program w ogóle się nie uruchomi (ale przynajmniej pokaże komunikat z wyjaśnieniem).
+</P>
+
+<h2>
+Dynamiczne linkowanie funkcji
+</h2>
+
+<P>
+Aby skorzystać z dobrodziejstw linkowania run-time, musimy zrobić trzy rzeczy:
+<UL>
+<li>załadować DLL
+<li>pobrać adres wybranej funkcji
+<li>wywołać funkcję przez adres
+</UL>
+</P>
+
+<P>
+Ładowanie biblioteki DLL nie należy do szczególnie skomplikowanych zadań. Specjalizująca się w takich zadaniach funkcja <SPAN CLASS=T>LoadLibrary</SPAN> przyjmuje jako parametr nazwę DLL-ki, zaś zwraca uchwyt do modułu biblioteki. Uchwyt ten zapamiętujemy, przyda się:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HINSTANCE hDll;<BR>
+hDll = LoadLibrary(<SPAN CLASS=L>"dlltest"</SPAN>);<BR>
+<BR>
+<SPAN CLASS=K>if</SPAN>(hDll != NULL)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//jeśli wszystko poszło dobrze, tutaj możemy wywołać jakąś funkcję biblioteczną</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Przyjęliśmy tutaj, że nasza biblioteka znajduje się w pliku <SPAN CLASS=C>DLLTest.dll</SPAN> (zwróć uwagę, że nazwę biblioteki możemy podawać bez rozszerzenia <SPAN CLASS=C>.dll</SPAN>). Jeśli udało się załadować bibliotekę, to możemy teraz pobrać adres funkcji <SPAN CLASS=T>kwadrat</SPAN>. Naturalnie pobrać nie po to, żeby posłać go w kosmos - potrzebujemy więc odpowiedniego wskaźnika:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>typedef double</SPAN> (*MYPROC)(<SPAN CLASS=K>double</SPAN>);<BR>
+<BR>
+MYPROC FunkcjaKwadrat;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wracamy teraz do miejsca, gdzie wczytywaliśmy naszą DLL-kę i zmuszamy ją do podania adresu funkcji <SPAN CLASS=T>kwadrat</SPAN> oraz uczynienia zeń pożytku:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DWORD L;<BR>
+<SPAN CLASS=K>char</SPAN> buf[<SPAN CLASS=L>1024</SPAN>];<BR>
+<BR>
+HINSTANCE hDll;<BR>
+hDll = LoadLibrary(<SPAN CLASS=L>"dlltest"</SPAN>);<BR>
+<BR>
+<SPAN CLASS=K>if</SPAN>(hDll != NULL)<BR>
+{<BR>
+&nbsp;FunkcjaKwadrat = (MYPROC)GetProcAddress(hDll, <SPAN CLASS=L>"kwadrat"</SPAN>);<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(FunkcjaKwadrat != NULL)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;L = (FunkcjaKwadrat)(<SPAN CLASS=L>256</SPAN>);<BR>
+&nbsp;&nbsp;wsprintf(buf, <SPAN CLASS=L>"256 do potęgi 2 jest równe %lu."</SPAN>, L);<BR>
+&nbsp;&nbsp;MessageBox(hwnd, buf, <SPAN CLASS=L>"Test"</SPAN>, MB_ICONINFORMATION);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;FreeLibrary(hDll);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Dynamiczne linkowanie klas
+</h2>
+
+<P>
+Proceduralny model programowania odchodzi już w zapomnienie, więc umieszczanie w dynamicznych bibliotekach "gołych" funkcji jest dla nas mało przydatne. Znacznie ciekawiej by było, gdyby dało się to robić z klasami. Wiemy już, że można wyeksportowane klasy używać poprzez statyczne linkowanie i tak też najczęściej wykorzystuje się klasy zawarte w DLL. A czy możliwe jest dynamiczne linkowanie klas?
+</P>
+<P>
+Odpowiedź wprost brzmi: nie. 
+Jednak nie oznacza to, że w ogóle nie da się skorzystać z DLL-owych klas bez statycznego linkowania. Można przecież wyeksportować z DLL funkcję, która stworzy nowy obiekt danej klasy i zwróci wskaźnik na niego:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DllClass* CreateObject()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return new</SPAN> DllClass;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście, tworząc obiekt dynamicznie powinniśmy również zadbać o jego zniszczenie, więc tworzymy i eksportujemy drugą funkcję:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> DestroyObject(DllClass* ptr)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>delete</SPAN> ptr;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Nie zawsze się nam chce pamiętać o uciążliwym obowiązku niszczenia obiektów, więc warto tutaj pomyśleć o mechanizmie automatycznego zwalniania pamięci, jak na przykład bazowa klasa dla wszystkich obiektów, przechowująca statyczną (tj. deklarowaną ze słowem <SPAN CLASS=K>static</SPAN>) tablicę wskaźników na tworzone dynamicznie obiekty.
+</P>
+<P>
+Do klasy <SPAN CLASS=T>DllClass</SPAN> możemy sobie również dorzucić metodę <SPAN CLASS=T>Test</SPAN>, aby sprawdzić, czy wszystko działa jak należy. Metody <SPAN CLASS=T>Test</SPAN> nie możemy oczywiście wyeksportować, ale też nie musimy, gdyż będziemy ją wywoływać przez wskaźnik do naszego obiektu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> DllClass::Test()<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Wywołano metodę Test.", "Test"</SPAN>, MB_ICONINFORMATION);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pozostaje tylko napisać odpowiednie deklaracje (pamiętając o <SPAN CLASS=K>extern</SPAN><SPAN CLASS=L> "C"</SPAN>), aby funkcje zostały wyeksportowane:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>extern</SPAN> <SPAN CLASS=L>"C"</SPAN><BR>
+{<BR>
+&nbsp;DllClass* DLLIMPORT CreateObject();<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> DLLIMPORT DestroyObject(DllClass* ptr);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Od tego momentu (o ile mamy poprawną deklarację metody <SPAN CLASS=T>Test</SPAN>, której chyba nie muszę tutaj umieszczać?) można wreszcie tworzyć w dowolnym programie, wykorzystujący dynamiczne linkowanie z naszą DLL-ką, obiekty klasy <SPAN CLASS=T>DllClass</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DllClass *D = CreateObject();<BR>
+D->Test();<BR>
+DestroyObject(D);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Sztuczka ta jest dość często stosowana, gdyż w przeciwieństwie do innych pośrednich rozwiązań ma niewiele wad. Pewną niedogodnością jest oczywiście konieczność tworzenia i przeciążania funkcji <SPAN CLASS=T>CreateObject</SPAN> i <SPAN CLASS=T>DestroyObject</SPAN> dla każdej klasy deklarowanej w DLL. Niektórym może się też nie spodobać konieczność dynamicznego tworzenia obiektów i - co za tym idzie - korzystania z nich tylko przez wskaźnik. Pamiętajmy jednak, że jest to preferowany sposób tworzenia obiektów w OOP, więc ta akurat wada nie powinna mieć dla nas większego znaczenia :-).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apiclass.html">&lt;&lt; Subclassing i superclassing</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TD>
+</TR>
+</TABLE>

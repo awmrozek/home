@@ -1,0 +1,264 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>LILO mini-HOWTO: Background Information and Standard Installation</TITLE>
+ <LINK HREF="LILO-3.html" REL=next>
+ <LINK HREF="LILO-1.html" REL=previous>
+ <LINK HREF="LILO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="LILO-3.html">Next</A>
+<A HREF="LILO-1.html">Previous</A>
+<A HREF="LILO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2.</A> <A HREF="LILO.html#toc2">Background Information and Standard Installation</A></H2>
+
+<P>When Lilo boots the system, it uses BIOS calls to load the Linux
+kernel off the disk (IDE drive, floppy or whatever). Therefore, the
+kernel must live in some place that can be accessed by the bios.</P>
+
+<P>At boot time, Lilo is not able to read filesystem data, and any
+pathname you put in <CODE>/etc/lilo.conf</CODE> is resolved at
+installation time (when you invoke <B>/sbin/lilo</B>). Installation
+time is when the program builds the tables that list which sectors are
+used by the files used to load the operating system. As a consequence,
+all of these files must live in a partition that can be accessed by
+the BIOS (the files are usually located in the <CODE>/boot</CODE>
+directory, this means that only the root partition of your Linux
+system needs to be accessed via the BIOS).</P>
+
+<P>Another consequence of being BIOS-based is that you must reinstall the
+loader (i.e., you must reinvoke <B>/sbin/lilo</B>) any time you
+modify the Lilo setup. Whenever you recompile your kernel and
+overwrite your old image you must reinstall Lilo.</P>
+
+<H2><A NAME="ss2.1">2.1</A> <A HREF="LILO.html#toc2.1">Where Should I Install Lilo?</A>
+</H2>
+
+<P>The <CODE>boot=</CODE> directive in <CODE>/etc/lilo.conf</CODE> tells Lilo where
+it should place its primary boot loader. In general, you can either
+specify the master boot record (<CODE>/dev/hda</CODE>) or the root
+partition of your Linux installation (is usually is <CODE>/dev/hda1</CODE>
+or <CODE>/dev/hda2</CODE>).</P>
+
+<P>If you have another operating system installed in your hard drive,
+you'd better install Lilo to the root partition instead of the MBR. In
+this case, you must mark the partition as ``bootable'' using the ``a''
+command of <B>fdisk</B> or the ``b'' command of <B>cfdisk</B>. 
+If you don't overwrite the master boot sector you'll find it
+easier to uninstall Linux and Lilo if needed.</P>
+
+<P>Of course, you always have a way to avoid some "rules" like above. Well,
+you may install Lilo to the MBR even if you already have another operating 
+system installed there. For example, if you installed Windows NT 4.0 as the 
+first operating system on your machine, then NT's boot loader was placed into 
+the MBR so you were able to boot NT without problems. After you installed 
+Linux and chose to install Lilo to the MBR, Lilo rewrote NT's boot loader. 
+Next time you boot your machine, you won't be able to boot NT. But, that 
+is no problem. You should edit your <CODE>/etc/lilo.conf</CODE> and add a new 
+entry for NT. Next time you re-boot your system, there will be the new 
+added NT entry under Lilo menu. The same thing happened when I installed
+Windows 2000 instead of Windows NT.</P>
+
+<H2><A NAME="ss2.2">2.2</A> <A HREF="LILO.html#toc2.2">How Should I Configure my IDE Hard Drives?</A>
+</H2>
+
+<P>I personally don't use LBA or LARGE settings in the BIOS (but I only
+run Linux); they are horrible kludges forced on by design deficiencies
+in the PC world. This requires that the kernel lives in the first 1024
+cylinders, but this is not a problem as long as you partition your
+hard drives and keep root small (as you should do anyways).</P>
+
+<P>If your hard disk already carries another operating system, you won't
+be able to modify the BIOS settings, or the old system won't work any
+more. All recent Lilo distribution are able to deal with LBA and LARGE
+disk settings.</P>
+
+<P>Note that the <CODE>"linear"</CODE> keyword in <CODE>/etc/lilo.conf</CODE> can
+help in dealing with geometry problems. The keyword instructs Lilo to
+use linear sector addresses instead of sector/head/cylinder tuples.
+Conversion to 3D addresses is delayed to run-time, therefore making
+the setup more immune to geometry problems.</P>
+
+<P>If you have more than one hard disk and some of them are only used by
+Linux and are not involved in the boot process, you can tell your BIOS
+that they are not installed. Your system will boot more quickly and
+Linux will autodetect all the disks in no time. I often switch disks
+in my computers, but I never touch the BIOS configuration.</P>
+
+<H2><A NAME="ss2.3">2.3</A> <A HREF="LILO.html#toc2.3">How Can I Interact at Boot Time?</A>
+</H2>
+
+<P>When you see the Lilo prompt, you can hit the  &lt;Tab&gt;  key to show
+the list of possible choices. If Lilo is not configured to be
+interactive, press and hold the  &lt;Alt&gt; or &lt;Shift&gt;  key
+before the ``LILO'' message appears.</P>
+
+<P>If you choose to boot a Linux kernel, you can add command-line
+arguments after the name of the system you choose. The kernel accepts
+many command-line arguments. All the arguments are listed in the
+``BootPrompt-HOWTO'' by Paul Gortmaker, and I won't replicate it
+here. A few command line arguments, however, are particularly
+important and worth describing here:</P>
+<P>
+<UL>
+<LI><CODE>root=</CODE>: you can tell the Linux kernel to mount as root
+a different partition than the one appearing in <CODE>/lilo.conf</CODE>.
+For example, my system has a tiny partition hosting a minimal Linux
+installation, and I've been able to boot the system after
+destroying my root partition by mistake.
+</LI>
+<LI><CODE>init=</CODE>: version 1.3.43 and newer of the Linux kernel can
+execute another command instead of <B>/sbin/init</B>, 
+as specified on the command line. If you experience bad problems
+during the boot process, you can access the bare system by
+specifying <CODE>init=/bin/sh</CODE> (when you are at the shell
+prompt you most likely will need to mount your disks: try
+``<B>mount -w -n -o remount /; mount -a</B>'',
+and remember to ``<B>umount -a</B>'' before turning off
+the computer).
+</LI>
+<LI>A number: by specifying a number on the kernel command line, you
+instruct <EM>init</EM> to enter a specific run-level (the
+default is usually 3 or 2, according to the distribution you chose).
+Refer to the <EM>init</EM> documentation, to <CODE>/etc/inittab</CODE>
+and to <CODE>/etc/rc*.d</CODE> to probe further.
+</LI>
+</UL>
+</P>
+
+<H2><A NAME="ss2.4">2.4</A> <A HREF="LILO.html#toc2.4">How Can I Uninstall Lilo?</A>
+</H2>
+
+<P>When Lilo overwrites a boot sector, it saves a backup copy in
+<CODE>/boot/boot.</CODE><EM>xxyy</EM>, where <EM>xxyy</EM> are the major and minor
+numbers of the device, in hex. You can see the major and minor numbers
+of your disk or partition by running ``<B>ls -l
+/dev/<EM>/device</EM></B>''. For example, the first sector of
+<CODE>/dev/hda</CODE> (major 3, minor 0) will be saved in
+<CODE>/boot/boot.0300</CODE>, installing Lilo on <CODE>/dev/fd0</CODE> creates
+<CODE>/boot/boot.0200</CODE> and installing on <CODE>/dev/sdb3</CODE> (major
+8, minor 19) creates <CODE>/boot/boot.0813</CODE>. Note that Lilo won't
+create the file if there is already one so you don't need to care about
+the backup copy whenever you reinstall Lilo (for example, after
+recompiling your kernel). The backup copies found in <CODE>/boot/</CODE>
+are always the snapshot of the situation before installing any Lilo.</P>
+
+<P>If you ever need to uninstall Lilo (for example, in the unfortunate
+case you need to uninstall Linux), you just need to restore the
+original boot sector. If Lilo is installed in <CODE>/dev/hda</CODE>, just
+do ``<B>dd if=/boot/boot.0300 of=/dev/hda bs=446 count=1</B>'' 
+(I personally just do ``<B>cat /boot/boot.0300 > /dev/hda</B>'', 
+but this is not safe, as this will restore the original partition table as
+well, which you might have modified in the meanwhile). This command is
+much easier to run than trying ``<B>fdisk /mbr</B>'' from a DOS
+shell: it allows you to cleanly remove Linux from a disk without ever
+booting anything but Linux. After removing Lilo remember to run Linux'
+<B>fdisk</B> to destroy any Linux partition (DOS' <B>fdisk</B> is unable to remove non-dos partitions).</P>
+
+<P>If you installed Lilo on your root partition (e.g., <CODE>/dev/hda2</CODE>),
+nothing special needs to be done to uninstall Lilo.  Just run Linux'
+<B>fdisk</B> to remove Linux partitions from the partition
+table. You must also mark the DOS partition as bootable.</P>
+
+<H2><A NAME="ss2.5">2.5</A> <A HREF="LILO.html#toc2.5">How to make a ram disk?</A>
+</H2>
+
+<P><EM>Notice: If you find the next section difficult to read, you may 
+also look for the web page: 
+<CODE>http://surfer.nmr.mgh.harvard.edu/partition/ramdisk.html</CODE>
+where you would find the "original" of this contribution ...</EM></P>
+
+<P>by Tony Harris</P>
+<P>16 Oct 2000</P>
+<P>ram disk eenie-weenie HOWTO</P>
+
+<P>If your root file system is on a device for which your kernel has no
+compiled-in driver, you will need to use <CODE>lilo</CODE> to load that driver
+as a module very early in the boot cycle.
+There are only two easy steps:</P>
+<P>
+<UL>
+<LI>make a ram disk image with <B>/mkinitrd</B>
+</LI>
+<LI>modify <CODE>lilo.conf</CODE> to point to the image
+</LI>
+</UL>
+</P>
+<P>First, I <B>cd</B> over to <CODE>/boot</CODE>:</P>
+
+<P>
+<PRE>
+System.map                  chain.b                module-info-2.2.16-3ext3
+System.map-2.2.16-3         initrd-2.2.16-3.img    vmlinux-2.2.16-3
+System.map-2.2.16-3ext3     vmlinux-2.2.16-3ext3
+vmlinuz                     kernel.h
+boot.b                      map                    vmlinuz-2.2.16-3
+bz.2.2.15.juke.Image        module-info            vmlinuz-2.2.16-3ext3
+bzImage-2.2.14              module-info-2.2.16-3
+</PRE>
+</P>
+
+<P>Here you can see that I have a 2.2.16-3 kernel and I have added a 
+second kernel with ext3 support (<CODE>vmlinuz-2.2.16-3ext3</CODE>). There is
+already a ram disk image for my first kernel (<CODE>initrd-2.2.16-3.img</CODE>)</P>
+<P>To make a new image for the second kernel, I type the following (stuff I
+type is in bold):</P>
+<P>boot# <B>mkinitrd initrd-2.2-16-3ext3.img 2.2.16-3ext3</B></P>
+<P><CODE>mkinitrd</CODE> is a shellscript that looks at the modules needed by my 
+kernel, then makes an ext2 filesystem containing them.
+If we look inside the image we see this is the case:</P>
+<P>boot# <B>cat initrd-2.2.16-3ext3.img | gunzip > /tmp/myimage</B></P>
+<P>boot# <B>file /tmp/myimage</B></P>
+<P>/tmp/myimage: Linux/i386 ext2 filesystem/</P>
+
+<P>You do not have to look inside your image. Only making the image and
+modifying <CODE>lilo.conf</CODE> are necessary steps. However, discussion of 
+the ramdisk image is provided for pedagogic purposes.</P>
+<P>In order to look inside, I need to mount the image as though it were
+a filesystem:</P>
+<P>boot# <B>mount /tmp/myimage /mnt/tmp -t ext2 -o loop=/dev/loop3</B></P>
+<P>boot# <B>ls /mnt/tmp</B></P>
+<P><CODE>bin  dev  etc  lib  linuxrc</CODE></P>
+<P>boot# <B>find /mnt/tmp</B></P>
+<P><CODE></CODE>mnt/tmp/</P>
+<P><CODE></CODE>mnt/tmp/lib/</P>
+<P><CODE></CODE>mnt/tmp/lib/aic7xxx.o/</P>
+<P><CODE></CODE>mnt/tmp/bin/</P>
+<P><CODE></CODE>mnt/tmp/bin/sh/</P>
+<P><CODE></CODE>mnt/tmp/bin/insmod/</P>
+<P><CODE></CODE>mnt/tmp/etc/</P>
+<P><CODE></CODE>mnt/tmp/dev/</P>
+<P><CODE></CODE>mnt/tmp/dev/console/</P>
+<P><CODE></CODE>mnt/tmp/dev/null/</P>
+<P><CODE></CODE>mnt/tmp/dev/ram/</P>
+<P><CODE></CODE>mnt/tmp/dev/systty/</P>
+<P><CODE></CODE>mnt/tmp/dev/tty1/</P>
+<P><CODE></CODE>mnt/tmp/dev/tty2/</P>
+<P><CODE></CODE>mnt/tmp/dev/tty3/</P>
+<P><CODE></CODE>mnt/tmp/dev/tty4/</P>
+<P><CODE></CODE>mnt/tmp/linuxrc/</P>
+<P>The most important part of this ram disk image is <CODE>aic7xxx.o</CODE>, 
+which is my scsi module.</P>
+<P>Finally, I move on to the last step, modifying <CODE>/etc/lilo.conf</CODE>:</P>
+<P>Here is my entry in <CODE>lilo.conf</CODE> that corresponds to the kernel and 
+image I just created:</P>
+<P><CODE>image=</CODE>boot/vmlinuz-2.2.16-3ext3/</P>
+<P><CODE>label=linux.ext3</CODE></P>
+<P><CODE>initrd=</CODE>boot/initrd-2.2.16-3ext3.img/</P>
+<P><CODE>read-only</CODE></P>
+<P><CODE>root=</CODE>dev/hdb3/</P>
+<P>That's it. Run <B>/lilo</B> as root and reboot.</P>
+
+<P>If you have problems, check out the kernel <CODE>HOWTO</CODE>. There are a
+couple things you need to have covered: you need your kernel modules
+compiled and living in <CODE>/etc/conf.modules</CODE>.</P>
+
+
+<HR>
+<A HREF="LILO-3.html">Next</A>
+<A HREF="LILO-1.html">Previous</A>
+<A HREF="LILO.html#toc2">Contents</A>
+</BODY>
+</HTML>

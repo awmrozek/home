@@ -1,0 +1,280 @@
+<HTML
+><HEAD
+><TITLE
+>Putting it All Together</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="XFree86 Video Timings HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Black Magic and Sync Pulses"
+HREF="magic.html"><LINK
+REL="NEXT"
+TITLE="Overdriving Your Monitor"
+HREF="overd.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>XFree86 Video Timings HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="magic.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="overd.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="synth"
+></A
+>12. Putting it All Together</H1
+><P
+>The Xconfig file Table of Video Modes contains lines of numbers,
+with each line being a complete specification for one mode of X-server
+operation.  The fields are grouped into four sections, the name
+section, the clock frequency section, the horizontal section, and the
+vertical section. </P
+><P
+>The name section contains one field, the name of the video mode
+specified by the rest of the line.  This name is referred to on the
+"Modes" line of the Graphics Driver Setup section of the Xconfig file.
+The name field may be omitted if the name of a previous line is the
+same as the current line.</P
+><P
+>The dot clock section contains only the dot clock (what we've
+called DCF) field of the video mode line.  The number in this field
+specifies what dot clock was used to generate the numbers in the
+following sections.</P
+><P
+>The horizontal section consists of four fields which specify how each
+horizontal line on the display is to be generated.  The first field of
+the section contains the number of dots per line which will be
+illuminated to form the picture (what we've called HR).  The second
+field of the section (SH1) indicates at which dot the horizontal sync
+pulse will begin.  The third field (SH2) indicates at which dot the
+horizontal sync pulse will end.  The fourth field specifies the toal
+horzontal frame length (HFL).</P
+><P
+>The vertical section also contains four fields.  The first field
+contains the number of visible lines which will appear on the display
+(VR).  The second field (SV1) indicates the line number at which the
+vertical sync pulse will begin.  The third field (SV2) specifies the
+line number at which the vertical sync pulse will end.  The fourth
+field contains the total vertical frame length (VFL).</P
+><P
+>Example:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;     #Modename    clock  horizontal timing  vertical timing
+
+     "752x564"     40    752 784  944 1088  564 567 569 611
+	           44.5  752 792  976 1240  564 567 570 600
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>(Note: stock X11R5 doesn't support fractional dot clocks.)</P
+><P
+>For Xconfig, all of the numbers just mentioned - the number of
+illuminated dots on the line, the number of dots separating the
+illuminated dots from the beginning of the sync pulse, the number of
+dots representing the duration of the pulse, and the number of dots
+after the end of the sync pulse - are added to produce the number of
+dots per line.  The number of horizontal dots must be evenly divisible
+by eight.</P
+><P
+>Example horizontal numbers: 800 864 1024 1088</P
+><P
+>This sample line has the number of illuminated dots (800) followed by the
+number of the dot when the sync pulse starts (864), followed by the number of
+the dot when the sync pulse ends (1024), followed by the number of the last dot
+on the horizontal line (1088).</P
+><P
+>Note again that all of the horizontal numbers (800, 864, 1024,
+and 1088) are divisible by eight!  This is not required of the
+vertical numbers.</P
+><P
+>The number of lines from the top of the display to the bottom form the frame.
+The basic timing signal for a frame is the line.  A number of lines will
+contain the picture.  After the last illuminated line has been displayed, a
+delay of a number of lines will occur before the vertical sync pulse is
+generated.  Then the sync pulse will last for a few lines, and finally the last
+lines in the frame, the delay required after the pulse, will be generated.  The
+numbers that specify this mode of operation are entered in a manner similar to
+the following example.</P
+><P
+>Example vertical numbers: 600 603 609 630</P
+><P
+>This example indicates that there are 600 visible lines on the
+display, that the vertical sync pulse starts with the 603rd line and
+ends with the 609th, and that there are 630 total lines being
+used.</P
+><P
+>Note that the vertical numbers don't have to be divisible by
+eight!</P
+><P
+>Let's return to the example we've been working.  According to
+the above, all we need to do from now on is to write our result into
+Xconfig as follows:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;&#60;name&#62;   DCF     HR  SH1 SH2   HFL   VR  SV1 SV2 VFL
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>where SH1 is the start tick of the horizontal sync pulse and SH2
+is its end tick; similarly, SV1 is the start tick of the vertical sync
+pulse and SV2 is its end tick. </P
+><P
+>To place these, recall the discussion of black magic and sync
+pulses given above.  SH1 is the dot that begins the leading edge of
+the horiziontal sync pulse; thus, SH1 = HR + HGT1.  SH2 is the
+trailing edge; thus, SH2 = SH1 + HSP.  Similarly, SV1 = VR + VGT (but
+VGT is usually zero) and SV2 = SV1 + VSP.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;#name    clock   horizontal timing   vertical timing    flag
+936x702  65      936 968 1200 1232   702 702 710 737
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>No special flag necessary; this is a non-interlaced mode.  Now
+we are really done.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="magic.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="overd.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Black Magic and Sync Pulses</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Overdriving Your Monitor</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,583 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux MP3-HOWTO : Streaming MP3's.</TITLE>
+ <LINK HREF="MP3-HOWTO-12.html" REL=next>
+ <LINK HREF="MP3-HOWTO-10.html" REL=previous>
+ <LINK HREF="MP3-HOWTO.html#toc11" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="MP3-HOWTO-12.html">Next</A>
+<A HREF="MP3-HOWTO-10.html">Previous</A>
+<A HREF="MP3-HOWTO.html#toc11">Contents</A>
+<HR>
+<H2><A NAME="s11">11. Streaming MP3's.</A></H2>
+
+<P>A streaming server allows you to transmit MP3 files over a TCP based network.  This can be the Internet itself or your local network / intranet.
+<P>The connection principal is very similar to that of a web server, files are streamed when a client (the MP3 player) connects to the server.
+<P>
+<H2><A NAME="ss11.1">11.1 Icecast</A>
+</H2>
+
+<P>
+<P>After downloading and untaring, a good look around the doc/ directory would be a good thing, the HTML manual is very helpful and comprehensive.
+<P>If you have downloaded the source code, follow the instructions regarding compiling pertinent to your system.  
+<P>Icecast will not work correctly unless you correctly set the servername in the config file, icecast.conf, which is located in the etc directory. It must match the name that resolves to your IP address exactly.
+<P>If you see the following line when Icecast starts-up you have problems:
+<HR>
+<PRE>
+-> [05/Jan/2000:17:21:04] WARNING: Resolving the server name [your.server.name] does not work!
+</PRE>
+<HR>
+<P>Edit icecast.conf which is located in the etc directory and locate the line containing the entry for "server_name" and enter your servers name.  If you are unsure you can find out by using the <EM>hostname</EM> command, or by cat'ing /etc/hosts.
+<P>Once you've made the neccesary changes you'll need to either copy the conf file to the bin directory, or start icecast with the -c option and specify the location, like so:
+<HR>
+<PRE>
+[dj@megajukebox bin]$ ./icecast -c ../etc/icecast.conf
+</PRE>
+<HR>
+<P>If everything has been configured correctly, you should see something similar to the following:
+<HR>
+<PRE>
+[dj@megajukebox bin]$ ./icecast -c ../etc/icecast.conf -d /home/dj/mp3/icecast/  
+Icecast Version 1.3.0 Starting...
+Icecast comes with NO WARRANTY, to the extent permitted by law.
+You may redistribute copies of Icecast under the terms of the
+GNU General Public License.
+For more information about these matters, see the file named COPYING.
+
+[05/Jan/2000:18:36:30] Icecast Version 1.3.0 Starting..
+[05/Jan/2000:18:36:30] Using stdin as icecast operator console
+[05/Jan/2000:18:36:30] Tailing file to icecast operator console
+[05/Jan/2000:18:36:30] Server started...
+[05/Jan/2000:18:36:30] Listening on port 8000...
+[05/Jan/2000:18:36:30] Using [megajukebox] as servername...
+[05/Jan/2000:18:36:30] Max values: 1000 clients, 1000 clients per source, 10 sources, 5 admins
+-> [05/Jan/2000:18:36:30] [Bandwidth: 0.000000MB/s] [Sources: 0] [Clients: 0] [Admins: 1] [Uptime: 0 seconds]
+</PRE>
+<HR>
+ 
+<P>The -d option sets the directory for log files and templates.
+<P>Below is the list of command-line options:
+<P>
+<HR>
+<PRE>
+        -c [filename] 
+
+Parse as a configuration file. Please note that any command line
+parameters you supply after this override whatever is in file. Also note that
+icecast.conf in the current directory is already parsed when you specify
+this file, so anything in icecast.conf not overridden by the new configuration
+file will be used by the server. 
+
+        -P [port] 
+
+This is the port used for all client, source, and admin connections. It's set
+to 8000 by default. 
+
+        -m [max clients] 
+
+Allow this number of client connections. When this number is reached, all
+client connections will be refused with 'HTTP/1.0 504 Server Full' 
+
+        -p [encoder password] 
+
+This sets the password that the encoder must use to be allowed to stream
+to the server. Note that if you have compiled the server with crypt()
+support, this argument must be an encrypted string. 
+
+        -b 
+
+This will send the icecast server into the background (i.e daemon process).
+To use the admin commands now, you have to connect to the server as an
+admin, using some sort of telnet client. 
+
+        -d [directory] 
+
+Make all log files created by icecast, and all templates that icecast looks
+for be relative to this directory. 
+</PRE>
+<HR>
+<P>So, thats the server started, but you now need to connect an MP3 source to the server. 
+<P>You can choose from two applications which deliver MP3 data to the server, Shout and LiveIce.
+<P>
+<H3>Shout</H3>
+
+<P>Shout provides Icecast with a static playlist of MP3's to stream and is included with Icecast.
+<P>You create the playlist if the MP3 files you want to stream with the following:
+<HR>
+<PRE>
+find [MP3 directory] -name '*.mp3' -print > playlist
+</PRE>
+<HR>
+<P>At it's most basic level, to start the shout service, issue the following:
+<P>
+<HR>
+<PRE>
+[dj@megajukebox bin]# ./shout megajukebox -P hackme -p playlist
+</PRE>
+<HR>
+<P>The -P option specifies the password needed to add a mount-point to Icecast, this is the aptly set as <EM>hackme</EM>..... I strongly suggest you change it otherwise someone may :)  The -p option specifies the location of the playlist file. 
+Below is a list of all of the command line options:
+<P>
+<HR>
+<PRE>
+[dj@megajukebox bin]# ./shout
+Usage: shout &lt;host> [options] [[-b &lt;bitrate] file.mp3]...
+Options:
+        -B &lt;directory>       - Use directory for all shout's files.
+        -C &lt;file>    - Use file as configuration file
+        -D &lt;dj_file> - Run this before every song (system())
+        -P &lt;password>        - Use specified password
+        -S              - Display all settings and exit
+        -V              - Use verbose output
+        -X &lt;desc>    - Use specified description.
+        -a              - Turn on automatic bitrate (transfer) correction
+        -b &lt;bitrate> - Start using specified bitrate
+        -d              - Activate the dj.
+        -e &lt;port>    - Connect to port on server.
+        -f              - Skip files that don't match the specified bitrate
+        -g &lt;genre>   - Use specified genre
+        -h              - Show this text
+        -i              - Use old icy headers
+        -k              - Don't truncate the internal playlist (continue)
+        -l              - Go on forever (loop)
+        -m &lt;mount>   - Use specified mount point
+        -n &lt;name>    - Use specified name
+        -o              - Turn of the bitrate autodetection.
+        -p &lt;playlist>        - Use specified file as a playlist
+        -r              - Shuffle playlist (random play)
+        -s              - (Secret) Don't send meta data to the directory server
+        -u &lt;url>     - Use specified url
+        -v              - Show version
+        -x              - Don't update the cue file (saves cpu)
+        -z              - Go into the background (Daemon mode)
+        -t              - Enable title streaming
+</PRE>
+<HR>
+<P>
+<H3>LiveIce</H3>
+
+<P>
+<P>LiveIce can work in 2 modes, it can pass a playlist to Icecast or can pass live audio from the soundcard.
+<P>After untaring and reading the README concerning building the package, make sure you have mpg123 installed and available as LiveIce requires it.
+<P>There are two ways of configuring LiveIce editing the config file with vi/emacs/or whatever or by using the TK based configuration tool, which is a pretty way of editing it :)
+<P>The best place for describing the internals of liveice.cfg can be found at LiveIce's homepage where Scott covers all of the options. 
+<P>This is a copy of my config file with LiveIce set to mixer mode (stream from a list of MP3's)
+<P>NOTE:  I've added comments to the file, so if you cut and paste make sure the comments haven't wrapped around to a new line otherwise LiveIce will not work :)
+<HR>
+<PRE>
+# liveice configuration file
+# Automatically generated
+
+SERVER megajukebox              # Your server name * MUST BE THE NAME THE SERVER RESOLVES TO *
+PORT 8000                       # The port Icecast is running on
+
+NAME Megajukebox                # Information regarding the name of your server which is sent to MP3 players, and
+                                # to directory servers.  
+                                # Examples 'Sarah FM' or 'ThisTown: Loud and Heavy Jazz - Internet Radio 24/7' 
+
+GENRE Live                      # Information regarding the genre.  Examples 'Talk' or 'Dance'
+
+DESCRIPTION                     # Information regarding the station.  Example 'The best for reggae in the North'
+
+URL http://megajukebox:8000     # The URL and port of the server.
+
+PUBLIC 0                        # Set this to 1 if you want Icecast to announce your station and list it's details
+                                # on a directory server, otherwise leave 0
+
+XAUDIOCAST_LOGIN                # can be either ICY_LOGIN or X_AUDIOCAST_LOGIN.  X_AUDIOCAST is better. 
+
+MOUNTPOINT /techno              # Sets the mountpoint name of the stream for Icecast.  Only used if X_AUDIOCAST is used
+                                # otherwise defaults to icy_0 
+
+PASSWORD hackme                 # Icecast's admin password 
+
+SAMPLE_RATE 44100               # The sample rate of the stream 
+STEREO                          # Can be MONO or STEREO
+
+NO_SOUNDCARD                    # See below
+
+HALF_DUPLEX                     # Sets the soundcard duplex mode.  Can be HALF_DUPLEX or FULL_DUPLEX
+USE_GOGO                        # Sets the encoder to use.  Check the README for the list
+BITRATE 128000                  # Sets the bit rate of the stream (see below)
+VBR_QUALITY 1                   # Sets the variable bit rate quality.
+
+MIXER                           # See below
+
+PLAYLIST /megajukebox/playlist  # Location of the playlist (see details on the find command later in this chapter) 
+
+TRACK_LOGFILE track.log         # Filename and location to dump list of MP3's streamed
+</PRE>
+<HR>
+
+Once you have your config file you start LiveIce like so:
+<HR>
+<PRE>
+[dj@megajukebox liveice]$ ./liveice
+/megajukebox/playlist
+1
+opening connection to megajukebox 8000
+Attempting to Contact Server
+connection successful: forking process
+opening pipe!...
+writing password
+Setting up Interface
+Soundcard Reopened For Encoding
+Input Format: 16Bit 44100Hz Stereo
+Output Format: 256000 Bps Mpeg Audio
+IceCast Server: megajukebox:8000
+Mountpoint: /techno
+Name: megajukebox - this and that radio - broadcasting 24/7
+Genre: Techno
+Url: http://megajukebox.com
+Description: a load of digital noise -> but i know you like it :)
+
+ Press '+' to Finish
+adding /megajukebox/demotunes/track_1.mp3
+adding /megajukebox/demotunes/track_2.mp3
+adding /megajukebox/demotunes/track_3.mp3
+adding /megajukebox/demotunes/track_4.mp3
+/megajukebox/demotunes/track_4.mp3
+Adding New Channel 1
+Adding New Channel 2
+Channel 1 selecting 
+ /megajukebox/demotunes/track_1.mp3
+Channel 2 selecting 
+ /megajukebox/demotunes/track_1.mp3
+Playing track_1.mp3
+searching for Id3v2
+searching for Id3v1
+copying the data
+fixing the nulls
+adding the url
+closing input file
+Using log track.log
+</PRE>
+<HR>
+<P>The last line is a peak meter.
+<P>These are the keyboard controls for mixer mode:
+<HR>
+<PRE>
+Action                          Channel 1 Key   Channel 2 Key
+~~~~~~                          ~~~~~~~~~~~~~   ~~~~~~~~~~~~~
+Select next track on channel    1               a
+Select prev track on channel    q               z
+Start/Stop channel              2               s
+Reset channel                   w               x
+Increase volume on channel      3               d
+Decrease volume on channel      e               c
+Increase speed on channel       4               f
+Decrease speed on channel       r               v
+Sticky mode On/Random/Off       5               g
+Preview channel                 t               b
+Random Track                    u               m
+</PRE>
+<HR>
+<P>The above liveice.cfg is for mixermode.  To use LiveIce in audio mode change the line relating to MIXER to NOMIXER and set NO_SOUNDCARD to SOUNDCARD and restart LiveIce.
+<P>Forgetting to set the correct options will lead to some interesting warning ;)
+<HR>
+<PRE>
+   946:Error: Line In mode *and* no soundcard??????? Eeejit!
+</PRE>
+<HR>
+<P>Once you have it all correctly set up and have plugged in an external source, you should be able to stream =:)
+<P>
+<HR>
+<PRE>
+[dj@megajukebox liveice]$ ./liveice
+/megajukebox/playlist
+0
+Initialising Soundcard
+16Bit 22050Hz Stereo Full Duplex 
+opening connection to megajukebox 8000
+Attempting to Contact Server
+connection successful: forking process
+opening pipe!...
+writing password
+Setting up Interface
+Soundcard Reopened For Encoding
+Input Format: 16Bit 22050Hz Stereo
+Output Format: 32000 Bps Mpeg Audio
+IceCast Server: megajukebox:8000
+Mountpoint: /daves_band_live_at_the_club
+Name: megajukebox - Dave and the Dynamite - Live at the Roxy  
+Genre: Live/Rock
+Url: http://megajukebox
+Description: megajukebox::Louder than a frog in a trashcan..... and almost as musical
+
+ Press '+' to Finish
+Lvl: L:   8704 R:  11776 
+</PRE>
+<HR>
+<P>The last line is a signal level meter, if the input signal is too high you will get a *clip* warning.  If you do, turn down the gain of the input source.
+<P>The keen eyed amongst you may of noticed that in liveice.cfg the first comment lines point out that the file is automatically generated.  If you are using the TK based GUI liveiceconfigure.tk and you've made manual changes, you will lose them when you save.  Either use the GUI or learn vi/emacs :)
+<P>
+<H2><A NAME="ss11.2">11.2 Fluid</A>
+</H2>
+
+<P>After untaring the bundle cd to the directory, then read the README :)
+<P>Fluid has three basic modes of operation, transmit, relay and forward.  I'll only focus on transmit.
+<P>The config files associated for transmit are located in config/MP3TX.cfg.  To test the server run with the following, at this point the default config settings should be ok:
+<P>java Fluid TX
+<P>Naturally enough you'll need Java of some form installed first.  You can use either the Blackdown port of JDK available from 
+<A HREF="http://www.blackdown.org">http://www.blackdown.org</A> or if you are using Redhat, Kaffe.
+<P>Fluid comes with a few sample MP3 files, so if everything is working you should see something similar to this (I've started the server using Kaffe in this example, you may have to start it using java):
+<HR>
+<PRE>
+[dj@megajukebox Fluid-Beta2J]$ kaffe Fluid tx
+------- Fluid Streaming Server Beta 2 ------- 
+This program is ShareWare(tm) and it will not 
+be crippled in any way because of it. However 
+if you do like the program and will use it    
+commercial purposes, we ask of you to contact 
+us at the address below for pricing info:     
+                                              
+ Eldean AB                  E-mail:           
+ Sjoangsvagen 7             fluid@subside.com 
+ S-192 72 Sollentuna                          
+ SWEDEN                                       
+                                              
+   Fluid is Copyright Subside (C) 1998        
+       written by Lars Samuelsson             
+         http://www.subside.com               
+--------------------------------------------- 
+
+* Transmission mode *
+Reading config from: config/MP3TX.cfg
+Reading playlist: playlist.m3u
+Server started on port: 2711
+Accepting administrator login on port: 2710
+P| Dr. Nick - Hello Everybody
+</PRE>
+<HR>
+
+If you get this far, it looks like things are working, but I'm sure you'll want to stream more than the demo files!
+<P>You'll need to compile a playlist of the MP3's you want to stream.  This will be a static list users will not be able to alter this list or make requests.  This playlist is named playlist.m3u and is located by default in the root directory.
+<P>To compile a playlist of all MP3's in a particular directory (or disk) use the following command:
+<HR>
+<PRE>
+find [MP3 directory] -name "*.mp3" -print > playlist.m3u
+</PRE>
+<HR>
+
+By default the server uses port 2711, which is where your listeners will connect to, if you need to change this this can be done in the config file.
+<P>The server can be remotely administered by telneting to it's admin port, by default port 2710 like so:
+<HR>
+<PRE>
+[dj@megajukebox Fluid-Beta2J]$ telnet localhost 2710
+Trying 127.0.0.1..megajukebox
+Connected to localhost.localdomain.
+Escape character is '^]'.
+jaguar
+You are connected to the -Fluid- Streaming Server
+Type "help" for a command reference
+help
+The following commands are available:
+ help conn curr exit
+curr
+Information about the currently broadcasted song:
+Title:   Beer Talk
+Artist:  Homer Simpson
+Album:   The Simpsons
+Year:    1996
+Comment: Borrowed this as an example
+Genre:   Comedy
+</PRE>
+<HR>
+
+The reference to "jaguar" is the admin password, this is the default. There is no prompt for the password so please don't sit there waiting for one! I suggest that you change the password from the default otherwise you will invite a hack! This can be changed in the config file, which looks like this:
+<HR>
+<PRE>
+[dj@megajukebox config]$ cat MP3TX.cfg 
+2711
+2710
+5
+4096
+32
+1000
+jaguar
+playlist.m3u
+current.txt
+
+# --- The lines are ---
+# 1. PORT number (the server will use)
+# 2. PORT number (for maintaining the server remotely)
+# 3. Maximum number of connections (the server will accept)
+# 4  Packetsize when reading/sending (in bytes)
+# 5. Bitrate of the mp3s in kbit/s (all mp3s must have same bitrate)
+# 6. Delay between songs (in milliseconds)
+# 7. Password for remote administration
+# 8. Playlist name (list in .m3u format)
+# 9. Name of the file to write song info to (from ID3-tag)
+</PRE>
+<HR>
+ 
+The reference to the playlist being in m3u format means that it is in the same format as produced by the find command mentioned earlier.
+<P>
+<H3>Update for RC1</H3>
+
+<P>
+<P>Fluid has been updated, and released under a GPL License (Way to go Lars!)
+<P>Here are the main differences:
+<P>
+<UL>
+<LI>A new format fluid.config</LI>
+<LI>A new default port 4711</LI>
+<LI>A new method of starting and stopping.  Fluid now used the scripts <EM>fluid.start</EM> and <EM>fluid.stop</EM></LI>
+<LI>Source code is now part of the dist. Yippee!</LI>
+</UL>
+<P>
+<H2><A NAME="ss11.3">11.3 Litestream</A>
+</H2>
+
+<P>
+<P>Litestream is similar in it's operation to Icecast.  The system is composed of the streamer and the source.
+<P>To start the streamer you issue a command in the following format:
+<P>
+<HR>
+<PRE>
+[dj@megajukebox]$ litestream &lt;source port> &lt;stream host> &lt;stream port> &lt;max listeners> &lt;log ident> [&lt;yp host> &lt;yp port>]
+</PRE>
+<HR>
+<P>The options are as follows:
+<P><EM>source port</EM> Is the port you connect the 'audio' source to.
+<P><EM>stream host</EM> This is the IP or FQDN of your server (find this out with the hostname command for domain name or cat /etc/hosts for your IP address).
+<P><EM>stream port</EM> This is the port number clients connect to.
+<P><EM>max listeners</EM> This is the number of clients who can connect to your server.
+<P><EM>log ident</EM> Log messages are written to /var/log/messages.  &lt;log ident&gt; is a ident string used to identify the Litestream server, eg.
+<P>
+<P>If you use the ident string 'Litestream' the server starting message in /var/log/messages would look similar to:
+<P>
+<HR>
+<PRE>
+Sep 18 19:32:20 linux Litestream[1901]: stream.c:555: main: 'server started'
+</PRE>
+<HR>
+<P>&lt;yp host &amp; yp port&gt; These 2 options specify the host and port of an yp server, used to announce your server to mp3 directory servers.
+<P>Here is an example: 
+<P>
+<HR>
+<PRE>
+[dj@megajukebox]$ litestream 5000 megajukebox 5555 1000 LitestreamServer 
+</PRE>
+<HR>
+<P>
+<P>Ok, so that's the server system.  Once started it sit's there waiting for an input to be connected, which is done with the source command.
+<P>The format is like so:
+<P>
+<HR>
+<PRE>
+source &lt;ip or hostname> &lt;port> &lt;name> &lt;genre> &lt;url> &lt;irc> &lt;icq> &lt;aim> &lt;public? (0, 1)> &lt;reported bitrate (16, 18, 56, 128, etc.)> &lt;playlist.txt> &lt;log ident>
+</PRE>
+<HR>
+ 
+<P>Below is the list of options for source.
+<P>
+<P><EM>ip or hostname</EM> is the hostname or IP address of the computer
+running Litestream Server.
+<P><EM>port</EM> is the port on which Litestream Server is waiting for a
+streaming source.
+<P><EM>name</EM> is the name of your stream.
+<P><EM>genre</EM> is the genre of your stream.
+<P><EM>url</EM> is the URL for your streams web page.
+<P><EM>irc</EM> is the IRC channel for your stream.
+<P><EM>icq</EM> is your ICQ ID.
+<P><EM>aim</EM> is your AIM ID.
+<P><EM>public</EM> is either 0 or 1.  0 for private, 1 for public.
+<P><EM>reported bitrate</EM> is the stream bitrate which will be reported
+to the YP server.  This does not necessarily reflect the actual
+bitrate of your stream.
+<P><EM>playlist.txt</EM> is the name of the file containing your playlist.
+<P><EM>log ident</EM> is the syslog identifier which will be prepended to
+each log message generated by Litestream Streaming Source.
+<P>Here is an example which would match the Litestream command earlier:
+<P>
+<HR>
+<PRE>
+[dj@megajukebox]$ source megakukebox 5000 'Megajukebox  The best jukebox ever' Various  http://www.megajukebox.com \#megajukebox 0 N/A 1 128 /jukebox/playlist LitestreamSource
+</PRE>
+<HR>
+<P>
+<H2><A NAME="ss11.4">11.4 Apache::MP3 Module</A>
+</H2>
+
+<P>
+<P>The Apache:MP3 module allows the Apache WebServer to stream MP3's.  It does not offer the same level of features as Fluid, Litestream &amp; Icecast.
+<P>The module is dependant on MP3::Info and mod_perl, both of which are
+available on CPAN.
+<P>After downloading the files needed a read of the README will help things!
+<P>Firstly make the module, then make the config changes to Apache's config files (your changes may be made in either httpd.conf or srm.conf).
+<P>You will also have to create directories for icons and a directory hierarchy for MP3's.
+<P>Section 6 of the README details the editing (or creation) of a Perl config file.
+<P>This is to preload the MP3::Info module which without this may cause Apache to crash.
+<P>In httpd.conf create an entry like so:
+<HR>
+<PRE>
+ Perlrequire /etc/httpd/conf/startup.perl
+</PRE>
+<HR>
+<P>Alter the /etc/httpd/conf reference to point to where your Apache config files are located on your system.
+<P>Now create the file startup.perl at the location specified above.  At the very minimum you should have the following (again adjust the path of perl to fit your system).
+<P>
+<HR>
+<PRE>
+[dj@megajukebox conf]$ cat /etc/httpd/conf/startup.perl
+
+#!/usr/bin/perl
+
+use MP3::Info();
+</PRE>
+<HR>
+<P>Then restart Apache and point a web browser at one of your new MP3 directories :)
+<P>There is more documentation available on Apache::MP3, from the command-line run the following:
+<P>
+<HR>
+<PRE>
+[dj@megajukebox conf]$ perldoc Apache::MP3
+</PRE>
+<HR>
+<P>
+<H2><A NAME="ss11.5">11.5 Firewall Bypassing</A>
+</H2>
+
+<P>A large portion of companies and institutions now use firewalls to block users from connecting to certain ports on remote servers.
+<P>A way to bypass this is to run your MP3 server using port 80. You will not be able to run a webserver on the same URL or IP address.
+<P> 
+<P>When running Icecast in 'firewall bypass' mode you will need to start shout with the option to set the port to port 80, like so:
+<P>
+<P>
+<HR>
+<PRE>
+[dj@megajukebox bin]$ ./shout megajukebox -e 80 -P hackme -p ../playlist 
+</PRE>
+<HR>
+<P>
+<H2><A NAME="ss11.6">11.6 Bandwidth considerations</A>
+</H2>
+
+<P>Streaming audio can consume vast quantities of bandwidth if the MP3 servers' bit-rate is set too high.  
+<P>Consider this scenario.  A T1 link has a capacity of approx. 1.55 Mb/Sec.  If you stream your MP3's at 128K/Bps stereo, each connecting player will use 256K/Bps, so only 6 users could connect to your MP3 server at any time without problems. And at 256K/Bps, you will not get too many modem users connecting!
+<P>So you must make a decision at what to set your stream rates not only on what your server's internet connection is rated at, but what your users will be connecting at.  24K/Bps Stereo will give a reasonable quality signal that 56K modem users will be able to connect to, and for the same T1 line would allow approx. 32 simultaneous connections.
+<P>
+<P>If your server is running on an Intranet, bandwidth issues will still have to be considered especially if your network is running 10M/Sec.
+<P>But please let either your ISP or sys admin know you are going to stream otherwise you may be in for a shock. Some ISP's will charge you for bandwidth over a certain limit and sys admins like to know why their network is now running slow :)
+<P>
+<H2><A NAME="ss11.7">11.7 Copyright Issues</A>
+</H2>
+
+<P>
+<P>I think it's reasonable to assume that record companies will not like you streaming material without their permission or payment of some kind! So what can you stream?  
+<P>This is an area where you will need to be aware of the legal ramifications, because it will be you who will be liable.
+<P>Below are two links, one for the Electronic Frontier Foundation who are advocates of freeing restrictions surrounding the technology.  The other link is to the Recording Industry Association of America, which seeks to protect the rights of artists from piracy.
+<P>I strongly suggest visiting both of the sites, and any others relevant to where you are physically based.
+<P>
+<A HREF="http://www.eff.org/cafe/">http://www.eff.org/cafe/</A><P>
+<A HREF="http://www.riaa.com/weblic/weblic.htm">http://www.riaa.com/weblic/weblic.htm</A><P>
+<HR>
+<A HREF="MP3-HOWTO-12.html">Next</A>
+<A HREF="MP3-HOWTO-10.html">Previous</A>
+<A HREF="MP3-HOWTO.html#toc11">Contents</A>
+</BODY>
+</HTML>

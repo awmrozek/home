@@ -1,0 +1,354 @@
+<HTML
+><HEAD
+><TITLE
+>Certificate management</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="SSL Certificates HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Certificate Management"
+HREF="c118.html"><LINK
+REL="PREVIOUS"
+TITLE="Install the CA root certificate as a Trusted Root Certificate "
+HREF="x175.html"><LINK
+REL="NEXT"
+TITLE="Using Certificates in Applications"
+HREF="c244.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>SSL Certificates HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x175.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 2. Certificate Management</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c244.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN195">2.5. Certificate management</H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN197">2.5.1. Generate and Sign a certificate request</H2
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>CA.pl -newreq 
+(openssl req -config /etc/openssl.cnf -new -keyout newreq.pem -out newreq.pem \
+-days 365) </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>creates a new private key and a certificate request and place it as newreq.pem. Enter a Common Name (CN) the main usage of the certificate for instance www.sopac.org if you want to secure the website www.sopac.org, or enter franck@sopac.org if you want to use to secure the e-mails of franck@sopac.org.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>CA.pl -sign 
+(openssl ca -config /etc/openssl.cnf -policy policy_anything -out newcert.pem \
+-infiles newreq.pem) </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>will sign the request using the cacert.pem and commit the certificate as newcert.pem. You will need to enter the passphrase of the cacert.pem (your CA Certificate). The file newcerts/xx.pem will be created and index.txt and serial will be updated.</P
+><P
+>You private key is in newreq.pem -PRIVATE KEY- and your certificate is in newcert.pem -CERTIFICATE-</P
+><P
+>A copy of newcert.pem is placed in newcerts/ with an adequate entry in index.txt so that a client can request this information via a web server to ensure the authenticity of the certificate.</P
+><P
+>Beware of your newreq.pem file, because it contains a certificate request, but also your private key. The -PRIVATE KEY- section is not required when you sign it. So if you request someone else to sign your certificate request, ensure that you have removed the -PRIVATE KEY- section from the file. If you sign someone else certificate request, request from this person its -CERTIFICATE REQUEST- section not its private key.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN206">2.5.2. Revoke a certificate</H2
+><P
+>To revoke a certificate simply issue the command:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl -revoke newcert.pem</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The database is updated and the certificate is marked as revoked. You now need to generate the new revoked list of certificates:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl ca -gencrl -config /etc/openssl.cnf -out crl/sopac-ca.crl</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This Certificate Revokation List (CRL) file should be made available on your web site.</P
+><P
+>You may want to add the parameters crldays or crlhours and crlexts when you revoke a certificate. The first two parameters indicate when the next CRL will be updated and the last one will use the crl_exts section in openssl.cnf to produce a CRL v2 instead of a CRL v1.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl ca -gencrl -config /etc/openssl.cnf -crldays 7 -crlexts crl_ext \
+-out crl/sopac-ca.crl</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN215">2.5.3. Renew a certificate</H2
+><P
+>The user sends you its old certificate request or create a new one based on its private key.</P
+><P
+>First you have to revoke the previous certificate and sign again the certificate request. </P
+><P
+>To find the old certificate, look in the index.txt file for the Distinguished Name (DN) corresponding to the request. Get the serial Number &#60;xx&#62;, and use the file cert/&#60;xx&#62;.pem as certificate for the revocation procedure.</P
+><P
+>You may want to sign the request manually because you have to ensure that the start date and end date of validity of the new certificate are correct.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl ca -config /etc/openssl.cnf -policy policy_anything -out newcert.pem \
+-infiles newreq.pem -startdate [now] -enddate [previous enddate+365days]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>replace [now] and [previous enddate+365days] by the correct values.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN223">2.5.4. Display a certificate</H2
+><P
+>You may have a certificate in its coded form, to read the details of the certificate just issue the following command:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl x509 -in newcert.pem -noout -text</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN227">2.5.5. The index.txt file</H2
+><P
+>In the index.txt file you can find the various certificate managed by OpenSSL. The entries are maked with R for Revoked, V for Valid and E for expired.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN230">2.5.6. Build your web based Certificate Authority</H2
+><P
+>There are a few requirements when you are a Certificate Authority (CA):</P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>You must publish your root CA Certificate, so that it can be widely installed in applications.</P
+></LI
+><LI
+><P
+>You must publish the revocation list.</P
+></LI
+><LI
+><P
+>You must display a certificate detail, provided its serial number</P
+></LI
+><LI
+><P
+>You must provide a form for users to submit certificate requests.</P
+></LI
+></OL
+><P
+>All these requirements can be done using a web server and some scripting.</P
+><P
+>FIXME: some code here for the web interface...</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x175.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c244.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Install the CA root certificate as a Trusted Root Certificate</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c118.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Using Certificates in Applications</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

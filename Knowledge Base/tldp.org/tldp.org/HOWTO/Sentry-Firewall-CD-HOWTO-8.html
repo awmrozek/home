@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Sentry Firewall CD HOWTO: Building a Custom Sentry CD</TITLE>
+ <LINK HREF="Sentry-Firewall-CD-HOWTO-9.html" REL=next>
+ <LINK HREF="Sentry-Firewall-CD-HOWTO-7.html" REL=previous>
+ <LINK HREF="Sentry-Firewall-CD-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Sentry-Firewall-CD-HOWTO-9.html">Next</A>
+<A HREF="Sentry-Firewall-CD-HOWTO-7.html">Previous</A>
+<A HREF="Sentry-Firewall-CD-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8. Building a Custom Sentry CD</A></H2>
+
+<H2><A NAME="ss8.1">8.1 Introduction</A>
+</H2>
+
+<P> This section will attempt to describe how to create a custom Sentry Firewall
+CDROM.  Unfortunately, I do not have time to go into every detail.  But at
+the very least I will try and provide for you an overview of the CD creation
+process.
+<P>
+<P><BR>
+<H2><A NAME="ss8.2">8.2 The development system(How I do it)</A>
+</H2>
+
+<P> My development system consists of two separate Linux installations of the
+same distribution, depending on what branch I'm working on. First, I have a
+very complete &lt;insert Linux distro here&gt; installation on my main hard
+drive(/dev/hda).  I then have /dev/hdb1, upon which I have another, bare bones,
+installation - this installation generally has no compiling tools or X stuff.
+<P>I usually have /dev/hdb1 mounted on /mnt, that's not a critical element,
+but I thought I'd mention it since I will refer to /mnt alot from now on.  I
+then have a directory called /CD-FW on the /dev/hdb1 installation, that is, if
+/dev/hdb1 is mounted on /mnt, then the directory would be called /mnt/CD-FW/.
+Throughout this entire process, the installation on /dev/hda is the live running
+system, and it is from here that I compile the needed tools, kernels, etc and
+basically run everything.
+<P>To make this easy for you, the Sentry Firewall CD ISO is basically an exact
+copy of what's in /mnt/CD-FW/ on my hard drive.  I simply use the 'mkisofs'
+utility on /mnt/CD-FW to create the ISO image.
+<P>If you simply want to get started, perhaps try the following steps:
+<UL>
+<LI> Install a basic slackware system on some other partition, /dev/hdb1 perhaps.</LI>
+<LI> Reboot into your normal(linux) system and mount this new partition, let's say on /mnt.</LI>
+<LI> Mount the Sentry CD somewhere, let's say on /mnt2</LI>
+<LI> <B>type:</B> mkdir /mnt/CD-FW</LI>
+<LI> <B>type:</B> cp -Rdp /mnt2/* /mnt/CD-FW/</LI>
+<LI> <B>type:</B> find /mnt/CD-FW/ -name 'TRANS.TBL' -type f -print | xargs rm -f <BR>
+This removes those 'TRANS.TBL' files that are created by mkisofs.</LI>
+<LI> Unmount /mnt2</LI>
+<LI> Run the following commands(in a script if you like) to update the /mnt/CD-FW/ directory:
+<PRE>
+  cp -Rdp /mnt/bin /mnt/CD-FW/
+  cp -Rdp /mnt/sbin /mnt/CD-FW/
+  cp -Rdp /mnt/lib /mnt/CD-FW/
+  cp -Rdp /mnt/usr/bin /mnt/CD-FW/usr/
+  cp -Rdp /mnt/usr/sbin /mnt/CD-FW/usr/
+  cp -Rdp /mnt/usr/local/bin /mnt/CD-FW/usr/local/
+  cp -Rdp /mnt/usr/lib /mnt/CD-FW/usr/
+  cp -Rdp /mnt/usr/libexec /mnt/CD-FW/usr/
+  cp -Rdp /mnt/usr/share /mnt/CD-FW/usr/
+  cp -Rdp /mnt/usr/man /mnt/CD-FW/usr/
+</PRE>
+</LI>
+</UL>
+<P><B>NOTE:</B> The above commands may spit out errors when working with certain
+files(ie. hard links).  These errors are annoying, but they're not critical at all.
+<P>You now have a development system like, or similar to, my own :-)
+<P>Now, if you ever want to install an rpm update or a Slackware package update(with
+upgradpkg), you can do the following:
+<BLOCKQUOTE><CODE>
+<PRE>
+root@mybox:~# cd /mnt; chroot /mnt
+
+root@mybox:/# upgradepkg update.tgz
+or
+root@mybox:/# rpm --upgrade update.rpm
+
+$ exit
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Then, all I need to do is re-run the script mentioned above, the one that
+copies all those files, to update the /mnt/CD-FW directory.
+<P>
+<P><BR>
+<H2><A NAME="ss8.3">8.3 The RAMdisk Image</A>
+</H2>
+
+<P> That's all nifty, but now comes the hard part... making the ramdisk.  If you
+take a look at the /isolinux directory on the CDROM, you will see a bunch of
+files, one of them is called 'initrd.img' - there are several others as well,
+such as isolinux.cfg, message.txt, and isolinux.bin.  These files are required
+by isolinux in order to work properly.  Take a look at those files and the
+documentation that comes with syslinux to get a better idea of what all that
+does.  In any case, the 'initrd.img' file is, in fact, the compressed ramdisk
+image.
+<P>To take a look at the image, do something like the following:
+<BLOCKQUOTE><CODE>
+<PRE>
+blah@wherever:~$ cp /cdrom/isolinux/initrd.img /tmp/initrd.img.gz
+blah@wherever:~$ gzip -d /tmp/initrd.img.gz
+blah@wherever:~$ mount -o loop /tmp/initrd.img /MOUNT_POINT
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>In a nutshell, I use the file '/SENTRY/scripts/MK-CD/mkrootdsk.sh' to create
+the rootdisk.  Please read that file and the disclaimer before you decide to
+use it.  It runs perfectly on my system, but may not run well at all on yours.
+It basically attempts to create a rootdisk image to use with the Sentry CD, but
+it is very long and may be somewhat difficult to comprehend at times.  This is
+what happens when I start hacking around and fail to utilize proper child safety
+restraints.
+<P>
+<P><BR>
+<H2><A NAME="ss8.4">8.4 Making the ISO Image</A>
+</H2>
+
+<P> The next file I use is called 'mkiso.sh'.  The script generally just
+declares a few variables and runs the 'mkisofs' utility.  The command I normally
+run looks like the following:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+root@mybox:~# cd /mnt/CD-FW
+root@mybox:/mnt/CD-FW# mkisofs -o sentrycd.iso -R -V "Sentry Firewall CD [v1.x.x]" -v \
+   -T -d -D -N \
+   -b isolinux/isolinux.bin \
+   -c isolinux/eltorito.cat \
+   -no-emul-boot -boot-load-size 4 -boot-info-table \
+   -A "Sentry Firewall CD v1.x.x" .
+........
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>And that's it, I burn the CD and test it.  For reference, the following
+files are available on the CDROM and online at
+<A HREF="http://www.SentryFirewall.com/">http://www.SentryFirewall.com/</A>
+<UL>
+<LI> /SENTRY/scripts/MK-CD/mkrootdsk.sh (builds the rootdisk)</LI>
+<LI> /SENTRY/scripts/MK-CD/mkiso.sh     (builds final ISO image)</LI>
+<LI> /SENTRY/scripts/MK-CD/record-cd.sh (burns the ISO to a CD)</LI>
+</UL>
+<P>
+<P>
+<P>
+<P>
+<P>
+<P><BR>
+<HR>
+<A HREF="Sentry-Firewall-CD-HOWTO-9.html">Next</A>
+<A HREF="Sentry-Firewall-CD-HOWTO-7.html">Previous</A>
+<A HREF="Sentry-Firewall-CD-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

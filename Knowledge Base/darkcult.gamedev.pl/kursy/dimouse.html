@@ -1,0 +1,441 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Mysz w DirectInput</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="ddraw04.html">&lt;&lt; Utrata powierzchni</A> &nbsp;
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h1>
+Mysz
+</h1>
+
+<P>
+DirectInput, jak prawdopodobnie wiesz, jest częścią pakietu DirectX odpowiedzialną za urządzenia wejściowe, a konkretnie: mysz, klawiaturę oraz joystick. "Radosny patyk" jakoś nie zdobył sobie popularności na pecetach, toteż nie będę go omawiał na mojej stronie (chociaż, paradoksalnie, pierwotnie DirectInput powstał specjalnie z myślą o dżojstikach właśnie). Natomiast kwestią obsługi myszy i klawiatury owszem, będziemy się zajmować.
+</P>
+<P>
+Po co w ogóle zawracać sobie głowę jakimiś wyszukanymi technikami, skoro mysz i klawiaturę można po prostu obsługiwać przez "gołe" WinAPI? To dobre pytanie, ponieważ wiele gier, zwłaszcza tych prostych, rzeczywiście równie można zrealizować bez żadnego DirectInput. Jednak gdy robimy coś "poważniejszego", np. klon Mortal Kombat, gdzie co efektowniejsze ciosy wymagają wciśnięcia połowy przycisków na klawiaturze jednocześnie, albo taki Quake, gdzie o ułamek sekundy spóźnieniona reakcja myszy może zaważyć na wyniku meczu... Wówczas sam WinAPI przestaje wystarczać.
+</P>
+<P>
+W tej części kursu zajmiemy się obsługą myszy. DirectInput daje nam dwie metody odczytywania stanu gryzonia: bezpośredni oraz buforowany. Bezpośredni jest dużo prostszy, więc pójdzie na pierwszy ogień.
+</P>
+
+<h2>
+Inicjalizacja DirectInput
+</h2>
+
+<P>
+Tak jak w przypadku każdego elementu pakietu DirectX, pracę zaczynamy od utworzenia obiektu głównego. Oczywiście aby to uczynić, najpierw należy dołączyć odpowiednie biblioteki i nagłówki. Te biblioteki to: <SPAN CLASS=C>libdinput.a, libdinput8.a</SPAN> i <SPAN CLASS=C>libdxguid.a</SPAN> (dla Dev-C++) lub <SPAN CLASS=C>dinput.lib, dxguid.lib</SPAN> i <SPAN CLASS=C>dxerr.lib</SPAN> (MS Visual C++).
+</P>
+<P>
+Przypomnę jeszcze, że w kursie będziemy korzystali z DirectInput w wersji 8.0, natomiast jeśli chcesz koniecznie użyć starszej wersji, musisz na poczatku programu umieścić dyrektywę w rodzaju:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#define DIRECTINPUT_VERSION 0x0700 //dla DirectInput 7
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście jeśli decydujesz się na to, musisz również pousuwać wszelkie '8' w poniższym przykładowym kodzie :-).
+</P>
+<P>
+Teraz pora utworzyć wreszcie obiekt główny. Oprócz niego tworzymy jeszcze obiekt, reprezentujący mysz oraz ustalamy dla tego ostatniego format danych i tryb współpracy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LPDIRECTINPUT8 lpDI;<BR>
+DirectInput8Create(hAppInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (LPVOID*)&lpDI, NULL);<BR>
+<BR>
+<SPAN CLASS=C>
+// Obiekt główny dla DirectInput 7.0 i starszych:<BR>
+// LPDIRECTINPUT lpDI;<BR>
+// DirectInputCreate(hAppInstance, DIRECTINPUT_VERSION, &lpDI, NULL);<BR>
+</SPAN>
+<BR>
+LPDIRECTINPUTDEVICE8 lpMouse;<BR>
+lpDI->CreateDevice(GUID_SysMouse, &lpMouse, NULL);<BR>
+lpMouse->SetDataFormat(&c_dfDIMouse);<BR>
+lpMouse->SetCooperativeLevel(hWnd, DISCL_EXCLUSIVE | DISCL_FOREGROUND);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Tworzenie obiektu głównego już przerabialiśmy przy okazji DirectDraw; tutaj wygląda to dość podobnie, z tym że dodatkowo podajemy jeszcze uchwyt do instancji naszej aplikacji (<SPAN CLASS=T>hAppInstance</SPAN>) oraz stałe z wersją DirectInput.
+</P>
+<P>
+Metoda <SPAN CLASS=T>CreateDevice</SPAN>, oprócz myszy, tworzy również obiekty związane z klawiaturą lub dżojstikiem, dlatego musimy zawczasu powiadomić ją, że chodzi nam właśnie o mysz - taka jest rola stałej <SPAN CLASS=T>GUID_SysMouse</SPAN>.
+</P>
+
+<P>
+Ustalenie formatu danych jest proste, gdyż możemy skorzystać z formatów predefiniowanych przez Microsoft dla każdego urządzenia - te "myszkowe" znajdują się w stałych <SPAN CLASS=T>c_dfDIMouse</SPAN> i <SPAN CLASS=T>c_dfDIMouse2</SPAN> - do wyboru. Możemy również zdefiniować sobie własny format danych, ale po co się przemęczać ;-).
+</P>
+<P>
+Wybór trybu współpracy, ponownie, mieliśmy również w DirectDraw. Tutaj nie wywołujemy jednak <SPAN CLASS=T>SetCooperativeLevel</SPAN> na rzecz obiektu głównego, lecz obiektu reprezentującego konkretne urządzenie (mysz, klawiatura), ponieważ dla każdego z tych urządzeń może zostać wybrany inny tryb. Najlepiej jest tu wybrać połączenie flag <SPAN CLASS=T>DISCL_EXCLUSIVE</SPAN> i <SPAN CLASS=T>DISCL_FOREGROUND</SPAN>, które idealnie pasują do gier działających na pełnym ekranie w trybie wyłączności, zawsze na pierwszym planie. W ten sposób zastrzegamy, że mysz należy tylko i wyłącznie do naszej aplikacji od momentu jej zainicjalizowania aż do zakończenia.
+</P>
+<P>
+Gdybyśmy robili grę działającą w okienku, to prawdopodobnie chcielibyśmy, żeby inne aplikacje również mogły od czasu do czasu "pożyczyć" sobie myszkę, wtedy dalibyśmy <SPAN CLASS=T>DISCL_NONEXCLUSIVE</SPAN>, co oznaczałoby, że inne aplikacje również mogą z myszy korzystać. Z kolei różnica między <SPAN CLASS=T>DISCL_BACKGROUND</SPAN> i <SPAN CLASS=T>DISCL_FOREGROUND</SPAN> jest taka, że ten pierwszy pozwala na przechwycenie myszy nawet wtedy, gdy nasze okno jest nieaktywne, zaś ten drugi - wręcz przeciwnie. Pamiętaj, że MUSISZ wybrać jedną (i tylko jedną) z flag: <SPAN CLASS=T>DISCL_BACKGROUND</SPAN> i <SPAN CLASS=T>DISCL_FOREGROUND</SPAN>, a także jedną i tylko jedną z flag <SPAN CLASS=T>DISCL_EXCLUSIVE</SPAN> i <SPAN CLASS=T>DISCL_NONEXCLUSIVE</SPAN>.
+</P>
+<P>
+Jest jeszcze jedna flaga - <SPAN CLASS=T>DISCL_NOWINKEY</SPAN>. Jak sama nazwa wskazuje, zapobiega ona otwarciu windowsowego Menu Start przez wciśnięcie klawisza z logo Windows, dzięki czemu otrzymujemy pewność, że użytkownik nie opuści naszej aplikacji w najmniej odpowiednim momencie ;-).
+</P>
+<P>
+Pamiętaj, że w miejsce <SPAN CLASS=T>hWnd</SPAN> wstawić musisz uchwyt do swojego okna głównego.
+</P>
+
+<h2>
+Tryb bezpośredni
+</h2>
+
+<P>
+Pora dowiedzieć się, jak odczytywać stan myszy. Jak już sobie wspomnieliśmy, możemy to najprościej zrobić w trybie bezpośrednim. Polega on na tym, że po prostu mamy naszą myszę cały czas "na oku" (odczytujemy jej stan na bieżąco, w każdej iteracji pętli komunikatów). Oczywiście w tym celu należy przebudować pętlę komunikatów do postaci "for games and multimedia" :-). A więc coś w rodzaju:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>while</SPAN>(msg.message != WM_QUIT)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(PeekMessage(&msg, NULL, <SPAN CLASS=L>0, 0</SPAN>, PM_REMOVE))<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;TranslateMessage(&msg);<BR>
+&nbsp;&nbsp;DispatchMessage(&msg);<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;ObslugaMyszy();<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// tutaj zwykle znajduje się kod, przygotowujący<BR>
+&nbsp;&nbsp;// kolejną klatkę</SPAN><BR>
+&nbsp;}<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Co będzie w funkcji <SPAN CLASS=T>ObslugaMyszy</SPAN>? Oczywiście wspomniane przed chwilą odczytanie stanu myszy. Służy do tego funkcja <SPAN CLASS=T>GetDeviceState</SPAN>, która pobiera wskaźnik do struktury. Jak dotąd "w użyciu" są dwa rodzaje struktur współpracujących z <SPAN CLASS=T>GetDeviceState</SPAN>, są to: <SPAN CLASS=T>DIMOUSESTATE</SPAN> i <SPAN CLASS=T>DIMOUSESTATE2</SPAN>. Pierwsza z nich zadeklarowana jest w pliku <SPAN CLASS=C>dinput.h</SPAN> następująco:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+typedef struct _DIMOUSESTATE {<BR>
+&nbsp;LONG lX;<BR>
+&nbsp;LONG lY;<BR>
+&nbsp;LONG lZ;<BR>
+&nbsp;BYTE rgbButtons[<SPAN CLASS=L>4</SPAN>];<BR>
+} DIMOUSESTATE, *LPDIMOUSESTATE;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Natomiast <SPAN CLASS=T>DIMOUSESTATE2</SPAN> wygląda identycznie, z tym że tablica <SPAN CLASS=T>rgbButtons</SPAN> ma <SPAN CLASS=L>8</SPAN> elementów zamiast <SPAN CLASS=L>4</SPAN>. Tak więc struktury DIMOUSESTATE używać musimy tylko wtedy, gdy przewidujemy, że mysz może mieć  więcej, niż cztery przyciski. Takiej jeszcze nie widziałem (moja ma cztery przyciski i dwa scrollery, a i tak uważam ją za wypasioną ;-)), więc w przykładach będę stosował "zwykłe" <SPAN CLASS=T>DIMOUSESTATE</SPAN>. Na wszelki wypadek wspominam jednak, że struktura <SPAN CLASS=T>DIMOUSESTATE2</SPAN> dostępna jest tylko w DirectInput 7.0 i nowszych.
+</P>
+<P>
+Skoro kwestia struktur została z grubsza wyjaśniona, możemy wziąć się za napisanie naszej funkcji <SPAN CLASS=T>ObslugaMyszy</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> ObslugaMyszy()<BR>
+{<BR>
+&nbsp;DIMOUSESTATE dims;<BR>
+<BR>
+&nbsp;lpMouse->GetDeviceState(<SPAN CLASS=K>sizeof</SPAN>(DIMOUSESTATE), (LPVOID)&dims);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// jakieś tam instrukcje wykorzystujące dane o myszy</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wyjaśnienia wymagają dwie rzeczy. Po pierwsze, ponieważ podany przez nas wskaźnik może wskazywać na dwa rodzaje struktur, więc musimy podać rozmiar użytej struktury, żeby funkcja <SPAN CLASS=T>GetDeviceState</SPAN> wiedziała, o który typ struktury chodzi. Druga sprawa: podawany wskaźnik musimy przekonwertować jawnie do <SPAN CLASS=T>LPVOID</SPAN> (czyli praktycznie <SPAN CLASS=K>void*</SPAN>), ponieważ oprócz myszy, <SPAN CLASS=T>GetDeviceState</SPAN> może współpracować również z klawiaturą i dżojstikiem, a przeciążona nie jest.
+</P>
+<P>
+Teraz wszystkie niezbędne informacje mamy w naszej strukturze. Tablica <SPAN CLASS=T>rgbButtons</SPAN> zawiera stany przycisków myszy w momencie wywołania <SPAN CLASS=T>GetDeviceState</SPAN>, zaś pola <SPAN CLASS=T>lX, lY</SPAN> i <SPAN CLASS=T>lZ</SPAN> mówią nam, o ile jednostek przesunęła się każda rolka myszy. Każda normalna mysz posiada poziomą, pionową i ukośną rolkę, ale z reguły tylko te dwie pierwsze zbierają informacje o ruchu myszy, natomiast ukośna rolka w większości popularnych modeli myszek służy tylko do podtrzymywania kulki i nie jest połączona z żadnymi detektorami ruchu, dlatego też pole <SPAN CLASS=T>lZ</SPAN> jest zwykle równe <SPAN CLASS=L>0</SPAN>. Tak więc jeśli użytkownik przesunie mysz o <SPAN CLASS=L>5</SPAN> pikseli w górę i <SPAN CLASS=L>8</SPAN> pikseli w prawo, to pole <SPAN CLASS=T>lX</SPAN> będzie równe <SPAN CLASS=L>8</SPAN>, <SPAN CLASS=T>lY</SPAN> będzie równe <SPAN CLASS=L>-5</SPAN>, a <SPAN CLASS=T>lZ</SPAN> będzie równe <SPAN CLASS=L>0</SPAN>.
+</P>
+<P>
+Z przyciskami myszy jest nieco większy problem, gdyż DirectInput ustawia tylko jeden bit (pierwszy od lewej, czyli najbardziej znaczący bit) odpowiedniego elementu tablicy <SPAN CLASS=T>rgbButtons</SPAN>. Właściwie to moglibyśmy przed użyciem wyzerować strukturę <SPAN CLASS=T>dims</SPAN>, a potem traktować elementy <SPAN CLASS=T>rgbButtons</SPAN> jako zmienne typu<SPAN CLASS=T> BOOL</SPAN>, ale jeśli chcemy być w 100% poprawni, to powinniśmy pisać np. tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(dims.rgbButtons[<SPAN CLASS=L>0</SPAN>] & <SPAN CLASS=L>0x80</SPAN>) OnMouseButton1();
+</TD></TR>
+</TABLE>
+
+<P>
+...jeśli chcemy obsłużyć kliknięcie lewym przyciskiem myszy. Warto sobie w tym celu zdefiniować takie fajne makro:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#define KEYDOWN(array,key) (array[key] & 0x80)
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Dzięki niemu sprawdzanie wciśnięcia przycisków myszy (a także tych na klawiaturze) stanie się proste i bardziej eleganckie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(KEDOWN(dims.rgbButtons, <SPAN CLASS=L>0</SPAN>) OnMouseButton1();
+</TD></TR>
+</TABLE>
+
+<P>
+Dobrze też byłoby zadeklarować jakieś stałe dla przycisków myszy, np.:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>const int</SPAN> LEFT_BUTTON = <SPAN CLASS=L>0</SPAN>;<BR>
+<SPAN CLASS=K>const int</SPAN> RIGHT_BUTTON = <SPAN CLASS=L>1</SPAN>;<BR>
+<SPAN CLASS=K>const int</SPAN> MIDDLE_BUTTON = <SPAN CLASS=L>2</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Zwróć uwagę na kolejność przycisków; o ile z tymi dodatkowymi, wybajerzonymi, może być rozmaicie (zależnie od sterowników), to lewy, prawy i środkowy zawsze powinne mieć właśnie takie indeksy, jak tutaj.
+</P>
+<P>
+Trzeba wiedzieć jeszcze o jednej rzeczy. Otóż, podobnie jak w DirectDraw z powierzchniami, tak i tutaj nasza władza nad myszką w pewnym momencie może nam zostać odebrana. Jeśli wybraliśmy tryb <SPAN CLASS=T>DISCL_EXCLUSIVE</SPAN>, to praktycznie jesteśmy przed takim wypadkiem zabezpieczeni, a jeśli nie - musimy sobie jakoś poradzić z problemem.
+</P>
+<P>
+Sposób jest prosty i analogicznie do powierzchni DirectDraw (znowu) sprowadza się on do wywołania jednej funkcji - <SPAN CLASS=T>Acquire</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+lpMouse->Acquire();<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Po takim zabiegu mamy już pewność, że mysz nam nie "ucieknie". W gruncie rzeczy możemy wywoływać <SPAN CLASS=T>Acquire</SPAN> przed każdym wywołaniem <SPAN CLASS=T>GetDeviceState</SPAN>, jednak w niektórych przypadkach może się okazać, że tracimy zbyt dużo czasu procesora na <SPAN CLASS=T>Acquire</SPAN>, a przecież sytuacje, kiedy jego wywoływanie jest naprawdę konieczne, należą raczej do rzadkości. Tak więc jeśli bardzo zależy nam na szybkości, możemy zapamiętać wartość zwróconą przez <SPAN CLASS=T>GetDeviceState</SPAN>. Jeśli system znienacka odebrał nam władzę nad myszką, to <SPAN CLASS=T>GetDeviceState</SPAN> zwróci wartość <SPAN CLASS=T>DIERR_INPUTLOST</SPAN>. W innych nieciekawych przypadkach może również zwrócić inne wartości, tak więc najlepiej będzie napisać funkcję <SPAN CLASS=T>ObslugaMyszy</SPAN> w taki mniej więcej sposób:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> ObslugaMyszy()<BR>
+{<BR>
+&nbsp;DIMOUSESTATE dims;<BR>
+&nbsp;HRESULT r;<BR>
+<BR>
+&nbsp;r = lpMouse->GetDeviceState(<SPAN CLASS=K>sizeof</SPAN>(DIMOUSESTATE), (LPVOID)&dims);<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(r != DI_OK)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;lpMouse->Acquire();<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//teraz powtarzamy zabawę ;-)</SPAN><BR>
+&nbsp;&nbsp;r = lpMouse->GetDeviceState(<SPAN CLASS=K>sizeof</SPAN>(DIMOUSESTATE), (LPVOID)&dims);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(r != DI_OK) <SPAN CLASS=C>//no, teraz to już nic nie pomoże</SPAN><BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>return</SPAN>;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// jakieś tam instrukcje wykorzystujące dane o myszy</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Warto wiedzieć, że w sporadycznych przypadkach funkcja może zwrócić również E_PENDING, co oznaczałoby, że dane są właśnie w trakcie pobierania. Niekoniecznie musi to oznaczać błąd, prawdopodobnie w takim przypadku należy po prostu powtórzyć żądanie nieco później. 
+</P>
+<P>
+Na koniec zostało nam tradycyjne sprzątanie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(lpDI != NULL)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(lpMouse != NULL)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;lpMouse->Unacquire();<BR>
+&nbsp;&nbsp;lpMouse->Release();<BR>
+&nbsp;&nbsp;lpMouse = NULL;<BR>
+&nbsp;}<BR>
+&nbsp;lpDI->Release();<BR>
+&nbsp;lpDI = NULL;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Tryb buforowany
+</h2>
+
+<P>
+Jeśli metoda bezpośrednia z jakichś powodów nie nadaje się do naszych celów (np. chcemy mieć 100% pewności, że żadne "myszkowe" zdarzenie nam nie umknie), pozostaje skorzystać z trybu buforowanego. Polega on na tym, że wszystkie informacje o ruchach i o przyciskach myszy zapisywane są w buforze i pozostają tam aż do momentu, gdy je odczytamy. Przypomina to więc windowsową pętlę komunikatów, z tym że bufor DirectInput jest oczywiście wydajniejszy - choćby dlatego, że znajdą się w nim tylko te komunikaty, które nas rzeczywiście interesują, podczas gdy pętla komunikatów okna przyjmuje teoretycznie kilkaset różnych komunikatów.
+</P>
+<P>
+Przede wszystkim powinniśmy zawrzeć znajomość ze strukturą (która to już z kolei...) o nazwie <SPAN CLASS=T>DIPROPDWORD</SPAN>. Dość nietypowa ta struktura, bowiem składa się tylko z nagłówka (stanowiącego zresztą kolejny typ struktury) oraz jednej zmiennej typu <SPAN CLASS=T>DWORD</SPAN>. Zmienna ta, domyślić się nietrudno, ma kluczowe znaczenie i w tym przypadku oznaczać będzie rozmiar bufora. Z nagłówkiem (typu <SPAN CLASS=T>DIPROPHEADER</SPAN>, w skrócie <SPAN CLASS=T>diph</SPAN>) sprawa jest bardziej skomplikowana - musimy tu wypełnić cztery rzeczy: rozmiar całej struktury typu <SPAN CLASS=T>DIPROPDWORD</SPAN>, rozmiar nagłówka, identyfikator obiektu (ignorujemy) oraz sposób interpretacji owego identyfikatora (tu dajemy zawsze <SPAN CLASS=T>DIPH_DEVICE</SPAN>). A więc:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DIPROPDWORD dipdw;<BR>
+dipdw.diph.dwSize = <SPAN CLASS=K>sizeof</SPAN>(DIPROPDWORD);<BR>
+dipdw.diph.dwHeaderSize = <SPAN CLASS=K>sizeof</SPAN>(DIPROPHEADER);<BR>
+dipdw.diph.dwObj = <SPAN CLASS=L>0</SPAN>; <BR>
+dipdw.diph.dwHow = DIPH_DEVICE;<BR>
+dipdw.dwData =<SPAN CLASS=L> 4</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Omawiać tutaj nie ma co, poza ostatnią linijką: tutaj właśnie ustawiamy rozmiar bufora (u nas wynosi on <SPAN CLASS=L>4</SPAN>). Niegłupim pomysłem byłoby zadeklarować jakąś stałą w tym celu, ale ja jestem na to zbyt leniwy ;-).
+</P>
+<P>
+Krokiem następnym będzie powiadomienie DirectInput-a, że od tej pory ma do dyspozycji bufor:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+lpMouse->SetProperty(DIPROP_BUFFERSIZE, &dipdw.diph);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Dla przyzwoitości należałoby może sprawdzić, co zwróciła metoda <SPAN CLASS=T>SetProperty</SPAN>, ale znów mi się nie chce bawić w szczegóły ;-). Przeskakujemy więc do kolejnego etapu, którym jest pobranie interesujących nas danych z bufora. Zajmuje się tym metoda <SPAN CLASS=T>GetDeviceData</SPAN>. Zanim jednak będziemy mogli dane pobrać, wpierw musimy mieć dokąd. W tym celu deklarujemy strukturę (nie bijcie) typu <SPAN CLASS=T>DIDEVICEOBJECTDATA</SPAN>. Potrzebujemy też zmiennej typu <SPAN CLASS=T>DWORD</SPAN>, do której wpiszemy liczbę zdarzeń pobieranych z bufora (po wywołaniu ta sama zmienna będzie zawierać liczbę zdarzeń faktycznie pobranych, ponieważ w teorii te dwie wartości mogą być różne):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DIDEVICEOBJECTDATA didod; <SPAN CLASS=C>//co za nazwa... ;-)</SPAN><BR>
+DWORD dwItems = <SPAN CLASS=L>1</SPAN>; <SPAN CLASS=C>//pobieramy tylko 1 zdarzenie za każdym razem</SPAN><BR>
+<BR>
+lpMouse->Acquire();<BR>
+lpMouse->GetDeviceData(<SPAN CLASS=K>sizeof</SPAN>(DIDEVICEOBJECTDATA), &didod, &dwItems, <SPAN CLASS=L>0</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Ostatni argument może być równy <SPAN CLASS=L>0</SPAN> lub też <SPAN CLASS=T>DIGDD_PEEK</SPAN>. W pierwszym przypadku dane odczytane z bufora są równocześnie z niego usuwane, w drugim przypadku - przeciwnie (porównaj z pętlą komunikatów okna).
+</P>
+<P>
+W tym miejscu warto zastanowić się, jak często będziemy pobierać dane z bufora. Zależy to oczywiście tylko od twoich aktualnych potrzeb. Nic nie stoi na przeszkodzie, by zrealizować to podobnie do pobierania danych w trybie bezpośrednim, czyli w ściśle określonych, regularnych odstępach czasowych, np. co <SPAN CLASS=L>5</SPAN> milisekund. Możesz pobierać elementy (zdarzenia) z bufora pojedynczo (jak w przykładzie powyżej), albo po kilka na raz (maksymalna liczba elementów ograniczona jest przez rozmiar bufora). Pamiętaj przy tym jednak, że po każdym pobraniu powinieneś sprawdzić, jaka liczba elementów została rzeczywiście pobrana, np.:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>const</SPAN> DWORD ITEMS_AT_ONCE = <SPAN CLASS=L>4</SPAN>;<BR>
+DIDEVICEOBJECTDATA didod[ITEMS_AT_ONCE];<BR>
+DWORD dwItems = ITEMS_AT_ONCE;<BR>
+<BR>
+<SPAN CLASS=K>do</SPAN><BR>
+{<BR>
+&nbsp;lpMouse->Acquire();<BR>
+&nbsp;lpMouse->GetDeviceData(<SPAN CLASS=K>sizeof</SPAN>(DIDEVICEOBJECTDATA), didod, &dwItems, <SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+<SPAN CLASS=K>while</SPAN>(dwItems == ITEMS_AT_ONCE);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pętla powyższa będzie się wykonywała dopóty, aż liczba elementów pobranych nie spadnie poniżej stałej <SPAN CLASS=T>ITEMS_AT_ONCE</SPAN>, co powinno nastąpić tylko wtedy, gdy po prostu wszystkie elementy zostaną już zabrane z bufora.
+</P>
+<P>
+Jeśli pobraliśmy z bufora już wszystko, co nas interesuje, a mimo to coś w nim jeszcze zostało, możemy się takich niechcianych zdarzeń łatwo pozbyć - wystarczy wywołać <SPAN CLASS=T>GetDeviceData</SPAN> z drugim argumentem ustawionym na <SPAN CLASS=T>NULL</SPAN> oraz trzecim na adres zmiennej zawierającej stałą <SPAN CLASS=T>INFINITE</SPAN>. Po takim zabiegu bufor zostanie opróżniony:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+dwItems = INFINITE;<BR>
+lpMouse->GetDeviceData(<SPAN CLASS=K>sizeof</SPAN>(DIDEVICEOBJECTDATA), NULL, &dwItems, <SPAN CLASS=L>0</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+No dobra, ale co właściwie można zrobić z danymi, które właśnie pobraliśmy z bufora? Mamy tablicę elementów typu <SPAN CLASS=T>DIDEVICEOBJECTDATA</SPAN>, każdy taki element odpowiada jednemu "myszkowemu" zdarzeniu, np. ruch w poziomie, ruch w pionie, wciśnięcie przycisku. Przede wszystkim powinniśmy sprawdzić, jaka wartość znajduje się w polu <SPAN CLASS=T>dwOfs</SPAN>, czyli z jakiego rodzaju zdarzeniem mamy akurat do czynienia. I tak stała <SPAN CLASS=T>DIMOFS_X</SPAN> oznacza przesunięcie myszy w poziomie, <SPAN CLASS=T>DIMOFS_Y</SPAN> - w pionie, <SPAN CLASS=T>DIMOFS_BUTTON0</SPAN> - wciśnięcie (lub zwolnienie) lewego przycisku, <SPAN CLASS=T>DIMOFS_BUTTON1</SPAN> - prawego przycisku itd.
+</P>
+<P>
+Gdy już wiemy, jakie zdarzenie jest opisane w strukturze <SPAN CLASS=T>DIDEVICEOBJECTDATA</SPAN>, pozostaje odczytać właściwe dane, znajdujące się w polu <SPAN CLASS=T>dwData</SPAN>. W przypadku poruszenia myszką będzie to liczba jednostek, o jaką się mysz przesunęła (może to być wartość względna lub bezwzględna, zależy jak ustawiliśmy urządzenie), w przypadku przycisku - flaga wskazująca, czy przycisk został wciśnięty czy zwolniony (rolę tej flagi pełni najbardziej znaczący bit pierwszego bajtu pola).
+</P>
+<P>
+Warto zwrócić uwagę na pole <SPAN CLASS=T>dwTimeStamp</SPAN>. Zapisywany jest w nim dokładny czas (w milisekundach), kiedy wygenerowane zostało dane zdarzenie. Dzięki temu możemy sprawdzić, czy zdarzenie się nie "przeterminowało" po zbyt długim okresie leżenia w buforze ;-) (może się np. zdarzyć, że jakiś ruch myszą trafi do bufora, ale nie zostanie obsłużony, bo tym samym czasie użytkownik przełączy się na inne okno, a po ładnych kilku minutach wróci do naszej aplikacji). Czas ten z grubsza zgadza się z tym pobranym za pomocą funkcji <SPAN CLASS=T>GetTickCount</SPAN>. Z grubsza, ponieważ wartość w polu <SPAN CLASS=T>dwTimeStamp</SPAN> jest dokładna co do 1 milisekundy, natomiast <SPAN CLASS=T>GetTickCount</SPAN> - niezupełnie. W poniższym przykładzie zakładamy jednak, że te kilka, a nawet kilkadziesiąt milisekund nie robi nam różnicy ;-).
+</P>
+<P>
+Tak więc dobrnęliśmy szczęśliwie do końca i możemy wreszcie napisać kompletną buforowaną wersję funkcji <SPAN CLASS=T>ObslugaMyszy</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> ObslugaMyszy()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>const</SPAN> DWORD ITEMS_AT_ONCE = <SPAN CLASS=L>4</SPAN>;<BR>
+&nbsp;DIDEVICEOBJECTDATA didod[ITEMS_AT_ONCE];<BR>
+&nbsp;DWORD dwItems = ITEMS_AT_ONCE;<BR>
+&nbsp;DWORD dwCurrentTime;<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//pobierz kolejne 4 zdarzenia (lub mniej)</SPAN><BR>
+&nbsp;<SPAN CLASS=K>do</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;lpMouse->Acquire();<BR>
+&nbsp;&nbsp;lpMouse->GetDeviceData(<SPAN CLASS=K>sizeof</SPAN>(DIDEVICEOBJECTDATA), didod, &dwItems, <SPAN CLASS=L>0</SPAN>);<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>while</SPAN>(dwItems == ITEMS_AT_ONCE);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//obsłuż te zdarzenia</SPAN><BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(DWORD i=<SPAN CLASS=L>0</SPAN>; i&lt;dwItems; ++i)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>switch</SPAN>(didod[i].dwOfs)<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> DIMOFS_X:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;user_ruszyl_mysz_w_poziomie(didod[i].dwData);<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>break;<BR>
+&nbsp;&nbsp;&nbsp;case</SPAN> DIMOFS_Y:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;user_ruszyl_mysz_w_pionie(didod[i].dwData);<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>break;<BR>
+&nbsp;&nbsp;&nbsp;case</SPAN> DIMOFS_BUTTON0:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(didod[i].dwData & <SPAN CLASS=L>0x80</SPAN>)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user_wcisnal_lewy_przycisk();<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user_puscil_lewy_przycisk();<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;}<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście to jest tylko przykład. Nie musisz (a nawet nie powinieneś) deklarować funkcji w stylu <SPAN CLASS=T>user_wcisnal_lewy_przycisk</SPAN> (zbyt duży narzut czasowy na wywołaniu). Możesz pobierać z bufora tyle zdarzeń na raz, ile chcesz. Możesz też dorzucić kod sprawdzający, czy zdarzenia są aktualne (<SPAN CLASS=T>dwTimeStamp</SPAN>) i opróżniający co jakiś czas bufor. Nie istnieje żaden wzór procedury <span class=T>ObslugaMyszy</span>, pasujący do wszystkich sytuacji. Zresztą  po to właśnie jest DirectX, żeby móc dostosowywać kod do aktualnych potrzeb, a nie korzystać z uniwersalnych rozwiązań.
+</P>
+<P>
+Skoro zrobiliśmy już wszystko, co mieliśmy do zrobienia, zwalniamy wszelkie obiekty DirectInput tak samo, jak to robiliśmy w trybie bezpośrednim.
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="ddraw04.html">&lt;&lt; Utrata powierzchni</A> &nbsp;
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

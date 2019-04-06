@@ -1,0 +1,208 @@
+<HTML
+><HEAD
+><TITLE
+>Mmap-ed IO</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Direct and Mmap-ed IO"
+HREF="dmmio.html"><LINK
+REL="PREVIOUS"
+TITLE="Direct IO"
+HREF="dio.html"><LINK
+REL="NEXT"
+TITLE="Driver and module initialization"
+HREF="init.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="dio.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 9. Direct and Mmap-ed IO</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="init.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="MMAPIO">9.2. Mmap-ed IO</H1
+><P
+>Memory-mapped IO takes a different approach from direct IO to removing
+the extra data copy performed by normal ("indirect") IO. With mmap-ed
+IO the application calls the mmap() system call to memory map sg's reserved
+buffer. The sg driver maintains one reserved buffer per file descriptor.
+The default size of the reserved buffer is 32 KB and it can be changed
+with the ioctl(SG_SET_RESERVED_SIZE). The mmap() system call only needs
+to be called once prior
+<A
+NAME="AEN711"
+HREF="#FTN.AEN711"
+>[1]</A
+>
+to doing mmap-ed IO. For more details on the mmap() see 
+<A
+HREF="mmap.html"
+>Section 7.6</A
+>. An application indicates that it wants mmap-ed on
+a SCSI request by setting the SG_FLAG_MMAP_IO value in 'flags'.</P
+><P
+>Since there is only reserved buffer per sg file descriptor then only one
+mmap-ed IO command can be active at one time. In order to perform command
+queuing with mmap-ed IO, an application will need to open() multiple
+file descriptors to the same SCSI device.
+With mmap-ed IO the various status values and the sense buffer (if
+required) are conveyed back to an application in the same fashion as
+normal ("indirect") IO.</P
+><P
+>Mmap-ed has very low per command latency since the reserved buffer mapping
+only needs to be done once per file descriptor. Also the reserved buffer
+is set up by the sg driver to aid the efficient construction of the
+internal scatter gather list used by the lower level (adapter) driver for
+DMA purposes. This tends to be more efficient than the user memory that
+direct IO requires the sg driver to process into an internal scatter
+gather list. So on both these counts, mmap-ed IO has the edge over direct IO.</P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN711"
+HREF="mmapio.html#AEN711"
+>[1]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>When a write() or ioctl(SG_IO) attempts mmap-ed IO there is no check
+performed that a prior mmap() system call has been performed. If no
+mmap() has been issued then random data is written to the device or data 
+read from the device in inaccessible. Also once mmap() has been called
+on a file descriptor then all subsequent calls to ioctl(SG_SET_RESERVED_SIZE)
+will yield EBUSY.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="dio.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="init.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Direct IO</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="dmmio.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Driver and module initialization</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

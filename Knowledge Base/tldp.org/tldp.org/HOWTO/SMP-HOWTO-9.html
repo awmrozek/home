@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux SMP HOWTO: Glossary</TITLE>
+ <LINK HREF="SMP-HOWTO-10.html" REL=next>
+ <LINK HREF="SMP-HOWTO-8.html" REL=previous>
+ <LINK HREF="SMP-HOWTO.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="SMP-HOWTO-10.html">Next</A>
+<A HREF="SMP-HOWTO-8.html">Previous</A>
+<A HREF="SMP-HOWTO.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="s9">9. Glossary</A></H2>
+
+<H2><A NAME="ss9.1">9.1 Definitions</A>
+</H2>
+
+<P>
+<UL>
+<LI> <B>SMP</B> Symmetric Multi-Processors.
+</LI>
+<LI> <B>UP</B> Uni-Processor: system with one processor.
+</LI>
+<LI> <B>APIC</B> Advanced Programmable Interrupt Controler.
+</LI>
+<LI> <B>thread</B> A thread is a processor activity in a
+process. The same process can have multiple threads. Those threads share
+the process address space and can therefore share data. 
+</LI>
+<LI> <B>pthread</B> Posix thread, threads defined by the Posix
+standard. 
+</LI>
+<LI> <B>process</B> Program in execution, with its environment.
+</LI>
+<LI> <B>MTRR</B> Memory Type Range Register
+</LI>
+<LI> <B>APM</B> Advanced Power Management.
+</LI>
+<LI> <B>FPU</B> Floating Point Unit. Also called arithmetic
+co-processor.
+</LI>
+<LI> <B>IRQ</B> Interrupt ReQuest.
+</LI>
+<LI> <B>EBDA</B> Extended BIOS Data Area.
+</LI>
+<LI> <B>ACPI</B> Advanced Configuration and Power Interface.
+</LI>
+<LI> <B>oops</B> Internal kernel error.
+</LI>
+<LI> <B>Cluster</B> Group of computers that achieve a common
+computation (also known as Beowulf within the Linux community).
+
+
+</LI>
+</UL>
+<P>
+<H2><A NAME="ss9.2">9.2 Concepts</A>
+</H2>
+
+<P>
+<UL>
+<LI> <B>Data Races</B>
+<P>A data race happens when to processes want to modify a shared variable
+concurrently without protecting themselves from the effect of the other
+process. 
+<P>Let A a shared variable. Let P1 and P2 two processes that access this
+variable. Those two processes are making the same following operation:
+"read A in tmp variable (local to the precess); do tmp = tmp + 1 ; write
+tmp in A". If the A variable is not protected by a lock, resulting
+executions could not correspond to what is espected. For example, here
+is two examples if one do not lock A:
+<PRE>
+case #1:
+A=0
+P1: read A -> tmp1 (so tmp1 is 0)
+P2: read A -> tmp2 (so tmp2 is 0)
+P1: tmp1 = tmp1 + 1 (so tmp1 is 1)
+P2: tmp2 = tmp2 + 1 (so tmp2 is 1)
+P1: tmp1 -> write A (so A is 1)
+P2: tmp2 -> write A (so A is 1)
+</PRE>
+<P>
+<PRE>
+case #2:
+A=0
+P1: read A -> tmp1 (so tmp1 is 0)
+P1: tmp1 = tmp1 + 1 (so tmp1 is 1)
+P1: tmp1 -> write A (so A is 1)
+P2: read A -> tmp2 (so tmp2 is 1)
+P2: tmp2 = tmp2 + 1 (so tmp2 is 2)
+P2: tmp2 -> write A (so A is 2)
+</PRE>
+<P>To avoid this kind of problem, one uses a lock:
+<PRE>
+A=0:
+P1: lock A
+P1: read A -> tmp1 (so tmp1 is 0)
+P2: lock A (so P2 is blocked)
+P1: tmp1 = tmp1 + 1 (so tmp1 is 1)
+P1: tmp1 -> write A (so A is 1)
+P1: unlock A (so P2 is unblocked)
+P2: read A -> tmp2 (so tmp2 is 1)
+P2: tmp2 = tmp2 + 1 (so tmp2 is 2)
+P2: tmp2 -> write A (so A is 2)
+P2: unlock A
+</PRE>
+<P>
+</LI>
+<LI> <B>Deadlock</B>
+<P>This is an inter-blocking that occurs when two processes want to access
+at shared variables mutually locked. For example, let A and B two locks
+and P1 and P2 two processes:
+<P>
+<PRE>
+P1: lock A
+P2: lock B
+P1: lock B (so P1 is blocked by P2)
+P2: lock A (so P2 is blocked by P1)
+</PRE>
+
+Process P1 is blocked because it is waiting for the unlocking of B
+variable by P2. However P2 also needs the A variable to finish its
+computation and free B. So we have a deadlock.
+<P>In this example, the problem is very simple. But imagine what can happen
+in a 2 millions of lines of code (like the linux kernel) with hundreds
+of locks. :-)
+</LI>
+</UL>
+<P>
+<P>
+<P>
+<HR>
+<A HREF="SMP-HOWTO-10.html">Next</A>
+<A HREF="SMP-HOWTO-8.html">Previous</A>
+<A HREF="SMP-HOWTO.html#toc9">Contents</A>
+</BODY>
+</HTML>

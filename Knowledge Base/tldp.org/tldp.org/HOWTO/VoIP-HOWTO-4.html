@@ -1,0 +1,248 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>VoIP Howto: Technical info about VoIP</TITLE>
+ <LINK HREF="VoIP-HOWTO-5.html" REL=next>
+ <LINK HREF="VoIP-HOWTO-3.html" REL=previous>
+ <LINK HREF="VoIP-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="VoIP-HOWTO-5.html">Next</A>
+<A HREF="VoIP-HOWTO-3.html">Previous</A>
+<A HREF="VoIP-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Technical info about VoIP</A></H2>
+
+<P>Here we see some important info about VoIP, needed to understand
+it.
+<H2><A NAME="ss4.1">4.1 Overview on a VoIP connection</A>
+</H2>
+
+<P>To setup a VoIP communication we need:
+<P>
+<OL>
+<LI>First the ADC to convert analog voice to digital signals (bits)</LI>
+<LI>Now the bits have to be compressed in a good format for transmission:
+there is a number of protocols we'll see after.</LI>
+<LI>Here we have to insert our voice packets in data packets using
+a real-time protocol (typically RTP over UDP over IP)</LI>
+<LI>We need a signaling protocol to call users: ITU-T H323 does that.</LI>
+<LI>At RX we have to disassemble packets, extract datas, then convert
+them to analog voice signals and send them to sound card (or phone)</LI>
+<LI>All that must be done in a real time fashion cause we cannot
+waiting for too long for a vocal answer! (see QoS section)</LI>
+</OL>
+<P>
+<PRE>
+                         
+                        Base architecture
+
+Voice )) ADC - Compression Algorithm -  Assembling RTP in TCP/IP -----
+                                                         ----&gt;      |
+                                                         &lt;----      |
+Voice (( DAC - Decompress. Algorithm -  Disass. RTP from TCP/IP  -----
+</PRE>
+<H2><A NAME="ss4.2">4.2 Analog to Digital Conversion</A>
+</H2>
+
+<P>This is made by hardware, typically by card integrated ADC. 
+<P>Today every sound card allows you convert with 16 bit a band
+of 22050 Hz (for sampling it you need a freq of 44100 Hz for Nyquist
+Principle) obtaining a throughput of 2 bytes * 44100 (samples per
+second) = 88200 Bytes/s, 176.4 kBytes/s for stereo stream.
+<P>For VoIP we needn't such a throughput (176kBytes/s) to send voice
+packet: next we'll see other coding used for it.
+<H2><A NAME="ss4.3">4.3 Compression Algorithms</A>
+</H2>
+
+<P>Now that we have digital data we may convert it to a standard
+format that could be quickly transmitted.
+<P>
+<PRE>
+PCM, Pulse Code Modulation, Standard ITU-T G.711
+</PRE>
+<P>
+<UL>
+<LI>Voice bandwidth is 4 kHz, so sampling bandwidth has to be 8 kHz
+(for Nyquist). </LI>
+<LI>We represent each sample with 8 bit (having 256 possible values).</LI>
+<LI>Throughput is 8000 Hz *8 bit = 64 kbit/s, as a typical digital
+phone line.</LI>
+<LI>In real application mu-law (North America) and a-law (Europe)
+variants are used which code analog signal a logarithmic scale using
+12 or 13 bits instead of 8 bits (see Standard ITU-T G.711).</LI>
+</UL>
+<P>
+<PRE>
+ADPCM, Adaptive differential PCM, Standard ITU-T G.726
+</PRE>
+<P>It converts only the difference between the actual and the previous
+voice packet requiring 32 kbps (see Standard ITU-T G.726).
+<P>
+<PRE>
+LD-CELP, Standard ITU-T G.728
+CS-ACELP, Standard ITU-T G.729 and G.729a
+MP-MLQ, Standard ITU-T G.723.1, 6.3kbps, Truespeech
+ACELP, Standard ITU-T G.723.1, 5.3kbps, Truespeech
+LPC-10, able to reach 2.5 kbps!!
+</PRE>
+<P>This last protocols are the most important cause can guarantee
+a very low minimal band using source coding; also G.723.1 codecs
+have a very high MOS (Mean Opinion Score, used to measure voice fidelity)
+but attention to elaboration performance required by them, up to
+26 MIPS! 
+<H2><A NAME="ss4.4">4.4 RTP Real Time Transport Protocol</A>
+</H2>
+
+<P>Now we have the raw data and we want to encapsulate it into TCP/IP
+stack. We follow the structure:
+<P>
+<PRE>
+VoIP data packets
+       RTP
+       UDP
+       IP
+    I,II layers
+</PRE>
+<P>VoIP data packets live in RTP (Real-Time Transport Protocol)
+packets which are inside UDP-IP packets.
+<P>Firstly, VoIP doesn't use TCP because it is too heavy for real
+time applications, so instead a UDP (datagram) is used. 
+<P>Secondly, UDP has no control over the order in which packets
+arrive at the destination or how long it takes them to get there
+(datagram concept). Both of these are very important to overall voice
+quality (how well you can understand what the other person is saying)
+and conversation quality (how easy it is to carry out a conversation).
+RTP solves the problem enabling the receiver to put the packets back
+into the correct order and not wait too long for packets that have
+either lost their way or are taking too long to arrive (we don't
+need every single voice packet, but we need a continuous flow of
+many of them and ordered).
+<P>
+<PRE>
+                    Real Time Transport Protocol
+ 
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |V=2|P|X|  CC   |M|     PT      |       sequence number         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                           timestamp                           |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |           synchronization source (SSRC) identifier            |
+   +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+   |            contributing source (CSRC) identifiers             |
+   |                             ....                              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</PRE>
+<P>Where:
+<P>
+<UL>
+<LI>V indicates the version of RTP used</LI>
+<LI>P indicates the padding, a byte not used at bottom packet to
+reach the parity packet dimension</LI>
+<LI>X is the presence of the header extension</LI>
+<LI>CC field is the number of CSRC identifiers following the fixed
+header. CSRC field are used, for example, in conference case.</LI>
+<LI>M is a marker bit</LI>
+<LI>PT payload type</LI>
+</UL>
+<P>For a complete description of RTP protocol and all its applications
+see relative RFCs
+<A HREF="http://www.ietf.org/rfc/rfc1889.txt">1889</A> and 
+<A HREF="http://www.ietf.org/rfc/rfc1890.txt">1890</A>.
+<H2><A NAME="ss4.5">4.5 RSVP</A>
+</H2>
+
+<P>There are also other protocols used in VoIP, like RSVP, that
+can manage Quality of Service (QoS).
+<P>RSVP is a signaling protocol that requests a certain amount of
+bandwidth and latency in every network hop that supports it. 
+<P>For detailed info about RSVP see the
+<A HREF="http://www.ietf.org/rfc/rfc2205.txt?number=2205">RFC 2205</A><H2><A NAME="ss4.6">4.6 Quality of Service (QoS)</A>
+</H2>
+
+<P>We said many times that VoIP applications require a real-time
+data streaming cause we expect an interactive data voice exchange.
+<P>
+<P>Unfortunately, TCP/IP cannot guarantee this kind of purpose,
+it just make a "best effort" to do it. So we need to introduce tricks
+and policies that could manage the packet flow in EVERY router we
+cross.
+<P>So here are:
+<P>
+<OL>
+<LI>TOS field in IP protocol to describe type of service: high values
+indicate low urgency while more and more low values bring us more
+and more real-time urgency</LI>
+<LI>Queuing packets methods:
+<OL>
+<LI>FIFO (First in First Out), the more stupid method that allows
+passing packets in arrive order.</LI>
+<LI>WFQ (Weighted Fair Queuing), consisting in a fair passing of
+packets (for example, FTP cannot consume all available bandwidth),
+depending on kind of data flow, typically one packet for UDP and
+one for TCP in a fair fashion.</LI>
+<LI>CQ (Custom Queuing), users can decide priority.</LI>
+<LI>PQ (Priority Queuing), there is a number (typically 4) of queues
+with a priority level each one: first, packets in the first queue
+are sent, then (when first queue is empty) starts sending from the
+second one and so on.</LI>
+<LI>CB-WFQ (Class Based Weighted Fair Queuing), like WFQ but, in
+addition, we have classes concept (up to 64) and the bandwidth value
+associated for each one.</LI>
+</OL>
+</LI>
+<LI>Shaping capability, that allows to limit the source to a fixed
+bandwidth in:
+<OL>
+<LI>download</LI>
+<LI>upload</LI>
+</OL>
+</LI>
+<LI>Congestion Avoidance, like RED (Random Early Detection).</LI>
+</OL>
+<P>For an exhaustive information about QoS see 
+<A HREF="http://www.ietf.org/html.charters/diffserv-charter.html">Differentiated Services</A> at IETF.
+<H2><A NAME="ss4.7">4.7 H323 Signaling Protocol</A>
+</H2>
+
+<P>H323 protocol is used, for example, by Microsoft Netmeeting to
+make VoIP calls.
+<P>This protocol allow a variety of elements talking each other:
+<P>
+<OL>
+<LI>Terminals, clients that initialize VoIP connection. Although
+terminals could talk together without anyone else, we need some additional
+elements for a scalable vision.</LI>
+<LI>Gatekeepers, that essentially operate:
+<OL>
+<LI>address translation service, to use names instead IP addresses</LI>
+<LI>admission control, to allow or deny some hosts or some users</LI>
+<LI>bandwidth management</LI>
+</OL>
+</LI>
+<LI>Gateways, points of reference for conversion TCP/IP - PSTN.</LI>
+<LI>Multipoint Control Units (MCUs) to provide conference.</LI>
+<LI>Proxies Server also are used.</LI>
+</OL>
+<P>h323 allows not only VoIP but also video and data communications.
+<P>Concerning VoIP, h323 can carry audio codecs G.711, G.722, G.723,
+G.728 and G.729 while for video it supports h261 and h263.
+<P>More info about h323 is available at 
+<A HREF="http://www.openh323.org/standards.html">Openh323 Standards</A>, at 
+<A HREF="http://www.cs.columbia.edu/~hgs/rtp/h323.html">this h323 web site</A> and at its standard
+description: 
+<A HREF="http://www.itu.int/itudoc/itu-t/rec/h/">ITU H-series Recommendations</A>.
+<P>You can find it implemented in various application software like
+<A HREF="http://www.microsoft.com">Microsoft Netmeeting</A>, 
+<A HREF="http://www.net2phone.com">Net2Phone</A>, 
+<A HREF="http://www.dialpad.com">DialPad</A>, ... and also in freeware products you can find at 
+<A HREF="http://www.openh323.org">Openh323 Web Site</A>.
+<HR>
+<A HREF="VoIP-HOWTO-5.html">Next</A>
+<A HREF="VoIP-HOWTO-3.html">Previous</A>
+<A HREF="VoIP-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

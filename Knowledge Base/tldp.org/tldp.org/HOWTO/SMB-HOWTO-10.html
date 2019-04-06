@@ -1,0 +1,445 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>SMB HOWTO: Sharing A Windows Printer With Linux Machines</TITLE>
+ <LINK HREF="SMB-HOWTO-11.html" REL=next>
+ <LINK HREF="SMB-HOWTO-9.html" REL=previous>
+ <LINK HREF="SMB-HOWTO.html#toc10" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="SMB-HOWTO-11.html">Next</A>
+<A HREF="SMB-HOWTO-9.html">Previous</A>
+<A HREF="SMB-HOWTO.html#toc10">Contents</A>
+<HR>
+<H2><A NAME="s10">10. Sharing A Windows Printer With Linux Machines</A></H2>
+
+<P>To share a printer on a Windows machine, you must do the following:
+<P>
+<OL>
+<LI>You must have the proper entries in /etc/printcap and they must correspond to the local directory structure (for the spool directory, etc).</LI>
+<LI>You must have the script /usr/bin/smbprint.  This comes with the Samba source, but not with all Samba binary distributions.  A slightly modifed copy is discussed below.</LI>
+<LI>If you want to convert ASCII files to Postscript, you must have nenscript, or its equivalent.  nenscript is a Postscript converter and is generally installed in /usr/bin.</LI>
+<LI>You may wish to make Samba printing easier by having an easy-to-use front end.  A simple perl script to handle ASCII, Postscript or created Postscript is given below.</LI>
+<LI>You could also use MagicFilter to do the above.  The details on setting up MagicFilter are given below the perl script.  MagicFilter has advantages because it knows how to automatically convert a lot of file formats.</LI>
+</OL>
+<P>The /etc/printcap entry below is for an HP 5MP printer on a Windows NT host.  The entries are as follows:
+<P>
+<HR>
+<PRE>
+        cm - comment
+        lp - device name to open for output
+        sd - the printer's spool directory (on the local machine)
+        af - the accounting file
+        mx - the maximum file size (zero is unlimited)
+        if - name of the input filter (script)
+</PRE>
+<HR>
+<P>For more information, see the Printing HOWTO or the man page for printcap.
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# /etc/printcap
+#
+# //zimmerman/oreilly via smbprint
+#
+lp:\
+        :cm=HP 5MP Postscript OReilly on zimmerman:\
+        :lp=/dev/lp1:\
+        :sd=/var/spool/lpd/lp:\
+        :af=/var/spool/lpd/lp/acct:\
+        :mx#0:\
+        :if=/usr/bin/smbprint:
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Make certain that the spool and accounting directories exist and are writable.  Ensure that the 'if' line holds the proper path to the smbprint script (given below) and make sure that the proper device is pointed to (the /dev special file).
+<P>Next is the smbprint script itself.  It is usually placed in /usr/bin and is attributable to Andrew Tridgell, the person who created Samba as far as I know.  It comes with the Samba source distribution, but is absent from some binary distributions, so I have recreated it here.  
+<P>You may wish to look at this carefully.  There are some minor alterations that have shown themselves to be useful.
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+#!/bin/sh -x
+
+# This script is an input filter for printcap printing on a unix machine. It
+# uses the smbclient program to print the file to the specified smb-based 
+# server and service.
+# For example you could have a printcap entry like this
+#
+# smb:lp=/dev/null:sd=/usr/spool/smb:sh:if=/usr/local/samba/smbprint
+#
+# which would create a unix printer called "smb" that will print via this 
+# script. You will need to create the spool directory /usr/spool/smb with
+# appropriate permissions and ownerships for your system.
+
+# Set these to the server and service you wish to print to 
+# In this example I have a WfWg PC called "lapland" that has a printer 
+# exported called "printer" with no password.
+
+#
+# Script further altered by hamiltom@ecnz.co.nz (Michael Hamilton)
+# so that the server, service, and password can be read from 
+# a /usr/var/spool/lpd/PRINTNAME/.config file.
+#
+# In order for this to work the /etc/printcap entry must include an 
+# accounting file (af=...):
+#
+#   cdcolour:\
+#       :cm=CD IBM Colorjet on 6th:\
+#       :sd=/var/spool/lpd/cdcolour:\
+#       :af=/var/spool/lpd/cdcolour/acct:\
+#       :if=/usr/local/etc/smbprint:\
+#       :mx=0:\
+#       :lp=/dev/null:
+#
+# The /usr/var/spool/lpd/PRINTNAME/.config file should contain:
+#   server=PC_SERVER
+#   service=PR_SHARENAME
+#   password="password"
+#
+# E.g.
+#   server=PAULS_PC
+#   service=CJET_371
+#   password=""
+
+#
+# Debugging log file, change to /dev/null if you like.
+#
+logfile=/tmp/smb-print.log
+# logfile=/dev/null
+
+
+#
+# The last parameter to the filter is the accounting file name.
+#
+spool_dir=/var/spool/lpd/lp
+config_file=$spool_dir/.config
+
+# Should read the following variables set in the config file:
+#   server
+#   service
+#   password
+#   user
+eval `cat $config_file`
+
+#
+# Some debugging help, change the >> to > if you want to same space.
+#
+echo "server $server, service $service" >> $logfile
+
+(
+# NOTE You may wish to add the line `echo translate' if you want automatic
+# CR/LF translation when printing.
+        echo translate
+        echo "print -"
+        cat
+) | /usr/bin/smbclient "\\\\$server\\$service" $password -U $user -N -P >> $logfile
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Most Linux distributions come with nenscript for converting ASCII documents to Postscript.  The following perl script makes life easier be providing a simple interface to Linux printing via smbprint.
+<P>
+<HR>
+<PRE>
+Usage: print [-a|c|p] &lt;filename>
+       -a prints &lt;filename> as ASCII
+       -c prints &lt;filename> formatted as source code
+       -p prints &lt;filename> as Postscript
+        If no switch is given, print attempts to
+        guess the file type and print appropriately.
+</PRE>
+<HR>
+<P>Using smbprint to print ASCII files tends to truncate long lines.  This script breaks long lines on whitespace (instead of in the middle of a word), if possible.
+<P>The source code formatting is done with nenscript.  It takes an ASCII file and foramts it in 2 columns with a fancy header (date, filename, etc).  It also numbers the lines.  Using this as an example, other types of formatting can be accomplished.
+<P>Postscript documents are already properly formatted, so they pass through directly.
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+#!/usr/bin/perl
+
+# Script:   print
+# Authors:  Brad Marshall, David Wood
+#           Plugged In Communications
+# Date:     960808
+#
+# Script to print to a Postscript printer via Samba.
+# Purpose:  Takes files of various types as arguments and 
+# processes them appropriately for piping to a Samba print script.
+#
+# Currently supported file types:
+# 
+# ASCII      - ensures that lines longer than $line_length characters wrap on
+#              whitespace.
+# Postscript - Takes no action.
+# Code       - Formats in Postscript (using nenscript) to display
+#              properly (landscape, font, etc).
+#
+
+# Set the maximum allowable length for each line of ASCII text.
+$line_length = 76;
+
+# Set the path and name of the Samba print script
+$print_prog = "/usr/bin/smbprint";
+
+# Set the path and name to nenscript (the ASCII-->Postscript converter)
+$nenscript = "/usr/bin/nenscript";
+
+unless ( -f $print_prog ) {
+        die "Can't find $print_prog!";
+}
+unless ( -f $nenscript ) {
+        die "Can't find $nenscript!";
+}
+
+&amp;ParseCmdLine(@ARGV);
+
+# DBG
+print "filetype is $filetype\n";
+
+if ($filetype eq "ASCII") {
+        &amp;wrap($line_length);
+} elsif ($filetype eq "code") {
+        &amp;codeformat;
+} elsif ($filetype eq "ps") {
+        &amp;createarray;
+} else {
+        print "Sorry..no known file type.\n";
+        exit 0;
+}
+# Pipe the array to smbprint
+open(PRINTER, "|$print_prog") || die "Can't open $print_prog: $!\n";
+foreach $line (@newlines) {
+        print PRINTER $line;
+}
+# Send an extra linefeed in case a file has an incomplete last line.
+print PRINTER "\n";
+close(PRINTER);
+print "Completed\n";
+exit 0;
+
+# --------------------------------------------------- #
+#        Everything below here is a subroutine        #
+# --------------------------------------------------- #
+
+sub ParseCmdLine {
+        # Parses the command line, finding out what file type the file is
+
+        # Gets $arg and $file to be the arguments (if the exists)
+        # and the filename
+        if ($#_ &lt; 0) {
+                &amp;usage;
+        }
+        # DBG
+#       foreach $element (@_) {
+#               print "*$element* \n";
+#       }
+
+        $arg = shift(@_);
+        if ($arg =~ /\-./) {
+                $cmd = $arg;
+        # DBG
+#       print "\$cmd found.\n";
+
+                $file = shift(@_);
+        } else {
+                $file = $arg;
+        }
+        
+        # Defining the file type
+        unless ($cmd) {
+                # We have no arguments
+
+                if ($file =~ /\.ps$/) {
+                        $filetype = "ps";
+                } elsif ($file =~ /\.java$|\.c$|\.h$|\.pl$|\.sh$|\.csh$|\.m4$|\.inc$|\.html$|\.htm$/) {
+                        $filetype = "code";
+                } else {
+                        $filetype = "ASCII";
+                }
+
+                # Process $file for what type is it and return $filetype 
+        } else {
+                # We have what type it is in $arg
+                if ($cmd =~ /^-p$/) {
+                        $filetype = "ps";
+                } elsif ($cmd =~ /^-c$/) {
+                        $filetype = "code";
+                } elsif ($cmd =~ /^-a$/) {
+                        $filetype = "ASCII"
+                }
+        }
+}
+
+sub usage {
+        print "
+Usage: print [-a|c|p] &lt;filename>
+       -a prints &lt;filename> as ASCII
+       -c prints &lt;filename> formatted as source code
+       -p prints &lt;filename> as Postscript
+        If no switch is given, print attempts to
+        guess the file type and print appropriately.\n
+";
+        exit(0);
+}
+
+sub wrap {
+        # Create an array of file lines, where each line is &lt; the 
+        # number of characters specified, and wrapped only on whitespace
+
+        # Get the number of characters to limit the line to.
+        $limit = pop(@_);
+
+        # DBG
+        #print "Entering subroutine wrap\n";
+        #print "The line length limit is $limit\n";
+
+        # Read in the file, parse and put into an array.
+        open(FILE, "&lt;$file") || die "Can't open $file: $!\n";
+        while(&lt;FILE>) {
+                $line = $_;
+                
+                # DBG
+                #print "The line is:\n$line\n";
+
+                # Wrap the line if it is over the limit.
+                while ( length($line) > $limit ) {
+                        
+                        # DBG
+                        #print "Wrapping...";
+
+                        # Get the first $limit +1 characters.
+                        $part = substr($line,0,$limit +1);
+
+                        # DBG
+                        #print "The partial line is:\n$part\n";
+
+                        # Check to see if the last character is a space.
+                        $last_char = substr($part,-1, 1);
+                        if ( " " eq $last_char ) {
+                            # If it is, print the rest.
+
+                            # DBG
+                            #print "The last character was a space\n";
+
+                            substr($line,0,$limit + 1) = "";
+                            substr($part,-1,1) = "";
+                            push(@newlines,"$part\n");
+                        } else {
+                             # If it is not, find the last space in the 
+                             # sub-line and print up to there.
+
+                            # DBG
+                            #print "The last character was not a space\n";
+
+                             # Remove the character past $limit
+                             substr($part,-1,1) = "";
+                             # Reverse the line to make it easy to find
+                             # the last space.
+                             $revpart = reverse($part);
+                             $index = index($revpart," ");
+                             if ( $index > 0 ) {
+                               substr($line,0,$limit-$index) = "";
+                               push(@newlines,substr($part,0,$limit-$index) 
+                                   . "\n");
+                             } else {
+                               # There was no space in the line, so
+                               # print it up to $limit.
+                               substr($line,0,$limit) = "";
+                               push(@newlines,substr($part,0,$limit) 
+                                   . "\n");
+                             }
+                        }
+                }
+                push(@newlines,$line);
+        }
+        close(FILE);
+}
+
+sub codeformat {
+        # Call subroutine wrap then filter through nenscript
+        &amp;wrap($line_length);
+        
+        # Pipe the results through nenscript to create a Postscript
+        # file that adheres to some decent format for printing
+        # source code (landscape, Courier font, line numbers).
+        # Print this to a temporary file first.
+        $tmpfile = "/tmp/nenscript$$";
+        open(FILE, "|$nenscript -2G -i$file -N -p$tmpfile -r") || 
+                die "Can't open nenscript: $!\n";
+        foreach $line (@newlines) {
+                print FILE $line;
+        }
+        close(FILE);
+        
+        # Read the temporary file back into an array so it can be
+        # passed to the Samba print script.
+        @newlines = ("");
+        open(FILE, "&lt;$tmpfile") || die "Can't open $file: $!\n";
+        while(&lt;FILE>) {
+                push(@newlines,$_);
+        }
+        close(FILE);
+        system("rm $tmpfile");
+}
+
+sub createarray {
+        # Create the array for postscript
+        open(FILE, "&lt;$file") || die "Can't open $file: $!\n";
+        while(&lt;FILE>) {
+                push(@newlines,$_);
+        }
+        close(FILE);
+}
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Now the MagicFilter way.  Thanks to Alberto Menegazzi (
+<A HREF="mailto:flash.egon@iol.it">flash.egon@iol.it</A>) for this information.
+<P>Alberto says:
+<P>--------------------------------------------------------------
+1) Install MagicFilter with the filter for the printers you need in /usr/bin/local but DON'T fill /etc/printcap with the suggestion given by the documentation from MagicFilter.
+<P>2) Write the /etc/printcap like this way (it's done for my LaserJet 4L):
+<P>lp|ljet4l:\
+:cm=HP LaserJet 4L:\
+:lp=/dev/null:\                         # or /dev/lp1
+:sd=/var/spool/lpd/ljet4l:\
+:af=/var/spool/lpd/ljet4l/acct:\
+:sh:mx#0:\
+:if=/usr/local/bin/main-filter:
+<P>You should explain that the lp=/dev/... is opened for locking so "virtual" devices one for every remote printer should be used.
+<P>Example creating with : touch /dev/ljet4l
+<P>3) Write the filter /usr/local/bin/main-filter the same you suggest using the ljet4l-filter instead of cat.
+<P>Here's mine.
+<P>#! /bin/sh
+logfile=/var/log/smb-print.log
+spool_dir=/var/spool/lpd/ljet4l
+(
+echo "print -"
+/usr/local/bin/ljet4l-filter
+) | /usr/bin/smbclient "\\\\SHIR\\HPLJ4" -N -P >> $logfile
+<P>P.S. : here is the quote from the Print2Win mini-Howto about locking and why creating virtual printers
+<P>---Starts here
+<P>Hint from Rick Bressler :
+<P>Good tip sheet.  I use something very similar.  One helpful tip, this is not a particularly good idea:
+<P>:lp=/dev/null:\
+<P>lpr does an 'exclusive' open on the file you specify as lp=.  It does this in order to prevent multiple processes from trying to print to the dame printer at the same time.
+<P>The side effect of this is that in your case, eng and colour can't print at the same time, (usually more or less transparent since they probably print quickly and since they queue you probably don't notice) but any other process that tries to write to /dev/null will break!
+<P>On a single user system, probably not a big problem.  I have a system with over 50 printers.  It would be a problem there.
+<P>The solution is to create a dummy printer for each.  Eg: touch /dev/eng.
+<P>I have modified the lp entries in the printcap file above to take into account Rick's suggestion. I did the following:
+<P>
+<P>#touch /dev/eng
+#touch /dev/colour
+<P>---Ends here
+<P>--------------------------------------------------------------
+<P>
+<P>
+<HR>
+<A HREF="SMB-HOWTO-11.html">Next</A>
+<A HREF="SMB-HOWTO-9.html">Previous</A>
+<A HREF="SMB-HOWTO.html#toc10">Contents</A>
+</BODY>
+</HTML>

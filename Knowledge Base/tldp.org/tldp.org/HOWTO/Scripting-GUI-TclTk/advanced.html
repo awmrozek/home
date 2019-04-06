@@ -1,0 +1,393 @@
+<HTML
+><HEAD
+><TITLE
+>Adding Features</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Scripting Graphical Commands with Tcl/Tk Mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Tcl and Tk Basics"
+HREF="basics.html"><LINK
+REL="NEXT"
+TITLE="Conclusions"
+HREF="concl.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Scripting Graphical Commands with Tcl/Tk Mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="basics.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="concl.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="advanced"
+></A
+>4. Adding Features</H1
+><P
+>&#13;Providing multiple buttons to control a single application is, perhaps, a bit of overkill, as is calling separate procedures for each action.  A third problem is that apachectl prints a message to standard output to indicate how the command has been acted upon.  The application could be improved by including a text widget to display the output of apachectl. 
+</P
+><P
+>&#13;In the following script, we will redesign the application to use a radiobutton chooser and a single button by modifying the <B
+CLASS="command"
+>screen</B
+> procedure , and build a text widget in a new frame.  We also remove the start, stop, and restart procedures and create 2 new procedures.  The first, <B
+CLASS="command"
+>init</B
+>, will handle the conditionals created by the radio button selection, the second, <B
+CLASS="command"
+>put_text</B
+>, will launch Apache and print the apachectl output to a text widget:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;#!/usr/bin/wish
+
+set apachectl "/usr/local/apache_new/bin/apachectl"
+
+proc screen {} {
+  frame .top -borderwidth 10
+  pack .top -fill x
+  radiobutton .top.start -text "start" -variable mode -value start
+  radiobutton .top.stop  -text "stop" -variable mode -value stop
+  radiobutton .top.restart -text "restart" -variable mode -value restart
+  button .top.submit -text execute -command init 
+  pack .top.start .top.stop .top.restart .top.submit -side left -padx 0p -pady 0 -anchor n
+  frame .bottom
+  pack .bottom -fill x
+  text .bottom.main -relief sunken -bd 2 -yscrollcommand ".bottom.scroll set"
+  scrollbar .bottom.scroll -command ".bottom.main yview"
+  pack .bottom.main -side left -fill y
+  pack .bottom.scroll -side right -fill y
+}
+
+proc init { } {
+ global mode action
+ switch $mode {
+    stop     {set action "stop"}
+    restart  {set action "restart"}
+    default  {set action "start"}
+  }
+	put_text
+}
+
+proc put_text {} {
+  global action apachectl
+  set f [ open "| $apachectl $action" r]
+  while {[gets $f x] &#62;= 0} {
+    .bottom.main insert 1.0 "$x\n"
+  }
+  catch {close $f}
+}
+screen
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;First, let's have a look at the <B
+CLASS="command"
+>screen</B
+> procedure.  The <B
+CLASS="command"
+>radiobutton</B
+> command works just like html radiobuttons.  The <B
+CLASS="command"
+>-variable</B
+> parameter accepts the name of the variable as an argument.  The <B
+CLASS="command"
+>-value</B
+> parameter accepts the variable's value as an argument.  The button, .top.submit uses the <B
+CLASS="command"
+>-command</B
+> parameter to to call the init procedure defined later in the script.  These buttons are then packed into the top frame and a second frame called bottom is created.   
+</P
+><P
+>&#13;The bottom frame is composed of a text widget and a scrollbar.  Text widgets are created with the <B
+CLASS="command"
+>text</B
+> command which takes a variety of options.  In this case, we have used the <B
+CLASS="command"
+>-relief</B
+> option which specifies the 3D effect for the field (other values for -relief include raised, flat, ridge, solid, groove); <B
+CLASS="command"
+>-bd</B
+> option, which specifies borderwidth; and the <B
+CLASS="command"
+>yscrollcommand</B
+> which specifies the name of a scrollbar that will be engaged by the textfield.  Our scrollbar widget takes one option, <B
+CLASS="command"
+>-command</B
+> which specifies how to behave when text scrolls beyond the screen of the text widget that it is interacting with.
+</P
+><P
+>&#13;The <B
+CLASS="command"
+>init</B
+> procedure loads the mode variable into its local namespace using the <B
+CLASS="command"
+>global</B
+> command and uses a <B
+CLASS="command"
+>switch</B
+> statement to set the value of the global variable, <B
+CLASS="command"
+>action</B
+>.
+</P
+><P
+>&#13;In this example, the <B
+CLASS="command"
+>switch</B
+> command tests whether "$mode" matches the first word on each line in the list, and performs the action specified on the second word of each line.  The default value is specified at the bottom of the list and defines the action performed if no match is found.  Switch accepts 4 options: <B
+CLASS="command"
+>-exact</B
+>, which requires a case-sensitive match, <B
+CLASS="command"
+>-glob</B
+>, which uses a glob-style pattern match, <B
+CLASS="command"
+>-regexp</B
+>, which uses regular-expression style matching, and <B
+CLASS="command"
+>--</B
+>, which indicates the end of options, and is typically used if the pattern being matched has a "-" as a prefix.
+</P
+><P
+>&#13;Note: We could have  used an if-elseif-else conditional chain rather than the switch statement:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;if { $mode == "stop" } {
+  set action "stop"
+} elseif { $mode == "restart" } {
+  set action "restart"
+} else {
+  set action "start"
+}
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;The final thing that the <B
+CLASS="command"
+>init</B
+> procedure does is call the <B
+CLASS="command"
+>put_text</B
+> procedure.
+</P
+><P
+>&#13;The <B
+CLASS="command"
+>put_text</B
+> procedure reads in the value of action that was set in the init procedure, executes apachectl with the appropriate argument as specified by action, and prints apache's output to the .bottom.main text widget. 
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;proc put_text {} {
+ 	global action apachectl
+ 	set f [ open "| $apachectl $action" r]
+	while {[gets $f x] &#62;= 0} {
+ 		.bottom.main insert 1.0 "$x\n"
+	}
+}
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;The <B
+CLASS="command"
+>put_text</B
+> procedure introduces 3 new commands:
+</P
+><P
+>&#13;First, it sets the value of a variable, f, to the output of the open command.  <B
+CLASS="command"
+>Open</B
+> can be used to open a file, pipe stream or serial port and returns an identifier which can be used for reading, writing, or closing a stream.   Since the first character following the <B
+CLASS="command"
+>open</B
+> is a pipe "|", <B
+CLASS="command"
+>$apachectl $action</B
+> is treated as a command, and is executed as though the <B
+CLASS="command"
+>exec</B
+> had been given.   The <B
+CLASS="command"
+>r</B
+> specifies that the stream is read-only.  Other parameters are as follows:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;r read only
+r+  read and write if file exists
+w write only
+w+  read and write if file exists
+a write only.  Create new file if none exists.
+a+  read and write. Create new file if none exists.
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;The second new command is <B
+CLASS="command"
+>while</B
+>.  While is a typical while loop which executes a body of arguments so long as the specified condition is met.  In this case, <B
+CLASS="command"
+>while</B
+> will read a line of input and save it to the variable <B
+CLASS="command"
+>x</B
+> until there is nothing left to read.  The insert command inserts each line of input to the zero'th character of line 1 (1.0) of the .bottom.main text widget.
+</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="basics.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="concl.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Tcl and Tk Basics</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Conclusions</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

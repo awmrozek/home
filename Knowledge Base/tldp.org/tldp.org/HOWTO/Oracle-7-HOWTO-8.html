@@ -1,0 +1,96 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Oracle Database HOWTO: Troubleshooting</TITLE>
+ <LINK HREF="Oracle-7-HOWTO-9.html" REL=next>
+ <LINK HREF="Oracle-7-HOWTO-7.html" REL=previous>
+ <LINK HREF="Oracle-7-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Oracle-7-HOWTO-9.html">Next</A>
+<A HREF="Oracle-7-HOWTO-7.html">Previous</A>
+<A HREF="Oracle-7-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8. Troubleshooting</A></H2>
+
+<P>See below for various troubleshooting hints.
+<H2><A NAME="ss8.1">8.1 I cannot create a database when using Oracle 7.2.x.</A>
+</H2>
+
+<P>The files shipped by Oracle in the 7.2.x product are incorrect in assuming that you want to setup a parallel server configuration.  The shipped <CODE>init.ora</CODE> file has the following line in it:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# define parallel server (multi-instance) parameters
+ifile = ora_system:initps.ora
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+
+To fix the problem simply comment it out:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# define parallel server (multi-instance) parameters
+#ifile = ora_system:initps.ora
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<H2><A NAME="ss8.2">8.2 I'm getting segmentation faults in <CODE>svrmgrl</CODE> under version 7.3.4.x.</A>
+</H2>
+
+<P>I've had this problem reported to me by a number of people.  Gerald Weber <CODE>gerald_weber@master.co.at</CODE> solved it: 
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+Hi Paul,
+
+first of all thanks for your help,but none of the possible problems you are
+thinking about were responsible for my problem.
+The problem is the iBCS-emulator itself.
+It seems that Oracle performs an sysconf-calls which isn't supported in the
+current version of iBCS.
+Look at the trace :
+
+&lt;7>[22]615 sysconf(34)
+&lt;7>iBCS2 unsupported sysconf call 34
+&lt;7>[22]615 sysconf error return linux=-22 -> ibcs=22 &lt;Invalid argument>
+&lt;7>[24]615 sysconf(34)
+&lt;7>iBCS2 unsupported sysconf call 34
+&lt;7>[24]615 sysconf error return linux=-22 -> ibcs=22 &lt;Invalid argument>
+
+Solution:  patching the iBCS-source.apply the following diff-pach :
+
+
+--- sysconf.c   Sun Apr 19 19:19:15 1998
++++ sysconf.c.ori       Sun Apr 19 19:28:45 1998
+@@ -60,7 +60,6 @@
+ #define _SC_JOB_CONTROL        5
+ #define _SC_SAVED_IDS  6
+ #define _SC_VERSION    7
+-#define _SC_HACK_FOR_ORACLE 34
+
+ #define _SC_PAGESIZE   11
+
+@@ -97,11 +96,6 @@
+                case _SC_SAVED_IDS: {
+                        return (1);
+                }
+-
+-               case _SC_HACK_FOR_ORACLE: {
+-                 return (1);
+-               }
+-
+
+                case _SC_PAGESIZE: {
+                  return PAGE_SIZE;
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<HR>
+<A HREF="Oracle-7-HOWTO-9.html">Next</A>
+<A HREF="Oracle-7-HOWTO-7.html">Previous</A>
+<A HREF="Oracle-7-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

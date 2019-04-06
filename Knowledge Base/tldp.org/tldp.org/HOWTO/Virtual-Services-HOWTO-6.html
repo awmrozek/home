@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Virtual Services Howto: Syslogd</TITLE>
+ <LINK HREF="Virtual-Services-HOWTO-7.html" REL=next>
+ <LINK HREF="Virtual-Services-HOWTO-5.html" REL=previous>
+ <LINK HREF="Virtual-Services-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Virtual-Services-HOWTO-7.html">Next</A>
+<A HREF="Virtual-Services-HOWTO-5.html">Previous</A>
+<A HREF="Virtual-Services-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Syslogd</A></H2>
+
+<H2><A NAME="ss6.1">6.1 Problem</A>
+</H2>
+
+<P>Syslogd is the system logging utility commonly used on UNIX systems.  Syslogd
+is a daemon that opens a special file called a FIFO.  A FIFO is a special file 
+that acts like a pipe.  Anything that is written to the write side will come out 
+the read side.  Syslogd waits for data from the read side.  There
+are C functions that write to the write side.  If your program uses these C 
+functions your output will go to syslogd.  
+<P>
+<P>Remember that we have used a <CODE> chroot </CODE> environment and the FIFO that 
+syslogd is reading from (/dev/log) is not present.  That means all the virtual 
+environments will not log to syslogd.
+<P>
+<H2><A NAME="ss6.2">6.2 Solution</A>
+</H2>
+
+<H3>Setup Links</H3>
+
+<P> 
+Syslogd can look to a different FIFO if you tell it on the command 
+line so run syslogd with the argument:
+<P>
+<PRE>
+syslogd -p /virtual/log
+</PRE>
+<P>Then symlink /dev/log to /virtual/log by: 
+<P>
+<PRE>
+ln -sf /virtual/log /dev/log
+</PRE>
+<P>Then hard link all the /dev/log copies to this file by running: 
+<P>
+<PRE>
+ln -f /virtual/log /virtual/domain1.com/dev/log 
+</PRE>
+<P>The virtfs script above already does this.  Since /virtual is one contiguous
+disk and the /dev/log's are hard linked they have the same inode number and point 
+to the same data.  The <CODE> chroot </CODE> cannot stop this so all your 
+virtual /dev/log's will now function.  Note that all the messages from all 
+the environments will be logged in one place.  However, you can write separate 
+programs to filter out the data.  
+<P>
+<H3>Syslogd.init</H3>
+
+<P>This version of the syslogd.init file hard links the /dev/log's each time 
+you start it because syslogd deletes and creates the /dev/log FIFO each 
+time it runs.  Here is a modified syslogd.init file:
+<P>
+<PRE>
+#!/bin/sh
+
+. /etc/rc.d/init.d/functions
+
+case "$1" in
+  start)
+        echo -n "Starting dev log: "
+        ln -sf /virtual/log /dev/log
+        echo done
+        echo -n "Starting system loggers: "
+        daemon syslogd -p /virtual/log
+        daemon klogd
+        echo
+        echo -n "Starting virtual dev log: "
+        for i in /virtual/*
+        do
+                if [ ! -d "$i" ]
+                then
+                        continue
+                fi
+                if [ "$i" = "/virtual/lost+found" ]
+                then
+                        continue
+                fi
+                ln -f /virtual/log $i/dev/log
+                echo -n "."
+        done
+        echo " done"
+        touch /var/lock/subsys/syslogd
+        ;;
+  stop)
+        echo -n "Shutting down system loggers: "
+        killproc syslogd
+        killproc klogd
+        echo
+        rm -f /var/lock/subsys/syslogd
+        ;;
+  *)
+        echo "Usage: syslogd {start|stop}"
+        exit 1
+esac
+
+exit 0
+</PRE>
+<P>
+<H2><A NAME="ss6.3">6.3 Multiple Syslogd's </A>
+</H2>
+
+<H3>One Per Disk</H3>
+
+<P>If you run out of space on one filesystem and you have to break up your virtual
+domains onto different disks remember that hard links will not cross disks.  That
+means you will have to run a separate syslogd for each group of domains on a disk. 
+For example, if you had thirteen domains on /virtual1 and fifteen domains on 
+/virtual2, you would hard link thirteen domains to /virtual1/log and run one 
+syslogd with <CODE> syslogd -p /virtual1/log </CODE> and hard link fifteen other domains 
+to /virtual2/log with a syslogd running with <CODE> syslogd -p /virtual2/log </CODE>. 
+<P>
+<H3>One Per Domain</H3>
+
+<P>If you do not want to centralize the logs to one place you could also run
+one syslogd per domain.  This wastes process ID's so I do not recommend it but it
+is easier to implement.   You would have to alter your syslogd.init file to
+run syslogd as <CODE> chroot /virtual/domain1.com syslogd </CODE> for each domain.  
+This will run each syslogd within the <CODE> chroot </CODE> and the logs will be in 
+/virtual/domain1.com/var/log rather than all combined in /var/log.  
+Do not forget to run a syslogd normally <CODE> syslogd </CODE> for the
+main system and a kernel logger <CODE> klogd </CODE>.
+<P>
+<HR>
+<A HREF="Virtual-Services-HOWTO-7.html">Next</A>
+<A HREF="Virtual-Services-HOWTO-5.html">Previous</A>
+<A HREF="Virtual-Services-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

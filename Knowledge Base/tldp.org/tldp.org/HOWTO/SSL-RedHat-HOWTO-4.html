@@ -1,0 +1,347 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Building a Secure RedHat Apache Server HOWTO: Configuring your Apache Server </TITLE>
+ <LINK HREF="SSL-RedHat-HOWTO-5.html" REL=next>
+ <LINK HREF="SSL-RedHat-HOWTO-3.html" REL=previous>
+ <LINK HREF="SSL-RedHat-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="SSL-RedHat-HOWTO-5.html">Next</A>
+<A HREF="SSL-RedHat-HOWTO-3.html">Previous</A>
+<A HREF="SSL-RedHat-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="configure"></A> <A NAME="s4">4. Configuring your Apache Server </A></H2>
+
+<P>The Apache server must be configured with supplementary API modules in order
+to support SSL.  There are many SSL software packages available.  My
+examples are based on Apache configured with ModSSL and OpenSSL.  There are
+countless mailing lists and newsgroups available to support these products.
+You may find these instructions helpful for some commercial SSL software
+packages that are based on the Apache web server.
+<P>
+<P>A few things to keep in mind:  You can have multiple virtual hosts on the
+same server.  You can have numerous name-based virtual hosts on the same IP
+address.  You can also have numerous name-based virtual hosts and one (1)
+secure virtual host on the same IP.  But - you cannot have multiple secure
+virtual hosts on the same IP.  The question that so many ask:  Why?  The
+answer is:  SSL works below the application layer.  Name based hosts are not
+defined until the application layer.
+<P>
+<P>Specifically, you cannot have multiple secure virtual hosts on the same
+SOCKET (IP address + port).  By default, a secure host will use port 443.
+You can change configure your virtual host to use a different port number
+with the same IP, thus creating another socket.  There are many
+disadvantages to this approach.  The most obvious disadvantage is that if
+you are not using the default port, your URL must also contain the port
+number to access the secure site.
+<P>
+<P>Example:
+<UL>
+<LI>Site using default port - www.something.com - would be accessed
+as <CODE>https://www.something.com</CODE></LI>
+<LI>A site using port 8888 would be accessed as <CODE>https://www.something.com:8888</CODE></LI>
+</UL>
+<P>
+<P>Another disadvantage is that if you introduce more ports, you will be
+providing more opportunities for port sniffing hackers.  Last, if you select
+a port that is used by something else, you will create conflict problem.
+<P>
+<P>
+<H2><A NAME="ss4.1">4.1 Define a Secure Virtual Host</A>
+</H2>
+
+<P>Setting up virtual hosts is fairly straightforward.  I will go through the
+basics of setting up a secure virtual host.
+<P>
+<P>In these examples, I use the <CODE>.crt</CODE> and <CODE>.key</CODE> file
+extensions.  That is my personal way of avoiding confusion with the
+various files.  With Apache, you can use any extension you choose -
+or no extension at all.
+<P>
+<P>All of your secure virtual hosts should be contained 
+within <CODE>&lt;IfDefine SSL&gt;</CODE> and <CODE>&lt;/IfDefine SSL&gt;</CODE>,
+usually located towards the end of the httpd.conf file.
+<P>
+<P>An example of a secure virtual host:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+&lt;VirtualHost 172.18.116.42:443&gt;
+DocumentRoot /etc/httpd/htdocs
+ServerName www.somewhere.com
+ServerAdmin someone@somewhere.com
+ErrorLog /etc/httpd/logs/error_log
+TransferLog /etc/httpd/logs/access_log
+SSLEngine on
+SSLCertificateFile /etc/httpd/conf/ssl.crt/server.crt
+SSLCertificateKeyFile /etc/httpd/conf/ssl.key/server.key
+SSLCACertificateFile /etc/httpd/conf/ssl.crt/ca-bundle.crt
+&lt;Files ~ "\.(cgi|shtml)$"&gt;
+      SSLOptions +StdEnvVars
+&lt;/Files&gt;
+&lt;Directory "/etc/httpd/cgi-bin"&gt;
+      SSLOptions +StdEnvVars
+&lt;/Directory&gt;
+SetEnvIf User-Agent ".*MSIE.*" nokeepalive ssl-unclean-shutdown
+CustomLog /etc/httpd/logs/ssl_request_log \
+          "%t %h %{SSL_PROTOCOL}x %{SSL_CIPHER}x \"%r\" %b"
+&lt;/VirtualHost&gt;
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>The directives that are the most important for SSL are the <CODE>SSLEngine on</CODE>,
+<CODE>SSLCertificateFile</CODE>, <CODE>SSLCertificateKeyFile</CODE>, and in many cases
+<CODE>SSLCACertificateFile</CODE> directives.
+<P>
+<H3>SSL Engine</H3>
+
+<P>"<CODE>SSLEngine on</CODE>" - this is ModSSL's command to start SSL.
+<P>
+<H3>SSLCertificateFile</H3>
+
+<P><CODE>SSLCertificateFile</CODE> Tells Apache where to find the certificate file and
+what it is named.  The example above shows "server.crt" as the certificate
+file name.  This is the default that is added when you configure ModSSL with
+Apache.  I personally don't recommend using the default names.  Save
+yourself some frustration and name your certificates as servername.crt
+(domainname.crt).  You may also decide to use an alternative directory than
+the default <CODE>/etc/httpd/conf/ssl.crt</CODE> or <CODE>/usr/local/apache/conf/ssl.crt</CODE>.
+Just remember to make the necessary changes to the path.
+<P>
+<H3>SSLCertificateKeyFile</H3>
+
+<P><CODE>SSLCertificateKeyFile</CODE> tells Apache the name of the private key and where
+to find it.  The directory defined here should have read/write permissions
+for root only.  No one else should have access to this directory.
+<P>
+<H3>SSLCACertificateFile</H3>
+
+<P>The <CODE>SSLCACertificateFile</CODE> directive tells Apache where to find the
+Intermediate (root) certificate.  This directive may or may not be necessary
+depending on the CA that you are using.  This certificate is essentially a
+ring of trust.
+<P>
+<P><B>Intermediate Certificate</B> - A Certificate Authority obtains a certificate in
+much the same way as you.  This is known as an intermediate certificate.  It
+basically says that the holder of the intermediate certificate is whom they
+say they are and is authorized to issue certificates to customers.  Web
+browsers have a list of "trusted" certificate authorities that is updated
+with each release.  If a Certificate authority is fairly new, its
+intermediate certificate may not be in the browser's list of trusted CA's.
+Combine this with the fact that most people don't update their browsers very
+often; it could take years before a CA is recognized as trusted
+automatically.  The solution is to install the intermediate certificate on
+the server using the <CODE>SSLCACertificateFile</CODE> directive.  Usually, a "trusted"
+CA issues the intermediate certificate.  If it is not, then you may need to
+use the <CODE>SSLCertificateChainFile</CODE> directive, although this is unlikely.
+<P>
+<H2><A NAME="ss4.2">4.2 Certificate Examples</A>
+</H2>
+
+<H3>Server Certificate File</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+-----BEGIN CERTIFICATE-----
+MIIC8DCCAlmgAwIBAgIBEDANBgkqhkiG9w0BAQQFADCBxDELMAkGA1UEBhMCWkEx
+FTATBgNVBAgTDFdlc3Rlcm4gQ2FwZTESMBAGA1UEBxMJQ2FwZSBUb3duMR0wGwYD
+VQQKExRUaGF3dGUgQ29uc3VsdGluZyBjYzEoMCYGA1UECxMfQ2VydGlmaWNhdGlv
+biBTZXJ2aWNlcyBEaXZpc2lvbjEZMBcGA1UEAxMQVGhhd3RlIFNlcnZlciBDQTEm
+MCQGCSqGSIb3DQEJARYXc2VydmVyLWNlcnRzQHRoYXd0ZS5jb20wHhcNOTkwNTI1
+MDMwMDAwWhcNMDIwNjEwMDMwMDAwWjBTMQswCQYDVQQGEwJVUzEbMBkGA1UEChMS
+RXF1aWZheCBTZWN1cmUgSW5jMScwJQYDVQQDEx5FcXVpZmF4IFNlY3VyZSBFLUJ1
+c2luZXNzIENBLTIwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAMYna8GjS9mG
+q4Cb8L0VwDBMZ+ztPI05urQb8F0t1Dp4I3gOFUs2WZJJv9Y1zCFwQbQbfJuBuXmZ
+QKIZJOw3jwPbfcvoTyqQhM0Yyb1YzgM2ghuv8Zz/+LYrjBo2yrmf86zvMhDVOD7z
+dhDzyTxCh5F6+K6Mcmmar+ncFMmIum2bAgMBAAGjYjBgMBIGA1UdEwEB/wQIMAYB
+Af8CAQAwSgYDVR0lBEMwQQYIKwYBBQUHAwEGCCsGAQUFBwMDBgorBgEEAYI3CgMD
+BglghkgBhvhCBAEGCCsGAQUFBwMIBgorBgEEAYI3CgMCMA0GCSqGSIb3DQEBBAUA
+A4GBALIfbC0RQ9g4Zxf/Y8IA2jWm8Tt+jvFWPt5wT3n5k0orRAvbmTROVPHGSLw7
+oMNeapH1eRG5yn+erwqYazcoFXJ6AsIC5WUjAnClsSrHBCAnEn6rDU080F38xIQ3
+j1FBvwMOxAq/JR5eZZcBHlSpJad88Twfd7E+0fQcqgk+nnjH
+-----END CERTIFICATE-----
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H3>Contents of the Certificate File</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Certificate:
+   Data:
+     Version: 3 (0x2)
+     Serial Number: 1516 (0x5ec)
+     Signature Algorithm: md5WithRSAEncryption
+     Issuer: C=US, O=Equifax Secure Inc, CN=Equifax Secure E-Business CA
+     Validity
+       Not Before: Jul 12 15:21:01 2000 GMT
+       Not After : Jun  2 22:42:34 2001 GMT
+     Subject: C=us, ST=ga, L=atlanta, O=Equifax, OU=Rick, CN=172.18.116.44/Email=richard.sigle@equifax.com
+     Subject Public Key Info:
+       Public Key Algorithm: rsaEncryption
+       RSA Public Key: (1024 bit)
+           Modulus (1024 bit):
+             00:c8:eb:93:26:97:ca:00:ce:4c:e4:f3:fd:43:31:
+             cd:53:ed:b4:8a:ad:93:84:dc:7a:48:39:b5:28:57:
+             03:7f:a9:ac:3e:58:6a:7a:e3:52:3e:1e:52:58:a2:
+             6f:23:ad:bb:84:d8:88:ed:6d:a5:da:08:6b:c8:6c:
+             a5:4c:34:67:d8:46:1c:ca:20:50:b0:e8:54:7f:ca:
+             5e:ef:09:ff:6e:8d:a6:2b:02:f5:54:0f:c2:d0:45:
+             12:ad:66:e7:8b:dd:68:be:64:a4:9b:69:bd:a4:1a:
+             5e:ef:09:ff:6e:8d:a6:2b:02:f5:54:0f:c2:d0:45:
+             12:ad:66:e7:8b:dd:68:be:64:a4:9b:69:bd:a4:1a:
+             5a:2f:3b:6e:73:84:d8:d6:17:bd:12:39:34:fa:3d:
+             d8:a9:e8:59:3c:c2:61:c5:b3
+           Exponent: 65537 (0x10001)
+     X509v3 extensions:
+       X509v3 Key Usage: critical
+          Digital Signature, Non Repudiation, Key Encipherment, Data Encipherment
+       Netscape Cert Type:
+          SSL Server
+       X509v3 Authority Key Identifier:
+          keyid:5B:E0:A8:75:1C:78:02:47:71:AB:CE:27:32:E7:24:88:42:28:48:56
+   Signature Algorithm: md5WithRSAEncryption
+     87:53:74:e9:e1:a6:10:56:8c:fa:63:0e:7b:72:ff:76:4b:79:
+     0e:49:2a:58:ed:71:7a:bf:77:61:fa:e8:74:04:37:8c:d3:6a:
+     9a:3d:80:76:7a:c3:64:30:e7:1b:40:25:4e:2a:81:8b:e5:ac:
+     76:a4:38:67:cc:3f:93:43:e1:1d:c3:8d:ba:ed:cc:d7:aa:a4:
+     ab:d3:84:77:7c:8f:26:f6:dd:ba:3b:6a:99:81:e1:9e:7e:0f:
+     ca:a6:ff:c0:c3:59:6e:dc:a6:03:23:bf:8f:24:ff:15:ad:ac:
+     0d:85:fc:38:bf:d1:24:2d:1a:d3:72:55:12:95:5f:65:f0:60:
+     df:b1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H3>Private Key File</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,124F61450D85A480
+
+ELz64SV+tFSRybsHjY9NH7CP7yDHXP6xcd9FY6MVgQykTkq2h0n7j+tmpfUPbStT
+6jCgm/dTYM9mpkQ3jYZBALiVD5JNJ9t1dWisxQXY/nsak8LSTN7LhUtZSfk5xSmV
+Zsl4gwQS20UdBzFiJ+4qDajP/pzocSdSuQvxIHq7UzNwJsW8UYxR3I1qrDgyNXKS
+db41BWH4QdNtE0p+pi9VndDzXktqZGHEvtrQTV+39DV/dwOdnGBpYBETljMO5X6t
+D42xcVs0Doa1vZ6PiMCkwFNPXsPlKHZtHwEL4I3CQdiH4E0oYh3klBzlXBY4YldN
+A+s4xU44FpXp5xwt9nnVPUKHPo+NpdaRK7dAcRNO3GN3+ek1ggzvEjjuWKes3RQh
+PlHPuF7VWo4KeaTfTIwJWfGxz4nvwlVByPJ6Z73Mn0VcDXCkVm6+h3PLlYL0FMqM
+baUyQPpw6bhfW71FO/IIQxz3R1EqkxW7OHv74uuYl8kjHXf3S6qRZEGUG/zOGLGr
+mI5s2qnU69HlBObFkc6WQq0QxMq4PiUi7HhCLMkH8+wBsNNMnb75+7lQKkEhdOeE
+iUMKe5kgQqfd9w8jsBH5nu+J/nCfvPdp0isQW+P3/Rrh6YMwdKnlVfNZWdGiTzpQ
+ngThAGq5lit4uf4zdTIYYrs+T9I5ltjj0KgCUD4VL5/7OfnR3gcphpbHXQf0E2cz
+Qwq7q7ppKwCf/x92pHi8oVevlV5Dx9NQbGhEOA5pooqD6S2xZBbPLzkUKWDEO2il
+oBZ5L1jClR5jjdF2U61w7aRrL0t6luDU/aRv/fcoYes=
+-----END RSA PRIVATE KEY-----
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H3>Contents of the Private Key</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+read RSA key
+Enter PEM pass phrase:
+Private-Key: (1024 bit)
+modulus:
+    00:c8:eb:93:26:97:ca:00:ce:4c:e4:f3:fd:43:31:
+    cd:53:ed:b4:8a:ad:93:84:dc:7a:48:39:b5:28:57:
+    03:7f:a9:ac:3e:58:6a:7a:e3:52:3e:1e:52:58:a2:
+    6f:23:ad:bb:84:d8:88:ed:6d:a5:da:08:6b:c8:6c:
+    a5:4c:34:67:d8:46:1c:ca:20:50:b0:e8:54:7f:ca:
+    5e:ef:09:ff:6e:8d:a6:2b:02:f5:54:0f:c2:d0:45:
+    12:ad:66:e7:8b:dd:68:be:64:a4:9b:69:bd:a4:1a:
+    5a:2f:3b:6e:73:84:d8:d6:17:bd:12:39:34:fa:3d:
+    d8:a9:e8:59:3c:c2:61:c5:b3
+publicExponent: 65537 (0x10001)
+privateExponent:
+    00:b6:57:7d:3b:58:24:1e:a9:1b:85:e9:9c:9e:5f:
+    d3:3d:69:0c:21:93:37:bf:2b:2c:da:e1:6c:74:48:
+    cb:c7:0f:60:5f:50:74:8a:44:45:be:54:5c:5d:4e:
+    45:58:f6:f1:a8:b5:af:46:f2:ec:c2:bc:43:bd:28:
+    44:b7:ad:13:d3:ca:de:59:24:e8:fa:f8:e5:5f:45:
+    38:2c:a0:a3:de:98:13:d8:80:38:e1:47:53:4c:ea:
+    e4:66:c3:82:93:89:c3:90:83:44:e1:13:4f:74:76:
+    e2:c0:89:97:77:5f:33:d8:7d:27:21:52:55:c2:d7:
+    dc:01:f9:bc:21:8d:a3:f5:c1
+prime1:
+    00:e3:2d:6b:5e:05:6b:e1:46:e6:ab:ae:f3:8b:d0:
+    5f:94:5c:6f:f5:47:46:1d:4e:66:d3:7e:98:18:e0:
+    2c:0d:08:ca:b7:29:72:af:53:62:30:ec:be:26:1f:
+    cc:5a:ed:65:62:65:70:1e:18:19:61:e3:77:00:a7:
+    3a:9e:4e:12:93
+prime2:
+    00:e2:69:56:78:e8:39:ff:17:db:cc:39:d7:7f:70:
+    41:dc:c5:59:43:16:c1:84:4c:ae:e7:5d:8a:c5:4b:
+    da:88:8e:03:99:7c:88:f2:8a:13:31:57:44:e0:b5:
+    c8:0a:60:b0:05:de:f6:9e:f2:00:ec:37:21:8d:3b:
+    dc:8e:c9:d4:61
+exponent1:
+    1a:ad:6a:be:4f:c4:ab:5f:b8:16:d1:24:a8:76:7f:
+    c2:dc:58:09:65:a5:46:2b:be:c7:77:46:45:25:8e:
+    06:b9:d1:94:50:b9:b6:fd:03:ba:db:12:39:47:e2:
+    a7:8a:d9:2d:04:dc:75:ac:3e:ce:cf:f7:59:8c:49:
+    c5:ed:45:21
+exponent2:
+    2d:4e:fd:32:06:ef:0c:40:7f:08:d8:8e:6a:7f:51:
+    7e:d7:b3:6c:3c:92:8f:62:35:22:31:d3:02:76:92:
+    8d:ff:35:73:32:bb:c9:25:9e:7f:a2:42:33:61:cd:
+    5d:5e:49:fb:72:ca:11:b6:c6:3e:7f:2d:e4:b0:95:
+    0b:b2:12:21
+coefficient:
+    50:52:09:22:cb:fb:b2:b8:58:85:ab:1d:82:b9:6e:
+    d0:f6:dc:e8:ce:a6:5d:a1:ff:c8:4d:3b:2b:1c:19:
+    64:f0:c4:4a:bc:b2:1d:2b:2d:09:59:83:a3:9a:89:
+    f8:db:2c:2c:8a:bd:fd:a3:16:51:76:aa:ce:ea:85:
+    6b:1c:9f:f7
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<H2><A NAME="ss4.3">4.3 Restart the Web Server</A>
+</H2>
+
+<P>The script to restart the webserver may be located in
+<CODE>/usr/local/sbin</CODE>, <CODE>/usr/sbin</CODE>, (where the script is
+called <CODE>httpd</CODE>) or <CODE>/usr/local/apache/bin</CODE> (where the
+script is called <CODE>apachectl</CODE>).  If you are not running the
+server with SSL enabled, you will need to stop and start the server.
+You may also write your own customized scripts to start, restart, and
+stop your server.  As long as it starts the SSL engine, you should be OK.
+<P>
+<P>The commands are:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+httpd stop
+httpd startssl
+httpd restart
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><EM>or</EM>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+apachectl stop
+apachectl startssl
+apachectl restart
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<HR>
+<A HREF="SSL-RedHat-HOWTO-5.html">Next</A>
+<A HREF="SSL-RedHat-HOWTO-3.html">Previous</A>
+<A HREF="SSL-RedHat-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

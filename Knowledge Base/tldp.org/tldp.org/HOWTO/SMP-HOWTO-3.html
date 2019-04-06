@@ -1,0 +1,555 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux SMP HOWTO: Questions related to any architectures</TITLE>
+ <LINK HREF="SMP-HOWTO-4.html" REL=next>
+ <LINK HREF="SMP-HOWTO-2.html" REL=previous>
+ <LINK HREF="SMP-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="SMP-HOWTO-4.html">Next</A>
+<A HREF="SMP-HOWTO-2.html">Previous</A>
+<A HREF="SMP-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Questions related to any architectures</A></H2>
+
+<P>
+<H2><A NAME="ss3.1">3.1 Kernel Side</A>
+</H2>
+
+<P>
+<P>
+<P>
+<OL>
+<LI> <B>Does Linux support multi-threading?  If I start two or more
+processes, will they be distributed among the available CPUs?</B>
+<P>Yes. Processes and kernel-threads are distributed among processors.
+User-space threads are not.
+<P>
+</LI>
+<LI> <B>What kind of architectures are supported in SMP?</B>
+<P>
+<DL>
+<DT><B>From <B>Alan Cox</B>:</B><DD><P>SMP is supported in 2.0 on the hypersparc (SS20, etc.) systems and Intel
+486, Pentium or higher machines which are Intel MP1.1/1.4
+compliant. <B>Richard Jelinek</B> adds: right now, systems have been
+tested up to 4 CPUs and the MP standard (and so Linux) theoretically
+allows up to 16 CPUs.
+<P>SMP support for UltraSparc, SparcServer, Alpha and PowerPC machines is
+in available in 2.2.x.
+<P>
+<DT><B>From <B>Ralf Bächle</B>:</B><DD><P>MIPS, m68k and ARM does not
+support SMP; the latter two probly won't ever.
+<P>That is, I'm going to hack on MIPS-SMP as soon as I get a SMP box ...
+</DL>
+<P>
+<P>
+</LI>
+<LI> <B>Does SMP distribute the threads among the processors or is the library the one in charge of it?</B>
+<P>(<B>Matti Aarnio</B>) The way Linux implements threads is to treat them at scheduling the same way as any process - thread just happens to share several resources of the originating process; memory space, file descriptors. See clone(2) for part of explanation.
+<P>
+</LI>
+<LI> <B>How do I make a Linux SMP kernel?</B>
+<P>Most Linux distributions don't provide a ready-made SMP-aware kernel,
+which means that you'll have to make one yourself. If you haven't made
+your own kernel yet, this is a great reason to learn how.  Explaining
+how to make a new kernel is beyond the scope of this document; refer to
+the Linux Kernel Howto for more information. (<B>C. Polisher</B>)
+<P>
+<P>Configure the kernel and answer Y to CONFIG_SMP.
+<P>
+<P>If you are using LILO, it is handy to have both SMP and non-SMP
+kernel images on hand. Edit /etc/lilo.conf to create an entry
+for another kernel image called "linux-smp" or something.
+<P>
+<P>The next time you compile the kernel, when running a SMP kernel,
+edit linux/Makefile and change "MAKE=make" to "MAKE=make -jN"
+(where N = number of CPU + 1, or if you have tons of memory/swap
+you can just use "-j" without a number). Feel free to experiment
+with this one.
+<P>
+<P>Of course you should time how long each build takes :-)
+Example:
+<HR>
+<PRE>
+make config
+time -v sh -c 'make dep ; make clean install modules modules_install'
+</PRE>
+<HR>
+<P>
+<P>If you are using some Compaq MP compliant machines you will need to set
+the operating system in the BIOS settings to "Unix
+<P>
+<P>In kernel series 2.0 up to but not including 2.1.132, uncomment the
+<CODE>SMP=1</CODE> line in the main Makefile (<CODE>/usr/src/linux/Makefile</CODE>).
+<P>In the 2.2 version, configure the kernel and answer "yes" to the
+question "Symmetric multi-processing support" (<B>Michael Elizabeth
+Chastain</B>).
+<P>AND
+<P>enable real time clock support by configuring the "RTC support" item (in
+"Character Devices" menu) (from <B>Robert G.  Brown</B>). Note that
+inserting RTC support actually doesn't afaik prevent the known problem
+with SMP clock drift, but enabling this feature prevents lockup when the
+clock is read at boot time. A note from <B>Richard Jelinek</B> says
+also that activating the Enhanced RTC is necessary to get the second CPU
+working (identified) on some original Intel Mainboards.
+<P>AND
+<P>(x86 kernel) do NOT enable APM (advanced power management)! APM and SMP
+are not compatible, and your
+system will almost certainly (or at least probably <CODE>;)</CODE>) crash
+while booting if APM is enabled (<B>Jakob Oestergaard</B>). <B>Alan
+Cox</B> confirms this : 2.1.x turns APM off for SMP boxes.  Basically
+APM is undefined in the presence of SMP systems, and anything could
+occur.
+<P>AND
+<P>(x86 kernel) enable "MTRR (Memory Type Range Register) support". Some
+BIOS are buggy as they do not activate cache memory for the second
+processor. The MTRR support contains code that solves such processor
+misconfiguration.
+<P>
+<P>You must rebuild all your kernel and kernel modules when changing to and
+from SMP mode. Remember to <CODE>make modules</CODE> and <CODE>make
+modules_install</CODE> (from <B>Alan Cox</B>).
+<P>
+<P>If you get module load errors, you probably did not rebuild and/or
+re-install your modules.  Also with some 2.2.x kernels people have
+reported problems when changing the compile from SMP back to UP
+(uni-processor).  To fix this, save your .config file, do <EM>make
+mrproper</EM>, restore your <EM>.config</EM> file, then remake your
+kernel (<EM>make dep</EM>, etc.)  (<B>Wade Hampton</B>). Do not forget
+to run lilo after copying your new kernel.
+<P>Recap:
+<HR>
+<PRE>
+make config # or menuconfig or xconfig
+make dep
+make clean
+make bzImage # or whatever you want
+# copy the kernel image manually then RUN LILO 
+# or make lilo
+make modules
+make modules_install
+</PRE>
+<HR>
+<P>
+<P>
+</LI>
+<LI> <B>How do I make a Linux <B>non</B>-SMP kernel?</B>
+<P>In the 2.0 series, <B>comment</B> the <CODE>SMP=1</CODE> line in the main
+Makefile (/usr/src/linux/Makefile).
+<P>In the 2.2 series, configure the kernel and answer "no" to the question
+"Symmetric multi-processing support" (<B>Michael Elizabeth
+Chastain</B>).
+<P>
+<P>
+<P>
+<P>You must rebuild all your kernel and kernel modules when changing to and
+from SMP mode. Remember to <CODE>make modules</CODE> and <CODE>make
+modules_install</CODE> and remember to run lilo.  See notes above about
+possible configuration problems.
+<P>
+<P>
+</LI>
+<LI> <B>How can I tell if it worked?</B>
+<P>
+<PRE>
+ cat /proc/cpuinfo 
+</PRE>
+<P>
+<P>Typical output (dual PentiumII):
+<HR>
+<PRE>
+processor       : 0
+cpu             : 686
+model           : 3
+vendor_id       : GenuineIntel
+[...]
+bogomips        : 267.06
+ 
+processor       : 1
+cpu             : 686
+model           : 3
+vendor_id       : GenuineIntel
+[...]
+bogomips        : 267.06
+</PRE>
+<HR>
+<P>
+</LI>
+<LI> <B>What is the status of converting the kernel toward finer
+grained locking and multithreading?</B>
+<P>Linux kernel version 2.2 has signal handling, interrupts and some I/O stuff fine grain
+locked.  The rest is gradually migrating. All the scheduling is SMP
+safe.
+<P>
+<P>Kernel version 2.3 (next 2.4) has really fine grained locking. In the 2.3 kernels
+the usage of the big kernel lock has basically disappeared, all major
+Linux kernel subsystems are fully threaded: networking, VFS, VM, IO,
+block/page caches, scheduling, interrupts, signals, etc. (<B>Ingo
+Molnar</B>)
+<P>
+</LI>
+<LI> <B>What has changed between 2.2.x and 2.4.x kernels?</B>
+<P><B>(Mark Hahn)</B> In many parts of the kernel, there's little relation between 2.2 and 2.4. One of the biggest changes is SMP - not just the evolutionary fine-graining of locks, but the radically revamped VM, memory management, interrupt handling that's basically unrelated to 2.2, fairly revolutionary net changes (thread and zero-copy), etc.
+<P>In short, 2.2 doesn't use the hardware like 2.4 does.
+<P>
+<P>
+</LI>
+<LI> <B>Does Linux SMP support processor affinity?</B>
+<P>
+<DL>
+<P>
+<DT><B>Standard kernel</B><DD><P>No and Yes.  There is no way to force a process onto specific CPU's but
+the linux scheduler has a processor bias for each process, which tends
+to keep processes tied to a specific CPU.
+<P>
+<DT><B>Patch</B><DD><P>Yes. Look at 
+<A HREF="http://isunix.it.ilstu.edu/~thockin/pset/">PSET - Processor Sets for the Linux kernel</A>:
+<BLOCKQUOTE>
+The goal of this project is to make a source compatible and functionally
+equivalent version of pset (as defined by SGI - partially removed from
+their IRIX 6.4 kernel) for Linux.  This enables users to determine which
+processor or set of processors a process may run on.  Possible uses
+include forcing threads to separate processors, timings, security (a
+`root' only CPU?) and probably more.
+</BLOCKQUOTE>
+<P>It is focused around the syscall sysmp().  This function takes a number of
+parameters that determine which function is requested.  Functions
+include:
+<UL>
+<LI> binding a process/thread to a specific CPU</LI>
+<LI> restricting a CPU's ability to execute some processes</LI>
+<LI> restricting a CPU from running at all</LI>
+<LI> forcing a cpu to run _only_ one process (and its children)</LI>
+<LI> getting information about a CPU's state</LI>
+<LI> creating/destroying sets of processors, to which processes may be 
+bound</LI>
+</UL>
+<P>
+</DL>
+<P>
+</LI>
+<LI> <B>Where should one report SMP bugs to?</B>
+<P>Please report bugs to <CODE>linux-smp@vger.kernel.org</CODE>.
+<P>
+</LI>
+<LI> <B>What about SMP performance?</B>
+<P>If you want to gauge the performance of your SMP system, you can run some tests made by
+Cameron MacKinnon and available at 
+<A HREF="http://www.phy.duke.edu/brahma/benchmarks.smp">http://www.phy.duke.edu/brahma/benchmarks.smp</A>.
+<P>Also have a look at this article by Bryant, Hartner, Qi and
+Venkitachalam that compares 2.2 and 2.3/2.4 UP and SMP kernels : 
+<A HREF="http://www.usenix.org/publications/library/proceedings/als2000/bryantscale.html">SMP Scalability Comparisons of Linux¨ Kernels 2.2.14 and 2.3.99</A>
+(<B>Ray Bryant</B>) (You'll find also a copy 
+<A HREF="bryantscale.pdf">here</A>)
+<P>
+</LI>
+</OL>
+<P>
+<P>
+<H2><A NAME="ss3.2">3.2 User Side</A>
+</H2>
+
+<P>
+<OL>
+<LI> <B>Do I really need SMP?</B>
+<P>If you have to ask, you probably don't. <CODE>:)</CODE>
+Generally, multi-processor systems can provide better performance
+than uni-processor systems, but to realize any gains you need
+to consider many other factors besides the number of CPU's.
+For instance, on a given system, if the processor is generally
+idle much of the time due to a slow disk drive, then this system
+is "input/output bound", and probably won't benefit from additional
+processing power. If, on the other hand, a system has many
+simultaneously executing processes, and CPU utilization is very
+high, then you are likely to realize increased system performance.
+SCSI disk drives can be very effective when used with multiple
+processors, due to the way they can process multiple commands
+without tying up the CPU. (<B>C. Polisher</B>)
+<P>
+</LI>
+<LI> <B>Do I get the same performance from 2-300 MHz processors
+as from one 600 MHz processor?</B>
+<P>This depends on the application, but most likely not.  SMP adds
+some overhead that a faster uniprocessor box would not incur
+(<B>Wade Hampton</B>).
+<CODE>:)</CODE>
+<P>
+</LI>
+<LI> <B>How does one display mutiple cpu performance?</B>
+<P>Thanks to <B>Samuel S. Chessman</B>, here are some useful utilities:
+<DL>
+<DT><B>Character based:</B><DD><P>
+<A HREF="http://www.cs.inf.ethz.ch/~rauch/procps.html">http://www.cs.inf.ethz.ch/~rauch/procps.html</A><P>Basically, it's procps v1.12.2 (top, ps, et. al.)  and some patches to
+support SMP.
+<P>For 2.2.x, <B>Gregory R. Warnes</B> as made a patch available at
+<A HREF="http://queenbee.fhcrc.org/~warnes/procps">http://queenbee.fhcrc.org/~warnes/procps</A> 
+<P>
+<DT><B>Graphic:</B><DD><P>xosview-1.5.1 supports SMP. And kernels above 2.1.85 (included) the cpuX
+entry in /proc/stat file.
+<P>The official homepage for xosview is:
+<A HREF="http://lore.ece.utexas.edu/~bgrayson/xosview.html">http://lore.ece.utexas.edu/~bgrayson/xosview.html</A> 
+<P>You'll find a version patched for 2.2.x kernels by <B>Kumsup Lee</B> :
+<A HREF="http://www.ima.umn.edu/~klee/linux/xosview-1.6.1-5a1.tgz">http://www.ima.umn.edu/~klee/linux/xosview-1.6.1-5a1.tgz</A></DL>
+<P>By the way, you can't monitor processor scheduling precisely with xosview,
+as xosview itself causes a scheduling perturbation. (<B>H. Peter
+Anvin</B>)
+<P>And <B>Rik van Riel</B> tell us why:
+<BLOCKQUOTE>
+The answer is pretty simple. Basically there are 3
+processes involved:
+<OL>
+<LI> the cpu hog  (low scheduling priority because it eats CPU)</LI>
+<LI> xosview</LI>
+<LI> X</LI>
+</OL>
+
+<P>The CPU hog is running on one CPU. Then xosview wakes up
+(on the other CPU) and starts sending commands to X, which
+wakes up as well.
+<P>Since both X and xosview have a much higher priority than
+the CPU hog, xosview will run on one CPU and X on the other.
+<P>Then xosview stops running and we have an idle CPU --> Linux
+moves the CPU hog over to the newly idle CPU  (X is still
+running on the CPU our hog was running on just before).
+</BLOCKQUOTE>
+<P>
+<P>
+</LI>
+<LI> <B>How can I enable more than 1 process for my kernel compile?</B>
+<P>use:
+<HR>
+<PRE>
+        # make [modules|zImage|bzImages] MAKE="make -jX"
+        where X=max number of processes.
+        WARNING: This won't work for "make dep".
+</PRE>
+<HR>
+<P>With a 2.2 like kernel, see also the file
+<CODE>/usr/src/linux/Documentation/smp.txt</CODE> for specific instruction.
+<P>BTW, since running multiple compilers allows a machine with sufficient
+memory to use use the otherwise wasted CPU time during I/O caused delays,
+<CODE>make MAKE="make -j 2" -j 2</CODE> actually helps even on uniprocessor
+boxes (from <B>Ralf Bächle</B>).
+<P>
+</LI>
+<LI> <B>Why is the time given by the <CODE>time</CODE> command inaccurate?</B>
+(from <B>Joel Marchand</B>)
+<P>In the 2.0 series, the result given by the <CODE>time</CODE> command is
+false. The sum user+system is right *but* the spreading between user and
+system time is false. 
+<P>More precisely: "The explanation is, that all time spent in processors
+other than the boot cpu is accounted as system time.  If you time a
+program, add the user time and the system time, then you timing will be
+almost right, except for also including the system time that is
+correctly accounted for" (<B>Jakob Østergaard</B>).
+<P>This bug is corrected in 2.2 kernels.
+<P>
+<P>
+</LI>
+</OL>
+<P>
+<P>
+<P>
+<H2><A NAME="ss3.3">3.3 SMP Programming</A>
+</H2>
+
+<P>Section by <B>Jakob Østergaard</B>.
+<P>This section is intended to outline what works, and what doesn't when
+it comes to programming multi-threaded software for SMP Linux.
+<P>
+<H3>Parallelization methods</H3>
+
+<P>
+<OL>
+<LI> POSIX Threads</LI>
+<LI> PVM / MPI Message Passing Libraries</LI>
+<LI> fork() -- Multiple processes</LI>
+</OL>
+<P>Since both fork() and PVM/MPI processes usually do not share memory,
+but either communicate by means of IPC or a messaging API, they will
+not be described further in this section. They are not very specific
+to SMP, since they are used just as much - or more - on uniprocessor
+computers, and clusters thereof.
+<P>
+<P>Only POSIX Threads provide us with multiple threads sharing ressources
+like - especially - memory. This is the thing that makes a SMP
+machine special, allowing many processors to share their memory. To
+use both (or more ;) processors of an SMP, use a kernel-thread
+library. A good library is the 
+<A HREF="http://pauillac.inria.fr/~xleroy/linuxthreads/">LinuxThreads, a pthread library made by Xavier Leroy</A> which is now
+integrated with glibc2 (aka libc6).  Newer Linux distributions
+include this library by default, hence you do not have to 
+obtain a separate package to use kernel threads.
+<P>There are implementations of threads (and POSIX threads) that are
+application-level, and do not take advantage of the kernel-threading.
+These thread packages keep the threading in a single process, 
+hence do not take advantage of SMP.  However, they are good for 
+many applications and tend to actually run faster than kernel-threads
+on single processor systems.
+<P>Multi-threading has never been really popular in the UN*X world
+though. For some reason, applications requiring multiple processes or
+threads, have mostly been written using fork(). Therefore, when using
+the thread approach, one runs into problems of incompatible (not
+thread-ready) libraries, compilers, and debuggers.  GNU/Linux is no
+exception to this. Hopefully the next few sections will sched a little
+light over what is currently possible, and what is not.
+<P>
+<P>
+<H3>The C Library</H3>
+
+<P>Older C libraries are not thread-safe. It is very important that you
+use GNU LibC (<B>glibc</B>), also known as <B>libc6</B>. Earlier
+versions are, of course possible to use, but it will cause you much more
+trouble than upgrading your system will, well probably :)
+<P>If you want to use GDB to debug your programs, see below.
+<P>
+<H3>Languages, Compilers and debuggers</H3>
+
+<P>There is a wealth of programming languages available for GNU/Linux,
+and many of them can be made to use threads one way or the other
+(some languages like Ada and Java even have threads as primitives in
+the language).
+<P>This section will, however, currently only describe C and C++. If you
+have experience in SMP Programming with other languages, please
+enlighten us.
+<P>GNU C and C++, as well as the EGCS C and C++ compilers work with the
+thread support from the standard C library (<B>glibc</B>). There are
+however a few issues:
+<P>
+<OL>
+<LI> When compiling C or C++, use the <B>-D_REENTRANT</B> define
+in the compiler command line. This is necessary to make certain
+error-handling functions work like the errno variable.
+</LI>
+<LI> When using C++, If two threads throw exceptions concurrently, the
+program will segfault.  The compiler does not generate thread-safe
+exception code.
+
+The workaround is to put a
+pthread_mutex_lock(&amp;global_exception_lock) in the constructor(s) of
+every class you throw(), and to put the corresponding
+pthread_mutex_unlock(...) in the destructor.  It's ugly, but it works.
+This solution was given by <B>Markus Ferch</B>.
+</LI>
+</OL>
+<P>The GNU Debugger <B>GDB</B> as of version 4.18, should handle threads
+correctly. Most Linux distribution offer a patched, thread-aware gdb.
+<P>It is not necessary to patch <B>glibc</B> in any way just to make it
+work with threads. If you do not need to debug the software (this
+could be true for all machines that are not development workstations),
+there is no need to patch <B>glibc</B>.
+<P>Note that core-dumps are of no use when using multiple
+threads. Somehow, the core dump is attached to one of the currently
+running threads, and not to the program as a whole. Therefore,
+whenever you are debugging anything, run it from the debugger.
+<P><B>Hint:</B> If you have a thread running haywire, like eating 100%
+CPU time, and you cannot seem to figure out why, here is a nice way to
+find out what's going on: Run the program straight from the shell, no
+GDB. Make the thread go haywire. Use <B>top</B> to get the PID of
+the process.  Run GDB like <B>gdb program pid</B>. This will make
+GDB attach itself to the process with the PID you specified, and stop
+the thead. Now you have a GDB session with the offending thread, and
+can use <B>bt</B> and the like to see what is happening.
+<P>
+<H3>Other libraries</H3>
+
+<P><B>ElectricFence:</B> This library is not thread safe. It should
+be possible, however, to make it work in SMP environments by inserting
+mutex locks in the ElectricFence code.
+<P>
+<P>
+<H3>Other points about SMP Programming</H3>
+
+<P>
+<OL>
+<LI> <B>Where can I found more information about parallel
+programming?</B>
+<P>Look at the 
+<A HREF="http://yara.ecn.purdue.edu/~pplinux/PPHOWTO/pphowto.html">Linux Parallel Processing HOWTO</A><P>Lots of useful information can be found at 
+<A HREF="http://yara.ecn.purdue.edu/~pplinux/">Parallel Processing using Linux</A><P>Look also at the 
+<A HREF="http://linas.org/linux/threads-faq.html">Linux Threads FAQ</A><P>
+</LI>
+<LI> <B>Are there any threaded programs or libraries?</B>
+<P>Yes. For programs, you should look at:
+<A HREF="http://www.informatik.uni-bremen.de/~hollow/mthread.html">Multithreaded programs on linux</A> (I love hyperlinks, did
+you know that ? <CODE>;)</CODE>)
+<P>As far as library are concerned, there are:
+<DL>
+<P>
+<DT><B>OpenGL Mesa library</B><DD><P>Thanks to <B>David Buccarelli</B>,
+<B>Andreas Schiffler</B> and <B>Emil Briggs</B>, it exists in a
+multithreaded version (right now [1998-05-11], there is a working
+version that provides speedups of 5-30% on some OpenGL benchmarks). The
+multithreaded stuff is now included in the regular Mesa distribution as
+an experimental option.  For more information, look at the
+<A HREF="http://www.ssec.wisc.edu/~brianp/Mesa.html">Mesa library</A><P>
+<DT><B>BLAS</B><DD><P>
+<A HREF="http://www.cs.utk.edu/~ghenry/distrib/">Pentium Pro Optimized BLAS and FFTs for Intel Linux</A><P>Multithreaded BLAS routines are not available right now, but a dual proc
+library is planned for 1998-05-27, see 
+<A HREF="http://www.cs.utk.edu/~ghenry/distrib/blasnews">Blas News</A> for details.
+<P>
+<DT><B>The GIMP</B><DD><P><B>Emil Briggs</B>, the same guy who is involved in
+multithreaded Mesa, is also working on multithreaded The GIMP
+plugins. Look at 
+<A HREF="http://nemo.physics.ncsu.edu/~briggs/gimp/index.html">http://nemo.physics.ncsu.edu/~briggs/gimp/index.html</A> for more
+info.
+<P>
+</DL>
+<P>
+</LI>
+</OL>
+<P>
+<H2><A NAME="ss3.4">3.4 MultiProcessor Specification Support (MPS)</A>
+</H2>
+
+<P>(<B>Randy Dunlap</B>) Linux supports MPS (MP spec.) version 1.1 and 1.4.
+<P>Linux doesn't have full support for all of MPS version 1.4.
+<P>Experience has shown that Linux usually works best when the BIOS is configure for MP Spec. version 1.1 if that is an option in your system's BIOS. I don't see why the MP Spec. version should matter to Linux,  but it would be an interesting exercise to find out the differences as presented by BIOS tables, to determine why Linux fails with MP Spec. version 1.4 in some cases, and to fix Linux so that this wouldn't matter.
+<P>This document summarizes the major changes in MP spec. version 1.4 and their support status in Linux.
+<P>
+<H3>Symmetric I/O Mode</H3>
+
+<P>The hardware must support a mode of operation in which the system can switch easily to Symmetric I/O mode from PIC or Virtual Wire mode. When the operating system is ready to swtich to MP operation, it writes a 01H to the IMCR register, if that register is implemented, and enables I/O APIC Redirection Table entries. The hardware must not require any other action on the part of software to make the transition to Symmetric I/O mode.
+<P>
+<P>Linux recognizes and supports this MP configuration mode.
+<P>
+<H3>Floating Point Exception Interrupt</H3>
+
+<P>For PC/AT compatibility, the bootstrap processor must support DOS-compatible FPU execution and exception handling while running in either of the PC/AT-compatible modes. This means that floating point error signals from the BSP must be routed to the interrupt request 13 signal, IRQ13, when the system is in PIC or virtual wire mode. While floating point error signals from an application processor need not be routed to IRQ13, platform designers may choose to connect the two. For example, connecting the floating point error signal from application processors to IRQ13 can be useful in the case of a platform that supports dynamic choice of BSP during boot.
+<P>In symmetric mode, a compliant system supports only on-chip floating point units, with error signaling via interrupt vector 16. Operating systems must use interrupt vector 16 to manage floating point exceptions when the system is in symmetric mode. 
+<P>Linux does not use the floating point interrupt at all except in genuine i386 processor systems which are not SMP-capable.  [In these systems, if they wire the FPU exception line in the PC/AT-compatible way, a run-time check for #MF exception availability is performed. If the #MF exception is available, then Linux handles this interrupt if it happens.  (<B>Maciej W. Rozycki</B>)
+<P>
+<H3>Multiple I/O APIC Configurations</H3>
+
+<P>Multiple I/O APICs are supported in Linux.
+<P>
+<H3>MP Configuration Table</H3>
+
+<P>This table was made optional in MPS version 1.4.  If the table isn't present, one of the default configurations should be used. An extended section was also added to it for new table entry types.
+<P>Linux supports the optional MP Configuration Table and uses a default configuration if the MP Config. Table is not present.
+<P>Linux tolerates extended section table entries by skipping over them if they are found.  Data in the extended table entries is not used.
+<P>
+<H3>MP Configuration Table Header Fields</H3>
+
+<P>New or changed fields for MP Spec. version 1.4:
+<P>
+<UL>
+<LI> OEM Table Pointer: supported in Linux</LI>
+<LI> Extended Table Length: supported (tolerated, skipped) in Linux</LI>
+<LI> Extended Table Checksum: supported (tolerated, skipped) in Linux</LI>
+</UL>
+<P>
+<H3>Extended MP Configuration Table Entries</H3>
+
+<P>Entry types for System Address Space Mapping, Bus Hierarchy Descriptor, and Compatibility Bus Address Space Modifier are defined.
+<P>Linux skips over (does not use) these extended MP Configuration table entries. Apparently this isn't critical to any shipping systems.
+<P>
+<P>
+<HR>
+<A HREF="SMP-HOWTO-4.html">Next</A>
+<A HREF="SMP-HOWTO-2.html">Previous</A>
+<A HREF="SMP-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

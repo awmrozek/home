@@ -1,0 +1,523 @@
+<HTML
+><HEAD
+><TITLE
+>DHCP Server Setup</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.57"><LINK
+REL="HOME"
+TITLE="DHCP mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Client Setup"
+HREF="x74.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>DHCP mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x74.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+>&nbsp;</TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN369"
+>4. DHCP Server Setup</A
+></H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="DHCPSERVER"
+>4.1. DHCP server for UNIX</A
+></H2
+><P
+>There are several DHCP servers available for U*X-like OSes,
+both commercial and free. One of the more popular free DHCP servers
+is Paul Vixie/ISC DHCPd. Currently the latest version is 2.0 (suggested
+for most users) but 3.0 is in beta testing.  You can get them from </P
+><P
+><A
+HREF="ftp://ftp.isc.org/isc/dhcp/"
+TARGET="_top"
+>ftp://ftp.isc.org/isc/dhcp/</A
+></P
+><P
+>Some of the distributions provide binary packages for dhcpd so
+skip the following section if you got it installed that way.</P
+><P
+>After you download unpack it. After you do cd into the
+distribution directory and type: <B
+CLASS="COMMAND"
+>./configure</B
+></P
+><P
+>It will take some time to configure the settings. After it is done type:
+<B
+CLASS="COMMAND"
+>make</B
+> and <B
+CLASS="COMMAND"
+>make install</B
+>.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN382"
+>4.2. DHCP server configuration</A
+></H2
+><P
+>When done with installation type <B
+CLASS="COMMAND"
+>ifconfig -a</B
+>. You
+should see something like this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>eth0      Link encap:10Mbps Ethernet  HWaddr 00:C0:4F:D3:C4:62
+          inet addr:183.217.19.43  Bcast:183.217.19.255  Mask:255.255.255.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:2875542 errors:0 dropped:0 overruns:0
+          TX packets:218647 errors:0 dropped:0 overruns:0
+          Interrupt:11 Base address:0x210</PRE
+></TD
+></TR
+></TABLE
+><P
+>If it doesn't say MULTICAST you should reconfigure your
+kernel and add multicast support. On most systems you will not 
+need to do this.</P
+><P
+>Next step is to add route for 255.255.255.255. Quoted from DHCPd README:</P
+><A
+NAME="AEN389"
+></A
+><BLOCKQUOTE
+CLASS="BLOCKQUOTE"
+><P
+>"In order for dhcpd to work correctly with picky DHCP clients 
+(e.g., Windows 95), it must be able to send packets with an 
+IP destination address of 255.255.255.255.  Unfortunately, 
+Linux insists on changing 255.255.255.255 into the local 
+subnet broadcast address (here, that's 192.5.5.223).  This 
+results in a DHCP protocol violation, and while many DHCP 
+clients don't notice the problem, some (e.g., all Microsoft
+DHCP clients) do.  Clients that have this problem will appear 
+not to see DHCPOFFER messages from the server."</P
+></BLOCKQUOTE
+><P
+>Type: <B
+CLASS="COMMAND"
+>route add -host 255.255.255.255 dev eth0</B
+></P
+><P
+>If you get a message "<TT
+CLASS="LITERAL"
+>255.255.255.255: Unknown host</TT
+>",
+you should try adding the following entry to your
+<TT
+CLASS="FILENAME"
+>/etc/hosts</TT
+> file:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>255.255.255.255 all-ones</PRE
+></TD
+></TR
+></TABLE
+><P
+>Then, try:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>route add -host all-ones dev eth0</PRE
+></TD
+></TR
+></TABLE
+><P
+>or</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>route add 255.255.255.0 dev eth0</PRE
+></TD
+></TR
+></TABLE
+><P
+><TT
+CLASS="LITERAL"
+>eth0</TT
+> is of course the name of the network device you
+are using.  If it differs change appropriately.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN403"
+>4.3. Options for DHCPd</A
+></H2
+><P
+>Now you need to configure DHCPd. In order to do this you
+will have to create or edit <TT
+CLASS="FILENAME"
+>/etc/dhcpd.conf</TT
+>. There
+is a graphical interface for dhcpd configuration under KDE ( <A
+HREF="http://www.kde.org/"
+TARGET="_top"
+>http://www.kde.org/</A
+> ) called kcmdhcpd
+that is very similar to the DHCP configurator on Windows NT. When KDE
+2.0 comes out it should come with kcmdhcpd or you could get it directly
+from:</P
+><P
+><A
+HREF="ftp://ftp.us.kde.org/pub/kde/unstable/apps/network/"
+TARGET="_top"
+>ftp://ftp.us.kde.org/pub/kde/unstable/apps/network/</A
+></P
+><P
+>If you want to configure it by hand follow instructions below.</P
+><P
+>Most commonly what you want to do is assign IP addresses randomly. This
+can be done with settings as follows:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+># Sample /etc/dhcpd.conf
+# (add your comments here) 
+default-lease-time 600;
+max-lease-time 7200;
+option subnet-mask 255.255.255.0;
+option broadcast-address 192.168.1.255;
+option routers 192.168.1.254;
+option domain-name-servers 192.168.1.1, 192.168.1.2;
+option domain-name "mydomain.org";
+
+subnet 192.168.1.0 netmask 255.255.255.0 {
+   range 192.168.1.10 192.168.1.100;
+   range 192.168.1.150 192.168.1.200;
+}</PRE
+></TD
+></TR
+></TABLE
+><P
+>This will result in DHCP server giving a client an IP address
+from the range 192.168.1.10-192.168.1.100 or 
+192.168.1.150-192.168.1.200. It will lease an IP address for
+600 seconds if the client doesn't ask for specific time
+frame. Otherwise the maximum (allowed) lease will be 7200 seconds. The
+server will also "advise" the client that it should use 255.255.255.0 as
+its subnet mask,  192.168.1.255 as its broadcast address, 192.168.1.254 as
+the router/gateway and 192.168.1.1 and 192.168.1.2 as its DNS servers.</P
+><P
+>If you need to specify a WINS server for your Windows clients you
+will need to include the <TT
+CLASS="LITERAL"
+>netbios-name-servers</TT
+> option e.g.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>option netbios-name-servers 192.168.1.1;</PRE
+></TD
+></TR
+></TABLE
+><P
+>You can also assign specific IP addresses based on clients
+ethernet address e.g. </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>host haagen {
+   hardware ethernet 08:00:2b:4c:59:23;
+   fixed-address 192.168.1.222;
+}</PRE
+></TD
+></TR
+></TABLE
+><P
+>This will assign IP address 192.168.1.222 to a client with ethernet
+address 08:00:2b:4c:59:23.</P
+><P
+>You can also mix and match e.g. you can have certain clients getting
+"static" IP addresses (e.g. servers) and others being alloted
+dynamic IPs (e.g. mobile users with laptops). There are a number of other
+options e.g. nis server addresses, time server addresses etc., if you
+need any of those options please read the
+<TT
+CLASS="FILENAME"
+>dhcpd.conf</TT
+> man page.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN422"
+>4.4. Starting the server</A
+></H2
+><P
+>There is only one thing to do before starting the server. In most cases
+DHCP installation doesn't create a <TT
+CLASS="FILENAME"
+>dhcpd.leases</TT
+>
+files. This file is used by DHCPd to store information about current
+leases. It is in the plain text form so you can view it during the
+operation of DHCPd. To create <TT
+CLASS="FILENAME"
+>dhcpd.leases</TT
+> type: 
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>touch /var/state/dhcp/dhcpd.leases</PRE
+></TD
+></TR
+></TABLE
+></P
+><P
+>This will create an empty file (file size = 0).
+Some of the older version of dhcpd 2.0 placed the file in
+<TT
+CLASS="FILENAME"
+>/etc/dhcpd.leases</TT
+>.  You do not need to make any
+changes to the leases file it will be manipulated by the dhcpd.  If you
+get a message saying that file exists simply ignore it and go to the
+next step.</P
+><P
+>You can now invoke the DHCP server. Simply type (or include in the bootup
+scripts)</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>/usr/sbin/dhcpd</PRE
+></TD
+></TR
+></TABLE
+><P
+>This will invoke dhcpd on eth0 device. If you want to invoke it
+on another device simply supply it on the command line e.g.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>/usr/sbin/dhcpd eth1</PRE
+></TD
+></TR
+></TABLE
+><P
+>To verify that everything is working fine you
+should first turn on the debugging mode and put the server
+in foreground. You can do this by typing</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>/usr/sbin/dhcpd -d -f</PRE
+></TD
+></TR
+></TABLE
+><P
+>Then boot up one of your clients and check out the console of your server. 
+You will see a number of debugging messages come up. If everything works out
+fine you are done :-). Quit dhcpd and start it without the
+<B
+CLASS="COMMAND"
+>-d</B
+> <B
+CLASS="COMMAND"
+>-f</B
+> and arguments. If you want
+dhcpd to start at boot-up include dhcpd in e.g.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>/etc/rc.d/rc.local</PRE
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN440"
+>4.5. Other interesting documents</A
+></H2
+><P
+>Linux Magazine has a pretty good article in their April issue called
+<A
+HREF="http://www.linux-mag.com/2000-04/networknirvana_01.html"
+TARGET="_top"
+>Network
+Nirvana: How to make Network Configuration as easy as DHCP</A
+> that
+discusses the set up for DHCP.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x74.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>&nbsp;</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Client Setup</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>&nbsp;</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

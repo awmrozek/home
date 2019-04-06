@@ -1,0 +1,442 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>How does my computer keep processes from stepping on each other?</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="The Unix and Internet Fundamentals HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="How does my computer do several things at once?"
+HREF="multitasking.html"><LINK
+REL="NEXT"
+TITLE="How does my computer store things in memory?"
+HREF="core-formats.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Unix and Internet Fundamentals HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="multitasking.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="core-formats.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="memory-management"
+></A
+>8. How does my computer keep processes from stepping on each other?</H1
+><P
+>The kernel's scheduler takes care of dividing processes in time.
+Your operating system also has to divide them in space, so that processes
+can't step on each others'; working memory.  Even if you assume that all
+programs are trying to be cooperative, you don't want a bug in one of them
+to be able to corrupt others.  The things your operating system does to
+solve this problem are called <I
+CLASS="firstterm"
+>memory
+management</I
+>.</P
+><P
+>Each process in your zoo needs its own area of memory, as a place to
+run its code from and keep variables and results in.  You can think of this
+set as consisting of a read-only <I
+CLASS="firstterm"
+>code
+segment</I
+>
+(containing the process's instructions) and a writeable <I
+CLASS="firstterm"
+>data
+segment</I
+>
+(containing all the process's variable storage).  The data segment is truly
+unique to each process, but if two processes are running the same code Unix
+automatically arranges for them to share a single code segment as an
+efficiency measure.</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="vm-simple"
+></A
+>8.1. Virtual memory: the simple version</H2
+><P
+>Efficiency is important, because memory is expensive.  Sometimes you
+don't have enough to hold the entirety of all the programs the machine is
+running, especially if you are using a large program like an X server.  To
+get around this, Unix uses a technique called <A
+NAME="vm"
+></A
+>
+<I
+CLASS="firstterm"
+>virtual memory</I
+>.  It doesn't try to hold all the code and data
+for a process in memory.  Instead, it keeps around only a relatively small
+<I
+CLASS="firstterm"
+>working set</I
+>; the rest of the process's state is left in a
+special <I
+CLASS="firstterm"
+>swap space</I
+> area on your hard disk.</P
+><P
+>Note that in the past, that <SPAN
+CLASS="QUOTE"
+>"Sometimes"</SPAN
+> last paragraph ago was
+<SPAN
+CLASS="QUOTE"
+>"Almost always"</SPAN
+> &#8212; the size of memory was typically small
+relative to the size of running programs, so swapping was frequent.  Memory
+is far less expensive nowadays and even low-end machines have quite a lot
+of it.  On modern single-user machines with 64MB of memory and up, it's
+possible to run X and a typical mix of jobs without ever swapping after
+they're initially loaded into core.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="vm-details"
+></A
+>8.2. Virtual memory: the detailed version</H2
+><P
+>Actually, the last section oversimplified things a bit.  Yes,
+programs see most of your memory as one big flat bank of addresses bigger
+than physical memory, and disk swapping is used to maintain that illusion.
+But your hardware actually has no fewer than five different kinds of memory
+in it, and the differences between them can matter a good deal when
+programs have to be tuned for maximum speed.  To really understand what
+goes on in your machine, you should learn how all of them work.</P
+><P
+>The five kinds of memory are these: processor registers, internal (or
+on-chip) cache, external (or off-chip) cache, main memory, and disk.  And
+the reason there are so many kinds is simple: speed costs money. I have
+listed these kinds of memory in increasing order of access time and
+decreasing order of cost.  Register memory is the fastest and most
+expensive and can be random-accessed about a billion times a second, while
+disk is the slowest and cheapest and can do about 100 random accesses a
+second.</P
+><P
+>Here's a full list reflecting early-2000 speeds for a typical desktop
+machine. While speed and capacity will go up and prices will drop, you can
+expect these ratios to remain fairly constant &#8212; and it's those ratios that
+shape the memory hierarchy.</P
+><P
+></P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
+>Disk</DT
+><DD
+><P
+>Size: 13000MB	Accesses: 100KB/sec</P
+></DD
+><DT
+>Main memory</DT
+><DD
+><P
+>Size: 256MB	Accesses: 100M/sec</P
+></DD
+><DT
+>External cache</DT
+><DD
+><P
+>Size: 512KB	Accesses: 250M/sec</P
+></DD
+><DT
+>Internal Cache</DT
+><DD
+><P
+>Size: 32KB	Accesses: 500M/sec</P
+></DD
+><DT
+>Processor</DT
+><DD
+><P
+>Size: 28 bytes	Accesses: 1000M/sec</P
+></DD
+></DL
+></DIV
+><P
+>We can't build everything out of the fastest kinds of memory.  It
+would be way too expensive &#8212; and even if it weren't, fast memory is
+volatile.  That is, it loses its marbles when the power goes off.  Thus,
+computers have to have hard disks or other kinds of non-volatile storage
+that retains data when the power goes off.  And there's a huge mismatch
+between the speed of processors and the speed of disks. The middle three
+levels of the memory hierarchy (<I
+CLASS="firstterm"
+>internal
+cache</I
+>, <I
+CLASS="firstterm"
+>external
+cache</I
+>, and main memory) basically exist to bridge
+that gap.</P
+><P
+>Linux and other Unixes have a feature called <I
+CLASS="firstterm"
+>virtual
+memory</I
+>.
+What this means is that the operating system behaves as though it has much
+more main memory than it actually does.  Your actual physical main memory
+behaves like a set of windows or caches on a much larger "virtual" memory
+space, most of which at any given time is actually stored on disk in a
+special zone called the <I
+CLASS="firstterm"
+>swap
+area</I
+>.  Out of
+sight of user programs, the OS is moving blocks of data (called "pages")
+between memory and disk to maintain this illusion.  The end result is that
+your virtual memory is much larger but not too much slower than real
+memory.</P
+><P
+>How much slower virtual memory is than physical depends on how well
+the operating system's swapping algorithms match the way your programs use
+virtual memory.  Fortunately, memory reads and writes that are close
+together in time also tend to cluster in memory space. This tendency is
+called
+<I
+CLASS="firstterm"
+>locality</I
+>,
+or more formally <I
+CLASS="firstterm"
+>locality of
+reference</I
+> &#8212; and it's a good thing.  If memory
+references jumped around virtual space at random, you'd typically have to
+do a disk read and write for each new reference and virtual memory would be
+as slow as a disk.  But because programs do actually exhibit strong
+locality, your operating system can do relatively few swaps per
+reference.</P
+><P
+>It's been found by experience that the most effective method for a
+broad class of memory-usage patterns is very simple; it's called LRU or the
+<SPAN
+CLASS="QUOTE"
+>"least recently used"</SPAN
+> algorithm.  The virtual-memory system grabs disk
+blocks into its <I
+CLASS="firstterm"
+>working
+set</I
+> as it
+needs them.  When it runs out of physical memory for the working set, it
+dumps the least-recently-used block.  All Unixes, and most other
+virtual-memory operating systems, use minor variations on LRU.</P
+><P
+>Virtual memory is the first link in the bridge between disk and
+processor speeds.  It's explicitly managed by the OS.  But there is still a
+major gap between the speed of physical main memory and the speed at which
+a processor can access its register memory.  The external and internal
+caches address this, using a technique similar to virtual memory as I've
+described it.</P
+><P
+>Just as the physical main memory behaves like a set of windows or
+caches on the disk's swap area, the external cache acts as windows on main
+memory.  External cache is faster (250M accesses per sec, rather than 100M)
+and smaller.  The hardware (specifically, your computer's memory
+controller) does the LRU thing in the external cache on blocks of data
+fetched from the main memory.  For historical reasons, the unit of cache
+swapping is called a <I
+CLASS="firstterm"
+>line</I
+> rather than a page.</P
+><P
+>But we're not done.  The internal cache gives us the final step-up in
+effective speed by caching portions of the external cache.  It is faster
+and smaller yet &#8212; in fact, it lives right on the processor chip.</P
+><P
+>If you want to make your programs really fast, it's useful to know
+these details.  Your programs get faster when they have stronger locality,
+because that makes the caching work better.  The easiest way to make
+programs fast is therefore to make them small.  If a program isn't slowed
+down by lots of disk I/O or waits on network events, it will usually run at
+the speed of the smallest cache that it will fit inside.</P
+><P
+>If you can't make your whole program small, some effort to tune the
+speed-critical portions so they have stronger locality can pay off.
+Details on techniques for doing such tuning are beyond the scope of this
+tutorial; by the time you need them, you'll be intimate enough with some
+compiler to figure out many of them yourself.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="mmu"
+></A
+>8.3. The Memory Management Unit</H2
+><P
+>Even when you have enough physical core to avoid swapping, the part
+of the operating system called the <I
+CLASS="firstterm"
+>memory manager</I
+>
+still has important work to do.  It has to make sure that programs can only
+alter their own data segments &#8212; that is, prevent erroneous or malicious
+code in one program from garbaging the data in another.  To do this, it
+keeps a table of data and code segments.  The table is updated whenever a
+process either requests more memory or releases memory (the latter usually
+when it exits).</P
+><P
+>This table is used to pass commands to a specialized part of the
+underlying hardware called an
+<I
+CLASS="firstterm"
+>MMU</I
+> or
+<I
+CLASS="firstterm"
+>memory management unit</I
+>.  Modern processor chips have MMUs
+built right onto them.  The MMU has the special ability to put fences
+around areas of memory, so an out-of-bound reference will be refused and
+cause a special interrupt to be raised.</P
+><P
+>If you ever see a Unix message that says <SPAN
+CLASS="QUOTE"
+>"Segmentation fault"</SPAN
+>,
+<SPAN
+CLASS="QUOTE"
+>"core dumped"</SPAN
+> or something similar, this is exactly what has happened;
+an attempt by the running program to access memory (core) outside its
+segment has raised a fatal interrupt.  This indicates a bug in the program
+code; the <I
+CLASS="firstterm"
+>core dump</I
+> it leaves behind is diagnostic information
+intended to help a programmer track it down.</P
+><P
+>There is another aspect to protecting processes from each other besides
+segregating the memory they access.  You also want to be able to control
+their file accesses so a buggy or malicious program can't corrupt critical
+pieces of the system.  This is why Unix has <A
+HREF="disk-layout.html#permissions"
+>&#13;file permissions</A
+> which we'll discuss later.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="multitasking.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="core-formats.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>How does my computer do several things at once?</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>How does my computer store things in memory?</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

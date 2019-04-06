@@ -1,0 +1,293 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Własne kontrolki, cz.2</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apicc.html">&lt;&lt; Własne kontrolki, cz. 1</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h2>
+Mazanie po kontrolce
+</h2>
+
+<P>
+Bez względu na to, jak duże możliwości można uzyskać przez wykorzystywanie standardowych kontrolek do tworzenia własnych, i tak wiem, że co innego przyciągnęło cię do tego artykułu :-). Zapewne chciałbyś po prostu zmienić wygląd tych standardowych, kanciastych, szarych, nudnych kontrolek windowsowych. Oczywiście, jest to możliwe.
+</P>
+<P>
+Spróbujmy stworzyć swój własny przycisk. Jego wygląd będzie określony przez przygotowaną wcześniej bitmapę. Żeby było ciekawiej, zmienimy też kształt tego przycisku na okrągły. Moja bitmapka do tego przycisku wygląda tak:
+</P>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/przycisk.jpg" ALT="Bitmapa z przyciskiem">
+</P>
+
+<P>
+Bitmapa ta będzie wspólna dla wszystkich przycisków tworzonej przez nas klasy, tak więc dobrze by było przechowywać ją (a dokładniej: uchwyt do niej) w dodatkowej pamięci klasy (wspomnieliśmy sobie o tej pamięci wcześniej). Zasady korzystania z pamięci klasy są podobne, jak w przypadku pamięci okna.
+</P>
+<P>
+Jak pamiętamy z odcinka o grafice, rysowanie bitmapy polega na jej kopiowaniu z kontekstu pomocniczego na kontekst ekranu. Ten pierwszy oczywiście musimy sobie stworzyć sami i podobnie jak bitmapę, będziemy jego uwchyt przechowywać w pamięci klasy, żeby nie trzeba było tego kontekstu tworzyć za każdym razem, gdy chcemy narysować kontrolkę.
+
+</P>
+<P>
+Zapewne zauważyłeś, że bitmapa do naszego przycisku ma urocze, pedalsko różowe tło. To oczywiście nie w ramach poprawności politycznej, tylko aby stworzyć do tej bitmapy maskę. Maska, jak pamiętamy, to również uchwyt typu <SPAN CLASS=T>HBITMAP</SPAN> i również trzeba ją zapamiętać dla całej klasy. Dlatego właśnie potrzebujemy <SPAN CLASS=L>16</SPAN> bajtów dodatkowej pamięci (<SPAN CLASS=L>4*3+4</SPAN>).
+</P>
+<P>
+W poprzednim odcinku kursu rejestrowaliśmy nową kontrolkę bezpośrednio z funkcji <SPAN CLASS=L>WinMain</SPAN>. Nie jest to może niedopuszczalne, ale i niezbyt eleganckie, gdyż kontrolki tworzy się z reguły w oddzielnym pliku, a najlepiej w ogóle w osobnym module DLL. Dlatego dobrze by było stworzyć jakąś funkcję, która będzie odwalała całą robotę związaną z przygotowaniem nowej kontrolki, to jest rejestrację jej klasy oraz inicjalizację (wczytanie bitmapy, stworzenie maski, stworzenie kontekstu pomocniczego, umieszczenie tego wszystkiego w pamięci klasy).
+
+</P><P>
+Wreszcie jeszcze jedna uwaga: do tej pory korzystaliśmy z superclassingu, a więc braliśmy istniejącą klasę i rozszerzaliśmy jej możliwości. Tym razem zrobimy wszystko sami - od zera. Nie będzie pobierania informacji o klasie, więc wszystkie pola struktury <SPAN CLASS=L>WNDCLASS</SPAN> musimy teraz wypełnić samodzielnie. Do dzieła zatem:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+BOOL RejestrujPrzycisk(HINSTANCE hInst)<BR>
+{<BR>
+&nbsp;WNDCLASS wc;<BR>
+&nbsp;wc.style = <SPAN CLASS=L>0</SPAN>; <SPAN CLASS=C>//stylowy kibel? ;-)</SPAN><BR>
+&nbsp;wc.lpszMenuName = NULL;<BR>
+&nbsp;wc.lpszClassName = <SPAN CLASS=L>"BitmapowyPrzycisk"</SPAN>;<BR>
+&nbsp;wc.hInstance = hInst;<BR>
+&nbsp;wc.lpfnWndProc = ControlProc;<BR>
+&nbsp;wc.cbWndExtra = <SPAN CLASS=L>8</SPAN>;<BR>
+&nbsp;wc.cbClsExtra = <SPAN CLASS=L>16</SPAN>;<BR>
+&nbsp;wc.hIcon = NULL;<BR>
+&nbsp;wc.hCursor = NULL;<BR>
+&nbsp;wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(!RegisterClass(&wc)) <SPAN CLASS=K>return</SPAN> FALSE;<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//wczytanie bitmapy, stworzenie maski i kontekstu dla całej klasy</SPAN><BR>
+&nbsp;HBITMAP hbmBmp = (HBITMAP)LoadImage(NULL, <SPAN CLASS=L>"przycisk.bmp"</SPAN>, IMAGE_BITMAP, <SPAN CLASS=L>0, 0</SPAN>, LR_LOADFROMFILE),<BR>
+&nbsp;hbmMask = CreateBitmapMask(hbmBmp, RGB(<SPAN CLASS=L>255,0,255</SPAN>));<BR>
+&nbsp;HDC hdcMem = CreateCompatibleDC(NULL);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//tworzymy tymczasowe okno nowej klasy</SPAN><BR>
+&nbsp;HWND hTmp = CreateWindowEx(<SPAN CLASS=L>0, "BitmapowyPrzycisk"</SPAN>, NULL, WS_POPUP,
+           <SPAN CLASS=L>0, 0, 0, 0,</SPAN> NULL, NULL, hInst, NULL);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//zapamiętanie kontekstu i bitmap w dodatkowej pamięci okna</SPAN><BR>
+&nbsp;SetClassLong(hTmp, <SPAN CLASS=L>0</SPAN>, (LONG)hdcMem);<BR>
+&nbsp;SetClassLong(hTmp, <SPAN CLASS=L>4</SPAN>, (LONG)hbmBmp);<BR>
+&nbsp;SetClassLong(hTmp, <SPAN CLASS=L>8</SPAN>, (LONG)hbmMask);<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> TRUE;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Część kodu odpowiedzialna za rejestrowanie nowej klasy nie jest dla nas niespodzianką - przerabialiśmy to już w poprzednim odcinku kursu (nie mówiąc już o tworzeniu okna we wprowadzeniu do WinAPI). Wczytywanie bitmapy to też nie nowość - było to już w odcinku o GDI (tam też znajduje się "przepis" na funkcję <SPAN CLASS=T>CreateBitmapMask</SPAN>). Drobnego komentarza może wymagać natomiast funkcja <SPAN CLASS=T>CreateWindowEx</SPAN>. Co ona tu robi? Ano, korzystamy tutaj z usług <SPAN CLASS=T>SetClassLong</SPAN>, aby zapamiętać uchwyty w pamięci klasy, zaś funkcji tej nie wystarczy niestety sama nazwa klasy - potrzebny jest uwchyt dowolnego okna tej klasy. Dlatego też tworzymy takie okno (do niczego innego nie jest ono wykorzystywane, dlatego też użyliśmy takich nietypowych parametrów dla <SPAN CLASS=T>CreateWindowEx</SPAN>). Taka mała niedogodność WinAPI.
+</P>
+<P>
+Zarezerwowaliśmy też po <SPAN CLASS=L>8</SPAN> bajtów dla każdego okna tworzonej przez nas klasy <SPAN CLASS=L>BitmapowyPrzycisk</SPAN>. Będzie tam przechowywana informacja, czy przycisk jest aktualnie wciśnięty - aby kod odpowiedzialny za rysowanie przycisku wiedział, którą połówkę bitmapy ma w danym momencie pokazać. Oczywiście jest to spora rozrzutność - jeden bajt (plus cztery nieużywane, jak zwykle) wystarczyłby, ale nie mamy powodu, żeby tak skąpić (a na wartościach 32-bitowych łatwiej się operuje). Powinniśmy zainicjalizować tę pamięć w <SPAN CLASS=T>WM_CREATE</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_CREATE:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//inicjalizacja stanu przycisku - na niewciśnięty</SPAN><BR>
+&nbsp;SetWindowLong(hwnd, <SPAN CLASS=L>0</SPAN>, (LONG)FALSE);  <BR>
+&nbsp;<SPAN CLASS=C>//pobierz wymiary bitmapy</SPAN><BR>
+&nbsp;BITMAP bmInfo;<BR>
+&nbsp;HBITMAP hbmBmp = (HBITMAP)GetClassLong(hwnd, <SPAN CLASS=L>4</SPAN>);<BR>
+&nbsp;GetObject((HGDIOBJ)hbmBmp, <SPAN CLASS=K>sizeof</SPAN>(BITMAP), &bmInfo); <BR>
+&nbsp;<SPAN CLASS=C>//zmień rozmiar przycisku na taki sam, jak ma bitmapa</SPAN><BR>
+&nbsp;SetWindowPos(hwnd, NULL, <SPAN CLASS=L>0, 0</SPAN>, bmInfo.bmWidth/<SPAN CLASS=L>2</SPAN>, bmInfo.bmHeight, SWP_NOACTIVATE|SWP_NOMOVE|SWP_NOZORDER);<BR>
+&nbsp;<SPAN CLASS=C>//ustaw okrągły kształt</SPAN><BR>
+&nbsp;HRGN hRgn = CreateEllipticRgn(<SPAN CLASS=L>0,0</SPAN>,bmInfo.bmWidth/<SPAN CLASS=L>2-1</SPAN>,bmInfo.bmHeight-<SPAN CLASS=L>1</SPAN>);<BR>
+&nbsp;SetWindowRgn(hwnd, hRgn, FALSE);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Robimy tu przy okazji trochę więcej rzeczy. Pobieramy wymiary bitmapy wyświetlanej na naszym przycisku, a następnie dostosowujemy całe okno (przycisk) do tego wymiaru. Dzięki temu niezależnie od tego, jakie parametry poda użytkownik naszej kontrolki przy wywoływaniu <SPAN CLASS=T>CreateWindowEx</SPAN>, przycisk zawsze będzie miał te same rozmiary (chyba, że użytkownik "ręcznie" zmieni jego rozmiary, czemu możemy z kolei zapobiec, obsługując komunikat <SPAN CLASS=T>WM_SIZE</SPAN>). Wreszcie tworzymy sobie region w kształcie koła i przypisujemy ten region naszemu przyciskowi. Sprawia to, że nie są rysowane fragmenty okna spoza podanego regionu, a także - że kliknięcie poza tym regionem nie powoduje wysłania komunikatu do kontrolki (trafia on do okna-rodzica). Zauważ, że nie zapamiętujemy nigdzie uchwytu tego regionu - odkąd jest on przypisany do okna, możemy go pobrać przez <SPAN CLASS=T>GetWindowRgn</SPAN>.
+</P>
+<P>
+Kolejnym krokiem w tworzeniu naszego przycisku będzie obsługa kliknięć myszą. Musimy w związku z tym zrobić trzy rzeczy. Po pierwsze - zmieniamy stan przycisku w jego pamięci okna (wciśnięty/niewciśnięty), odrysowujemy przycisk (wywołujemy niejawnie <SPAN CLASS=T>WM_PAINT</SPAN> przez <SPAN CLASS=T>InvalidateRgn</SPAN>) oraz przechwytujemy mysz (o tym zaraz). 
+
+</P><P>
+Wspomniałem o przechwytywaniu myszy. Po co to? Otóż nasz przycisk ma działać tak, jak standardowe przyciski Windows - kiedy użytkownik trzyma wciśnięty przycisk myszy nad kontrolką, a następnie kursor mu się ześlizguje poza obręb kontrolki, przycisk się "wyciska". Żeby otrzymać taki sam efekt, musimy jakoś sprawić, żeby komunikat <SPAN CLASS=T>WM_LBUTTONUP</SPAN> został wysłany kontrolce także w tym momencie, gdy kursor wyjeżdża poza jej obręb. Dlatego właśnie w <SPAN CLASS=T>WM_LBUTTONDOWN</SPAN> wywołujemy <SPAN CLASS=T>SetCapture</SPAN> - od tego momentu do kontrolki docierają WSZYSTKIE komunikaty związane z myszą, bez względu na to, gdzie jest akurat kursor. W obsłudze <SPAN CLASS=T>WM_LBUTTONUP</SPAN> "oddajemy" myszkę z powrotem systemowi dzięki <SPAN CLASS=T>ReleaseCapture</SPAN> i wszystko wraca wówczas do normy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_LBUTTONDOWN:<BR>
+{    <BR>
+&nbsp;SetWindowLong(hwnd, <SPAN CLASS=L>0<SPAN CLASS=T>, (LONG)TRUE);<BR>
+&nbsp;InvalidateRgn(hwnd, NULL, TRUE);<BR>
+&nbsp;SetCapture(hwnd);<BR>
+}<BR>
+<SPAN CLASS=K>break;<BR>
+case</SPAN> WM_LBUTTONUP:<BR>
+{<BR>
+&nbsp;SetWindowLong(hwnd, <SPAN CLASS=L>0</SPAN>, (LONG)FALSE);<BR>
+&nbsp;InvalidateRgn(hwnd, NULL, TRUE);<BR>
+&nbsp;ReleaseCapture();<BR>
+&nbsp;<SPAN CLASS=C>//Wyślij komunikat WM_COMMAND</SPAN><BR>
+&nbsp;SendMessage(GetParent(hwnd), WM_COMMAND, (WPARAM)MAKELONG((WORD)GetWindowLong(hwnd, GWL_ID), BN_CLICKED), (LPARAM)hwnd); 
+<BR><BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Obydwa komunikaty są zbudowane podobnie, ale <SPAN CLASS=T>WM_LBUTTONUP</SPAN> pełni jeszcze jedną, dodatkową funkcję - wysyła komunikat <SPAN CLASS=T>WM_COMMAND</SPAN> do okna-rodzica. Dzięki temu możemy przypisać naszemu przyciskowi jakieś zdarzenie i obsłużyć je w komunikacie <SPAN CLASS=T>WM_COMMAND</SPAN>, tak jak dla standardowego przycisku.
+</P>
+<P>
+To oczywiście jeszcze nie koniec, jeśli chodzi o mysz. Musimy przecież obsłużyć to przechwycone ześlizgnięcie się kursora z przycisku. Żeby przekonać się, czy rzeczywiście dany ruch myszą jest tym ześlizgnięciem, sprawdzamy, czy kursor znajduje się w regionie okna. Region ten należy pobrać funkcją <SPAN CLASS=T>GetWindowsRgn</SPAN>. Funkcja ta żąda jednak podania uchwytu do dowolnego, istniejącego już regionu, który następnie zostanie zastąpiony kopią regionu pobieranego (trochę zakręcone, ale trudno). Dlatego właśnie tworzymy tu sobie taki tymczasowy, kilkupikselowy region.
+</P>
+<P>
+Trzeba zwrócić uwagę na to, że współrzędne regionu są wyrażane względem okna (przycisku), natomiast współrzędne kursora, pobierane funkcją <SPAN CLASS=T>GetCursorPos</SPAN> - względem ekranu. Stąd konwersja za pomocą <SPAN CLASS=T>ScreenToClient</SPAN>. Teraz dopiero możemy sprawdzić, czy kursor jest nad kontrolką, do czego wykorzystujemy funkcję <SPAN CLASS=T>PtInRegion</SPAN>. Jeśli kursor znajdzie się poza przyciskiem, to wysyłamy komunikat <SPAN CLASS=T>WM_LBUTTONUP</SPAN> (co sprawia, że przycisk się "wyciska") Natomiast ten drugi warunek w instrukcji <SPAN CLASS=K>if</SPAN> służy do tego, żeby przycisk rysowany był tylko wtedy, gdy rzeczywiście zmienia się jego stan, co eliminuje możliwe miganie.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_MOUSEMOVE:<BR>
+{<BR>
+&nbsp;POINT cur;<BR>
+&nbsp;HRGN hRgn = CreateRectRgn(<SPAN CLASS=L>0,0,1,1</SPAN>);<BR>
+&nbsp;GetCursorPos(&cur);   <BR>
+&nbsp;ScreenToClient(hwnd, &cur);<BR>
+&nbsp;GetWindowRgn(hwnd, hRgn);<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(!PtInRegion(hRgn, cur.x, cur.y) && (BOOL)GetWindowLong(hwnd, <SPAN CLASS=L>0</SPAN>))<BR>
+&nbsp;&nbsp;SendMessage(hwnd, WM_LBUTTONUP, wParam, lParam);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pora zająć się najważniejszą częścią zadania, czyli właściwym kodem rysującym przycisk. Potrzebujemy w tym doniosłym momencie wszystkich informacji, jakie wpakowaliśmy do pamięci klasy, a więc uchwytów: do bitmapy, do maski i do kontekstu pomocniczego. Potrzebujemy też "wyciągnąć" z pamięci okna, czy przycisk jest aktualnie wciśnięty, czy też nie. Następnie pobieramy wymiary bitmapy, no i wreszcie rysujemy za pomocą <SPAN CLASS=T>BitBlt</SPAN>. 
+Dodam jeszcze, że szerokość bitmapy dzielimy przez <SPAN CLASS=L>2</SPAN>, ponieważ za każdym razem rysujemy tylko połówkę bitmapy (raz jedną, raz drugą).
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_PAINT:<BR>
+{<BR>
+&nbsp;PAINTSTRUCT ps;<BR>
+&nbsp;HDC hdc = BeginPaint(hwnd, &ps);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//wczytaj uchwyty z dodatkowej pamięci klasy</SPAN><BR> 
+&nbsp;HBITMAP hbmBmp, hbmMask;<BR>
+&nbsp;HDC hdcMem;<BR>
+&nbsp;hdcMem = (HDC)GetClassLong(hwnd, <SPAN CLASS=L>0</SPAN>);<BR>
+&nbsp;hbmBmp = (HBITMAP)GetClassLong(hwnd, <SPAN CLASS=L>4</SPAN>);<BR>
+&nbsp;hbmMask = (HBITMAP)GetClassLong(hwnd, <SPAN CLASS=L>8</SPAN>); <BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//pobierz wymiary bitmapy</SPAN><BR>
+&nbsp;BITMAP bmInfo;<BR>
+&nbsp;GetObject((HGDIOBJ)hbmBmp, <SPAN CLASS=K>sizeof</SPAN>(BITMAP), &bmInfo); <BR> 
+<BR>
+&nbsp;<SPAN CLASS=C>//sprawdź, czy przycisk jest wciśnięty</SPAN><BR>
+&nbsp;BOOL bWcisniety = (BOOL)GetWindowLong(hwnd, <SPAN CLASS=L>0</SPAN>);<BR>
+&nbsp;WORD x = (bWcisniety) ? bmInfo.bmWidth/<SPAN CLASS=L>2 : 0</SPAN>;<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//rysowanie bitmapy z maską</SPAN><BR>
+&nbsp;SelectObject(hdcMem, hbmMask);<BR>
+&nbsp;BitBlt(hdc, <SPAN CLASS=L>0, 0,</SPAN> bmInfo.bmWidth/<SPAN CLASS=L>2</SPAN>, bmInfo.bmHeight, hdcMem, x, <SPAN CLASS=L>0</SPAN>, SRCAND);<BR>
+&nbsp;SelectObject(hdcMem, hbmBmp);<BR>
+&nbsp;BitBlt(hdc, <SPAN CLASS=L>0, 0,</SPAN> bmInfo.bmWidth/<SPAN CLASS=L>2</SPAN>, bmInfo.bmHeight, hdcMem, x, <SPAN CLASS=L>0</SPAN>, SRCPAINT);<BR>
+ <BR>
+&nbsp;EndPaint(hwnd, &ps); <BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście wszystkie podane wyżej komunikaty dotyczą <SPAN CLASS=T>ControlProc</SPAN> i tam też mamy je umieścić. Pora wytestować, cośmy tutaj zmajstrowali. Użycie naszej pachnącej świeżością kontrolki polegać będzie na tym, że wywołamy sobie funkcję <SPAN CLASS=T>RejestrujPrzycisk</SPAN>, a następnie będziemy tworzyć kolejne przyciski funkcją <SPAN CLASS=T>CreateWindowEx</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>if</SPAN>(!RejestrujPrzycisk(hThisInstance))<BR>
+{<BR>
+&nbsp;MessageBox(g_hwnd, <SPAN CLASS=L>"Nie udało się zarejestrować klasy przycisku.", "Yh..."</SPAN>, MB_ICONSTOP);<BR>
+&nbsp;DestroyWindow(g_hwnd);<BR>
+}<BR>
+<BR>
+HWND hControl = CreateWindowEx(<SPAN CLASS=L>0, "BitmapowyPrzycisk"</SPAN>, NULL, 
+           WS_CHILD|WS_VISIBLE,
+           <SPAN CLASS=L>5, 5, 32, 32</SPAN>, g_hwnd,
+           (HMENU)IDC_BUTTON1, hThisInstance, NULL);<BR>
+<BR>
+<SPAN CLASS=K>if</SPAN>(hControl==NULL)<BR>
+{<BR>
+&nbsp;MessageBox(g_hwnd, <SPAN CLASS=L>"Nie udało się stworzyć przycisku.", "Yh..."</SPAN>, MB_ICONSTOP);<BR>
+&nbsp;DestroyWindow(g_hwnd);<BR>
+}<BR>
+<BR>
+HWND hControl2 = CreateWindowEx(<SPAN CLASS=L>0, "BitmapowyPrzycisk"</SPAN>, NULL, 
+          WS_CHILD|WS_VISIBLE,
+           <SPAN CLASS=L>50, 5, 32, 32</SPAN>, g_hwnd,
+           (HMENU)IDC_BUTTON2, hThisInstance, NULL);<BR>
+<BR>
+<SPAN CLASS=K>if</SPAN>(hControl2==NULL)<BR>
+{<BR>
+&nbsp;MessageBox(g_hwnd, <SPAN CLASS=L>"Nie udało się stworzyć przycisku 2.", "Yh..."</SPAN>, MB_ICONSTOP);<BR>
+&nbsp;DestroyWindow(g_hwnd);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+To wystarczy, by po uruchomieniu aplikacji ukazała nam się para pięknych (no, nie przesadzajmy może - takich sobie), okrągłych, kolorowych przycisków. Stworzyliśmy je całkiem
+ samodzielnie, nie korzystając w ogóle z klas dostarczonych razem z Windowsem. Teraz pozostaje tylko umieścić nasz kod w jakimś DLL-u i mamy gotowy komponent do swoich przyszłych aplikacji:
+</P>
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/cc2.jpg" ALT="Nasze dwa okrągłe przyciski w całej okazałości">
+<P>
+Możemy jeszcze obsłużyć sobie <SPAN CLASS=T>WM_COMMAND</SPAN> (tym razem już w procedurze głównego okna), żeby sprawdzić, czy jest on wysyłany prawidłowo:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_COMMAND:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(HIWORD(wParam)==BN_CLICKED)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>char</SPAN> buf[<SPAN CLASS=L>255</SPAN>];<BR>
+&nbsp;&nbsp;wsprintf(buf, <SPAN CLASS=L>"Wciśnięty przycisk o identyfikatorze %hu."</SPAN>, LOWORD(wParam));<BR>
+&nbsp;&nbsp;MessageBox(hwnd, buf, <SPAN CLASS=L>"Test"</SPAN>, MB_ICONINFORMATION);<BR>
+&nbsp;}<BR>
+}<BR>
+<SPAN CLASS=K>break;</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Powinno być OK :-). Oczywiście trudno jeszcze nazwać naszą kontrolkę profesjonalnie zrobioną. Brakuje jeszcze wielu rzeczy, które powinna ona posiadać, ale to już zadanie dla ciebie ;-).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apicc.html">&lt;&lt; Własne kontrolki, cz. 1</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TD>
+</TR>
+</TABLE>

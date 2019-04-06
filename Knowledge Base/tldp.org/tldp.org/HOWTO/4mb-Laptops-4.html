@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>4mb Laptop HOWTO: The Pre-installation Procedure</TITLE>
+ <LINK HREF="4mb-Laptops-5.html" REL=next>
+ <LINK HREF="4mb-Laptops-3.html" REL=previous>
+ <LINK HREF="4mb-Laptops.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="4mb-Laptops-5.html">Next</A>
+<A HREF="4mb-Laptops-3.html">Previous</A>
+<A HREF="4mb-Laptops.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. The Pre-installation Procedure</A> </H2>
+
+<P>This section covers creating a swap partition and a temporary root partition
+on the laptop's hard disk. Nothing here is Slackware-specific.
+<H2><A NAME="sec:mulinuxprep"></A> <A NAME="ss4.1">4.1 muLinux Preparation</A>
+ </H2>
+
+<P>If you are going to use only muLinux to for this procedure then you need
+to prepare a disk with mkfs.ext2 and supporting libraries on it. From the muLinux
+setup files uncompress USR.bz2 and mount it as a loop file-system. If you are
+in the same directory as the USR file and you want to mount it as /tmpusr then
+the sequence for this is:
+<P>
+<HR>
+<PRE>
+losetup /dev/loop0 USR
+mount -t ext2 /dev/loop0 /tmpusr
+ 
+</PRE>
+<HR>
+<P>>From there copy mkfs.ext2, libext2fs.so.2, libcomerr.so.2 and libuuid.so.1
+onto a floppy.
+<H2><A NAME="sec:preproot"></A> <A NAME="ss4.2">4.2 Prepare the installation root files.</A>
+ </H2>
+
+<P>Select the root disk you want - I used the color one with no problems but
+the text one would be slightly faster in these low memory conditions. Uncompress
+the image and mount it as a loop device. The procedure is the same as in the
+above section but the root disk image is a minix file-system.
+<P>Next you need 3 1722 floppies or 4 1440 floppies with ext2 file-systems
+- it's better with 1722 disks as you don't need to split the /lib directory.
+Give one floppy twice the default number of inodes so it can take the /dev
+directory. That's 432 nodes for a 1722 disk or 368 for a 1440. If you specify
+/dev/fd0H1722 or /dev/fd0H1440 then you don't have to give any other parameters
+so for a 1722 disk do
+<P>
+<HR>
+<PRE>
+mke2fs -N 432 /dev/fd0H1722
+ 
+</PRE>
+<HR>
+<P>If you have mounted the root image as /tmproot and the destination floppy
+as /floppy then cd to /tmproot. To copy the dev directory the command is
+<P>
+<HR>
+<PRE>
+cp -dpPR dev/* /floppy/
+ 
+</PRE>
+<HR>
+<P>For the other directories with files in (bin, etc, lib, mnt, sbin, usr,
+var) it's
+<P>
+<HR>
+<PRE>
+cp -dpPr directoryname/* /floppy/
+ 
+</PRE>
+<HR>
+<P>Don't bother with the empty ones (floppy, proc, root, tag, tmp) because
+you can simply create them on the laptop. boot and cdrom are soft links pointing
+to /mnt/boot and /var/log/mount respectively - you can also create them on
+the laptop.
+<H2><A NAME="ss4.3">4.3 Create the partitions.</A>
+ </H2>
+
+<H3>Mini-Linuces and ext2 file-systems - an important note. </H3>
+
+<P>To save space, small-Linux designers sometimes use older libc5 librariesand
+where they do use up-to-date libc6 they leave out may of the options compiled
+into full distributions, including some optional features of the ext2 file-system.
+This has two consequences:
+<P>
+<UL>
+<LI>Trying to mount ext2 disks formatted using a modern Linux system can generate
+error messages if you mount them read-write. Be sure to use the -r option when
+mounting floppies on the laptops.</LI>
+<LI>It is not wise to use the mkfs.ext2 that comes with the mini-Linux to create
+file-systems on the partitions into which SlackWare will be installed. It should
+only be used to create the file-system on the temporary root partition. Once
+installation is complete this partition can be reformatted and re-used.</LI>
+</UL>
+<H3>Procedure </H3>
+
+<P>If installing on an Aero, make sure the floppy drive is inserted before
+switching on and do not remove it.
+<P>
+<OL>
+<LI>Boot from the mini-Linux  
+<BLOCKQUOTE>With muLinux, wait until the boot-process complains about the small memory
+space and offers the option of dropping into a shell - take that option and
+work in the limited single-user mode it gives you.  </BLOCKQUOTE>
+
+ </LI>
+<LI>Use fdisk to create the partitions. </LI>
+<LI>Reboot on leaving fdisk (with muLinux you may simply have to turn off and
+on again at this point).</LI>
+<LI>Use mkswap on the swap partition and then activate it (this will make muLinux
+much happier).</LI>
+<LI>If using muLinux then mount the extra floppy created in 
+<A HREF="#sec:mulinuxprep">muLinux Preparation</A>, copy mkfs.ext2
+into /bin and the libraries into /lib.</LI>
+<LI>Use mkfs.ext2 to create the file-system on the temporary root partition.</LI>
+<LI>If you have been using SmallLinux, shut down and reboot using muLinux.
+Don't forget to activate the swap partition again.</LI>
+<LI>muLinux will have mounted the boot floppy on /startup - unmount it to free
+the floppy drive.</LI>
+<LI>Now mount the temporary root partition and copy onto it the contents of
+the disks you created in 
+<A HREF="#sec:preproot">Prepare the installation root files</A>. Do not be alarmed by the error messages: if, for
+example, you copy usr from the floppy to the temporary root partition by typing
+"cp -dpPr usr/* /tmproot/" then you'll get the error message "cp: sr: no such
+file or directory". Ignore this, nothing is wrong.</LI>
+<LI>cd to the temporary root partition and create the empty folders (floppy,
+proc, root, tag, tmp) and the soft links boot (pointing to mnt/boot) and cdrom
+(to var/log/mount).</LI>
+<LI>Unmount the temporary root partition - this syncs the disk.</LI>
+<LI>You can simply turn off the machine now.</LI>
+</OL>
+<HR>
+<A HREF="4mb-Laptops-5.html">Next</A>
+<A HREF="4mb-Laptops-3.html">Previous</A>
+<A HREF="4mb-Laptops.html#toc4">Contents</A>
+</BODY>
+</HTML>

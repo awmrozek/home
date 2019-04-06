@@ -1,0 +1,466 @@
+
+    _WSTÊP_
+
+*PROFILOWANIE * jest technik¹ pozwalaj¹c¹ stwierdziæ, ile czasu potrzeba
+na wykonanie poszczególnych czêœci naszego programu, a tak¿e jakie
+funkcje s¹ wywo³ywane oraz do jakich innych funkcji te wczeœniejsze siê
+odwo³uj¹. Umo¿liwia to namierzenie fragmentów programu, które nie
+dzia³aj¹ tak szybko, jak byœmy chcieli i u³atwia ich modyfikacjê. Daje
+równie¿ informacje o tym, jak czêsto poszczególne funkcje by³y
+wywo³ywane - u³atwia to wykrycie b³êdów zwi¹zanych ze zbyt rzadkim lub
+zbyt czêstym wykonaniem funkcji. Zbieranie informacji przy u¿yciu
+profilowania jest wykorzystywane w du¿ych lub z³o¿onych programach,
+których kod Ÿród³owy jest ciê¿ki do analizy.
+
+Profilowanie sk³ada siê z kilku kroków:
+
+    * Kompilacja i linkowanie z w³¹czon¹ opcj¹ profilowania
+    * Uruchomienie programu i automatyczna generacja pliku z danymi o
+      profilowaniu (domyœlnie gmon.out)
+    * Uruchomienie Gprof i analiza powy¿szego pliku 
+
+
+W efekcie dzia³ania Gprof-a na standardowym wyjœciu uzyskujemy
+informacje w poni¿szych form:
+
+    * /flat profile/// - prezentuje ile czasu wykonywa³a siê ka¿da
+      funkcja oraz ile razy dana funkcja zosta³a wywo³ana. U³atwia to
+      zlokalizowanie miejsca jej zbyt czêstego wywo³ania
+    * /call graph / - dla danej funkcji pokazuje, jprzez jak¹ inn¹
+      zosta³a wywo³ana oraz ile razy i które sama wywo³a³a. Znajduje siê
+      tam równie¿ szacunkowy czas jaki zosta³ poœwiêcony dla
+      "podfunkcji" ka¿dej funkcji.
+    * /annotated source /- to wydruk kopii kodu Ÿród³owego. Ka¿da linia
+      kodu opatrzona jest numeryczn¹ etykiet¹ okreœlaj¹c¹ ile razy
+      zosta³a wykonywana. 
+
+
+    _KOMPILACJA_
+
+
+Aby skorzystaæ z polecenia gprof nale¿y skompilowaæ program z u¿yciem
+opcji * -pg*
+*cc -pg -o program program.c *
+
+Mo¿na równie¿ dodatkowo u¿yæ opcjii *-g* u¿ywanej do debuggera. Gprof
+równie¿ z tego skorzysta umo¿liwiaj¹c profilowanie programu na poziomie
+poszczególnych linijek w funkcjach. Pozwoli to sprawdzaæ na przyk³ad jak
+czêsto program wykonuje poszczególne bloki instrukcji if lub iteracji
+pêtli.
+
+Dzieki opcjii *-a* mo¿na wygenerowaæ wydruk kodu z informacj¹, ile razy
+zosta³a wykonana ka¿da linijka kodu.
+
+
+    _URUCHAMIANIE_
+
+Uruchamiamy skompilowany program, wykona siê on normalnie z tym, ¿e
+bêdzie dzia³a³ nieco wolniej. Powodem jest zapisywanie informacji do
+pliku *"gmon.out" *. Jeœli istnieje plik o takiej nazwie zostanie on
+nadpisany.
+
+Aby dane w pliku "gmon.out" zosta³y prawid³owo zapisane program musi siê
+zakoñczyæ w sposób prawid³owy, wywo³aæ funkcjê return z bloku main lub
+wywo³aæ funkcjê *exit()*.
+
+Plik "gmon.out" jest zapisywany w ostatnim katalogu w którym "przebywa³"
+program, tj. jeœli wywo³ujemy funkcjê /chdir/ to plik zostanie
+umieszczony w ostatnim katalogu roboczym jaki wska¿e /chdir/.
+
+Nale¿y równie¿ pamiêtaæ aby uruchomiæ program z takimi danymi
+wejœciowymi aby zosta³y wykorzystane te czêœci programu które chcemy
+sprawdziæ, poniewa¿ niewykorzystane czêœci kodu pozostan¹ dla profilera
+niewidoczne.
+
+
+    _KOMENDY WYWO£ANIA_
+
+
+Po utworzeniu "gmon.out" mo¿emy uruchomiæ gprof aby zinterpretowaæ dane.
+Do tego celu s³u¿y program gprof. Sk³adnia wywo³ania programu wygl¹da
+nastêpuj¹co:
+* gprof opcje [plik-wykonywalny [pliki-z-danymi-do-profilowania...]] [>
+plikwyjsciowy] *
+
+Jeœli nie podamy pliku wykonywalnego, domyœlnie zostanie przyjête
+"a.out". Domyœln¹ nazw¹ pliku z profilem jest "gmon.out". Jeœli któryœ z
+podanych plików nie istnieje, lub plik profilu nie dotyczy podanego
+programu zostanie zg³oszony b³¹d. Plik profilu mo¿na przekierowaæ do
+pliku pisz¹æ *" > plikwyjœciowy " *
+
+Mo¿emy podaæ wiêcej plików z profilem, wtedy statystyki dotycz¹ce
+wszystkich wywo³añ zostan¹ odpowiednio zsumowane Gprof prezentuje wyniki
+w trzech trybach:
+
+    * /flat profile/ (p³aski profil>
+    * /call graph / (graf wywo³añ)
+    * /annotated source / (wydruk kodu z informacj¹ iloœci wywo³añ)
+
+
+OPCJE WYWOLANIA
+
+    * -A : w³¹cza wydruk kodu z komentarzem
+    * -J : wy³¹cza wydruk kodu z komentarzem
+    * -p : w³¹cza p³aski profil
+    * -P : wy³acza p³aski profil
+    * -q : w³acza graf wywo³añ
+    * -Q : wy³acza graf wywo³añ
+    * -b : wy³¹cza wyjaœnienia poszczególnych kolumn w wydruku wyjœciowym
+    * -l : w³¹cza profilowanie na poziomie pojedynczych linii
+    * -z : wyœwietla funkcje, które nigdy nie zosta³y wywo³ane 
+
+
+
+Domyœlnym jest w³¹czone *-p -q*. Do ka¿dej z tych opcji mo¿na dodaæ
+specyfikacjê pozwalaj¹c¹ w³¹czyæ lub wy³¹czyæ informacjê dotycz¹c¹
+konkretnego pliku lub funkcji. Przyk³adowo /-Afun/ da nam wydruk
+ograniczaj¹cy siê do wszystkich funkcji o nazwie fun wystêpuj¹cych w
+programie./ -Qfile.c / wyœwietli graf wywo³añ, ale wy³¹czy z niego
+funkcje znajduj¹ce siê w pliku file.c. /-pfile.c:fun /da nam p³aski
+profil wywo³añ funkcji o nazwie fun(), znajduj¹cej siê w pliku file.c
+
+
+    _FLAT PROFILE (Profil p³aski)_
+
+
+Each sample counts as 0.01 seconds.
+   %   cumulative   self              self     total           
+  time   seconds   seconds    calls  ms/call  ms/call  name    
+  33.34      0.02     0.02     7208     0.00     0.00  open
+  16.67      0.03     0.01      244     0.04     0.12  offtime
+  16.67      0.04     0.01        8     1.25     1.25  memccpy
+  16.67      0.05     0.01        7     1.43     1.43  write
+  16.67      0.06     0.01                             mcount
+   0.00      0.06     0.00      236     0.00     0.00  tzset
+   0.00      0.06     0.00      192     0.00     0.00  tolower
+   0.00      0.06     0.00       47     0.00     0.00  strlen
+   0.00      0.06     0.00       45     0.00     0.00  strchr
+   0.00      0.06     0.00        1     0.00    50.00  main
+   0.00      0.06     0.00        1     0.00     0.00  memcpy
+   0.00      0.06     0.00        1     0.00    10.11  print
+   0.00      0.06     0.00        1     0.00     0.00  profil
+   0.00      0.06     0.00        1     0.00    50.00  report
+
+Tu¿ przed nag³ówkami kolumn znajduje siê informacja ile czasu trwa cykl.
+W pierwszej kolejnoœci funkcje s¹ sortowane wed³ug malej¹cego czasu
+wykonania, nastêpnie malej¹cej liczby wywo³añ, a potem nazw. Funkcje
+mcount i profil, które siê pojawi³y s¹ czêœci¹ profilowania i pojawiaj¹
+siê w ka¿dym /flat profile/, ich czasy okreœlaj¹ dok³adnoœæ szacowania
+profilowania.
+
+    * *% time* - okreœla procentowo czas jaki zajê³o wykonanie tej
+      funkcji w stosunku do czasu wykonania programu.
+    * *cumulative seconds *- podaje czas wykonania danej funkcji
+      zsumowany z czasami funkcji w liniach powy¿ej
+    * *self seconds * - podaje czas wykonania tylko dla danej funkcji.
+    * *calls* - podaje ³¹czn¹ iloœæ wywo³añ funkcji. Jeœli funkcja nigdy
+      nie zosta³a wywo³ana lub iloœæ wywo³añ nie mo¿e zostaæ okreœlona
+      (np. funkcja nie zosta³a skompilowana z w³¹czonym profilowaniem)
+      the calls field jest puste.
+    * *self ms/call *- okreœla przeciêtn¹ iloœæ milisekund wykonania
+      funkcji przypadaj¹c¹ na pojedyncze wywo³anie (jeœli funkcja nie
+      zosta³a skompilowana z w³¹czonym profilowaniem pole bêdzie puste).
+    * *total ms/call *- okreœla przeciêtn¹ iloœæ milisekund wykonania
+      funkcji oraz ich potomków przypadaj¹c¹ na pojedyncze wywo³anie
+      (jeœli funkcja nie zosta³a skompilowana z w³¹czonym profilowaniem
+      pole bêdzie puste).
+    * *name* - nazwa funkcji.
+
+
+          _ Call Graph (Graf wykonañ) _
+
+
+      granularity: each sample hit covers 2 byte(s) for 20.00% of 0.05 seconds
+
+      index % time    self  children    called     name
+                                                       
+      [1]    100.0    0.00    0.05                 start [1]
+                      0.00    0.05       1/1           main [2]
+                      0.00    0.00       1/2           on_exit [28]
+                      0.00    0.00       1/1           exit [59]
+      -----------------------------------------------
+                      0.00    0.05       1/1           start [1]
+      [2]    100.0    0.00    0.05       1         main [2]
+                      0.00    0.05       1/1           report [3]
+      -----------------------------------------------
+                      0.00    0.05       1/1           main [2]
+      [3]    100.0    0.00    0.05       1         report [3]
+                      0.00    0.03       8/8           timelocal [6]
+                      0.00    0.01       1/1           print [9]
+                      0.00    0.01       9/9           fgets [12]
+                      0.00    0.00      12/34          strncmp  [40]
+                      0.00    0.00       8/8           lookup [20]
+                      0.00    0.00       1/1           fopen [21]
+                      0.00    0.00       8/8           chewtime [24]
+                      0.00    0.00       8/16          skipspace [44]
+      -----------------------------------------------
+
+      Linie z samych myœlników dziel¹ tabelê na wpisy odpowiadaj¹ce
+      pojedynczym funkcjom. Ka¿dy wpis zawiera jedn¹ linijkê g³ówn¹. To
+      ta, która rozpoczyna siê numerem porz¹dkowym w nawiasach
+      kwadratowych. Koniec linii g³ównej mówi jakiej funkcji odpowiada
+      dany wpis. Linie poprzedzaj¹ce liniê g³ówn¹ opisuj¹ funkcje
+      wywo³uj¹ce ("rodziców"), natomiast linie nastêpuj¹ce po linii
+      g³ównej opisuj¹ funkcje wywo³ywane ("potomków"). Wpisy
+      uporz¹dkowane od najbardziej do najmniej czasoch³onnego. Bierze
+      siê tu pod uwagê czas wykonania samej funkcji, jak i wszystkich
+      jej potomków. Warto wspomnieæ, ¿e wewnêtrzna funkcja profiluj¹ca
+      *mcount* nigdy nie pojawia siê w grafie wywo³añ.
+
+      Znaczenie poszczególnych kolumn:
+          o *index* - pozycje numerowane s¹ kolejnymi liczbami. Ka¿da
+            funkcja ma swój nr indeksowy, który pojawia siê na pocz¹tku
+            ka¿dej jej primary line. Indeks traktowany jest na równi z
+            nazw¹ funkcji. S³u¿y jako odnoœnik, pozwalaj¹cy ³atwiej
+            znaleŸæ wpisy dotycz¹cy interesuj¹cej nas funkcji.
+          o * % time* - to procentowa iloœæ czasu u¿yta do realizacji
+            funkcji, wraz z czasem wywo³anych potomków. Czas ten jest
+            liczony osobno dla funkcji wywo³uj¹cych i wywo³ywanych, wiêc
+            nie sumuje siê do 100%.
+          o *self *- ca³kowity czasu u¿yty do realizacji funkcji.
+            Wielkoœæ ta jest identyczna z wartoœci¹ z flat profile.
+          o * children *- ca³kowity szacunkowy czas u¿yty do realizacji
+            funkcji potomnych wywo³anych przez funkcjê. Wielkoœæ ta
+            powinna siê równaæ sumie wszystkich pozycji w³asnych i
+            potomnych dzieci danej funkcji.
+          o * called *- liczba wszystkich wywo³añ funkcji. Jeœli funkcja
+            wywo³uje sam¹ siebie rekurencyjnie w polu tym znajduj¹ siê
+            dwie liczby oddzielone "+". Pierwsza liczba to wywo³ania nie
+            rekurencyjne a druga rekurencyjne.
+          o * name* - zawiera nazwê funkcji po której znajduje siê
+            indeks. Jeœli funkcja jest czêœci¹ cyklu rekurencji, nr
+            cyklu jest umieszczany pomiêdzy nazw¹ funkcji a indeksem. 
+
+
+      *Funkcje rekursywne:*
+
+      Jeœli funkcja a() wywo³uje funkcjê b() i jednoczeœnie funkcja b()
+      wywo³uje funkcjê a() to funkcje a() i b() tworz¹ cykl
+      rekurencyjny. Cykl ten rodzi problem jak liczyæ czas dzia³ania
+      potomków funkcji a(), gdy jednym z tych potomków jest sama funkcja
+      a().
+
+      gprof znajduje takie cykle i nadaje im numery. W miejscach, gdzie
+      funkcja wywo³uje lub jest wywo³ywana przez inn¹ funkcjê nale¿¹c¹
+      do tego samego cyklu takie wywo³ania nie licz¹ siê przy wyliczaniu
+      wartoœci w polach children i self. Wtedy w grafie wywo³añ pojawia
+      siê dla ka¿dego cyklu osobny wpis. Pokazuje on czas spêdzony we
+      wszystkich funkcjach cyklu. "Rodzicami" cyklu s¹ wszystkie funkcje
+      spoza cyklu, które wywo³a³y jakieœ funkcje nale¿¹ce do cyklu.
+      "Potomkami" s¹ wszystkie funkcje tworz¹ce cykl i funkcje
+      bezpoœrednio przez nie wywo³ywane. Taki wpis wprowadza kolejne
+      znaczenia dla znanych ju¿ kolumn wydruku. Przyk³adowo mo¿e
+      wygl¹daæ tak:
+
+      Przyk³ad prezentuje /call graph /dla cyklu z³o¿onego z funkcji a i
+      b. Cykl zapocz¹tkowany zosta³ wywo³aniem a z funkcji main (ponadto
+      a i b wo³aj¹ funkcjê c).
+
+      index  % time    self  children called     name
+                                                   
+      [1]    100.00       0     1.93    0      start [1]
+                       0.16     1.77    1/1        main [2]
+      ----------------------------------------
+                       0.16     1.77    1/1        start [1]
+      [2]    100.00    0.16     1.77    1      main [2]
+                       1.77        0    1/1        a  [5]
+      ----------------------------------------
+                       1.77        0    1/1        main [2]
+      [3]     91.71    1.77        0    1+5     [3]
+                       1.02        0    3          b  [4]
+                       0.75        0    2          a  [5]
+                          0        0    6/6        c [6]
+      ----------------------------------------
+                                        3          a  [5]
+      [4]     52.85    1.02        0    0      b  [4]
+                                        2          a  [5]
+                          0        0    3/6        c [6]
+      ----------------------------------------
+                       1.77        0    1/1        main [2]
+                                        2          b  [4]
+      [5]     38.86    0.75        0    1      a  [5]
+                                        3          b  [4]
+                          0        0    3/6        c [6]
+      ----------------------------------------
+                          0        0    3/6        b  [4]
+                          0        0    3/6        a  [5]
+      [6]      0.00       0        0    6      c [6]
+      ----------------------------------------
+
+
+          _ Profilowanie Line-by-line (Graf wykonañ) _
+
+      Line-by-line jest najbardziej szczegó³ow¹ informacj¹, jak¹ potrafi
+      udzieliæ gprof. Mo¿na na przyk³ad wykryæ, ¿e w pojedynczej funkcji
+      pewne linijki kodu pomimo naszych oczekiwañ nie wykonuj¹ siê
+      wcale, podczas gdy inne wykonuj¹ siê zdecydowanie zbyt czêsto.
+
+      Aby uruchomiæ profilowanie linia po linii nale¿y uruchomiæ gprof z
+      opcj¹ *-l*. Tryb ten powoduje wydruk nie zwi¹zany z funkcjami, ale
+      z ka¿d¹ lini¹ kodu Ÿród³owego. Aby z tego skorzystaæ nale¿y
+      skompilowaæ program z dodatkow¹ opcj¹ -g, aby gprof korzysta³ z
+      informacji debuggera.
+      Po wykonaniu powy¿szych czynnoœci, zostanie odpowiednio zmieniony
+      wygl¹d p³askiego profilu i grafu wywo³añ.
+
+      *Flat profile:*
+
+      Each sample counts as 0.01 seconds.
+        %   cumulative   self                    
+       time   seconds   seconds    calls  name    
+        7.69      0.10     0.01           ct_init (trees.c:349)
+        7.69      0.11     0.01           ct_init (trees.c:351)
+        7.69      0.12     0.01           ct_init (trees.c:382)
+        7.69      0.13     0.01           ct_init (trees.c:385)
+
+      Linijka dotycz¹ca funkcji ct_init zosta³a rozbita na cztery, gdy¿
+      funkcja ct_init jest wywo³ywana z czterech miejsc. Mo¿emy wiêc
+      stwierdziæ która linijka kodu odpowiada za najbardziej
+      czasoch³onne wykorzystanie funkcji ct_init.
+
+      *Call Graph:*
+
+      % time    self  children    called     name
+
+                  0.00    0.00       1/13496       name_too_long (gzip.c:1440)
+                  0.00    0.00       1/13496       deflate (deflate.c:763)
+                  0.00    0.00       1/13496       ct_init (trees.c:396)
+                  0.00    0.00       2/13496       deflate (deflate.c:727)
+                  0.00    0.00       4/13496       deflate (deflate.c:686)
+                  0.00    0.00       5/13496       deflate (deflate.c:675)
+                  0.00    0.00      12/13496       deflate (deflate.c:679)
+                  0.00    0.00      16/13496       deflate (deflate.c:730)
+                  0.00    0.00     128/13496       deflate_fast (deflate.c:654)
+                  0.00    0.00    3071/13496       ct_init (trees.c:384)
+                  0.00    0.00    3730/13496       ct_init (trees.c:385)
+                  0.00    0.00    6525/13496       ct_init (trees.c:387)
+      [6]  0.0    0.00    0.00   13496         init_block (trees.c:408)
+
+      Mamy tutaj fragment wpisu dotycz¹cego funkcji init_block
+      obejmuj¹cy wszystkich jej "rodziców". Mo¿na odczytaæ gdzie
+      dok³adnie init_block by³a wywo³ywana.
+
+
+          _Annotated Source Listing:_
+
+      Dziêki opcji -A, mamy mo¿liwoœæ stwierdziæ ile razy wykona³a siê
+      ka¿da pojedyncza linijka kodu (zazwyczaj niezbêdne jest wbudowanie
+      tej funkcjonalnoœci w sam program podczas kompilacji, by gprof
+      móg³ z niej skorzystaæ. S³u¿y do tego opcja gcc -a)
+
+      Aby uruchomiæ profilowanie z komentarzem nale¿y uruchomiæ gprof z
+      opcjê -A. Aby z tego skorzystaæ nale¿y wpierw skompilowaæ program
+      w nastêpuj¹cy sposób:* gcc ... -g -pg -a *.
+
+      * Wydruk normalny:*
+
+       1 ulg updcrc(s, n)
+       2     uch *s;
+       3     unsigned n;
+       4 {
+       5     register ulg c;
+       6
+       7     static ulg crc = (ulg)0xffffffffL;
+       8
+       9     if (s == NULL) {
+      10         c = 0xffffffffL;
+      11     } else {
+      12         c = crc;
+      13         if (n) do {
+      14             c = crc_32_tab[...];
+      15         } while (--n);
+      16     }
+      17     crc = c;
+      18     return c ^ 0xffffffffL;
+      19 }
+
+      gprof -l -A da w efekcie:
+
+      ulg updcrc(s, n)
+                          uch *s;
+                          unsigned n;
+                  2 ->{
+                          register ulg c;
+                      
+                          static ulg crc = (ulg)0xffffffffL;
+                      
+                  2 ->    if (s == NULL) {
+                  1 ->	c = 0xffffffffL;
+                  1 ->    } else {
+                  1 ->	c = crc;
+                  1 ->        if (n) do {
+              26312 ->            c = crc_32_tab[...];
+      26312,1,26311 ->        } while (--n);       //(*)
+                          }
+                  2 ->    crc = c;
+                  2 ->    return c ^ 0xffffffffL;
+                  2 ->}
+
+      Funkcja w tym przyk³adzie zosta³a wywo³ana dwa razy ale tylko raz
+      zosta³ spe³niony warunek if. Cia³o pêtli zosta³o wykonane 26312
+      razy, raz pêtla zosta³a przerwana, a 26311 razy nast¹pi³ powrót do
+      pocz¹tku pêtli, co ³atwo odczytaæ z nastêpuj¹cej linii :
+      (*) 26312,1,26311 -> } while (--n);
+
+
+          _ STRACE _
+
+      strace jest programem s³u¿¹cym do œledzenia jakie funkcje
+      systemowe wywo³uje dany program. Ka¿de przechwycone wywo³anie jest
+      wyœwietlane na standardowym wyjœciu lub w pliku podanym po opcji.
+
+      *strace [opcje] komenda [argumenty]*
+      *Podstawowe opcje:*
+          o *-o *- specyfikuje plik, w którym maj¹ byæ zapisywane wyniki
+            pracy programu.
+          o *-f* - w³¹cza œledzenie procesów potomnych, powsta³ych przez
+            u¿ycie systemowej funkcji fork().
+          o *-F* - w³¹cza œledzenie procesów potomnych, powsta³ych przez
+            u¿ycie systemowej funkcji vfork().
+          o *-h* - wyœwietla podsumowanie pomocy.
+          o *-p[pid]* - pozwala siê podwiesiæ do ju¿ istniej¹cych procesów.
+          o *-c* - wyœwietla informacje przydatne w analizie wydajnoœci.
+            Zlicza czas, wywo³ania i b³êdy dla ka¿dego wywo³ania
+            systemowego i wyœwietla na koñcu raport.
+          o *-e* - u¿ywamy, gdy chcemy zawêziæ œledzenie wszystkich
+            wywo³añ systemowych. Po niej nastêpuje wyra¿enie postaci:
+            *[kwalifikator=][!]war1[,war2,...]*
+            Domyslnym kwalifikatorem jest /trace/. Mozna po nim
+            specyfikowac nazwy wywolan systemowych (np. /trace=open/
+            pokaze tylko wywolania funkcji /open()/, natomiast
+            /trace=!read /pokaze wszystie wywolania oprócz funkcji
+            /read()/. 
+      Ka¿da linia odpowiada jednemu wywo³aniu systemowemu. Przy ka¿dym
+      wywo³aniu wyœwietlana jest jego nazwa, argumenty (lub ich skrót)
+      oraz wartoœæ zwraca. Przyk³adowe œledzenie komendy strace /cat
+      /dev/null/ prowadzi do linijki podanej poni¿ej:
+
+      open("/dev/null", O_RDONLY|O_LARGEFILE) = 3
+
+      Jeœli wyst¹pi³ b³¹d w linijce zostanie wyœwietlony odpowiedni
+      komunikat, tj. wartoœæ -1 z dopisywanym errno i napisem b³êdu.
+      Kolejnym przyk³adem mo¿e byæ u¿ycie polecenia *strace hostname*
+
+      Znowu wyœwietli siê spora iloœæ informacji. W pierwszej linii
+      znajduje siê wywo³anie /execve/, które uruchamia program hostname:
+
+      execve("/bin/hostname", ["hostname"], [/* 79 vars */]) = 0
+
+
+      Pierwszy argument stanowi nazwê programu, drugi to lista
+      argumentów sk³adaj¹ca siê tylko z jednego elementu, trzeci to
+      lista œrodowiskowa, któr¹ strace pomija dla czytelnoœci. Na koñcu
+      tej listy znajduj¹ siê wywo³ania systemowe które u³atwiaj¹ pracê
+      programu. Tu pojawia siê wywo³anie polecenia /uname/, które jest
+      Ÿród³em nazwy komputera:
+
+      uname({sys="Linux", node="myhostname", ...)) = O
+
+      Na koñcu wywo³anie systemowe write wypisuje dane:
+
+      write (l, "myhostname\n", 11) = 11
+
+
+      Pierwszy argument "l" oznacza deskryptor odpowiadaj¹cy wyjœciu
+      standardowemu. Trzecim argumentem jest liczba znaków do wypisania,
+      a wartoœæ zwracana oznacza liczbê naprawdê wypisanych znaków. 

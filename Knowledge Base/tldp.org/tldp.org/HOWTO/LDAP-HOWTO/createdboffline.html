@@ -1,0 +1,409 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Creating a Database offline</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="LDAP Linux HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Database Creation and Maintenance"
+HREF="dbcreation.html"><LINK
+REL="PREVIOUS"
+TITLE="Creating a Database online"
+HREF="dbonline.html"><LINK
+REL="NEXT"
+TITLE="More on the LDIF Format"
+HREF="moreonldif.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>LDAP Linux HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="dbonline.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 5. Database Creation and Maintenance</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="moreonldif.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="CreateDBOffline"
+></A
+>5.2. Creating a Database offline</H1
+><P
+>The second method of database creation is to do it off-line, using the slapd
+database tools described below. This method is best if you have many 
+thousands of entries to create, which would take an unacceptably long time 
+using the LDAP method described above. These tools read the slapd configuration
+file and an input LDIF file containing a text representation of the entries to 
+add. For database types which support the tools, they produce the database files 
+directly (otherwise you must use the on-line method above). There are several important 
+configuration options you will want to be sure and set in the config file 
+database definition first: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>suffix &#60;dn&#62; </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>As described in the preceding section, this option says which entries are to be 
+held by this database. You should set this to the DN of the root of the subtree
+ you are trying to create. For example:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>suffix "o=TUDelft, c=NL" </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You should be sure to specify a directory where the index files should be 
+created: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>directory /usr/local/tudelft </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Finally, you need to specify which indexes you want to build. This is done by 
+one or more index options. </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>index {&#60;attrlist&#62; | default } [pres,eq,approx,sub,none]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>For example:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;index cn,sn,uid pres,eq,sub
+index objectClass eq
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This would create presence, equality and substring indexes for the cn, sn, and uid 
+attributes and an equality index for the objectClass attribute. See the configuration file section 
+for more information on this option.</P
+><P
+>Once you've configured things to your liking, you create the primary database 
+and associated indexes by running the slapadd(8) program:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>slapadd -l &#60;inputfile&#62; -f &#60;slapdconfigfile&#62; [-d &#60;debuglevel&#62;]
+ [-n &#60;integer&#62;|-b &#60;suffix&#62;]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The arguments have the following meanings:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>-l &#60;inputfile&#62;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Specifies the LDIF input file containing the entries to add in text form (Take 
+a look on the next section).</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>-f &#60;slapdconfigfile&#62;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Specifies the slapd configuration file that tells where to create the indexes, 
+what indexes to create, etc.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>-d &#60;debuglevel&#62;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Turn on debugging, as specified by &#60;debuglevel&#62;. The debug levels are the
+ same as for slapd. See the <A
+HREF="commandoptions.html"
+>Section 4.1</A
+> for more details.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>-n &#60;databasenumber&#62;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>An optional argument that specifies which database to modify. The first 
+database listed in the configuration file is 1, the second 2, etc. By default, 
+the first database in the configuration file is used. Should not be used 
+in conjunction with -b.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>-b &#60;suffix&#62;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>An optional argument that specifies which database to modify. The provided 
+suffix is matched against a database suffix directive to determine the database
+ number. Should not be used in conjunction with -n.</P
+><P
+>Sometimes it may be necessary to regenerate indices (such as after modifying 
+slapd.conf(5)). This is possible using the slapindex(8) program. slapindex is 
+invoked like this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>slapindex -f &#60;slapdconfigfile&#62; [-d &#60;debuglevel&#62;] [-n &#60;databasenumber&#62;|-b &#60;suffix&#62;]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Where the -f, -d, -n and -b options are the same as for the slapadd(1) program.
+slapindex rebuilds all indices based upon the current database contents.</P
+><P
+>The slapcat program is used to dump the database to an LDIF file. This can be 
+useful when you want to make a human-readable backup of your database or when you 
+want to edit your database off-line. The program is invoked like this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>slapcat -l &#60;filename&#62; -f &#60;slapdconfigfile&#62; [-d &#60;debuglevel&#62;] [-n &#60;databasenumber&#62;|-b &#60;suffix&#62;]</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>where -n or -b is used to select the database in the slapd.conf(5) specified 
+using -f. The corresponding LDIF output is written to standard output or to the
+ file specified using the -l option.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="dbonline.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="moreonldif.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Creating a Database online</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="dbcreation.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>More on the LDIF Format</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

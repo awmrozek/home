@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>RTLinux HOWTO: Inter-Process Communication</TITLE>
+ <LINK HREF="RTLinux-HOWTO-7.html" REL=next>
+ <LINK HREF="RTLinux-HOWTO-5.html" REL=previous>
+ <LINK HREF="RTLinux-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="RTLinux-HOWTO-7.html">Next</A>
+<A HREF="RTLinux-HOWTO-5.html">Previous</A>
+<A HREF="RTLinux-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Inter-Process Communication</A></H2>
+
+<P>The example program that we have seen above is what is known as a realtime process.
+Not every part of a application program need be written in realtime. It is found 
+that only that part of a program which requires precise time restrictions should 
+be written as a realtime process. Others can be written and executed in user space.
+User spaces processes are often easier to write, execute and debug than realtime 
+threads. But then, there should be a way to communicate between user space Linux
+processes and realtime thread.
+<P>
+<P>There are several ways for inter-process communication. We will discuss the 
+most important and common way of communication - the realtime FIFO.
+<P>
+<H2><A NAME="ss6.1">6.1 Realtime FIFO</A>
+</H2>
+
+<P>Realtime FIFOs are unidirectional queues (First In First Out). So at one end a
+process writes data into the FIFO, and from the other end of the FIFO, 
+information is read by another process. Usually, one of these processes is 
+the realtime thread and the other is a user space process. 
+<P>
+<P>The Realtime FIFOs are actually character devices (/dev/rtf*) with a major
+number of 150. Realtime threads uses integers to refer to each FIFO (for 
+example - 2 for /dev/rtf2). There is a limit to the number of FIFOs. There 
+are functions such as rtf_create(), rtf_destroy(), rtf_get(), rtf_put() 
+etc for handling the FIFOs.
+<P>On the other hand, the Linux user process sees the realtime FIFOs as normal
+character devices. Therefore the functions such as open(), close(), read() and
+write() can be used on these devices. 
+<P>
+<H2><A NAME="ss6.2">6.2 Application Using FIFO</A>
+</H2>
+
+<P>First, let us consider a simple C program (filename pcaudio.c) to play music 
+(of just two tones) through the PC speaker. For the time being, let us assume 
+that for playing the note, we need only write to the character device /dev/rtf3. 
+(Later, we will see a realtime time process that reads from this FIFO (/dev/rtf3) 
+and sends to the PC speaker)
+<P>
+<P>
+<PRE>
+#include &lt;sys/types.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;unistd.h&gt;
+
+#define DELAY 30000
+
+void make_tone1(int fd)
+{
+        static char buf = 0;
+        write (fd, &amp;buf, 1);
+}
+
+void make_tone2(int fd)
+{
+        static char buf = 0xff;
+        write (fd, &amp;buf, 1);
+}
+
+main()
+{
+        int i, fd = open ("/dev/rtf3", O_WRONLY);
+        while (1)
+        {
+                for (i=0;i&lt;DELAY;i++);
+                make_tone1(fd);
+                for (i=0;i&lt;DELAY;i++);
+                make_tone2(fd);
+        }
+}
+</PRE>
+<P>Now, if the above shown program (pcaudio.c) is compiled and run, it should create 
+regular sound patters corresponding to a square wave. 
+But before that we need a module for reading from '/dev/rtf3' and sending the 
+corresponding data to the PC speaker. This realtime program can be found 
+at the rtlinux source tree (/usr/src/rtlinux/examples/sound/) . Insert the module 
+sound.o using the command 'insmod'. 
+<P>Since we have inserted a module for reading from the device, we can now execute
+our program (compile using 'gcc' and then execute the corresponding 'a.out'. 
+So the process produces somewhat regular 
+tones, when there is no other (time consuming) process in the system. But,
+when the X server is started in another console, there comes more prolonged
+silence in the tone. Finally, when a 'find' command (for a file in /usr
+directory) is executed, the sound pattern is completely distorted. The 
+reason behind this is that, we are writing the data onto the FIFO in 
+non-realtime.
+<P>
+<P>We will, now, see how to run this process in realtime, so that the sound 
+is produced without any kind of 
+disturbance. First, we will convert the above program into a realtime program.
+(Filename rtaudio.c)
+<PRE>
+#include &lt;rtl.h>
+#include &lt;pthread.h&gt;
+#include &lt;rtl_fifo.h&gt;
+#include &lt;time.h&gt;
+
+#define FIFO_NO 3
+#define DELAY 30000
+pthread_t thread;
+
+void * sound_thread(int fd)
+{
+        int i;
+        static char buf = 0;
+        while (1)
+        {
+                for(i=0; i&lt;DELAY; i++);
+                buf = 0xff;
+                rtf_put(FIFO_NO, &amp;buf, 1);
+
+                for(i=0;i&lt;DELAY;i++);
+                buf = 0x0;
+                rtf_put(FIFO_NO, &amp;buf, 1);
+        }
+        return 0;
+}
+
+int init_module(void)
+{
+        return pthread_create(&amp;thread, NULL, sound_thread, NULL);
+}
+
+void cleanup_module(void)
+{
+        pthread_delete_np(thread);
+}
+</PRE>
+<P>
+<P>
+<P>If not already done, 'plug in' the module sound.o into the kernel. Compile
+the above program by writing a Makefile for it (as said earlier), 
+thus producing the module 'rtaudio.o'. 
+Before inserting this module, one more thing. Note that the
+above program runs into infinite loop. Since, we have not included code
+for the thread to sleep or stop, the thread will not cease its execution. In short,
+your PC speaker will go on producing the tone, and you will have to restart
+your computer for doing anything else.
+<P>
+<P>  
+So, let us change the code a little bit (only in the function sound_thread()) 
+by asking the thread itself to make the delay between tones.
+<P>
+<PRE>
+void * sound_thread(int fd)
+{
+        static char buf = 0;
+        pthread_make_periodic_np (pthread_self(), gethrtime(), 500000000);
+
+        while (1)
+        {
+                pthread_wait_np();
+                buf = (int)buf^0xff;
+                rtf_put(FIFO_NO, &amp;buf, 1);
+        }
+        return 0;
+
+}
+</PRE>
+<P>This time we can stop the process by just removing the module by using 
+the 'rmmod' command.
+<P>
+<P>Here, we have seen how realtime FIFOs can be used for inter-process 
+communication. Also the real need for RTLinux can be understood from the
+above example.
+<P>
+<HR>
+<A HREF="RTLinux-HOWTO-7.html">Next</A>
+<A HREF="RTLinux-HOWTO-5.html">Previous</A>
+<A HREF="RTLinux-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

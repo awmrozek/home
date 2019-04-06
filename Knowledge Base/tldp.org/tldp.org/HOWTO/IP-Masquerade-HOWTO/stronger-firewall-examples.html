@@ -1,0 +1,1724 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Stronger firewall rulesets to run after initial testing</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Other IP Masquerade Issues and Software Support "
+HREF="ipmasq-support-portfw-and-stronger-rulesets.html"><LINK
+REL="PREVIOUS"
+TITLE="Supported Client Software and Other Setup Notes"
+HREF="supported-client-software.html"><LINK
+REL="NEXT"
+TITLE="IP Masquerading multiple internal networks"
+HREF="multiple-masqed-lans.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="supported-client-software.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 6. Other IP Masquerade Issues and Software Support</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="multiple-masqed-lans.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="STRONGER-FIREWALL-EXAMPLES"
+></A
+>6.4. Stronger firewall rulesets to run after initial testing</H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RC.FIREWALL-IPTABLES-STRONGER"
+></A
+>6.4.1. Stronger IP Firewall (IPTABLES) rulesets</H2
+><P
+>&#60;rc.firewall-iptables-stronger START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# rc.firewall-iptables-stronger
+#
+FWVER=0.88s
+
+#          An example of a stronger IPTABLES firewall with IP Masquerade 
+#          support for 2.4.x kernels.  
+#
+# Log:
+#
+#   0.88s - Updated the commands for dynamically addresses machines and
+#           to point to an expanded FAQ section for more information
+#
+#   0.87s - Removed the unused drop-and-logit chain as it was only later
+#           being deleted anyway
+#   0.86s - Fixed a typo that had a preceeding ; instead of a #
+#   0.85s - renamed from rc.firewall-2.4-stronger to rc.firewall-iptables-
+#           stronger to reflect this script works for all IPTABLES enabled
+#           platforms including 2.6.x kernels
+#         - fixed an incorrect /24 netmask for the INTIP variable
+#         - removed the unneeded SED variable
+#   0.84s - Changed the defaults from 192.168.1.0 to 192.168.0.x to align
+#           with the rest of the IPMASQ howto
+#   0.83s - Added additional comments to make PORTFW configs more obvious
+#   0.82s - Added a special ICMP filter to work around a Netfilter security
+#           issue
+#         - renamed the drop-and-log-it rule to reject-and-log-it
+#   0.81s - Added an additional comment in the INPUT section for NOT 
+#           allowing all traffic in, but only select traffic
+#   0.80s - Added a DISABLED ip_nat_irc kernel module section, changed the
+#           default of the ip_conntrack_irc to NOT load by default, and 
+#           added additional kernel module comments
+#   0.79s - ruleset now uses modprobe instead of insmod
+#   0.78s - REJECT is not a legal policy yet; back to DROP
+#   0.77s - Changed the default block behavior to REJECT not DROP
+#   0.76s - Added a comment about the OPTIONAL WWW ruleset and a comment
+#           where to put optional PORTFW commands
+#   0.75s - Added clarification that PPPoE users need to use
+#           "ppp0" instead of "eth0" for their external interface
+#   0.74s - Changed the EXTIP command to work on NON-English distros
+#   0.73s - Added comments in the output section that DHCPd is optional
+#           and changed the default settings to disabled
+#   0.72s - Changed the filter from the INTNET to the INTIP to be
+#           stateful; moved the command VARs to the top and made the
+#           rest of the script to use them
+#   0.70s - Added a disabled examples for allowing internal DHCP  
+#           and external WWW access to the server
+#   0.63s - Added support for the IRC module
+#   0.62s - Initial version based upon the basic 2.4.x rc.firewall
+
+
+echo -e "\nLoading rc.firewall-iptables-STRONGER - version $FWVER..\n"
+
+
+# The location of various iptables and other shell programs
+#
+#   If your Linux distribution came with a copy of iptables, most
+#   likely it is located in /sbin.  If you manually compiled 
+#   iptables, the default location is in /usr/local/sbin
+#
+# ** Please use the "whereis iptables" command to figure out 
+# ** where your copy is and change the path below to reflect 
+# ** your setup
+#
+#IPTABLES=/sbin/iptables
+IPTABLES=/usr/local/sbin/iptables
+#
+LSMOD=/sbin/lsmod
+DEPMOD=/sbin/depmod
+MODPROBE=/sbin/modprobe
+GREP=/bin/grep
+AWK=/bin/awk
+IFCONFIG=/sbin/ifconfig
+
+
+#Setting the EXTERNAL and INTERNAL interfaces for the network
+#
+#  Each IP Masquerade network needs to have at least one
+#  external and one internal network.  The external network
+#  is where the natting will occur and the internal network
+#  should preferably be addressed with a RFC1918 private address
+#  scheme.
+#
+#  For this example, "eth0" is external and "eth1" is internal"
+#
+#  NOTE:  If this doesnt EXACTLY fit your configuration, you must 
+#         change the EXTIF or INTIF variables above. For example: 
+#
+#            If you are a PPPoE or analog modem user:
+#
+#               EXTIF="ppp0" 
+#
+EXTIF="eth0"
+INTIF="eth1"
+echo "  External Interface:  $EXTIF"
+echo "  Internal Interface:  $INTIF"
+echo "  ---"
+
+# Specify your Static IP address here or let the script take care of it 
+# for you.
+#
+#   If you prefer to use STATIC addresses in your firewalls, un-# out the
+#   static example below and # out the dynamic line.  If you don't care,
+#   just leave this section alone.
+#
+#   If you have a DYNAMIC IP address, the ruleset already takes care of
+#   this for you.  Please note that the different single and double quote 
+#   characters and the script MATTER.
+#
+#
+#   PPP and DHCP (Cablemodem and DSL ) users:
+#   -----------------------------------------
+#   PPP: If you get your TCP/IP address via DHCP, **you will need ** to 
+#   enable the #   #ed out command below underneath the PPP section AND 
+#   replace the word "eth0" with the name of your EXTERNAL Internet 
+#   connection (ppp0, ippp0, etc) on the lines for "ppp-ip" and "extip".  
+#
+#   DHCP and PPP users:  The remote DHCP or PPP server can and will change 
+#   IP addresses on you over time.  To deal with this, users should configure 
+#   their DHCP or PPP client to re-run the rc.firewall-* ruleset everytime 
+#   the IP address is changed.  Please see the "masq-and-dyn-addr" FAQ entry 
+#   in the IPMASQ howto for full details on how to do this.
+#
+#
+# Determine the external IP automatically:
+# ----------------------------------------
+#
+#  The following line will determine your external IP address.  This
+#  line is somewhat complex and confusing but it will also work for
+#  all NON-English Linux distributions:
+#
+EXTIP="`$IFCONFIG $EXTIF | $AWK \
+ /$EXTIF/'{next}//{split($0,a,":");split(a[2],a," ");print a[1];exit}'`"
+
+
+# For users who wish to use STATIC IP addresses:
+#
+#  # out the EXTIP line above and un-# out the EXTIP line below
+#
+#EXTIP="your.static.PPP.address"
+echo "  External IP: $EXTIP"
+echo "  ---"
+
+
+# Assign the internal TCP/IP network and IP address
+INTNET="192.168.0.0/24"
+INTIP="192.168.0.1/32"
+echo "  Internal Network: $INTNET"
+echo "  Internal IP:      $INTIP"
+echo "  ---"
+
+
+
+
+# Setting a few other local variables
+#
+UNIVERSE="0.0.0.0/0"
+
+#======================================================================
+#== No editing beyond this line is required for initial MASQ testing ==
+
+# Need to verify that all modules have all required dependencies
+#
+echo "  - Verifying that all kernel modules are ok"
+$DEPMOD -a
+
+echo -en "    Loading kernel modules: "
+
+# With the new IPTABLES code, the core MASQ functionality is now either
+# modular or compiled into the kernel.  This HOWTO shows ALL IPTABLES
+# options as MODULES.  If your kernel is compiled correctly, there is
+# NO need to load the kernel modules manually.  
+#
+#  NOTE: The following items are listed ONLY for informational reasons.
+#        There is no reason to manual load these modules unless your
+#        kernel is either mis-configured or you intentionally disabled
+#        the kernel module autoloader.
+#
+
+# Upon the commands of starting up IP Masq on the server, the
+# following kernel modules will be automatically loaded:
+#
+# NOTE:  Only load the IP MASQ modules you need.  All current IP MASQ 
+#        modules are shown below but are commented out from loading.
+# ===============================================================
+
+#Load the main body of the IPTABLES module - "ip_tables"
+#  - Loaded automatically when the "iptables" command is invoked
+#
+#  - Loaded manually to clean up kernel auto-loading timing issues
+#
+echo -en "ip_tables, "
+#
+#Verify the module isn't loaded.  If it is, skip it
+#
+if [ -z "` $LSMOD | $GREP ip_tables | $AWK {'print $1'} `" ]; then
+   $MODPROBE ip_tables
+fi
+
+
+#Load the IPTABLES filtering module - "iptable_filter" 
+#
+#  - Loaded automatically when filter policies are activated
+
+
+#Load the stateful connection tracking framework - "ip_conntrack"
+#
+# The conntrack  module in itself does nothing without other specific 
+# conntrack modules being loaded afterwards such as the "ip_conntrack_ftp"
+# module
+#
+#  - This module is loaded automatically when MASQ functionality is 
+#    enabled 
+#
+#  - Loaded manually to clean up kernel auto-loading timing issues
+#
+echo -en "ip_conntrack, "
+#
+#Verify the module isn't loaded.  If it is, skip it
+#
+if [ -z "` $LSMOD | $GREP ip_conntrack | $AWK {'print $1'} `" ]; then
+   $MODPROBE ip_conntrack
+fi
+
+
+#Load the FTP tracking mechanism for full FTP tracking
+#
+# Enabled by default -- insert a "#" on the next line to deactivate
+#
+echo -e "ip_conntrack_ftp, "
+#
+#Verify the module isn't loaded.  If it is, skip it
+#
+if [ -z "` $LSMOD | $GREP ip_conntrack_ftp | $AWK {'print $1'} `" ]; then
+   $MODPROBE ip_conntrack_ftp
+fi
+
+
+#Load the IRC tracking mechanism for full IRC tracking
+#
+# Disabled by default -- insert a "#" on the next few lines to activate
+#
+# echo -en "                             ip_conntrack_irc, "
+#
+#Verify the module isn't loaded.  If it is, skip it
+#
+# if [ -z "` $LSMOD | $GREP ip_conntrack_irc | $AWK {'print $1'} `" ]; then
+#    $MODPROBE ip_conntrack_irc
+# fi
+
+
+#Load the general IPTABLES NAT code - "iptable_nat"
+#  - Loaded automatically when MASQ functionality is turned on
+# 
+#  - Loaded manually to clean up kernel auto-loading timing issues
+#
+echo -en "iptable_nat, "
+#
+#Verify the module isn't loaded.  If it is, skip it
+#
+if [ -z "` $LSMOD | $GREP iptable_nat | $AWK {'print $1'} `" ]; then
+   $MODPROBE iptable_nat
+fi
+
+
+#Loads the FTP NAT functionality into the core IPTABLES code
+# Required to support non-PASV FTP.
+#
+# Enabled by default -- insert a "#" on the next line to deactivate
+#
+echo -e "ip_nat_ftp"
+#
+#Verify the module isn't loaded.  If it is, skip it
+#
+if [ -z "` $LSMOD | $GREP ip_nat_ftp | $AWK {'print $1'} `" ]; then
+   $MODPROBE ip_nat_ftp
+fi
+
+
+#Loads the IRC NAT functionality (for DCC) into the core IPTABLES code
+#
+# DISABLED by default -- delete the "#" on the next few lines to activate
+#
+# echo -e "ip_nat_irc"
+#
+#Verify the module isn't loaded.  If it is, skip it
+#
+# if [ -z "` $LSMOD | $GREP ip_nat_irc | $AWK {'print $1'} `" ]; then
+#    $MODPROBE ip_nat_irc
+# fi
+
+
+echo "  ---"
+
+# Just to be complete, here is a partial list of some of the other  
+# IPTABLES kernel modules and their function.  Please note that most 
+# of these modules (the ipt ones) are automatically loaded by the 
+# master kernel module for proper operation and don't need to be 
+# manually loaded.
+# --------------------------------------------------------------------
+#
+#    ip_nat_snmp_basic - this module allows for proper NATing of some 
+#                        SNMP traffic
+#
+#    iptable_mangle    - this target allows for packets to be 
+#                        manipulated for things like the TCPMSS 
+#                        option, etc.
+#
+# --
+#
+#    ipt_mark       - this target marks a given packet for future action.
+#                     This automatically loads the ipt_MARK module
+#
+#    ipt_tcpmss     - this target allows to manipulate the TCP MSS
+#                     option for braindead remote firewalls.
+#                     This automatically loads the ipt_TCPMSS module
+#
+#    ipt_limit      - this target allows for packets to be limited to
+#                     to many hits per sec/min/hr
+#
+#    ipt_multiport  - this match allows for targets within a range
+#                     of port numbers vs. listing each port individually
+#
+#    ipt_state      - this match allows to catch packets with various
+#                     IP and TCP flags set/unset
+#
+#    ipt_unclean    - this match allows to catch packets that have invalid
+#                     IP/TCP flags set
+#
+#    iptable_filter - this module allows for packets to be DROPped, 
+#                     REJECTed, or LOGged.  This module automatically 
+#                     loads the following modules:
+#
+#                     ipt_LOG - this target allows for packets to be 
+#                               logged
+#
+#                     ipt_REJECT - this target DROPs the packet and returns 
+#                                  a configurable ICMP packet back to the 
+#                                  sender.
+
+
+#CRITICAL:  Enable IP forwarding since it is disabled by default since
+#
+#           Redhat Users:  you may try changing the options in
+#                          /etc/sysconfig/network from:
+#
+#                       FORWARD_IPV4=false
+#                             to
+#                       FORWARD_IPV4=true
+#
+echo "  Enabling forwarding.."
+echo "1" &#62; /proc/sys/net/ipv4/ip_forward
+
+
+# Dynamic IP users:
+#
+#   If you get your IP address dynamically from SLIP, PPP, or DHCP, 
+#   enable the following option.  This enables dynamic-address hacking
+#   which makes the life with Diald and similar programs much easier.
+#
+echo "  Enabling DynamicAddr.."
+echo "1" &#62; /proc/sys/net/ipv4/ip_dynaddr
+
+echo "  ---"
+
+#############################################################################
+#
+# Enable Stronger IP forwarding and Masquerading
+#
+#  NOTE:  In IPTABLES speak, IP Masquerading is a form of SourceNAT or SNAT.
+#
+#  NOTE #2:  The following is an example for an internal LAN address in the
+#            192.168.0.x network with a 255.255.255.0 or a "24" bit subnet 
+#            mask connecting to the Internet on external interface "eth0".  
+#            This example will MASQ internal traffic out to the Internet 
+#            but not allow non-initiated traffic into your internal network.
+#
+#            
+#         ** Please change the above network numbers, subnet mask, and your 
+#         
+
+#Clearing any previous configuration
+#
+#  Unless specified, the defaults for INPUT, OUTPUT, and FORWARD to DROP
+#
+#    You CANNOT change this to REJECT as it isn't a vaild policy setting.
+#    If you want REJECT, you must explictly REJECT at the end of a giving 
+#    INPUT, OUTPUT, or FORWARD chain
+#
+echo "  Clearing any existing rules and setting default policy to DROP.."
+$IPTABLES -P INPUT DROP
+$IPTABLES -F INPUT 
+$IPTABLES -P OUTPUT DROP
+$IPTABLES -F OUTPUT 
+$IPTABLES -P FORWARD DROP
+$IPTABLES -F FORWARD 
+$IPTABLES -F -t nat
+
+#Not needed and it will only load the unneeded kernel module
+#
+#$IPTABLES -F -t mangle
+
+
+# Delete all User-specified chains
+$IPTABLES -X
+
+
+# Reset all IPTABLES counters
+$IPTABLES -Z
+
+
+#Configuring specific CHAINS for later use in the ruleset
+#
+#  NOTE:  Some users prefer to have their firewall silently
+#         "DROP" packets while others prefer to use "REJECT"
+#         to send ICMP error messages back to the remote 
+#         machine.  The default is "REJECT" but feel free to
+#         change this below.
+#
+# NOTE: Without the --log-level set to "info", every single
+#       firewall hit will goto ALL vtys.  This is a very big
+#       pain.
+#
+echo "  Creating a DROP chain.."
+$IPTABLES -N reject-and-log-it
+$IPTABLES -A reject-and-log-it -j LOG --log-level info 
+$IPTABLES -A reject-and-log-it -j REJECT
+
+echo -e "\n   - Loading INPUT rulesets"
+
+
+#######################################################################
+# INPUT: Incoming traffic from various interfaces.  All rulesets are 
+#        already flushed and set to a default policy of DROP. 
+#
+
+# loopback interfaces are valid.
+#
+$IPTABLES -A INPUT -i lo -s $UNIVERSE -d $UNIVERSE -j ACCEPT
+
+
+# local interface, local machines, going anywhere is valid
+#
+$IPTABLES -A INPUT -i $INTIF -s $INTNET -d $UNIVERSE -j ACCEPT
+
+
+# remote interface, claiming to be local machines, IP spoofing, get lost
+#
+$IPTABLES -A INPUT -i $EXTIF -s $INTNET -d $UNIVERSE -j reject-and-log-it
+
+
+# external interface, from any source, for ICMP traffic is valid
+#
+#  If you would like your machine to "ping" from the Internet, 
+#  enable this next line
+#
+#$IPTABLES -A INPUT -i $EXTIF -p ICMP -s $UNIVERSE -d $EXTIP -j ACCEPT
+
+
+# remote interface, any source, going to the MASQ servers IP address is valid
+#
+#  ENABLE this line if you want ALL Internet traffic to connect to your
+#  the various servers running on the MASQ server.  This includes 
+#  web servers, ssh servers, dns servers, etc.  
+#
+#  I DON'T recommend you enable this rule.  Instead, only enable specific
+#  access to select server ports under the "OPTIONAL INPUT Section".
+#  An example of enabling HTTP (WWW) has been given below:
+#
+#
+#$IPTABLES -A INPUT -i $EXTIF -s $UNIVERSE -d $EXTIP -j ACCEPT
+
+
+# Allow any related traffic coming back to the MASQ server in.
+#
+#  STATEFULLY TRACKED
+#
+$IPTABLES -A INPUT -i $EXTIF -s $UNIVERSE -d $EXTIP -m state --state \
+ ESTABLISHED,RELATED -j ACCEPT
+
+
+# ----- Begin OPTIONAL INPUT Section -----
+#
+
+# DHCPd - Enable the following lines if you run an INTERNAL DHCPd server
+#
+#$IPTABLES -A INPUT -i $INTIF -p tcp --sport 68 --dport 67 -j ACCEPT
+#$IPTABLES -A INPUT -i $INTIF -p udp --sport 68 --dport 67 -j ACCEPT
+
+# HTTPd - Enable the following lines if you run an EXTERNAL WWW server
+#
+#    NOTE:  This is NOT needed for simply enabling PORTFW.  This is ONLY 
+#           for users that plan on running Apache on the MASQ server itself
+#
+#echo -e "      - Allowing EXTERNAL access to the WWW server"
+#$IPTABLES -A INPUT -i $EXTIF -m state --state NEW,ESTABLISHED,RELATED \
+# -p tcp -s $UNIVERSE -d $EXTIP --dport 80 -j ACCEPT
+
+#
+# ----- End OPTIONAL INPUT Section -----
+
+
+# Catch all rule, all other incoming is denied and logged. 
+#
+$IPTABLES -A INPUT -s $UNIVERSE -d $UNIVERSE -j reject-and-log-it
+
+
+# ---------------------------------------------------------------------
+
+echo -e "   - Loading OUTPUT rulesets"
+
+#######################################################################
+# OUTPUT: Outgoing traffic from various interfaces.  All rulesets are 
+#         already flushed and set to a default policy of DROP. 
+#
+
+# Workaround bug in netfilter
+# See http://www.netfilter.org/security/2002-04-02-icmp-dnat.html
+#
+$IPTABLES -A OUTPUT -m state -p icmp --state INVALID -j DROP
+
+# loopback interface is valid.
+#
+$IPTABLES -A OUTPUT -o lo -s $UNIVERSE -d $UNIVERSE -j ACCEPT
+
+
+# local interfaces, any source going to local net is valid
+#
+$IPTABLES -A OUTPUT -o $INTIF -s $EXTIP -d $INTNET -j ACCEPT
+
+
+# local interface, MASQ server source going to the local net is valid
+#
+$IPTABLES -A OUTPUT -o $INTIF -s $INTIP -d $INTNET -j ACCEPT
+
+
+# outgoing to local net on remote interface, stuffed routing, deny
+#
+$IPTABLES -A OUTPUT -o $EXTIF -s $UNIVERSE -d $INTNET -j reject-and-log-it
+
+
+# anything else outgoing on remote interface is valid
+#
+$IPTABLES -A OUTPUT -o $EXTIF -s $EXTIP -d $UNIVERSE -j ACCEPT
+
+
+# ----- Begin OPTIONAL OUTPUT Section -----
+#
+
+# DHCPd - Enable the following lines if you run an INTERNAL DHCPd server
+#         - Remove BOTH #s all the #s if you need this functionality.
+#
+#$IPTABLES -A OUTPUT -o $INTIF -p tcp -s $INTIP --sport 67 \
+# -d 255.255.255.255 --dport 68 -j ACCEPT
+#$IPTABLES -A OUTPUT -o $INTIF -p udp -s $INTIP --sport 67 \
+# -d 255.255.255.255 --dport 68 -j ACCEPT
+
+#
+# ----- End OPTIONAL OUTPUT Section -----
+
+
+# Catch all rule, all other outgoing is denied and logged. 
+#
+$IPTABLES -A OUTPUT -s $UNIVERSE -d $UNIVERSE -j reject-and-log-it
+
+
+echo -e "   - Loading FORWARD rulesets"
+
+#######################################################################
+# FORWARD: Enable Forwarding and thus IPMASQ
+#
+
+# ----- Begin OPTIONAL FORWARD Section -----
+#
+#  Put PORTFW commands here
+#
+# ----- End OPTIONAL FORWARD Section -----
+
+
+echo "     - FWD: Allow all connections OUT and only existing/related IN"
+$IPTABLES -A FORWARD -i $EXTIF -o $INTIF -m state --state ESTABLISHED,RELATED \
+ -j ACCEPT
+$IPTABLES -A FORWARD -i $INTIF -o $EXTIF -j ACCEPT
+
+# Catch all rule, all other forwarding is denied and logged. 
+#
+$IPTABLES -A FORWARD -j reject-and-log-it
+
+
+echo "     - NAT: Enabling SNAT (MASQUERADE) functionality on $EXTIF"
+#
+#More liberal form
+#$IPTABLES -t nat -A POSTROUTING -o $EXTIF -j MASQUERADE
+#
+#Stricter form
+$IPTABLES -t nat -A POSTROUTING -o $EXTIF -j SNAT --to $EXTIP
+
+
+#######################################################################
+echo -e "\nrc.firewall-iptables-stronger $FWVER done.\n"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;rc.firewall-iptables-stronger STOP&#62;</P
+><P
+>To automatically start this stronger firewall ruleset at the proper time,
+please see the end of the <A
+HREF="firewall-examples.html#RC.FIREWALL-IPCHAINS"
+>Section 3.4.2</A
+> section for
+full details.  Please make sure you make the correct "rc.firewall-iptables" to
+"rc.firewall-iptables-stronger" substitutions!!</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RC.FIREWALL-IPCHAINS-STRONGER"
+></A
+>6.4.2. Stronger IP Firewall (IPCHAINS) rulesets</H2
+><P
+>This section provides a more in-depth guide to using the 2.2.x firewall tool, 
+IPCHAINS.  See above sections for IPFWADM rulesets.</P
+><P
+>This example is for a firewall/masquerade system behind a PPP link with a 
+static PPP address (dynamic PPP instructions are included but disabled).  The 
+trusted interface is 192.168.0.1 and the PPP interface IP address has been 
+changed to protect the guilty :-).  I have listed each incoming and outgoing 
+interface individually to catch IP spoofing as well as stuffed routing and/or 
+masquerading. A nything not explicitly allowed is <STRONG
+>FORBIDDEN</STRONG
+> (well.. rejected actually).  If your IP MASQ box breaks 
+after implementing this rc.firewall-ipchains-stronger script, be sure that you 
+edit it for your configuration and check your /var/log/messages or 
+/var/adm/messages SYSLOG file for any firewall errors.</P
+><P
+>For more comprehensive examples of a strong IP Masqueraded IPFWADM rulesets 
+for PPP, Cablemodem users, etc., please see 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#TrinityOS"
+TARGET="_top"
+>TrinityOS - Section 10</A
+> and <A
+HREF="http://www.greatcircle.com/"
+TARGET="_top"
+>GreatCircle's Firewall WWW page</A
+></P
+><P
+><STRONG
+>    NOTE #1:    --- UPDATE YOUR KERNEL ---</STRONG
+>
+    Linux 2.2.x kernels less than version 2.2.20 contain several different 
+    <A
+HREF="http://www.linux.org.uk/VERSION/"
+TARGET="_top"
+>security 
+    vulnerabilities</A
+> (some were MASQ specific).  Kernels less than
+    2.2.20 have a few local vulnerabilities.  Kernel versions less 
+    than 2.2.16 have a TCP root exploit vulnerability and versions less than 
+    2.2.11 have a IPCHAINS fragmentation bug.  Because of these issues, users 
+    running a firewall with strong IPCHAINS rulesets are open to possible 
+    instrusion.  Please upgrade your kernel to a fixed version.</P
+><P
+><STRONG
+>NOTE #2:</STRONG
+> If you get a dynamically assigned 
+TCP/IP address from your ISP (PPP, DSL, Cablemodems, etc.), you <STRONG
+>CANNOT load</STRONG
+> this strong ruleset upon booting.  You 
+will either need to reload this firewall ruleset EVERY TIME you get a new IP 
+address or make your /etc/rc.d/rc.firewall-ipchains-stronger ruleset more 
+intelligent.  To do this for various types of connections such as PPP or
+DHCP users, please see the <A
+HREF="masq-and-dyn-addr.html"
+>Section 7.8</A
+> FAQ entry for all
+the details.</P
+><P
+><STRONG
+>Please also be aware that there are several GUI Firewall 
+creation tools available as well.  Please see <A
+HREF="faq.html"
+>Chapter 7</A
+>for full 
+details.</STRONG
+></P
+><P
+>Lastly, if you are using a STATIC PPP IP address, change the 
+"EXTIF="your.static.PPP.address"" line to reflect your address.</P
+><P
+>----------------------------------------------------------------</P
+><P
+>&#60;rc.firewall-ipchains-stronger START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# /etc/rc.d/rc.firewall-ipchains-stronger: An example of a Stronger IPCHAINS 
+#                                          firewall ruleset for 2.2 kernels
+#
+FWVER=0.75s
+#
+# Log:
+#  0.75s - Updated the commands for dynamically addresses machines and
+#           to point to an expanded FAQ section for more information
+#
+#  0.74s - renamed from rc.firewall-2.2-stronger to
+#          rc.firewall-ipchains-stronger to better reflect that this ruleset can 
+#          can run on different major kernel versions
+#        - removed unused SED variable
+#  0.73s - Added additional comments to make PORTFW configs more obvious
+#  0.72s - #ed out the rule that would allow all traffic destined for the
+#          MASQ server itself to be accepted.  Use the OPTIONAL INPUT 
+#          section to only allow explicit services.
+#        - Fixed an INTLAN rule that was allowing traffic from ANY IP address
+#          instead of the proper INTIP IP address only.  This aligns the 
+#          IPCHAINS ruleset with the IPTABLES and IPFWADM ruleset examples
+#  0.71s - ruleset now uses modprobe instead of insmod
+#  0.70s - Added missing execution variables
+#        - fixed a missing -p tcp for the commented HTTPd section
+#  0.65s - Added comments HTTPd rules to the INPUT and OUTPUT section
+#        - Added a comment where to insert IPPORTFW commands
+#  0.60s - Changed the EXTIP command to work on NON-English distros
+#        - Updated the CASE of some of the script variables
+#
+
+echo -e "\nLoading rc.firewall-ipchains-stronger : version $FWVER..\n"
+
+
+# The location of various iptables and other shell programs
+#
+#   If your Linux distribution came with a copy of iptables, most
+#   likely it is located in /sbin.  If you manually compiled 
+#   iptables, the default location is in /usr/local/sbin
+#
+# ** Please use the "whereis iptables" command to figure out 
+# ** where your copy is and change the path below to reflect 
+# ** your setup
+#
+IPCHAINS=/sbin/ipchains
+LSMOD=/sbin/lsmod
+DEPMOD=/sbin/depmod
+MODPROBE=/sbin/modprobe
+GREP=/bin/grep
+AWK=/bin/awk
+IFCONFIG=/sbin/ifconfig
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+
+# Global variables
+# ----------------
+
+# ALL PPP and DHCP users must set this for the correct EXTERNAL and
+#  INTERNAL interfaces names.  Examples:  eth0, ppp0, ippp0, etc.
+#  See more info about this below.
+#
+EXTIF="ppp0"
+INTIF="eth0"
+
+# The INTERNAL IP address
+#
+INTIP="192.168.0.1/32"
+INTNET="192.168.0.0/24"
+echo "  Internal IP:      $INTIP"
+echo "  Internal Network: $INTNET"
+
+
+
+# Load all required IP MASQ modules
+#
+#   NOTE:  Only load the IP MASQ modules you need.  All current IP MASQ modules
+#          are shown below but are commented from loading.
+
+# Needed to initially load modules
+#
+$DEPMOD -a
+
+# Supports the proper masquerading of FTP file transfers using the PORT method
+#
+$MODPROBE ip_masq_ftp
+
+# Supports the masquerading of RealAudio over UDP.  Without this module,
+#       RealAudio WILL function but in TCP mode.  This can cause a reduction
+#       in sound quality
+#
+$MODPROBE ip_masq_raudio
+
+# Supports the masquerading of IRC DCC file transfers
+#
+#$MODPROBE ip_masq_irc
+
+
+# Supports the masquerading of Quake and QuakeWorld by default.  These modules are
+#   for multiple users behind the Linux MASQ server.  If you are going to 
+#   play Quake I, II, and III, use the second example.
+#
+#   NOTE:  If you get ERRORs loading the QUAKE module, you are running an old
+#   -----  kernel that has bugs in it.  Please upgrade to the newest kernel.
+#
+#Quake I / QuakeWorld (ports 26000 and 27000)
+#$MODPROBE ip_masq_quake
+#
+#Quake I/II/III / QuakeWorld (ports 26000, 27000, 27910, 27960)
+#$MODPROBE ip_masq_quake 26000,27000,27910,27960
+
+
+# Supports the masquerading of the CuSeeme video conferencing software
+#
+#$MODPROBE ip_masq_cuseeme
+
+#Supports the masquerading of the VDO-live video conferencing software
+#
+#$MODPROBE ip_masq_vdolive
+
+
+#CRITICAL:  Enable IP forwarding since it is disabled by default
+#
+#           Redhat Users:  you may try changing the options in 
+#                          /etc/sysconfig/network from:
+#
+#                       FORWARD_IPV4=false
+#                             to
+#                       FORWARD_IPV4=true
+#
+echo "1" &#62; /proc/sys/net/ipv4/ip_forward
+
+
+#CRITICAL:  Enable automatic IP defragmentation since it is disabled by default 
+#           in 2.2.x kernels 
+#
+#           This used as a compile-time option but the behavior was changed 
+#           in 2.2.12.  It should also be noted that some distributions have
+#           removed this option from the /proc table.  If this entry isn't
+#           present in your /proc, don't worry about it.
+#
+echo "1" &#62; /proc/sys/net/ipv4/ip_always_defrag
+
+
+# Dynamic IP users:
+#
+#   If you get your IP address dynamically from SLIP, PPP, or DHCP, enable this 
+#   following option.  This enables dynamic-ip address hacking in IP MASQ, 
+#   making life with Diald and similar programs much easier.
+#
+#echo "1" &#62; /proc/sys/net/ipv4/ip_dynaddr
+
+
+# Enable the LooseUDP patch which some Internet-based games require
+#
+#  If you are trying to get an Internet game to work through your IP MASQ box,
+#  and you configured it to the best of your ability without it working, try
+#  enabling this option (delete the "#" character).  This option is disabled
+#  by default due to possible internal machine UDP port scanning
+#  vulnerabilities.
+#
+#echo "1" &#62; /proc/sys/net/ipv4/ip_masq_udp_dloose
+
+
+# Specify your Static IP address here.
+#
+#   If you have a DYNAMIC IP address, you need to make this ruleset recognize 
+#   your IP address everytime you get a new IP.  To do this, enable the 
+#   following one-line script.  (Please note that the different single and 
+#   double quote characters MATTER).
+#
+#
+#   DHCP users (Cablemodem and DSL ) users:
+#   ---------------------------------------
+#   If you get your TCP/IP address via DHCP, **you will need ** to enable the 
+#   #ed out command below underneath the PPP section AND replace the word 
+#   "ppp0" with the name of your EXTERNAL Internet connection (eth0, eth1, etc) 
+#   on the lines for "ppp-ip" and "EXTIP".  
+#
+#   DHCP and PPP users:  The remote DHCP or PPP server can and will change
+#   IP addresses on you over time.  To deal with this, users should configure
+#   their DHCP or PPP client to re-run the rc.firewall-* ruleset everytime
+#   the IP address is changed.  Please see the "masq-and-dyn-addr" FAQ entry
+#   in the IPMASQ howto for full details on how to do this.
+#
+#
+# Determine the external IP automatically:
+# ----------------------------------------
+#
+#  The following line will determine your external IP address.  This
+#  line is somewhat complex and confusing but it will also work for
+#  all NON-English Linux distributions.
+#
+#   Make sure the EXTIF variable above is set to reflect the name
+#   of your Internet connection
+#
+EXTIP="`$IFCONFIG $EXTIF | $AWK \
+ /$EXTIF/'{next}//{split($0,a,":");split(a[2],a," ");print a[1];exit}'`"
+
+
+
+# MASQ timeouts
+#
+#   2 hrs timeout for TCP session timeouts
+#  10 sec timeout for traffic after the TCP/IP "FIN" packet is received
+#  60 sec timeout for UDP traffic (MASQ'ed ICQ users must enable a 30sec 
+#     firewall timeout in ICQ itself)
+#
+$IPCHAINS -M -S 7200 10 60
+
+#############################################################################
+# Incoming, flush and set default policy of reject. Actually the default policy
+# is irrelevant because there is a catch all rule with deny and log.
+#
+$IPCHAINS -F input
+$IPCHAINS -P input REJECT
+
+# local interface, local machines, going anywhere is valid
+#
+$IPCHAINS -A input -i $INTIF -s $INTNET -d 0.0.0.0/0 -j ACCEPT
+
+# remote interface, claiming to be local machines, IP spoofing, get lost
+#
+$IPCHAINS -A input -i $EXTIF -s $INTNET -d 0.0.0.0/0 -l -j REJECT
+
+
+# remote interface, any source, going to the MASQ servers IP address is valid
+#
+#  ENABLE this line if you want ALL Internet traffic to connect to your
+#  the various servers running on the MASQ server.  This includes 
+#  web servers, ssh servers, dns servers, etc.  
+#
+#  I DON'T recommend you enable this rule.  Instead, only enable specific
+#  access to select server ports under the "OPTIONAL INPUT Section".
+#  An example of enabling HTTP (WWW) has been given below:
+#
+#
+#$IPCHAINS -A input -i $EXTIF -s 0.0.0.0/0 -d $EXTIP/32 -j ACCEPT
+
+
+# loopback interface is valid.
+#
+$IPCHAINS -A input -i lo -s 0.0.0.0/0 -d 0.0.0.0/0 -j ACCEPT
+
+
+# ----- Begin OPTIONAL INPUT Section -----
+#
+
+# HTTPd - Enable the following lines if you either run a WWW server on
+#         the IPMASQ server -OR- plan on PORTFW'ing HTTP traffic to
+#         an internal WWW server
+#
+#$IPCHAINS -A input -i $EXTIF -p tcp -s 0.0.0.0/0 -d $EXTIP 80 -j ACCEPT
+
+#
+# ----- End OPTIONAL INPUT Section -----
+
+
+# catch all rule, all other incoming is denied and logged. pity there is no
+# log option on the policy but this does the job instead.
+#
+$IPCHAINS -A input -s 0.0.0.0/0 -d 0.0.0.0/0 -l -j REJECT
+
+#############################################################################
+# Outgoing, flush and set default policy of reject. Actually the default policy
+# is irrelevant because there is a catch all rule with deny and log.
+#
+$IPCHAINS -F output
+$IPCHAINS -P output REJECT
+
+# local interface, MASQ server source going to the local net is valid
+#
+$IPCHAINS -A output -i $INTIF -s $INTIP -d $INTNET -j ACCEPT
+
+# outgoing to local net on remote interface, stuffed routing, deny
+#
+$IPCHAINS -A output -i $EXTIF -s 0.0.0.0/0 -d $INTNET -l -j REJECT
+
+# outgoing from local net on remote interface, stuffed masquerading, deny
+#
+$IPCHAINS -A output -i $EXTIF -s $INTNET -d 0.0.0.0/0 -l -j REJECT
+
+# anything else outgoing on remote interface is valid
+#
+$IPCHAINS -A output -i $EXTIF -s $EXTIP/32 -d 0.0.0.0/0 -j ACCEPT
+
+# loopback interface is valid.
+#
+$IPCHAINS -A output -i lo -s 0.0.0.0/0 -d 0.0.0.0/0 -j ACCEPT
+
+
+# ----- Begin OPTIONAL OUTPUT Section -----
+#
+
+# HTTPd - Enable the following lines if you either run a WWW server on
+#         the IPMASQ server -OR- plan on PORTFW'ing HTTP traffic to
+#         an internal WWW server
+#
+#$IPCHAINS -A output -i $EXTIF -p tcp -s $EXTIP 80 -d 0.0.0.0/0 -j ACCEPT
+
+#
+# ----- End OPTIONAL OUTPUT Section -----
+
+# catch all rule, all other outgoing is denied and logged. pity there is no
+# log option on the policy but this does the job instead.
+#
+$IPCHAINS -A output -s 0.0.0.0/0 -d 0.0.0.0/0 -l -j REJECT
+
+#############################################################################
+# Forwarding, flush and set default policy of deny. Actually the default policy
+# is irrelevant because there is a catch all rule with deny and log.
+#
+$IPCHAINS -F forward
+$IPCHAINS -P forward DENY
+
+
+# ----- Begin OPTIONAL FORWARD Section -----
+#
+#   Put PORTFW commands here
+#
+# ----- End OPTIONAL FORWARD Section -----
+
+
+# Masquerade from local net on local interface to anywhere.
+#
+$IPCHAINS -A forward -i $EXTIF -s $INTNET -d 0.0.0.0/0 -j MASQ
+#
+# catch all rule, all other forwarding is denied and logged. pity there is no
+# log option on the policy but this does the job instead.
+#
+$IPCHAINS -A forward -s 0.0.0.0/0 -d 0.0.0.0/0 -l -j REJECT
+
+#End of file.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;rc.firewall-ipchains-stronger STOP&#62;</P
+><P
+>To automatically start this stronger firewall ruleset at the proper time,
+please see the end of the <A
+HREF="firewall-examples.html#RC.FIREWALL-IPCHAINS"
+>Section 3.4.2</A
+> section for
+full details.  Please make sure you make the correct "rc.firewall-ipchains" to
+"rc.firewall-ipchains-stronger" substitutions!!</P
+><P
+>With IPCHAINS, you can block traffic to a particular site using the "input", 
+"output", and/or "forward" rules.  Remember that the set of rules are scanned 
+from top to bottom and "-A" tells IPCHIANS to "append" this new rule to the 
+existing set of rules.  So with this in mind, any specific restrictions need 
+to come before any global rules. For example:</P
+><P
+>Using "input" rules:  </P
+><P
+>Probably the fastest and most efficient method to block traffic, but this 
+method only stops the MASQed machines and NOT the firewall machine itself. 
+Of course, you might want to allow that combination.</P
+><P
+>Anyway, to block 204.50.10.13:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>In the /etc/rc.d/rc.firewall-ipchains-stronger ruleset:
+... start of "input" rules ...
+
+# reject and log local interface, local machines going to 204.50.10.13
+#
+ipchains -A input -s 192.168.0.0/24 -d 204.50.10.13/32 -l -j REJECT
+
+
+# local interface, local machines, going anywhere is valid
+#
+ipchains -A input -s 192.168.0.0/24 -d 0.0.0.0/0 -l -j ACCEPT
+
+
+... end of "input" rules ...</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Using "output" rules:  </P
+><P
+>This is the slower method to block traffic because the packets must go through 
+masquerading before they are dropped.  Yet, this rule even stops the firewall 
+machine from accessing the forbidden site.</P
+><P
+>... start of "output" rules ...
+
+# reject and log outgoing to 204.50.10.13
+#
+ipchains -A output -s $ppp_ip/32 -d 204.50.10.13/32 -l -j REJECT
+
+
+# anything else outgoing on remote interface is valid
+#
+ipchains -A output -s $ppp_ip/32 -d 0.0.0.0/0 -l -j ACCEPT
+
+
+... end of "output" rules ...</P
+><P
+>Using "forward" rules:  </P
+><P
+>Probably slower than "input" rules for blocking traffic, this only stops 
+masqueraded machines (e.g. internal machines).  The firewall machine can still 
+reach forbidden site(s).</P
+><P
+>... start of "forward" rules ...
+
+# Reject and log from local net on PPP interface to 204.50.10.13.
+#
+ipchains -A forward -i ppp0 -s 192.168.0.0/24 -d 204.50.10.13/32 -l -j REJECT
+
+
+# Masquerade from local net on local interface to anywhere.
+#
+ipchains -A forward -i ppp0 -s 192.168.0.0/24 -d 0.0.0.0/0 -j MASQ
+
+... end of "forward" rules ...</P
+><P
+>No need for a special rule to allow machines on the 192.168.0.0/24 network to 
+go to 204.50.11.0. Why?  It is already covered by the global MASQ rule.</P
+><P
+>NOTE: Unlike IPFWADM, IPCHIANS has only one way of coding the interfaces name.  
+IPCHAINS uses the "-i eth0" option where as IPFWADM had both "-W" for the 
+interface name and "-V" for the interface's IP address.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RC.FIREWALL-IPFWADM-STRONGER"
+></A
+>6.4.3. Stronger IP Firewall (IPFWADM) Rulesets</H2
+><P
+>This section provides a more in-depth guide on using the 2.0.x firewall tool, 
+IPFWADM.  See below for IPCHAINS rulesets</P
+><P
+>This example is for a firewall/masquerade system behind a PPP link with a 
+static PPP address (dynamic PPP instructions are included but disabled).  
+The trusted interface is 192.168.0.1 and the PPP interface IP address has 
+been changed to protect the guilty :).  I have listed each incoming and 
+outgoing interface individually to catch IP spoofing as well as stuffed 
+routing and/or masquerading. Anything not explicitly allowed is 
+<STRONG
+>FORBIDDEN</STRONG
+> (well.. rejected, actually).  
+If your IP MASQ box breaks after implementing this rc.firewall-ipfwadm-stronger 
+script, be sure that you edit it for your configuration and check your 
+/var/log/messages or /var/adm/messages SYSLOG file for any firewall errors.</P
+><P
+>For more comprehensive examples of a strong IP Masqueraded IPFWADM rulesets 
+for PPP, Cablemodem users, etc., please see 
+<A
+HREF="http://www.ecst.csuchico.edu/~dranch/LINUX/index-linux.html#TrinityOS"
+TARGET="_top"
+>TrinityOS - Section 10</A
+> and <A
+HREF="http://www.greatcircle.com/"
+TARGET="_top"
+>GreatCircle's Firewall WWW page</A
+></P
+><P
+><STRONG
+>NOTE #2:</STRONG
+> If you get a dynamically assigned
+TCP/IP address from your ISP (PPP, DSL, Cablemodems, etc.), you <STRONG
+>CANNOT load</STRONG
+> this strong ruleset upon booting.  You
+will either need to reload this firewall ruleset EVERY TIME you get a new IP
+address or make your /etc/rc.d/rc.firewall-ipchains-stronger ruleset more
+intelligent.  To do this for various types of connections such as PPP or
+DHCP users, please see the <A
+HREF="masq-and-dyn-addr.html"
+>Section 7.8</A
+> FAQ entry for all
+the details.</P
+><P
+><STRONG
+>Please also be aware that there are several GUI Firewall 
+creation tools available as well.  Please see <A
+HREF="faq.html"
+>Chapter 7</A
+>for full 
+details.</STRONG
+></P
+><P
+>Lastly, if you are using a STATIC PPP IP address, change the 
+"ppp_ip="your.static.PPP.address"" line to reflect your address.</P
+><P
+>----------------------------------------------------------------</P
+><P
+>&#60;rc.firewall-ipfwadm-stronger START&#62;
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/bin/sh
+#
+# /etc/rc.d/rc.firewall-ipfwadm-stronger: An example of a semi-STRONG 
+#                                         IPFWADM firewall ruleset for 2.0 kernels
+#
+FWVER=0.74s
+#
+# Log:
+#  0.74s - Updated the commands for dynamically addresses machines and
+#           to point to an expanded FAQ section for more information
+#
+#  0.73s - renamed from rc.firewall-2.0-stronger to
+#          rc.firewall-ipfwadm-stronger
+#
+#  0.72s - #ed out the rule that would allow all traffic destined for the
+#          MASQ server itself to be accepted.  Use the OPTIONAL INPUT 
+#          section to only allow explicit services.
+
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+# testing, wait a bit then clear all firewall rules.
+# uncomment the following lines if you want the firewall to automatically
+# disable after 10 minutes.
+#
+# Disabled by default
+#
+# (sleep 600; \
+# ipfwadm -I -f; \
+# ipfwadm -I -p accept; \
+# ipfwadm -O -f; \
+# ipfwadm -O -p accept; \
+# ipfwadm -F -f; \
+# ipfwadm -F -p accept; \
+# ) &#38;
+
+
+# Load all required IP MASQ modules
+#
+#   NOTE:  Only load the IP MASQ modules you need.  All current IP MASQ modules
+#          are shown below but are commented from loading.
+
+# Needed to initially load modules
+#
+/sbin/depmod -a
+
+# Supports the proper masquerading of FTP file transfers using the PORT method
+#
+/sbin/modprobe ip_masq_ftp
+
+# Supports the masquerading of RealAudio over UDP.  Without this module,
+#       RealAudio WILL function but in TCP mode.  This can cause a reduction
+#       in sound quality
+#
+#/sbin/modprobe ip_masq_raudio
+
+# Supports the masquerading of IRC DCC file transfers
+#
+#/sbin/modprobe ip_masq_irc
+
+
+# Supports the masquerading of Quake and QuakeWorld by default.  This modules is
+#   for multiple users behind the Linux MASQ server.  If you are going to 
+#   play Quake I, II, and III, use the second example.
+#
+#   NOTE:  If you get ERRORs loading the QUAKE module, you are running an old
+#   -----  kernel that has bugs in it.  Please upgrade to the newest kernel.
+#
+#Quake I / QuakeWorld (ports 26000 and 27000)
+#/sbin/modprobe ip_masq_quake
+#
+#Quake I/II/III / QuakeWorld (ports 26000, 27000, 27910, 27960)
+#/sbin/modprobe ip_masq_quake 26000,27000,27910,27960
+
+
+# Supports the masquerading of the CuSeeme video conferencing software
+#
+#/sbin/modprobe ip_masq_cuseeme
+
+#Supports the masquerading of the VDO-live video conferencing software
+#
+#/sbin/modprobe ip_masq_vdolive
+
+
+#CRITICAL:  Enable IP forwarding, since it is disabled by default
+#
+#           Redhat Users:  you may try changing the options in /etc/sysconfig/network 
+#                          from:
+#
+#                       FORWARD_IPV4=false
+#                             to
+#                       FORWARD_IPV4=true
+#
+echo "1" &#62; /proc/sys/net/ipv4/ip_forward
+
+
+#CRITICAL:  Enable automatic IP defragmenting since it is disabled by default 
+#           in 2.2.x kernels
+#
+#           This used to be a compile-time option but the behavior was changed 
+#           in 2.2.12
+#
+echo "1" &#62; /proc/sys/net/ipv4/ip_always_defrag
+
+
+# Dynamic IP users:
+#
+#   If you get your IP address dynamically from SLIP, PPP, or DHCP, enable this 
+#   following option.  This allows dynamic-ip address hacking in IP MASQ, 
+#   making the life with Diald and similar programs much easier.
+#
+#echo "1" &#62; /proc/sys/net/ipv4/ip_dynaddr
+
+
+# Specify your Static IP address here.  
+#
+#   If you have a DYNAMIC IP address, you need to make this ruleset understand 
+#   your IP address everytime you get a new IP.  To do this, enable the 
+#   following one-line script.  (Please note that the different single and 
+#   double quote characters MATTER).  
+#
+#
+#   DHCP (Cablemodem and DSL) and PPP users:  
+#   ----------------------------------------
+#   If you get your TCP/IP address a dynamic IP address **you will need ** to 
+#   enable the #ed out command below underneath the PPP section AND replace the word 
+#   "ppp0" with the name of your EXTERNAL Internet connection (eth0, eth1, 
+#   etc).  
+#
+#   DHCP and PPP users:  The remote DHCP or PPP server can and will change
+#   IP addresses on you over time.  To deal with this, users should configure
+#   their DHCP or PPP client to re-run the rc.firewall-* ruleset everytime
+#   the IP address is changed.  Please see the "masq-and-dyn-addr" FAQ entry
+#   in the IPMASQ howto for full details on how to do this.
+#
+#
+# PPP and DHCP Users: 
+# -------------------
+# Remove the # on the line below and place a # in front of the line after that.
+#
+#ppp_ip="`/sbin/ifconfig ppp0 | grep 'inet addr' | awk '{print $2}' | sed -e 's/.*://'`"
+#
+ppp_ip="your.static.PPP.address"
+
+
+# MASQ timeouts 
+#
+#   2 hrs timeout for TCP session timeouts
+#  10 sec timeout for traffic after the TCP/IP "FIN" packet is received
+#  60 sec timeout for UDP traffic (MASQ'ed ICQ users must enable a 30sec 
+#     firewall timeout in ICQ itself) 
+#
+/sbin/ipfwadm -M -s 7200 10 60
+
+
+#############################################################################
+# Incoming, flush and set default policy of reject. Actually the default policy
+# is irrelevant because there is a catch all rule with deny and log.
+#
+/sbin/ipfwadm -I -f
+/sbin/ipfwadm -I -p reject
+
+# local interface, local machines, going anywhere is valid
+#
+/sbin/ipfwadm -I -a accept -V 192.168.0.1 -S 192.168.0.0/24 -D 0.0.0.0/0
+
+# remote interface, claiming to be local machines, IP spoofing, get lost
+#
+/sbin/ipfwadm -I -a reject -V $ppp_ip -S 192.168.0.0/24 -D 0.0.0.0/0 -o
+
+
+# remote interface, any source, going to the MASQ servers IP address is valid
+#
+#  ENABLE this line if you want ALL Internet traffic to connect to your
+#  the various servers running on the MASQ server.  This includes 
+#  web servers, ssh servers, dns servers, etc.  
+#
+#  I DON'T recommend you enable this rule.  Instead, only enable specific
+#  access to select server ports under the "OPTIONAL INPUT Section".
+#  An example of enabling HTTP (WWW) has been given below:
+#
+#
+#/sbin/ipfwadm -I -a accept -V $ppp_ip -S 0.0.0.0/0 -D $ppp_ip/32
+
+
+# loopback interface is valid.
+#
+/sbin/ipfwadm -I -a accept -V 127.0.0.1 -S 0.0.0.0/0 -D 0.0.0.0/0
+
+
+# catch all rule, all other incoming is denied and logged. pity there is no
+# log option on the policy but this does the job instead.
+#
+/sbin/ipfwadm -I -a reject -S 0.0.0.0/0 -D 0.0.0.0/0 -o
+
+
+#############################################################################
+# Outgoing, flush and set default policy of reject. Actually the default policy
+# is irrelevant because there is a catch all rule with deny and log.
+#
+/sbin/ipfwadm -O -f
+/sbin/ipfwadm -O -p reject
+
+# local interface, MASQ server source going to the local net is valid
+#
+/sbin/ipfwadm -O -a accept -V 192.168.0.1 -S 0.0.0.0/0 -D 192.168.0.0/24
+
+# outgoing to local net on remote interface, stuffed routing, deny
+#
+/sbin/ipfwadm -O -a reject -V $ppp_ip -S 0.0.0.0/0 -D 192.168.0.0/24 -o
+
+# outgoing from local net on remote interface, stuffed masquerading, deny
+#
+/sbin/ipfwadm -O -a reject -V $ppp_ip -S 192.168.0.0/24 -D 0.0.0.0/0 -o
+
+# outgoing from local net on remote interface, stuffed masquerading, deny
+#
+/sbin/ipfwadm -O -a reject -V $ppp_ip -S 0.0.0.0/0 -D 192.168.0.0/24 -o
+
+# anything else outgoing on remote interface is valid
+#
+/sbin/ipfwadm -O -a accept -V $ppp_ip -S $ppp_ip/32 -D 0.0.0.0/0
+
+# loopback interface is valid.
+#
+/sbin/ipfwadm -O -a accept -V 127.0.0.1 -S 0.0.0.0/0 -D 0.0.0.0/0
+
+# catch all rule, all other outgoing is denied and logged. pity there is no
+# log option on the policy but this does the job instead.
+#
+/sbin/ipfwadm -O -a reject -S 0.0.0.0/0 -D 0.0.0.0/0 -o
+
+
+#############################################################################
+# Forwarding, flush and set default policy of deny. Actually the default policy
+# is irrelevant because there is a catch all rule with deny and log.
+#
+/sbin/ipfwadm -F -f
+/sbin/ipfwadm -F -p reject
+
+# Masquerade from local net on local interface to anywhere.
+#
+/sbin/ipfwadm -F -a masquerade -W ppp0 -S 192.168.0.0/24 -D 0.0.0.0/0
+#
+# catch all rule, all other forwarding is denied and logged.  Pity there is no
+# log option on the policy but this does the job instead.
+#
+/sbin/ipfwadm -F -a reject -S 0.0.0.0/0 -D 0.0.0.0/0 -o
+
+#End of file.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+&#60;rc.firewall-ipfwadm-stronger STOP&#62;</P
+><P
+>To automatically start this stronger firewall ruleset at the proper time,
+please see the end of the <A
+HREF="firewall-examples.html#RC.FIREWALL-IPFWADM"
+>Section 3.4.3</A
+> section for
+full details.  Please make sure you make the correct "rc.firewall-ipfwadm" to
+"rc.firewall-ipfwadm-stronger" substitutions!!</P
+><P
+>With IPFWADM, you can block traffic to a particular site using the -I, -O or -F 
+rules.  Remember that the set of rules are scanned top to bottom and "-a" tells 
+IPFWADM to "append" this new rule to the existing set of rules.  So with this in 
+mind, any specific restrictions need to come before global rules. For example:</P
+><P
+>Using -I (input ) rules:</P
+><P
+>Probably the fastest and most efficient method to block traffic but it only 
+stops the MASQed machines, and NOT the the firewall machine itself. Of course, 
+you might want to allow that combination.</P
+><P
+>Anyway, to block 204.50.10.13:</P
+><P
+>In the /etc/rc.d/rc.firewall-ipfwadm-stronger ruleset:
+... start of -I rules ...
+
+# reject and log local interface, local machines going to 204.50.10.13
+#
+/sbin/ipfwadm -I -a reject -V 192.168.0.1 -S 192.168.0.0/24 -D 204.50.10.13/32 -o
+
+# local interface, local machines, going anywhere is valid
+#
+/sbin/ipfwadm -I -a accept -V 192.168.0.1 -S 192.168.0.0/24 -D 0.0.0.0/0
+
+... end of -I rules ...</P
+><P
+>Using -O (output) rules: </P
+><P
+>This is the slower method to block traffic because the packets go through 
+masquerading first before they are dropped.  Yet, this rule even stops the 
+firewall machine from accessing the forbidden site.</P
+><P
+>... start of -O rules ...
+
+# reject and log outgoing to 204.50.10.13
+#
+/sbin/ipfwadm -O -a reject -V $ppp_ip -S $ppp_ip/32 -D 204.50.10.13/32 -o
+
+# anything else outgoing on remote interface is valid
+#
+/sbin/ipfwadm -O -a accept -V $ppp_ip -S $ppp_ip/32 -D 0.0.0.0/0
+
+... end of -O rules ...</P
+><P
+>Using -F (forward) rules: </P
+><P
+>Probably slower than -I (input) rules for blocking traffic, this still only 
+stops masqueraded machines (e.g. internal machines).   The firewall machine 
+can still reach forbidden site(s).</P
+><P
+>... start of -F rules ...
+
+# Reject and log from local net on PPP interface to 204.50.10.13.
+#
+/sbin/ipfwadm -F -a reject -W ppp0 -S 192.168.0.0/24 -D 204.50.10.13/32 -o
+
+# Masquerade from local net on local interface to anywhere.
+#
+/sbin/ipfwadm -F -a masquerade -W ppp0 -S 192.168.0.0/24 -D 0.0.0.0/0
+
+... end of -F rules ...</P
+><P
+>There is no need for a special rule to allow machines on the 192.168.0.0/24 
+network to go to 204.50.11.0. Why?  It is already covered by the global MASQ 
+rule.</P
+><P
+>NOTE:  There is more than one way of coding the interfaces in the above rules.  
+For example instead of "-V 192.168.255.1" you can code "-W eth0", instead of 
+"-V $ppp_ip" , you can use "-W ppp0".  The "-V" method was phased out with the 
+imgration to IPCHAINS, but for IPFWADM users, its more of a personal choice and 
+documentation.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="supported-client-software.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="multiple-masqed-lans.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Supported Client Software and Other Setup Notes</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="ipmasq-support-portfw-and-stronger-rulesets.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>IP Masquerading multiple internal networks</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,312 @@
+<HTML
+><HEAD
+><TITLE
+>Advanced filters for (re-)classifying packets</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Netfilter &#38; iproute - marking packets"
+HREF="lartc.netfilter.html"><LINK
+REL="NEXT"
+TITLE="The u32 classifier"
+HREF="lartc.adv-filter.u32.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.netfilter.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.u32.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="LARTC.ADV-FILTER"
+></A
+>Chapter 12. Advanced filters for (re-)classifying packets</H1
+><DIV
+CLASS="TOC"
+><DL
+><DT
+><B
+>Table of Contents</B
+></DT
+><DT
+>12.1. <A
+HREF="lartc.adv-filter.u32.html"
+>The <TT
+CLASS="OPTION"
+>u32</TT
+> classifier</A
+></DT
+><DD
+><DL
+><DT
+>12.1.1. <A
+HREF="lartc.adv-filter.u32.html#AEN1080"
+>U32 selector</A
+></DT
+><DT
+>12.1.2. <A
+HREF="lartc.adv-filter.u32.html#AEN1094"
+>General selectors</A
+></DT
+><DT
+>12.1.3. <A
+HREF="lartc.adv-filter.u32.html#AEN1118"
+>Specific selectors</A
+></DT
+></DL
+></DD
+><DT
+>12.2. <A
+HREF="lartc.adv-filter.route.html"
+>The <TT
+CLASS="OPTION"
+>route</TT
+> classifier</A
+></DT
+><DT
+>12.3. <A
+HREF="lartc.adv-filter.policing.html"
+>Policing filters</A
+></DT
+><DD
+><DL
+><DT
+>12.3.1. <A
+HREF="lartc.adv-filter.policing.html#AEN1162"
+>Ways to police</A
+></DT
+><DT
+>12.3.2. <A
+HREF="lartc.adv-filter.policing.html#AEN1184"
+>Overlimit actions</A
+></DT
+><DT
+>12.3.3. <A
+HREF="lartc.adv-filter.policing.html#AEN1204"
+>Examples</A
+></DT
+></DL
+></DD
+><DT
+>12.4. <A
+HREF="lartc.adv-filter.hashing.html"
+>Hashing filters for very fast massive filtering</A
+></DT
+></DL
+></DIV
+><P
+>As explained in the section on classful queueing disciplines, filters are
+needed to classify packets into any of the sub-queues. These filters are
+called from within the classful qdisc.</P
+><P
+>Here is an incomplete list of classifiers available:
+<P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>fw</DT
+><DD
+><P
+>Bases the decision on how the firewall has marked the packet. This can be
+the easy way out if you don't want to learn tc filter syntax. See the
+Queueing chapter for details.</P
+></DD
+><DT
+>u32</DT
+><DD
+><P
+>Bases the decision on fields within the packet (i.e. source IP address, etc)</P
+></DD
+><DT
+>route</DT
+><DD
+><P
+>Bases the decision on which route the packet will be routed by</P
+></DD
+><DT
+>rsvp, rsvp6</DT
+><DD
+><P
+>Routes packets based on <A
+HREF="http://www.isi.edu/div7/rsvp/overview.html"
+TARGET="_top"
+>RSVP </A
+>. Only useful
+on networks you control - the Internet does not respect RSVP.</P
+></DD
+><DT
+>tcindex</DT
+><DD
+><P
+>Used in the DSMARK qdisc, see the relevant section.</P
+></DD
+></DL
+></DIV
+></P
+><P
+>Note that in general there are many ways in which you can classify packet
+and that it generally comes down to preference as to which system you wish
+to use.</P
+><P
+>Classifiers in general accept a few arguments in common. They are listed
+here for convenience:</P
+><P
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>protocol</DT
+><DD
+><P
+>The protocol this classifier will accept. Generally you will only be
+accepting only IP traffic. Required.</P
+></DD
+><DT
+>parent</DT
+><DD
+><P
+>The handle this classifier is to be attached to. This handle must be
+an already existing class. Required.</P
+></DD
+><DT
+>prio</DT
+><DD
+><P
+>The priority of this classifier. Lower numbers get tested first.</P
+></DD
+><DT
+>handle</DT
+><DD
+><P
+>This handle means different things to different filters.</P
+></DD
+></DL
+></DIV
+></P
+><P
+>All the following sections will assume you are trying to shape the traffic
+going to <TT
+CLASS="LITERAL"
+>HostA</TT
+>. They will assume that the root class has been
+configured on 1: and that the class you want to send the selected traffic to
+is 1:1.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.netfilter.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.u32.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Netfilter &#38; iproute - marking packets</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>The <TT
+CLASS="OPTION"
+>u32</TT
+> classifier</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,192 @@
+<HTML
+><HEAD
+><TITLE
+>Asynchronous usage of sg</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="/proc/scsi/sg/debug"
+HREF="sg_debug.html"><LINK
+REL="NEXT"
+TITLE="Sg3_utils package"
+HREF="sg3_utils.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="sg_debug.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="sg3_utils.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="ASYNC">Chapter 12. Asynchronous usage of sg</H1
+><P
+>It is recommended that synchronous sg-based applications use the new
+SG_IO ioctl() command. Existing applications (which are mainly synchronous)
+can continue to use the older sg_header based interface which is still
+supported.</P
+><P
+>Asynchronous usage allows multiple SCSI commands to be queued up to the
+device. If the device supports command queuing then there can be a major
+performance gain. Even if the device doesn't support command queuing (or
+is temporarily busy) then queuing up commands in the mid level or the host
+driver can be a minor performance win (since there will be a lower latency
+to transmit the next command when the device becomes free).</P
+><P
+>Asynchronous usage usually starts with setting the O_NONBLOCK flag on open()
+[or thereafter by using the fcntl(fd, SETFD, old_flags | O_NONBLOCK)
+system call]. A similar effect can be obtained without using O_NONBLOCK
+when POSIX threads are used. There are several strategies that can then
+be followed:
+<P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>set O_NONBLOCK and use a poll() loop</P
+></LI
+><LI
+><P
+>set O_NONBLOCK and use SIGPOLL signal to alert app when readable</P
+></LI
+><LI
+><P
+>use POSIX threads and a single sg file descriptor</P
+></LI
+><LI
+><P
+>use POSIX threads and multiple sg file descriptors to same device</P
+></LI
+></OL
+></P
+><P
+>The O_NONBLOCK flag also permits open(), write() and read() [but not
+the ioctl(SG_IO)] to access a SCSI device even though it has been
+marked offline. SCSI devices are marked offline when they are detected
+and don't respond to the initial SCSI commands as expected, or,
+some SCSI error condition is detected on that device and the
+mid level error recovery logic is unable to "resurrect" the device.
+A SCSI device that is being reset (and still settling) could be
+accessed during this period by using the O_NONBLOCK flag; this
+could lead to unexpected behaviour so the sg user should take care.</P
+><P
+>In Linux SIGIO and SIGPOLL are the same signal. If POSIX real time
+signals are used (e.g. when SA_SIGINFO is used with sigaction() and
+fcntl(fd, F_SETSIG, SIGRTMIN + &#60;n&#62;) ) then the file descriptor with which
+the signal is associated is available to the signal handler. The
+associated file descriptor is in the si_fd member of the siginfo_t
+structure. The poll() system call that is often used after a signal
+is received can thus be bypassed.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="sg_debug.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="sg3_utils.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>/proc/scsi/sg/debug</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Sg3_utils package</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

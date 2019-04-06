@@ -1,0 +1,325 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Building and Installing Software Packages for Linux: Fourth Example: Hearts</TITLE>
+ <LINK HREF="Software-Building-HOWTO-13.html" REL=next>
+ <LINK HREF="Software-Building-HOWTO-11.html" REL=previous>
+ <LINK HREF="Software-Building-HOWTO.html#toc12" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Software-Building-HOWTO-13.html">Next</A>
+<A HREF="Software-Building-HOWTO-11.html">Previous</A>
+<A HREF="Software-Building-HOWTO.html#toc12">Contents</A>
+<HR>
+<H2><A NAME="s12">12. Fourth Example: Hearts</A></H2>
+
+<P>
+<P>Here is the hoary old game of Hearts, written for UNIX systems by Bob
+Ankeney sometime in the '80's, revised in 1992 by Mike Yang, and currently
+maintained by 
+<A HREF="mailto:badger@phylo.life.uiuc.edu">Jonathan Badger</A>. Its predecessor was an even older Pascal program by Don
+Backus of Oregon Software, later updated by Jeff Hemmerling. Originally
+intended as a multiplayer client, it also works well in single-player
+mode against computer opponents. The graphics are nice, though the game
+lacks sophisticated features and the computer players are not particularly
+strong. All the same, it seems to be the only decent Hearts game available
+for UNIX and Linux machines even at this late date.
+<P>Due to its age and lineage, this package is particularly difficult to
+build on a Linux system. It requires solving a long and perplexing series
+of puzzles.  It is an exercise in patience and determination.
+<P><EM>Before beginning, make certain that you have either the <CODE>motif</CODE> or
+<CODE>lesstif</CODE> libraries installed.</EM>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P><B>xmkmf</B>
+<P><B>make</B>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+client.c: In function `read_card':
+client.c:430: `_tty' undeclared (first use in this function)
+client.c:430: (Each undeclared identifier is reported only once
+client.c:430: for each function it appears in.)
+client.c: In function `scan':
+client.c:685: `_tty' undeclared (first use in this function)
+make: *** [client.o] Error 1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>These are the culprits in the file <CODE>client.c</CODE>:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#ifndef SYSV
+        (buf[2] != _tty.sg_erase) &amp;&amp; (buf[2] != _tty.sg_kill)) {
+ #else
+        (buf[2] != CERASE) &amp;&amp; (buf[2] != CKILL)) {
+#endif
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P>In <CODE>client.c</CODE>, add
+<BLOCKQUOTE><CODE>
+<PRE>
+#define SYSV
+</PRE>
+</CODE></BLOCKQUOTE>
+
+at line 39. This will bypass the reference to <EM>_tty</EM>.
+<P><B>make</B>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+client.c:41: sys/termio.h: No such file or directory
+make: *** [client.o] Error 1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P>The include file <CODE>termio.h</CODE> is in the <CODE>/usr/include</CODE>
+directory on a Linux system, rather than the <CODE>/usr/include/sys</CODE>
+one, as was the case on older UNIX machines.  Therefore, change line 41
+of <CODE>client.c</CODE> from
+<BLOCKQUOTE><CODE>
+<PRE>
+#include &lt;sys/termio.h>
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to
+<BLOCKQUOTE><CODE>
+<PRE>
+#include &lt;termio.h>
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><B>make</B>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+gcc -o hearts -g      -L/usr/X11R6/lib client.o hearts.o select.o connect.o
+sockio.o start_dist.o  -lcurses -ltermlib       
+/usr/bin/ld: cannot open -ltermlib: No such file or directory
+collect2: ld returned 1 exit status
+make: *** [hearts] Error 1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P>Modern Linux distributions use the <EM>terminfo</EM> and/or
+<EM>termcap</EM> database, rather than the obsolete <EM>termlib</EM> one.
+<P>Edit the <CODE>Makefile</CODE>.
+<P>Line 655:
+<BLOCKQUOTE><CODE>
+<PRE>
+CURSES_LIBRARIES = -lcurses -ltermlib
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>changes to:
+<BLOCKQUOTE><CODE>
+<PRE>
+CURSES_LIBRARIES = -lcurses -ltermcap
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P><B>make</B>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+gcc -o xmhearts -g      -L/usr/X11R6/lib xmclient.o hearts.o select.o
+connect.o sockio.o start_dist.o gfx.o  -lXm_s -lXt -lSM -lICE -lXext -lX11
+-lPW       
+/usr/bin/ld: cannot open -lXm_s: No such file or directory
+collect2: ld returned 1 exit status
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P>The main <EM>lesstif</EM> library is <CODE>libXm</CODE>, rather than
+<CODE>libXm_s</CODE>. Therefore, edit the <CODE>Makefile</CODE>.
+<P>In line 653:
+<BLOCKQUOTE><CODE>
+<PRE>
+XMLIB = -lXm_s $(XTOOLLIB) $(XLIB) -lPW
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>changes to:
+<BLOCKQUOTE><CODE>
+<PRE>
+XMLIB = -lXm $(XTOOLLIB) $(XLIB) -lPW
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P><B>make</B>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+gcc -o xmhearts -g      -L/usr/X11R6/lib xmclient.o hearts.o select.o
+connect.o sockio.o start_dist.o gfx.o  -lXm -lXt -lSM -lICE -lXext -lX11 -lPW       
+/usr/bin/ld: cannot open -lPW: No such file or directory
+collect2: ld returned 1 exit status
+make: *** [xmhearts] Error 1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P>Round up the usual suspects.
+<P>There is no <CODE>PW</CODE> library.  Edit the <CODE>Makefile</CODE>.
+<P>Line 653:
+<BLOCKQUOTE><CODE>
+<PRE>
+XMLIB = -lXm $(XTOOLLIB) $(XLIB) -lPW
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>changes to:
+<BLOCKQUOTE><CODE>
+<PRE>
+XMLIB = -lXm $(XTOOLLIB) $(XLIB) -lPEX5
+</PRE>
+</CODE></BLOCKQUOTE>
+
+(The <CODE>PEX5</CODE> lib comes closest to <CODE>PW</CODE>.)
+<P>
+<P><B>make</B>
+<P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+rm -f xmhearts
+gcc -o xmhearts -g      -L/usr/X11R6/lib xmclient.o hearts.o select.o
+connect.o sockio.o start_dist.o gfx.o  -lXm -lXt -lSM -lICE -lXext -lX11 -lPEX5       
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The <CODE>make</CODE> finally works (hurray!).
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P><EM>Installation:</EM>
+<P>As root,
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+[root@localhost hearts]# make install
+install -c -s  hearts /usr/X11R6/bin/hearts
+install -c -s  xmhearts /usr/X11R6/bin/xmhearts
+install -c -s  xawhearts /usr/X11R6/bin/xawhearts
+install in . done
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P><EM>Test run:</EM>
+<P><B>rehash</B>
+<P>(We're running the <CODE>tcsh</CODE> shell.)
+<P><B>xmhearts</B>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+localhost:~/% xmhearts
+Can't invoke distributor!
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P>From <CODE>README</CODE> file in the <CODE>hearts</CODE> package: 
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+     Put heartsd, hearts_dist, and hearts.instr in the HEARTSLIB
+     directory defined in local.h and make them world-accessible.
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>From the file <CODE>local.h</CODE>:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/* where the distributor, dealer and instructions live */
+
+#define HEARTSLIB "/usr/local/lib/hearts"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This is a classic case of RTFM.
+<P>
+<P>As <EM>root</EM>,
+<P><B>cd /usr/local/lib</B>
+<P><B>mkdir hearts</B>
+<P><B>cd !$</B>
+<P>Copy the <CODE>distributor</CODE> files to this directory.
+<P><B>cp /home/username/hearts/heartsd .</B>
+<P><B>cp /home/username/hearts/hearts_dist .</B>
+<P><B>cp /home/username/hearts/hearts.instr .</B>
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P><EM>Try another test run.</EM>
+<P><B>xmhearts</B>
+<P>It works some of the time, but more often than not crashes with a
+<CODE>dealer died!</CODE> message.
+<P>
+<P>
+<P>
+<UL>
+<LI><B></B></LI>
+</UL>
+<P>The "distributor" and "dealer" scan the hardware ports. We should thus
+suspect that those programs need root user privileges.
+<P>Try, as <EM>root</EM>,
+<P><B>chmod u+s /usr/local/lib/heartsd</B>
+<P><B>chmod u+s /usr/local/lib/hearts_dist</B>
+<P>(Note that, as previously discussed, <EM>suid</EM> binaries may create
+security holes.)
+<P><B>xmhearts</B>
+<P>
+<P><EM>It finally works!</EM>
+<P>
+<P><CODE><EM>Hearts</EM> is available from 
+<A HREF="ftp://metalab.unc.edu/pub/Linux/games/multiplayer/hearts.tgz">Sunsite</A>.</CODE>
+<P>
+<P>
+<P>
+<HR>
+<A HREF="Software-Building-HOWTO-13.html">Next</A>
+<A HREF="Software-Building-HOWTO-11.html">Previous</A>
+<A HREF="Software-Building-HOWTO.html#toc12">Contents</A>
+</BODY>
+</HTML>

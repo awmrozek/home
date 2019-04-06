@@ -1,0 +1,419 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Plug-and-Play-HOWTO: How to Deal with PnP Cards</TITLE>
+ <LINK HREF="Plug-and-Play-HOWTO-5.html" REL=next>
+ <LINK HREF="Plug-and-Play-HOWTO-3.html" REL=previous>
+ <LINK HREF="Plug-and-Play-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Plug-and-Play-HOWTO-5.html">Next</A>
+<A HREF="Plug-and-Play-HOWTO-3.html">Previous</A>
+<A HREF="Plug-and-Play-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4.</A> <A HREF="Plug-and-Play-HOWTO.html#toc4">How to Deal with PnP Cards</A></H2>
+
+<H2><A NAME="ss4.1">4.1</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.1">Introduction to Dealing with PnP Devices </A>
+</H2>
+
+<P> Today almost all new internal boards (cards) are Plug-and-Play
+(PnP).  Thus, the configuring of bus-resources should, in almost all
+cases be entirely automatic.  If a device is not working, see if it
+was detected, possibly by rebooting.  If the device driver can't
+resource-configure it, then hopefully one or more of methods 2-6 will:</P>
+<P>
+<OL>
+<LI> 
+<A HREF="#dev_d_conf">Device Driver Configures</A></LI>
+<LI> 
+<A HREF="#sys_">/sys User Interface Configures</A> kernel
+2.6 + (not for PCI yet, other severe limitations)</LI>
+<LI>  
+<A HREF="#bios_conf">BIOS Configures</A> (For the PCI bus
+you only need a PCI BIOS, otherwise you need a PnP BIOS) </LI>
+<LI> 
+<A HREF="#disable_pnp">ISA cards only: Disable PnP</A>  by
+jumpers or DOS/Windows software (but many cards can't do this) </LI>
+<LI> 
+<A HREF="#isapnp_">ISA Bus: Isapnp</A> is a program you can always
+use to configure ISA PnP devices</LI>
+<LI> 
+<A HREF="#pciutils_">PCI Utilities</A> is for configuring
+the PCI bus but the device driver should handle it </LI>
+<LI> 
+<A HREF="#windows_conf">Windows Configures</A> and then you
+boot Linux from within Windows/DOS.  Use as a last resort</LI>
+</OL>
+</P>
+<P>Any of the above will set the bus-resources in the hardware but only
+the first one (and possibly the second) tells the driver what has been
+done.  How the driver gets informed depends on the driver.  You may
+need to do something to inform it.  See 
+<A HREF="Plug-and-Play-HOWTO-5.html#tell_driver_config">Tell the Driver the Configuration</A></P>
+
+<H2><A NAME="dev_d_conf"></A> <A NAME="ss4.2">4.2</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.2">Device Driver Configures, Reserving Resources </A>
+ </H2>
+
+<P>Device drivers (with the help of code provided by the kernel)
+can be written to use PnP methods to set the bus-resources in the
+hardware but only for the device that they control.  But many device
+drivers just accept what the BIOS or Linux has configured and use code
+provided by the kernel to find out how this device has been
+configured.  Since the driver has checked the configuration and
+possibly reconfigured it, it obviously knows the configuration and
+there is no need for you to tell it this info.  This is obviously the
+easiest way to do it since you don't have to do anything if the driver
+does it all.</P>
+<P>If you have old pre-PnP ISA hardware, the Linux PnP software may not
+know about it and the bus-resources it requires.  So it might
+erroneously allocate the resources that this old hardware needs to
+some other device.  The result is a resource conflict but there's a
+way to try to avoid it.  You can reserve the resources that the old
+ISA card needs by configuring the BIOS at boot-time (usually), the isa-pnp
+module or to the kernel (if the PnP is built into the kernel).  For
+example, to reserve IRQ 5 give this argument to the isa-pnp module (or
+to the kernel): isapnp_reserve_irq=5.  See BootPrompt-HOWTO.  Instead
+of ..._irq there are also _io, _dma, and _mem.  </P>
+<P>For PCI devices, most drivers will configure PnP.  Unfortunately, a
+driver could grab bus-resources that are needed by other devices (but
+not yet allocated to them by the kernel).  Thus a more sophisticated
+PnP Linux kernel would be better, where the kernel did the allocation
+after all requests were in.  See 
+<A HREF="Plug-and-Play-HOWTO-2.html#how_linux_pnps">How Linux Does PnP</A>.</P>
+
+<H2><A NAME="sys_"></A> <A NAME="ss4.3">4.3</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.3">/sys User Interface Configures </A>
+</H2>
+
+<P>Starting with kernel 2.6 there's supposedly a new way for the user
+to resource configure using the /sys directory tree.  But as of Aug.
+2004, it can't be used for configuring in most cases.  See 
+<A HREF="Plug-and-Play-HOWTO-6.html#sys_dir">The /sys Directory Tree</A>.</P>
+
+<H2><A NAME="bios_conf"></A> <A NAME="ss4.4">4.4</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.4">BIOS Configures </A>
+</H2>
+
+<H3>Intro to Using the BIOS to Configure PnP </H3>
+
+<P> If you have a PnP BIOS, it can configure the hardware.  If the
+driver can't do it, the BIOS probably can.  This means that your BIOS
+reads the resource requirements of all devices and configures them
+(allocates bus-resources to them).  It is a substitute for a PnP OS
+except that the BIOS doesn't match up the drivers with their devices
+nor tell the drivers how it has done the configuring.  It should
+normally use the configuration it has stored in its non-volatile
+memory (ESCD).  If it finds a new device or if there's a conflict, the
+BIOS should make the necessary changes to the configuration and may
+not use the same configuration as was in the ESCD.  In this case it
+should update the ESCD to reflect the new situation.</P>
+<P>Your BIOS needs to support such configuring and there have been cases
+where it doesn't do it correctly or completely.  The BIOS may need
+to be told via the CMOS menu that it's not a PnP OS.  While many
+device drivers will be able to automatically detect what the BIOS has
+done, in some cases you may need to determine it (not always easy).
+See 
+<A HREF="Plug-and-Play-HOWTO-6.html#current_config">What Is My Current Configuration?</A>
+A possible advantage to letting the BIOS do it is that it does its
+work before Linux starts so it all gets done early in the boot
+process.</P>
+<P>Most BIOS made after about 1996 ?? can resource-configure both the PCI
+and ISA buses.  But it's been claimed that some older BIOSs can only
+do the PCI.  And of course, for PCs with only the PCI bus, the BIOS
+only needs to do PCI.  To try to find out more about your BIOS, look
+on the Web.  Please don't ask me as I don't have data on this.  The
+details of the BIOS that you would like to know about may be hard to
+find (or not available).  Some old BIOS's may have minimal PnP
+capabilities and seemingly expect the operating system to do it right.
+If this happens you'll either have to find another method or try to
+set up the ESCD database if the BIOS has one.  See the next section.</P>
+
+<H3><A NAME="escd_"></A> The BIOS's ESCD Database  </H3>
+
+<P> The BIOS maintains a non-volatile database containing a
+PnP-configuration that it will try to use (if you claim that it's not
+a PnP OS).  It's called the ESCD (Extended System Configuration Data).
+Again, the provision of ESCD is optional but most PnP-BIOSs have it.
+The ESCD not only stores the resource-configuration of PnP devices but
+also stores configuration information of non-PnP devices (and marks
+them as such) so as to avoid conflicts.  The ESCD data is usually
+saved on a chip and remains intact when the power is off, but
+sometimes it's kept on a hard-drive??</P>
+<P>The ESCD is intended to hold the last used configuration.  But since
+Linux can change how devices are configured (including the user using
+isapnp or pci utilities) then the ESCD will not know about this and
+will not save this configuration in the ESCD.  A good PnP OS might
+update the ESCD so you can use it later on for a non-PnP OS (like
+standard Linux).  MS Windows9x does this only in special cases.  See
+<A HREF="#W9x_ESCD">Using Windows to set ESCD</A>.  Starting with
+kernel 2.6, Linux is capable of modifying the ESCD but it's not used
+yet (as of Aug. 2004).</P>
+<P>To use what's set in ESCD be sure you've set "Not a PnP OS" or the
+like in the BIOS's CMOS.  Then each time the BIOS starts up (before
+the Linux OS is loaded) it should configure things this way.  If the
+BIOS detects a new PnP card which is not in the ESCD, then it must
+allocate bus-resources to the card and update the ESCD.  It may even
+have to change the bus-resources assigned to existing PnP cards and
+modify the ESCD accordingly.</P>
+<P>There's a program that you may use to view the contents of the ESCD.
+It shows IRQs and IO addresses etc., but device names are missing
+(only EISA device-ID numbers).  It's at: 
+<A HREF="http://home.t-online.de/home/gunther.mayer/lsescd/">Index of /home/gunther.mayer/lsescd</A></P>
+<P>If each device saved its last configuration in its hardware, hardware
+configuring wouldn't be needed each time you start your PC.  But it
+doesn't work this way.  So all the ESCD data needs to be kept correct
+if you use the BIOS for PnP.  There are some BIOSs that don't have an
+ESCD but do have some non-volatile memory to store info regarding
+which bus-resources have been reserved for use by non-PnP cards.  Many
+BIOSs have both.</P>
+
+<H3><A NAME="W9x_ESCD"></A> Using Windows to set the ESCD   </H3>
+
+<P>Eventually the Linux kernel may set the ESCD.  Starting with kernel
+2.6, a function in the new code could do it provided the kernel has
+been compiled with PNPBIOS.  But it currently sits in the code unused.</P>
+<P>If the BIOS doesn't set up the ESCD the way you want it (or the way it
+should be) then it would be nice to have a Linux utility to set the
+ESCD.  One may resort to attempting to use Windows for this (if you
+have it on the same PC) to do this.</P>
+<P>There are three ways to use Windows to try to set/modify the ESCD.
+One way is to use the ICU utility designed for DOS or Windows 3.x.  It
+should also work OK for Windows 9x/2k ??  Another way is to set up
+devices manually ("forced") under Windows 9x/2k so that Windows will
+put this info into the ESCD when Windows is shut down normally.  The
+third way is only for legacy devices that are not plug-and-play.  If
+Windows knows about them and what bus-resources they use, then Windows
+should put this info into the ESCD.</P>
+<P>If PnP devices are configured automatically by Windows without the
+user "forcing" it to change settings, then such settings probably will
+not make it into the ESCD.  Of course Windows may well decide on its
+own to configure the same as what is set in the ESCD so they could
+wind up being the same by coincidence.</P>
+<P>Windows 9x are PnP operating systems and automatically PnP-configure
+devices.  They maintain their own PnP-database deep down in the
+Registry (stored in binary Windows files).  There is also a lot of
+other configuration stuff in the Registry besides PnP-bus-resources.
+There is both a current PnP resource configuration in memory and
+another (perhaps about the same) stored on the hard disk.  To look at
+this in Windows98 or to force changes to it you use the Device
+Manager.</P>
+<P>In Windows98 there are 2 ways to get to the Device Manager: 1. My
+Computer --> Control Panel --> System Properties --> Device Manager.
+2. (right-click) My Computer --> Properties --> Device Manager.  Then
+in Device Manager you select a device (sometimes a multi-step process
+if there are a few devices of the same class).  Then click on
+"Properties" and then on "Resources".  To attempt to change the
+resource configuration manually, uncheck "Use automatic settings" and
+then click on  "Change Settings".  Now try to change the setting, but
+it may not let you change it.  If it does let you, you have "forced" a
+change.  A message should inform you that it's being forced.  If you
+want to keep the existing setting shown by Windows but make it
+"forced" then you will have to force a change to something else and
+then force it back to its original setting.</P>
+<P>To see what has been "forced" under Windows98 look at the "forced
+hardware" list: Start --> Programs --> Accessories --> System Tools
+--> System Information --> Hardware Resources --> Forced Hardware.
+When you "force" a change of bus-resources in Windows, it should put
+your change into the ESCD (provided you exit Windows normally).  From
+the "System Information" window you may also inspect how IRQs and IO
+ports have been allocated under Windows.</P>
+<P>Even if Windows shows no conflict of bus-resources, there may be a
+conflict under Linux.  That's because Windows may assign bus-resources
+differently than the ESCD does.  In the rare case where all
+devices under Windows are either legacy devices or have been "forced",
+then Windows and the ESCD configurations should be identical.</P>
+
+<H3>Adding a New Device (under Linux or Windows) </H3>
+
+<P> If you add a new PnP device and have the BIOS set to "not a PnP
+OS", then the BIOS should automatically configure it and store the
+configuration in ESCD.  If it's a non-PnP legacy device (or one made
+that way by jumpers, etc.) then here are a few options to handle it:</P>
+<P>You may be able to tell the BIOS directly (via the CMOS setup menus)
+that certain bus-resources it uses (such as IRQs) are reserved and are
+not to be allocated by PnP.  This does not put this info into the
+ESCD.  But there may be a BIOS menu selection as to whether or not to
+have these CMOS choices override what may be in the ESCD in case of
+conflict.  Another method is to run ICU under DOS/Windows.  Still
+another is to install it manually under Windows 9x/2k and then make
+sure its configuration is "forced" (see the previous section).  If
+it's "forced" Windows should update the ESCD when you shut down the
+PC.</P>
+
+<H2><A NAME="disable_pnp"></A> <A NAME="ss4.5">4.5</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.5">ISA cards only: Disable PnP ? </A>
+ </H2>
+
+<P> PCI devices are inherently PnP so it can't be disabled.  But a few
+ISA devices once had options for disabling PnP by jumpers or by
+running a Windows program that comes with the device (jumperless
+configuration).  If the device driver can't configure it, this will
+avoid the possibly complicated task of doing PnP configuring.   Don't
+forget to tell the BIOS that these bus-resources are reserved.  But
+since Linux support for PnP has improved, you usually don't want to
+disable PnP.  Here's some more arguments in favor of PnP:</P>
+<P>
+<OL>
+<LI> If you have MS Windows on the same machine, then you may
+want to allow PnP to configure devices differently under Windows from
+what it does under Linux.</LI>
+<LI> The range of selection for IRQ numbers (or port addresses) etc.
+may be too limited unless you use PnP.</LI>
+<LI> You might have a Linux device driver that uses PnP methods to
+search for the device it controls.</LI>
+<LI> If you need to change the configuration in the future, it may
+be easier to do this if it's PnP (no setting of jumpers or running a
+Dos/Windows program).</LI>
+</OL>
+</P>
+<P>Once configured as non-PnP devices, they can't be configured by PnP
+software or a PnP-BIOS (until you move jumpers and/or use the
+Dos/Windows configuration software again).</P>
+
+<H2><A NAME="isapnp_"></A> <A NAME="ss4.6">4.6</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.6">ISA Bus: Isapnp (part of isapnptools) </A>
+</H2>
+
+<P> The <CODE>isapnp</CODE> standalone program is only for PnP devices on the
+ISA bus (non-PCI).  It was much needed prior to the 2.4 kernels.
+After the 2.4 kernel, which provided functionality to allow drivers
+deal with ISA PnP, the isapnp standalone program is less significant.
+Also, the BIOS may configure ISA PnP satisfactory.  But the isa-pnp
+module (or the equivalent built into the kernel) is now very
+significant since various ISA device drivers call on it to configure
+bus-resources.  Prior to kernel 2.6 it resulted a /proc/isapnp "file"
+which may be used to manually configure (see isapnp.txt in the kernel
+documentation).</P>
+<P>In some cases Linux distributions have been set up to run isapnp
+automatically at startup.  It's still done in 2004 but it isn't really
+needed if the device drivers work well.  If you need to set it up
+yourself much of the documentation for isapnp is difficult to
+understand unless you know the basics of PnP.  This HOWTO should help
+you understand it as well the FAQ that comes with isapnp.  Running the
+Linux program "isapnp" at boot-time will configure such devices to the
+resource values specified in /etc/isapnp.conf.  Its possible to create
+this configuration file automatically but you then should edit it
+manually to choose between various options.  Then to let the driver
+know the resources, you often need to specify them as parameters to
+the appropriate modules (drivers).  This is done with configuration
+files, often in the /etc directory.  Look there for files named mod*,
+etc.  If the driver is built into the kernel, then they may sometimes be
+given as a parameter to the kernel.  See BootPrompt-HOWTO.</P>
+<P>With isapnp there once was a problem where a device driver which is
+built into the kernel may run too early before isapnp has set the
+address, etc.  in the hardware.  This resulted in the device driver
+not being able to find the device.  The driver tries the right address
+but the address hasn't been set yet in the hardware.  Is this still a
+problem ??</P>
+<P>If your Linux distribution automatically installed isapnptools, isapnp
+may already be running at startup.  In this case, all you need to do
+is to edit /etc/isapnp.conf per "<CODE>man isapnp.conf</CODE>".  Note that
+this is like manually configuring PnP since you make the decisions as
+to how to configure as you edit the configuration file.  </P>
+<P>If the configuration file is wrong or doesn't exist, you can use the
+program "pnpdump" to help create the configuration file.  It almost
+creates a configuration file for you but you must skillfully edit it a
+little before using it.  It contains some comments to help you edit
+it.  While the BIOS may also configure the ISA devices (if you've told
+it that you don't have a PnP OS), isapnp will redo it.</P>
+<P>The terminology used in the /etc/isapnp.conf file may seem odd at
+first.  For example for an IO address of 0x3e8 you might see "(IO 0
+(BASE 0x3e8))" instead.  The "IO 0" means this is the first (0th) IO
+address-range that this device uses.   Another way to express all this
+would be: "IO[0] = 0x3e8" but isapnp doesn't do it this way.  "IO 1"
+would mean that this is the second IO address range used by this
+device, etc.  "INT 0" has a similar meaning but for IRQs (interrupts).
+A single card may contain several physical devices but the above
+explanation was for just one of these devices.</P>
+
+<H2><A NAME="pciutils_"></A> <A NAME="ss4.7">4.7</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.7">PCI Utilities  </A>
+ </H2>
+
+<P> The package PCI Utilities (= pciutils, sometimes called
+"pcitools"), allows one to manually PnP-configure the PCI bus (with
+difficulty).  "lspci" or "scanpci" lists bus-resources while "setpci"
+sets resource allocations (except IRQs) in the hardware devices.  It
+appears that setpci is mainly intended for use in scripts and one
+needs to understand the details of the PCI configuration registers in
+order to use it.  That's a topic not explained here nor in the manual
+page for setpci.</P>
+<P>People have used this to configure PCI devices where the driver failed
+to do it.  An example is found in my Modem-HOWTO and Serial-HOWTO in
+the subsection "PCI: Enabling a disabled port".  However, enabling a
+device is of no use unless you have a working driver for the device.</P>
+
+<H2><A NAME="windows_conf"></A> <A NAME="ss4.8">4.8</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.8">Windows Configures  </A>
+ </H2>
+
+<P> This method uses MS Windows to configure and should be used only
+if all else fails.  If you have Windows9x (or 2k) on the same PC, then
+just start Windows and let it configure PnP.  Then start Linux from
+Windows (or DOS) using, for example, loadlin.exe.  But there may be a
+problem with IRQs for PCI devices.  As Windows shuts down (without any
+messages) to make way for Linux, it may erase (zero) the IRQ which is
+stored in one of the PCI device's configuration registers.  Linux will
+complain that it has found an IRQ of zero.</P>
+<P>The above is reported to happen if you start Linux using a shortcut
+(PIF file).  But a workaround is reported where you still use the
+shortcut PIF.  A shortcut is something like a symbolic link in Linux
+but it's more than that since it may be "configured".  To start Linux
+from DOS you create a batch file (script) which starts Linux.  (The
+program that starts Linux is in the package called "loadlin").  Then
+create a PIF shortcut to that batch file and get to the "Properties"
+dialog box for the shortcut.  Select "Advanced" and then check "MS-DOS
+mode" to get it to start in genuine MS-DOS.</P>
+<P>Now here's the trick to prevent zeroing the PCI IRQs.  Click "Specify
+a new MS-DOS configuration".  Then either accept the default
+configuration presented to you or click on "Configuration" to change
+it.  Now when you start Linux by clicking on the shortcut, new
+configuration files (Config.sys and Autoexec.bat) will be created per
+your new configuration.</P>
+<P>The old files are stored as "Config.wos and Autoexec.wos".  After you
+are done using Linux and shut down your PC then you'll need these
+files again so that you can run DOS the next time you start your PC.
+You need to ensure that the names get restored to *.sys and *.bat.
+When you leave Windows/DOS to enter Linux, Windows is expecting that
+when you are done using Linux you will return to Windows so that
+Windows can automatically restore these files to their original names.
+But this doesn't happen since when you exit Linux you shut down your
+PC and don't get back to Windows.  So how do you get these files
+renamed?  It's easy, just put commands into your "start-Linux" batch
+file to rename these files to their *.bat and *.sys names.  Put these
+renaming commands into your batch file just before the line that loads
+Linux.</P>
+<P>Also it's reported that you should click on the "General" tab (of the
+"Properties" dialog of your shortcut) and check "Read-only".
+Otherwise Windows may reset the "Advanced Settings" to "Use current
+MS-DOS configuration" and PCI IRQs get zeroed.  Thus Windows erases
+the IRQs when you use the current MS-DOS configuration but doesn't
+erase when you use a new configuration (which may actually configure
+things identical to the old configuration).  Windows does not seem to
+be very consistent.</P>
+
+<H2><A NAME="sw_and_docs"></A> <A NAME="ss4.9">4.9</A> <A HREF="Plug-and-Play-HOWTO.html#toc4.9">PnP Software/Documents  </A>
+ </H2>
+
+<P>
+<UL>
+<LI>
+<A HREF="http://www.roestock.demon.co.uk/isapnptools/">Isapnptools homepage</A> </LI>
+<LI>
+<A HREF="http://www.astarte.free-online.co.uk">Proposal for a Configuration Manager for Linux</A> 1999 (Never got into
+kernel but Linux is slowly "evolving" in this direction).</LI>
+<LI>
+<A HREF="http://www.microsoft.com/hwdev/tech/pnp/default.asp">PnP Specs. from Microsoft</A></LI>
+<LI> Book: PCI System Architecture, 4th ed.  by Tom Shanley +,
+MindShare 1999.  Covers PnP-like features on the PCI bus.</LI>
+<LI> 
+<A NAME="pnp_book"></A>  Book: Plug and Play System Architecture,
+by Tom Shanley, Mind Share 1999.  Details of PnP on the ISA bus.  Only
+a terse overview of PnP on the PCI bus.</LI>
+<LI> Book: Programming Plug and Play, by James Kelsey, Sams 1995.
+Details of programming to communicate with a PnP BIOS.  Covers ISA,
+PCI, and PCMCIA buses.</LI>
+</UL>
+</P>
+
+<HR>
+<A HREF="Plug-and-Play-HOWTO-5.html">Next</A>
+<A HREF="Plug-and-Play-HOWTO-3.html">Previous</A>
+<A HREF="Plug-and-Play-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

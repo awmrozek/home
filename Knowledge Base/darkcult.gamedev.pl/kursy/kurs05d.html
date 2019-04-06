@@ -1,0 +1,390 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Klasy, cz. 5</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs05c.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="kurs06.html">Następna część kursu &gt;&gt;</A></TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H2>
+Funkcje zaprzyjaźnione
+</H2>
+
+<P>
+Jak już mówiliśmy, wszystkie zmienne i funkcje umieszczone po słowie <SPAN CLASS=K>private</SPAN> są niedostępne dla funkcji, nie będących składowymi klasy. W większości sytuacji jest to efekt bardzo pożądany, o czym też już mówiliśmy. Jednak czasami jest to bardzo niewygodne, bo okazuje się, że koniecznie potrzebujemy z takiej zewnętrznej funkcji odwołać się do jakiejś prywatnej składowej. Można wtedy oczywiście przenieść tę składową do sekcji <SPAN CLASS=K>public</SPAN>, ale wtedy z kolei ktoś niepowołany może dobrać się do tej zmiennej i zrobić z nią coś, czego byśmy nie chcieli. Optymalnym rozwiązaniem jest zaprzyjaźnienie zewnętrznej funkcji, która ma operować na "tajnych" danych klasy, z tą klasą. Zaprzyjaźnienie polega na umieszczeniu prototypu danej funkcji wewnątrz klasy, poprzedzając ją słowem <SPAN CLASS=K>friend</SPAN>. Oto przykład takiego zaprzyjaźnienia:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Klasa<BR>
+{<BR>
+<SPAN CLASS=K>private:<BR>
+&nbsp;int</SPAN> dane[<SPAN CLASS=L>25</SPAN>];<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Reset();<BR>
+&nbsp;<SPAN CLASS=K>friend void</SPAN> Ustaw(Klasa&, <SPAN CLASS=K>int</SPAN>);<BR>
+}<BR>
+<BR>
+Klasa::Reset()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>25</SPAN>; i++)<BR>
+&nbsp;&nbsp;dane[i] = <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> Ustaw(Klasa& Obiekt, <SPAN CLASS=K>int</SPAN> Liczba)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>25</SPAN>; i++)<BR>
+&nbsp;&nbsp;Obiekt.dane[i] = Liczba; <SPAN CLASS=C>//dostęp do "zabronionej" składowej</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Odpowiednia deklaracja funkcji <SPAN CLASS=T>ustaw</SPAN> mówi klasie, że funkcja ta jest oswojona i nie narobi kaszanki w prywatnych zmiennych klasy. Klasa ma więc już zaufanie do tej funkcji i pozwala jej na dostęp do sekcji <SPAN CLASS=K>private</SPAN>. W powyższym przykładzie warto zwrócić uwagę na kilka rzeczy. Po pierwsze jest obojętne, czy deklarację funkcji zaprzyjaźnionej umieścimy w sekcji <SPAN CLASS=K>private</SPAN>, czy <SPAN CLASS=K>public</SPAN>, a nawet zupełnie poza tymi sekcjami - będzie i tak działała identycznie, ważne aby była wewnątrz klasy. Po drugie - deklaracja funkcji <SPAN CLASS=T>ustaw</SPAN> zawiera słowo <SPAN CLASS=K>friend</SPAN>, ale definicja - już nie. Funkcja <SPAN CLASS=K>ustaw</SPAN> jest najzwyklejszą pod słońcem funkcją, tyle, że klasa dostaje informację, że jest ona zaufana, napisana przez tego samego programistę, który stworzył samą klasę i ma pojęcie, które zmienne prywatne można sobie modyfikować, a które nie.
+</P>
+<P>
+Warto też zauważyć, co może nie dla każdego jest rzeczą oczywistą, że funkcja <SPAN CLASS=T>ustaw</SPAN>, jako nie będąca składową klasy, nie ma ukrytego wskaźnika <SPAN CLASS=K>this</SPAN>. Dlatego też właśnie przekazujemy referencję do obiektu, do którego danych się odwołujemy w tej fukcji, jako argument dla <SPAN CLASS=K>ustaw</SPAN>.
+</P>
+
+<H2>
+Klasy zaprzyjaźnione
+</H2>
+
+<P>
+Dość często zachodzi potrzeba, żeby jedna klasa mogła swobodnie grzebać sobie w drugiej. Wtedy robimy podobnie, jak w przypadku zaprzyjaźnionych funkcji:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Przyjaciel<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//różne rzeczy ;-)</SPAN><BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Klasa<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>public:<BR>
+&nbsp;&nbsp;friend class</SPAN> Przyjaciel;<BR>
+&nbsp;<SPAN CLASS=K>private:</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=C>//top secret - ale nie dla Przyjaciela :-)</SPAN><BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W tym przykładzie klasa <SPAN CLASS=T>Przyjaciel</SPAN> ma zagwarantowany dostęp do wszystkich zmiennych i funkcji w klasie <SPAN CLASS=T>Klasa</SPAN>. Ważne jest to, by deklaracja klasy <SPAN CLASS=T>Przyjaciel</SPAN> znajdowała się PRZED klasą <SPAN CLASS=T>Klasa</SPAN>.
+</P>
+<P>
+W realu przyjaźnie bywają doprawdy skomplikowane. Jeśli ktoś uznaje nas za przyjaciela, to my jego automatycznie też. Co więcej, przyjaciele naszych przyjaciół są również naszymi przyjaciółmi. A to tylko początek, bo gdyby było tak łatwo, to na świecie nie byłoby wojen ;-). W świecie C++ sprawy mają się o wiele prościej - i "mniej przyjaźnie". Otóż <SPAN CLASS=T>Klasa</SPAN> uznaje klasę <SPAN CLASS=T>Przyjaciel</SPAN> za przyjaciela, ale już klasa <SPAN CLASS=T>Przyjaciel</SPAN> "nie lubi" klasy <SPAN CLASS=T>Klasa</SPAN>, ba! - w ogóle jej nie zna, ponieważ jej deklaracja występuje przed deklaracją klasy <SPAN CLASS=T>Klasa</SPAN>. A jak można się przyjaźnić z nieznajomym?
+</P>
+<P>
+Tymczasem taka odwzajemniona przyjaźć byłaby w pewnych sytuacjach bardzo korzystna. W gruncie rzeczy jedyną przeszkodą jest właśnie to, że jedna deklaracja klasy musi następować po drugiej - nie można zrobić dwóch deklaracji jednocześnie. Aby ominąć tę wredną wadę języka, jego autorzy pozwolili programistom na stosowanie takiej małej sztuczki, jaką są <SPAN CLASS=Wazne>zapowiedzi klas</SPAN>. Jest to jak gdyby deklaracja deklaracji klasy. Składa się toto wyłącznie ze słowa <SPAN CLASS=K>class</SPAN>, nazwy klasy oraz oczywiście średnika:
+</P>
+
+<P>
+<SPAN CLASS=K>
+class</SPAN><SPAN CLASS=T> Klasa;</SPAN>
+</P>
+
+<P>
+Dla kompilatora taka instrukcja oznacza jedynie to, że gdzieś dalej w tym samym pliku może on odnaleźć pełną deklarację danej klasy. I to nam w zupełności wystarczy, ażeby zrobić wzajemną przyjaźń dwóch klas:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Druga; <SPAN CLASS=C>//zapowiedź klasy Druga</SPAN><BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Pierwsza <SPAN CLASS=C>//deklaracja klasy Pierwsza</SPAN><BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>friend class</SPAN> Druga; <SPAN CLASS=C>//teraz to możliwe!</SPAN><BR>
+<SPAN CLASS=K>private:<BR>
+&nbsp;int</SPAN> sekret1;<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> test(Druga d)<BR>
+&nbsp;{ d.sekret2 = <SPAN CLASS=L>5</SPAN>; } <SPAN CLASS=C>//proszę bardzo...</SPAN><BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Druga<SPAN CLASS=C> //deklaracja klasy Druga</SPAN><BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>friend class</SPAN> Pierwsza;<BR>
+<SPAN CLASS=K>private:<BR>
+&nbsp;int</SPAN> sekret2;<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;void</SPAN> test(Pierwsza p) <BR>
+&nbsp;{ p.sekret1 = <SPAN CLASS=L>10</SPAN>; }<SPAN CLASS=C> //żaden problem!</SPAN><BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+Obiekty stałe
+</H2>
+
+<P>
+Obiekty, podobnie jak zmienne typów podstawowych, mogą zostać zadeklarowane z modyfikatorem const. Można wprawdzie pokusić się o hipotezę, że im bardziej skomplikowaną klasę zaprojektujemy, tym mniejsze będzie prawdopodobieństwo, że w ogóle będzie jakikolwiek sens istnienia stałego obiektu takiej klasy. My jednak zajmiemy się na razie bardzo prostą klasą, niech to będzie <SPAN CLASS=T>Punkt</SPAN> (już wcześniej ją sobie zaprojektowaliśmy, teraz bierzemy jej uproszczoną wersję):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;iostream.h&gt;</SPAN><BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Punkt<BR>
+{<BR><SPAN CLASS=K>
+private:<BR>
+&nbsp;int</SPAN> x,y;<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Punkt();<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Ustaw(<SPAN CLASS=K>int</SPAN> nx, <SPAN CLASS=K>int</SPAN> ny);<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Pisz();<BR>
+};<BR>
+<BR>
+Punkt::Punkt()<BR>
+{<BR>
+&nbsp;x = <SPAN CLASS=L>0</SPAN>; y = <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> Punkt::Ustaw(<SPAN CLASS=K>int</SPAN> nx, <SPAN CLASS=K>int</SPAN> ny)<BR>
+{<BR>
+&nbsp;x = nx; y = ny;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> Punkt::Pisz()<BR>
+{<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>'('</SPAN> &lt;&lt; x &lt;&lt; <SPAN CLASS=L>','</SPAN> &lt;&lt; y &lt;&lt; <SPAN CLASS=L>')'</SPAN> &lt;&lt; endl;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Napiszmy teraz krótki programik, który udowodni, że trochę się machnęliśmy pisząc tę banalną, zdawałoby się, klasę:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>const</SPAN> Punkt P;<BR>
+&nbsp;P.Ustaw(<SPAN CLASS=L>6,6</SPAN>);<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN><SPAN CLASS=L> 0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Co się stanie? Oczywiście kompilator nie zgodzi się na takie coś; oświadczy kategorycznie, że on tego kompilował nie będzie, ponieważ wywołanie metody <SPAN CLASS=T>Ustaw</SPAN> jest niedozwolone dla obiektu stałego. Co w tym złego? Otóż nic, bo tak właśnie powinno być. Metoda <SPAN CLASS=T>Ustaw</SPAN> zmienia stan obiektu, modyfikuje bowiem jego zmienne składowe. Ale...
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>const</SPAN> Punkt P;<BR>
+&nbsp;P.Pisz();<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN><SPAN CLASS=L> 0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+No właśnie. Tu już nie jest takie oczywiste, co schrzaniliśmy (metoda<SPAN CLASS=T> Pisz</SPAN> nie zmienia stanu obiektu, tylko go odczytuje), a mimo to kompilator nadal krzyczy. Okazuje się, że głupek nie odróżnia, czy dana funkcja rzeczywiście modyfikuje obiekt, czy też nie. Idzie po najmniejszej linii oporu, uznając, że dla obiektu, który jest <SPAN CLASS=T>const</SPAN>, nie można wywołać w ogóle żadnej metody!
+</P>
+<P>
+Ma się rozumieć, że nie chcemy, aby dodanie jednego małego <SPAN CLASS=K>const</SPAN> do deklaracji obiektu całkowicie likwidowało nam całą jego funkcjonalność. Przecież wypisanie stanu obiektu powinno być możliwe także wówczas, gdy jest on stały (co prawda wtedy nasz punkt będzie miał tylko jedną możliwą kombinację współrzędnych - <SPAN CLASS=L>0,0</SPAN> - ustawioną przez domyślny konstruktor). Rozwiązaniem jest podowiedzenie kompilatorowi, które z metod można wywoływać również dla stałych obiektów. Robimy to, umieszczając słowo <SPAN CLASS=K>const</SPAN> po nagłówku metody.
+</P>
+
+<P class=UWAGA>
+Dotyczy to zarówno deklaracji metody, jak i jej definicji. Dodanie <SPAN CLASS=K>const</SPAN> tylko w deklaracji (albo tylko w definicji) zostanie potraktowane przez kompilator jako niezgodność nagłówków.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;iostream.h&gt;</SPAN><BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> Punkt<BR>
+{<BR>
+<SPAN CLASS=K>private:<BR>
+&nbsp;int</SPAN> x,y;<BR>
+<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;Punkt();<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Ustaw(<SPAN CLASS=K>int</SPAN> nx, <SPAN CLASS=K>int</SPAN> ny);<BR>
+&nbsp;<SPAN CLASS=K>void</SPAN> Pisz() <SPAN CLASS=K>const</SPAN>; <SPAN CLASS=C>// *</SPAN><BR>
+};<BR>
+<BR>
+<SPAN CLASS=C>//definicje konstuktora i Ustaw pomijamy...</SPAN><BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> Punkt::Pisz()<SPAN CLASS=K> const</SPAN><SPAN CLASS=C> // *</SPAN><BR>
+{<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>'('</SPAN> &lt;&lt; x &lt;&lt; <SPAN CLASS=L>','</SPAN> &lt;&lt; y &lt;&lt; <SPAN CLASS=L>')'</SPAN> &lt;&lt; endl;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz możemy wypróbować przykłady deklaracji stałego obiektu klasy <SPAN CLASS=T>Punkt</SPAN> ponownie. Zauważymy, że tym razem da się już skompilować program, wywołujący metodę <SPAN CLASS=T>Pisz</SPAN> dla stałego obiektu. Metody <SPAN CLASS=T>Ustaw</SPAN> oczywiście nadal nie będzie się dało wywołać, ponieważ jej nie oznaczyliśmy słowem <SPAN CLASS=K>const</SPAN>.
+</P>
+<P>
+Ktoś wścibski mógłby jeszcze zapytać, co stałoby się w przypadku dodania <SPAN CLASS=K>const</SPAN> również i do metody <SPAN CLASS=T>Ustaw</SPAN>. Jest to jak najbardziej możliwe, z tym że w tak prostym akurat przypadku jak ten, kompilator sam prawdopodobnie zorientuje się, że chcemy go wyprowadzić w pole. Jednak istnieją przypadki, gdy kompilator gładko przełknie próbę zmodyfikowania obiektu przez funkcję, która  "oficjalnie" jest <SPAN CLASS=K>const</SPAN>. I właśnie ze względu na te przypadki istnieje konieczność dodawania <SPAN CLASS=K>const</SPAN> do niektórych metod klasy.
+</P>
+<P>
+Przykładem zrobienia kompilatora w konia może być modyfikacja składowych stałego obiektu klasy <SPAN CLASS=K>Punkt</SPAN> przy pomocy połączonych sił funkcji <SPAN CLASS=T>MoveMemory</SPAN> (WinAPI; mniej więcej odpowiednik <SPAN CLASS=T>memmov</SPAN> z biblioteki standardowej) oraz operatora <SPAN CLASS=K>const_cast</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;windows.h&gt;</SPAN><BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> Punkt::Ustaw(<SPAN CLASS=K>int</SPAN> nx, <SPAN CLASS=K>int</SPAN> ny) <SPAN CLASS=K>const</SPAN><BR>
+{ <SPAN CLASS=C>//ta metoda to samo zło!!! ;-)</SPAN><BR>
+&nbsp;MoveMemory(<SPAN CLASS=K>const_cast</SPAN>&lt;<SPAN CLASS=K>int</SPAN>*&gt;(&x), &nx, <SPAN CLASS=K>sizeof</SPAN>(<SPAN CLASS=K>int</SPAN>));<BR>
+&nbsp;MoveMemory(<SPAN CLASS=K>const_cast</SPAN>&lt;<SPAN CLASS=K>int</SPAN>*&gt;(&y), &ny, <SPAN CLASS=K>sizeof</SPAN>(<SPAN CLASS=K>int</SPAN>));<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Z tą wersją metody <SPAN CLASS=T>Ustaw</SPAN> możemy sobie spokojnie ustawiać współrzędne stałego obiektu klasy <SPAN CLASS=T>Punkt</SPAN> - kompilator nic nie zauważy, a przy odrobinie szczęścia może nawet program się nie wykrzaczy ;-). Tak więc nie zawsze kłamstwo ma krótkie nogi. Niemniej jednak warto zapamiętać: dzieci, nie róbcie tego w domu ;-).
+
+</P>
+
+
+<H2>
+Statyczne elementy klas
+</H2>
+
+<P>
+O zmiennych statycznych rozmawialiśmy już przy okazji omawiania funkcji. Tak więc już wiemy, że zmienne takie żyją tak długo, jak cały program, nawet jeśli są lokalne. Niemniej ich zasięg ogranicza się tylko do miejsca, gdzie zostały zadeklarowane, np. zmienna statyczna ma zasięg funkcji, jeśli zadeklarujemy ją wewnątrz ciała tej funkcji lub zasięg pętli, jeśli jest zadeklarowana wewnątrz pętli.
+</P>
+<P>
+Ze statycznymi zmiennymi składowymi klas jest dosyć podobnie, przynajmniej jeśli chodzi o czas życia. Jednak nie to jest ich główną cechą, o czym zaraz się przekonamy. Najpierw stwórzmy sobie taką zmienną, żeby było na czym eksperymentować:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Przyklad<BR>
+{<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;static int</SPAN> i; <SPAN CLASS=C>//deklaracja statycznej składowej</SPAN><BR>
+&nbsp;Przyklad() { cout &lt;&lt; <SPAN CLASS=L>"i = "</SPAN> &lt;&lt; i; }<BR>
+};<BR>
+<BR>
+<SPAN CLASS=C>//definicja (!) statycznej składowej</SPAN><BR>
+<SPAN CLASS=K>int</SPAN> Przyklad::i = <SPAN CLASS=L>0</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pierwsze spostrzeżenie może się wydać nieco dziwne - statyczna składowa wymaga definicji na zewnątrz klasy! Co to w ogóle za pomysł żeby definiować ZMIENNĄ? Za moment wszystko się wyjaśni. Otóż spróbujmy teraz zadeklarować jakiś obiekt klasy <SPAN CLASS=T>Przyklad</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Przyklad test;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Taka deklaracja wywoła nam konstruktor naszej klasy, więc na ekranie powinna się wypisać wartość statycznej zmiennej <SPAN CLASS=T>i</SPAN>. No i faktycznie, wypisuje się. Ile ona wynosi? Oczywiście <SPAN CLASS=L>0</SPAN>, bowiem taką właśnie wartością inicjalizowana jest ta zmienna w swojej definicji. Zauważ - jest inicjalizowana ZANIM zostanie wywołany konstruktor! Stąd można wysnuć wniosek (dla bardziej zaawansowanych programistów oczywisty), że statyczne składowe nie należą do żadnego obiektu swojej klasy, albowiem nie możemy przecież zainicjalizować zmiennej składowej obiektu, który jest dopiero w trakcie "budowy".
+</P>
+
+<P class=UWAGA>Statyczne zmienne składowe klasy skojarzone są z samą klasą, a nie z jej konkretnym obiektem. Innymi słowy, wszystkie obiekty danej klasy "współdzielą" jeden "egzemplarz" takiej zmiennej.
+</P>
+
+<P>
+Dalsze wnioski? Po pierwsze, jeśli można zainicjalizować taką składową nawet wówczas, gdy żaden obiekt danej klasy jeszcze nie istnieje, to można również wtedy dowolnie modyfikować wartość takiej zmiennej bądź odczytywać ją z dowolnego miejsca w programie - oczywiście o ile ta zmienna jest publiczna, bowiem statyczne składowe podlegają pod tym względem takim samym regułom, co zwykłe składowe (i to by był drugi wniosek). Trzecie spostrzeżenie - jeśli statyczne zmienne składowe nie są skojarzone z konkretnymi obiektami, to chcąc uzyskać dostęp do nich z zewnątrz klasy, musimy jawnie określić ich "miejsce pochodzenia", czyli nazwę klasy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Przyklad test;<BR>
+Przyklad::i = <SPAN CLASS=L>666</SPAN>;<BR>
+Przyklad test2;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Powyższy przykładzik przy okazji demonstruje nam, że statyczne składowe nie zależą od konkretnych obiektów. Oto bowiem pierwsza deklaracja wypisze nam stan składowej <SPAN CLASS=T>i</SPAN> tuż po jej inicjalizacji (czyli wartość będzie równa <SPAN CLASS=L>0</SPAN>), zaś druga - po "zwykłym" przypisaniu z zewnątrz klasy (wartość równa <SPAN CLASS=L>666</SPAN>).
+</P>
+<P>
+Oprócz zmiennych składowych, w klasach statyczne mogą być również funkcje składowe. Oczywiście funkcje takie nie mają przez cały czas tej samej wartości - sens ich deklarowania polega na tej drugiej, ważniejszej cesze - można je wywołać niezależnie od istnienia jakichkolwiek obiektów danej klasy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>class</SPAN> Przyklad<BR>
+{<BR>
+<SPAN CLASS=K>private:</SPAN><BR>
+&nbsp;<SPAN CLASS=K>static int</SPAN> i;<BR>
+<SPAN CLASS=K>public:<BR>
+&nbsp;static void</SPAN> fun(<SPAN CLASS=K>int</SPAN> a);<BR>
+&nbsp;<SPAN CLASS=K>static int</SPAN> test();<BR>
+};<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> Przyklad::i = <SPAN CLASS=L>0</SPAN>;<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> Przyklad::fun(<SPAN CLASS=K>int</SPAN> a)<BR>
+{<BR>
+&nbsp;i = a;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> Przyklad::test()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> i;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;Przyklad::fun(<SPAN CLASS=L>21012</SPAN>);<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"i = "</SPAN> &lt;&lt; Przyklad::test() &lt;&lt; endl;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN><SPAN CLASS=L> 0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy tu dwie statyczne funkcje. Jak widać, ich deklaracja jest dość intuicyjna - podobnie jak ze zmiennymi, deklarację statycznej funkcji wystarczy poprzedzić słowem <SPAN CLASS=K>static</SPAN>. Z kolei definicja wygląda tak samo jak definicja niestatycznej funkcji (bez słowa <SPAN CLASS=K>static</SPAN>) - tutaj też mamy więc analogię do statycznych zmiennych.
+</P>
+<P>
+Twór, który nam powstał, jest dość specyficzny. Jest to bowiem klasa pozbawiona jakichkolwiek elementów oprócz statycznych. Co ciekawe, zadeklarowanie obiektu takiej klasy jest możliwe, choć z obiektem takim oczywiście nie będzie można zbyt wiele zrobić ;-). Druga ciekawostka: operator <SPAN CLASS=K>sizeof</SPAN> dla takiej klasy zwróci <SPAN CLASS=L>1</SPAN>.
+</P>
+<P>
+W funkcji <SPAN CLASS=T>main</SPAN> powyżej wykonujemy najpierw wywołanie statycznej funkcji <SPAN CLASS=T>fun</SPAN>, która ustawia statyczną zmienną i na pewną wartość, a następnie wartość tę odczytujemy przy pomocy kolejnej statycznej funkcji <SPAN CLASS=T>test</SPAN> i wypisujemy na ekranie. Wszystkie te operacje odbywają się przy udziale samej klasy, bez jakichkolwiek obiektów typu <SPAN CLASS=T>Przyklad</SPAN>.
+</P>
+<P>
+Warto jeszcze wspomnieć o kwestii, którą już poruszyłem wcześniej - statyczne funkcje składowe NIE mają wskaźnika <SPAN CLASS=K>this</SPAN>. Jest to chyba oczywiste - na co by on wskazywał, skoro funkcje takie nie są skojarzone z żadnym obiektem klasy? Tak więc można ogólnie powiedzieć, że statyczne funkcje składowe są praktycznie normalnymi funkcjami o zasięgu pliku, z tą różnicą, że przy ich wywoływaniu musimy podawać nazwę klasy, ale za to mamy dostęp do wszystkich (publicznych i prywatnych) statycznych składowych tej klasy (do niestatycznych też możemy mieć, ale tylko pośrednio - przez odwołanie do konkretnego obiektu).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs05c.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="kurs06.html">Następna część kursu &gt;&gt;</A></TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

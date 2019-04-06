@@ -1,0 +1,307 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>KernelAnalysis-HOWTO: Linux Memory Management</TITLE>
+ <LINK HREF="KernelAnalysis-HOWTO-8.html" REL=next>
+ <LINK HREF="KernelAnalysis-HOWTO-6.html" REL=previous>
+ <LINK HREF="KernelAnalysis-HOWTO.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="KernelAnalysis-HOWTO-8.html">Next</A>
+<A HREF="KernelAnalysis-HOWTO-6.html">Previous</A>
+<A HREF="KernelAnalysis-HOWTO.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="s7">7. Linux Memory Management</A></H2>
+
+<H2><A NAME="ss7.1">7.1 Overview</A>
+</H2>
+
+<P>Linux uses segmentation + pagination, which simplifies notation.
+<P>
+<P>
+<H3>Segments</H3>
+
+<P>Linux uses only 4 segments:
+<P>
+<P>
+<UL>
+<LI>2 segments (code and data/stack) for KERNEL SPACE from [0xC000
+0000] (3 GB) to [0xFFFF FFFF] (4 GB)</LI>
+<LI>2 segments (code and data/stack) for USER SPACE from [0]
+(0 GB) to [0xBFFF FFFF] (3 GB)
+</LI>
+</UL>
+<P>
+<PRE>
+                               __
+   4 GB---&gt;|                |    |
+           |     Kernel     |    |  Kernel Space (Code + Data/Stack)
+           |                |  __|
+   3 GB---&gt;|----------------|  __
+           |                |    |
+           |                |    |
+   2 GB---&gt;|                |    |
+           |     Tasks      |    |  User Space (Code + Data/Stack)
+           |                |    |
+   1 GB---&gt;|                |    |
+           |                |    |
+           |________________|  __| 
+ 0x00000000
+          Kernel/User Linear addresses
+ 
+</PRE>
+<H2><A NAME="ss7.2">7.2 Specific i386 implementation</A>
+</H2>
+
+<P>Again, Linux implements Pagination using 3 Levels of Paging,
+but in i386 architecture only 2 of them are really used:
+<P>
+<P>
+<PRE>
+ 
+   ------------------------------------------------------------------
+   L    I    N    E    A    R         A    D    D    R    E    S    S
+   ------------------------------------------------------------------
+        \___/                 \___/                     \_____/ 
+ 
+     PD offset              PF offset                 Frame offset 
+     [10 bits]              [10 bits]                 [12 bits]       
+          |                     |                          |
+          |                     |     -----------          |        
+          |                     |     |  Value  |----------|---------
+          |     |         |     |     |---------|   /|\    |        |
+          |     |         |     |     |         |    |     |        |
+          |     |         |     |     |         |    | Frame offset |
+          |     |         |     |     |         |   \|/             |
+          |     |         |     |     |---------|&lt;------            |
+          |     |         |     |     |         |      |            |
+          |     |         |     |     |         |      | x 4096     |
+          |     |         |  PF offset|_________|-------            |
+          |     |         |       /|\ |         |                   |
+      PD offset |_________|-----   |  |         |          _________|
+            /|\ |         |    |   |  |         |          | 
+             |  |         |    |  \|/ |         |         \|/
+ _____       |  |         |    ------&gt;|_________|   PHYSICAL ADDRESS 
+|     |     \|/ |         |    x 4096 |         |
+| CR3 |--------&gt;|         |           |         |
+|_____|         | ....... |           | ....... |
+                |         |           |         |    
+ 
+               Page Directory          Page File
+
+                       Linux i386 Paging
+ 
+
+
+</PRE>
+<H2><A NAME="ss7.3">7.3 Memory Mapping</A>
+</H2>
+
+<P>Linux manages Access Control with Pagination only, so different
+Tasks will have the same segment addresses, but different CR3 (register
+used to store Directory Page Address), pointing to different Page
+Entries.
+<P>
+<P>In User mode a task cannot overcome 3 GB limit (0 x C0 00 00
+00), so only the  first 768 page directory entries are meaningful
+(768*4MB = 3GB).
+<P>
+<P>When a Task goes in Kernel Mode (by System call or by IRQ) the
+other 256 pages directory entries become important, and they point
+to the same page files as all other Tasks (which are the same as
+the Kernel).
+<P>
+<P>Note that Kernel (and only kernel) Linear Space is equal to Kernel
+Physical Space, so:
+<P>
+<P>
+<PRE>
+ 
+            ________________ _____                    
+           |Other KernelData|___  |  |                |
+           |----------------|   | |__|                |
+           |     Kernel     |\  |____|   Real Other   |
+  3 GB ---&gt;|----------------| \      |   Kernel Data  |
+           |                |\ \     |                |
+           |              __|_\_\____|__   Real       |
+           |      Tasks     |  \ \   |     Tasks      |
+           |              __|___\_\__|__   Space      |
+           |                |    \ \ |                |
+           |                |     \ \|----------------|
+           |                |      \ |Real KernelSpace|
+           |________________|       \|________________|
+      
+           Logical Addresses          Physical Addresses
+ 
+</PRE>
+<P>Linear Kernel Space corresponds to Physical Kernel Space  translated
+3 GB down (in fact page tables are something like { "00000000",
+"00000001" }, so they operate no virtualization, they only report
+physical addresses  they take from linear ones).
+<P>
+<P>Notice that you'll not have an "addresses conflict" between Kernel
+and User spaces because we can manage physical addresses with Page
+Tables.
+<P>
+<H2><A NAME="ss7.4">7.4 Low level memory allocation</A>
+</H2>
+
+<H3>Boot Initialization</H3>
+
+<P>We start from kmem_cache_init (launched by start_kernel [init/main.c]
+at boot up).
+<P>
+<P>
+<PRE>
+|kmem_cache_init
+   |kmem_cache_estimate
+
+</PRE>
+<P>kmem_cache_init [mm/slab.c]
+<P>
+<P>kmem_cache_estimate
+<P>
+<P>Now we continue with mem_init (also launched by start_kernel[init/main.c])
+<P>
+<P>
+<PRE>
+|mem_init
+   |free_all_bootmem
+      |free_all_bootmem_core
+</PRE>
+<P>mem_init [arch/i386/mm/init.c]
+<P>
+<P>free_all_bootmem [mm/bootmem.c]
+<P>
+<P>free_all_bootmem_core
+<P>
+<H3>Run-time allocation</H3>
+
+<P>Under Linux, when we want to allocate memory, for example during
+"copy_on_write" mechanism (see Cap.10), we call:
+<P>
+<P>
+<PRE>
+|copy_mm 
+   |allocate_mm = kmem_cache_alloc
+      |__kmem_cache_alloc
+         |kmem_cache_alloc_one
+            |alloc_new_slab
+               |kmem_cache_grow
+                  |kmem_getpages
+                     |__get_free_pages
+                        |alloc_pages
+                           |alloc_pages_pgdat
+                              |__alloc_pages
+                                 |rmqueue   
+                                 |reclaim_pages
+
+</PRE>
+<P>Functions can be found under:
+<P>
+<P>
+<UL>
+<LI>copy_mm [kernel/fork.c]</LI>
+<LI>allocate_mm [kernel/fork.c]</LI>
+<LI>kmem_cache_alloc [mm/slab.c]</LI>
+<LI>__kmem_cache_alloc </LI>
+<LI>kmem_cache_alloc_one</LI>
+<LI>alloc_new_slab</LI>
+<LI>kmem_cache_grow</LI>
+<LI>kmem_getpages</LI>
+<LI>__get_free_pages [mm/page_alloc.c]</LI>
+<LI>alloc_pages [mm/numa.c]</LI>
+<LI>alloc_pages_pgdat</LI>
+<LI>__alloc_pages [mm/page_alloc.c]</LI>
+<LI>rm_queue</LI>
+<LI>reclaim_pages [mm/vmscan.c]
+</LI>
+</UL>
+<P>TODO: Understand Zones
+<P>
+<H2><A NAME="ss7.5">7.5 Swap</A>
+</H2>
+
+<H3>Overview</H3>
+
+<P>Swap is managed by the kswapd daemon (kernel thread).
+<P>
+<H3>kswapd</H3>
+
+<P>As other kernel threads, kswapd has a main loop that wait to
+wake up.
+<P>
+<P>
+<PRE>
+|kswapd
+   |// initialization routines
+   |for (;;) { // Main loop
+      |do_try_to_free_pages
+      |recalculate_vm_stats
+      |refill_inactive_scan
+      |run_task_queue
+      |interruptible_sleep_on_timeout // we sleep for a new swap request
+   |}
+</PRE>
+<P>
+<UL>
+<LI>kswapd [mm/vmscan.c]</LI>
+<LI>do_try_to_free_pages</LI>
+<LI>recalculate_vm_stats [mm/swap.c]</LI>
+<LI>refill_inactive_scan [mm/vmswap.c]</LI>
+<LI>run_task_queue [kernel/softirq.c]</LI>
+<LI>interruptible_sleep_on_timeout [kernel/sched.c]
+</LI>
+</UL>
+<H3>When do we need swapping?</H3>
+
+<P>Swapping is needed when we have to access a page that is not
+in physical memory.
+<P>
+<P>Linux uses ''kswapd'' kernel thread to carry out this purpose.
+When the Task receives a page fault exception we do the following:
+<P>
+<P>
+<PRE>
+ 
+ | Page Fault Exception
+ | cause by all these conditions: 
+ |   a-) User page 
+ |   b-) Read or write access 
+ |   c-) Page not present
+ |
+ |
+ -----------&gt; |do_page_fault
+                 |handle_mm_fault
+                    |pte_alloc 
+                       |pte_alloc_one
+                          |__get_free_page = __get_free_pages
+                             |alloc_pages
+                                |alloc_pages_pgdat
+                                   |__alloc_pages
+                                      |wakeup_kswapd // We wake up kernel thread kswapd
+   
+                   Page Fault ICA
+ 
+</PRE>
+<P>
+<UL>
+<LI>do_page_fault [arch/i386/mm/fault.c] </LI>
+<LI>handle_mm_fault [mm/memory.c]</LI>
+<LI>pte_alloc</LI>
+<LI>pte_alloc_one [include/asm/pgalloc.h]</LI>
+<LI>__get_free_page [include/linux/mm.h]</LI>
+<LI>__get_free_pages [mm/page_alloc.c]</LI>
+<LI>alloc_pages [mm/numa.c]</LI>
+<LI>alloc_pages_pgdat</LI>
+<LI>__alloc_pages</LI>
+<LI>wakeup_kswapd [mm/vmscan.c]
+</LI>
+</UL>
+<HR>
+<A HREF="KernelAnalysis-HOWTO-8.html">Next</A>
+<A HREF="KernelAnalysis-HOWTO-6.html">Previous</A>
+<A HREF="KernelAnalysis-HOWTO.html#toc7">Contents</A>
+</BODY>
+</HTML>

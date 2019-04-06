@@ -1,0 +1,749 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Serial HOWTO: Interesting Programs You Should Know About</TITLE>
+ <LINK HREF="Serial-HOWTO-13.html" REL=next>
+ <LINK HREF="Serial-HOWTO-11.html" REL=previous>
+ <LINK HREF="Serial-HOWTO.html#toc12" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Serial-HOWTO-13.html">Next</A>
+<A HREF="Serial-HOWTO-11.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc12">Contents</A>
+<HR>
+<H2><A NAME="s12">12.</A> <A HREF="Serial-HOWTO.html#toc12">Interesting Programs You Should Know About</A></H2>
+
+<P> Most info on getty has been moved to Modem-HOWTO with a little info on
+the use of getty with directly connected terminals now found in
+Text-Terminal-HOWTO.</P>
+
+<H2><A NAME="serial_mon"></A> <A NAME="ss12.1">12.1</A> <A HREF="Serial-HOWTO.html#toc12.1">Serial Monitoring/Diagnostics Programs </A>
+</H2>
+
+<P> A few Linux programs (and one "file") will monitor various modem
+control lines and indicate if they are positive (1 or green) or
+negative (0 or red).
+<UL>
+<LI> 
+<A HREF="http://serlook.sunsite.dk/">serlook</A> can snoop
+on serial line traffic (via a wiretap) and also send/receive on a
+serial line.</LI>
+<LI> The "file": /proc/tty/driver/serial lists those that are
+asserted (positive voltage)</LI>
+<LI> modemstat (Only works correctly on Linux PC consoles.)  Status
+monitored in a tiny window.  Color-coded and compact.  Must kill
+it (a process) to quit.</LI>
+<LI> statserial (Info displayed on entire screen)</LI>
+<LI> serialmon (Doesn't monitor RTS, CTS, DSR but logs other
+functions)</LI>
+</UL>
+
+As of June 1998, I know of no diagnostic program in Linux for the
+serial port.</P>
+
+<H2><A NAME="ss12.2">12.2</A> <A HREF="Serial-HOWTO.html#toc12.2">Changing Interrupt Priority</A>
+</H2>
+
+<P>
+<UL>
+<LI> <CODE>irqtune</CODE> will give serial port interrupts higher
+priority to improve performance.</LI>
+<LI> <CODE>hdparm</CODE> for hard-disk tuning may help some more.</LI>
+</UL>
+</P>
+
+<H2><A NAME="set_serial"></A> <A NAME="ss12.3">12.3</A> <A HREF="Serial-HOWTO.html#toc12.3">What is Setserial ? </A>
+</H2>
+
+<P> This part is in 3 HOWTOs: Modem, Serial, and Text-Terminal.  There
+are some minor differences, depending on which HOWTO it appears in.</P>
+
+<H3>Setserial problems with linmodems, laptops</H3>
+
+<P> 
+If you have a Laptop (PCMCIA) don't use <CODE>setserial</CODE> until you
+read 
+<A HREF="#laptops_">Laptops: PCMCIA</A>.</P>
+
+<H3>Introduction</H3>
+
+<P><CODE>setserial</CODE> is a program used for the user to communicate with
+the serial device driver.  You normally never need to use it, provided
+that you only use the one or two serial ports that come as standard
+equipment with a PC.  Even in other cases, most extra serial ports
+should be auto-detected by modern kernels.  Except you'll need to use
+setserial if you have an old ISA serial port set by jumpers on the
+physical hardware or if your kernel (such as 2.2 or older) doesn't
+both detect and set your add-on PCI serial ports.</P>
+<P><CODE>setserial</CODE> allows you (or a shell script) to talk to the serial
+software.  But there's also another program, tt/stty/, that also deals
+with the serial port and is used for setting the port speed, etc.</P>
+<P><CODE>setserial</CODE> deals with the lower-level configuring of the serial
+port, such as dealing with IRQs (such as 5), port addresses (such as
+3f8), and the like.  A major problem with it is that it can't
+set or configure the serial port hardware: It can't set the IRQ or
+port addresses into the hardware.  Furthermore, when it seemingly
+reports the configuration of the hardware, it's sometimes wrong since
+it doesn't actually probe the hardware unless you specifically tell it
+to.  Even then, it doesn't do the modern type of bus probing and some
+hardware may never be found by it.  Still, what it shows is right most
+all the time but if you're having trouble getting a serial port to
+work, then there's a fair chance it's wrong.</P>
+<P>In olden days, when the IRQ and port address was set by jumpers on the
+serial card, one would use <CODE>setserial</CODE> to tell the driver how these
+jumpers were set.  Today, when plug-and-play methods detect how the
+jumperless serial port is set, <CODE>setserial</CODE> is not really needed
+anymore unless you're having problems or using old hardware.
+Furthermore, if the configuration file used by <CODE>setserial</CODE> is
+wrong, then there's trouble.  In this case, if you use <CODE>setserial</CODE>
+to try to find out how the port is configured, it may just repeat the
+incorrect information in the configuration file.</P>
+<P><CODE>setserial</CODE> can sometimes be of help to find a serial port.  But 
+it's only of use if you know the port address and use the right
+options.  For modern ports, there's usually better ways to look for
+them by plug-and-play methods.</P>
+<P>Thus the name <CODE>setserial</CODE> is somewhat of a misnomer since it
+doesn't set the I/O address nor IRQ in the hardware, it just "sets"
+them in the driver software.  And the driver naively believes that
+what <CODE>setserial</CODE> tells it, even if it conflicts with what the driver
+has found by using plug-and-play methods.  Too bad that it fails to
+at least issue a warning message for such a conflict.  Since the
+device driver is considered to be part of the kernel, the word
+"kernel" is often used in other documentation with no mention made of
+any "serial driver". </P>
+<P>Some distributions (and versions) set things up so that <CODE>setserial</CODE>
+is run at boot-time by an initialization shell script (in the
+/etc directory tree).   But the configuration file which this script
+uses may be either in the /etc tree or the /var tree.  In some cases,
+if you want <CODE>setserial</CODE> to run at boot-time, you may have to take
+some action.  <CODE>setserial</CODE>will not work without either serial
+support built into the kernel or loaded as a module.  The module may
+get loaded automatically if you (or a script) attempt to use
+<CODE>setserial</CODE>.</P>
+<P>While <CODE>setserial</CODE> can be made to probe the hardware IO port
+addresses to try to determine the UART type and IRQ, this has
+severe limitations.  See 
+<A HREF="#probing_ss">Probing</A>.  It
+can't set the IRQ or the port address in the hardware of PnP or PCI
+serial ports (but the plug-and-play features of the serial driver may
+do this).  It also can't directly read the PnP data stored in
+configuration registers in the hardware.  But since the device driver
+can read these registers and setserial tells you what the device
+driver thinks, it might be correct.  Or it could be telling you what
+<CODE>setserial</CODE> had previously (and perhaps erroneously) told the
+driver.  There's no way to know for sure without doing some other
+checks.</P>
+<P>The serial driver (for Linux Kernel 2.4+) looks for a few "standard"
+legacy serial ports, for PnP ports on the ISA bus, and for all
+supported port hardware on the PCI bus.  If it finds your ports
+correctly, then there's no need to use <CODE>setserial</CODE>.  The driver
+doesn't probe for the IRQs of old ISA serial ports set with jumpers on
+the card and may get these wrong.</P>
+<P>Besides the man page for <CODE>setserial</CODE>, check out info in
+<CODE>/usr/doc/setserial.../</CODE> or <CODE>/usr/share/doc/setserial</CODE>.
+This should tell you how setserial is handled for your distribution of
+Linux.  While <CODE>setserial</CODE> behaves the same in all distributions,
+the scripts for running it, how to configure such scripts (including
+automatic configuration), and the names and locations of the script
+files, etc., are all distribution-dependent.  </P>
+
+<H3>Serial module unload</H3>
+
+<P>If a serial module gets unloaded, the changes previously made by
+<CODE>setserial</CODE> will be forgotten by the driver.  But while the driver
+forgets it, a script provided by the distribution may save it in a
+file somewhere so that it can the restored if the module is reloaded.</P>
+
+<H3>Slow baud rates of 1200 or less</H3>
+
+<P>There once was a problem with slow serial printers (especially the
+old ones of the 1980s).  The printing program would close the serial
+port at the "end" of printing well before all the characters from the
+large serial buffer (in main memory) were sent to the printer.  The
+result was a truncated print job that didn't print the last paragraph
+or last page, etc.</P>
+<P>But the newer lprng print program (and possibly other printing
+programs) keeps the port open until printing is finished so "problem
+solved", even if you're using an antique printer.  Setserial can
+modify the time that the port will keep operating after it's closed
+(in order to output any characters still in its buffer in main RAM).
+This is done by the "closing_wait" option per the <CODE>setserial</CODE> man
+page.  For "bad" software that closes the port too soon, it might also
+be needed at speeds above 1200 if there are a lot of "flow control"
+waits.  </P>
+
+<H3>Giving the <CODE>setserial</CODE> command</H3>
+
+<P>Remember, that <CODE>setserial</CODE> can't set any I/O addresses or IRQs
+in the hardware.  That's done either by plug-and-play software (run by
+the driver) or by jumpers for legacy serial ports.  Even if you give
+an I/O address or IRQ to the driver via <CODE>setserial</CODE> it will not set
+such values and assumes that they have already been set.  If you give
+it wrong values, the serial port will not work right (if at all).</P>
+<P>For legacy ports, if you know the I/O address but don't know the IRQ
+you may command setserial to attempt to determine the IRQ.</P>
+<P>You can see a list of possible commands by just typing <CODE>setserial</CODE>
+with no arguments.  This fails to show you the one-letter options such
+as -v for verbose which you should normally use when troubleshooting.
+Note that setserial calls an IO address a "port".  If you type:
+<BLOCKQUOTE><CODE>
+<PRE>
+setserial -g /dev/ttyS*
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You'll see some info about how the device driver is configured for
+your ports.  In many cases you'll see some ports displayed with what
+appears at first glance to be erroneous IRQs and addresses.  But if
+you also see: <CODE>"UART: unknown"</CODE> just ignore the entire line
+since no serial port exists at that address. </P>
+<P>If you add -a to the option -g you will see more info although few
+people need to deal with (or understand) this additional info since
+the default settings you see usually work fine.  In normal cases the
+hardware is set up the same way as "setserial" reports.  But if you are
+having problems there is a good chance that <CODE>setserial</CODE> has it wrong.
+In fact, you can run "setserial" and assign a purely fictitious I/O
+port address, any IRQ, and whatever uart type you would like to have.
+Then the next time you type "setserial ..." it will display these
+bogus values you've supplied to the driver.  They will also be officially
+registered with the kernel as displayed (at the top of the screen) by
+the "scanport" command (Debian).  Of course the serial
+port driver will not work correctly (if at all) if you attempt to use
+such a port.  Thus, when giving parameters to <CODE>setserial</CODE>, "anything
+goes".  Well almost.  If you assign one port a base address that is
+already assigned (such as 3e8) it may not accept it.  But if you use
+3e9 it will accept it.  Unfortunately 3e9 is actually assigned since it
+is within the range starting at base address 3e8.  Thus the moral of
+the story is to make sure your data is correct before assigning
+resources with setserial.</P>
+
+<H3>Configuration file</H3>
+
+<P>While assignments made by setserial are lost when the PC is powered
+off, a configuration file may restore them when the PC is started
+up again.  In newer versions, what you change by setserial might get
+automatically saved to a configuration file.  When <CODE>setserial</CODE> runs
+it uses the info from the configuration file.</P>
+<P>Where this configuration file resides depends on your distribution.
+Look at the start-up scripts somewhere in the /etc/ tree (such as
+/etc/init.d/ or /etc/rc.d/) and read the startup script for "serial"
+or "setserial" or the like.  It should show where the configuration
+file(s) reside.  In Debian there are 4 options for use of this
+configuration file:</P>
+<P>
+<OL>
+<LI>Don't use this file at all.  At each boot, the serial driver
+alone detects the ports and setserial doesn't ever run.  ("kernel" option)</LI>
+<LI>Save what <CODE>setserial</CODE> reports when the system is first
+shutdown and put it in the configuration file.  After that, don't ever
+make any changes to the configuration file, even if someone has made
+changes by running the <CODE>setserial</CODE> command on the command line and
+then shuts down the system. ("autosave-once" option)</LI>
+<LI>At every shutdown, save whatever <CODE>setserial</CODE> detects to the
+configuration file.  ("autosave" option)</LI>
+<LI>Manually edit the configuration file to set the configuration.
+Don't ever do any automatic saves to it. ("manual" option)</LI>
+</OL>
+</P>
+<P>In olden days (perhaps before 2000), there wasn't any configuration
+file and the configuration was manually set (hard coded) inside the
+shell script that ran <CODE>setserial</CODE>.  See 
+<A HREF="#old_sets_script">Edit a script (prior to version 2.15)</A>.</P>
+
+<H3><A NAME="probing_ss"></A> Probing </H3>
+
+<P>You probe for a port with <CODE>setserial</CODE> only when you suspect that
+it has been enabled (by PnP methods, the BIOS, jumpers, etc.).
+Otherwise <CODE>setserial</CODE> probing will never find it since its address
+doesn't exist.  A problem is where the software looks for a port at
+specified I/O addresses.  Prior to probing with "setserial", one may
+run the "scanport" (Debian) command to check all possible ports in one
+scan.  It makes crude guesses as to what is on some ports but doesn't
+determine the IRQ.  It's a fast first start.  It may hang your PC but
+so far it's worked fine for me.  Note that non-Debian distributions
+don't seem to supply "scanport".  Is there another scan program?</P>
+<P>With appropriate options, <CODE>setserial</CODE> can probe (at a given I/O
+address) for a serial port but you must guess the I/O address.  If you
+ask it to probe for /dev/ttyS2 for example, it will only probe at the
+address it thinks ttyS2 is at (2F8).  If you tell setserial that ttyS2
+is at a different address, then it will probe at that address, etc.
+See 
+<A HREF="#probing_ss">Probing</A></P>
+<P>The purpose of such probing is to see if there is a uart there, and if
+so, what its IRQ is.  Use <CODE>setserial</CODE> mainly as a last resort as
+there are faster ways to attempt it such as wvdialconf to detect
+modems, looking at very early boot-time messages, or using <CODE>pnpdump
+--dumpregs</CODE>, or lspci -vv.  But if you want to detect hardware
+with <CODE>setserial</CODE> use for example :<BR> <CODE>setserial
+/dev/ttyS2 -v autoconfig</CODE><BR>
+If the resulting message shows a uart type such as 16550A, then you're
+OK.  If instead it shows "<CODE>unknown</CODE>" for the uart type, then there
+is supposedly no serial port at all at that I/O address.  Some cheap
+serial ports don't identify themselves correctly so if you see
+"<CODE>unknown</CODE>" you still might have a serial port there.</P>
+<P>Besides auto-probing for a uart type, setserial can auto-probe for
+IRQ's but this doesn't always work right either.  In one case it first
+gave the wrong irq but when the command was repeated it found the
+correct irq.  In versions of setserial >= 2.15, the results of your
+last probe test could be automatically saved and put into a
+distribution-specific configuration file such as
+<CODE>/etc/serial.conf</CODE> or <CODE>/etc/sysconfig/serial</CODE> or
+<CODE>/var/lib/setserial/autoserial.conf</CODE> for Debian.  This will be
+used next time you start Linux.  </P>
+<P>It may be that two serial ports both have the same IO address set in
+the hardware.  Of course this is not normally permitted for the ISA
+bus but it sometimes happens anyway.  Probing detects one serial port
+when actually there are two.  However if they have different IRQs,
+then the probe for IRQs may show IRQ = 0.  For me, it only did this if
+I first used <CODE>setserial</CODE> to give the IRQ a fictitious value.</P>
+
+<H3><A NAME="sets_boot_time"></A> Boot-time Configuration </H3>
+
+<P>While <CODE>setserial</CODE> may run via an initialization script,
+something akin to <CODE>setserial</CODE> also runs earlier when the serial
+module is loaded (or when the kernel starts the built-in serial driver
+if it was compiled into the kernel).  Thus when you watch the start-up
+messages on the screen it may look like it ran twice, and in fact it
+has. </P>
+<P>If the first message is for a legacy port, the IRQs shown may be wrong
+since it didn't probe for IRQs.  If there is a second report of serial
+ports, it may the result of a script such as /etc/init.d/setserial.
+It usually does no probing and thus could be wrong about how the
+hardware is actually set.  It only shows configuration data that got
+saved in a configuration files.  The old method, prior to setserial
+2.15, was to manually write such data directly into the script.</P>
+<P>When the kernel loads the serial module (or if the "module equivalent"
+is built into the kernel) then all supported PnP ports are detected.
+For legacy (non-PnP) ports, only <CODE>ttyS{0-3}</CODE> are auto-detected
+and the driver is set to use only IRQs 4 and 3 (regardless of what
+IRQs are actually set in the hardware).  No probing is done for IRQs
+but it's possible to do this manually.  You see this as a boot-time
+message just as if <CODE>setserial</CODE> had been run.</P>
+<P>To correct possible errors in IRQs (or for other
+reasons) there may be a script file somewhere that runs
+<CODE>setserial</CODE>.  Unfortunately, if this file has some IRQs wrong, the
+kernel will still have incorrect info about the IRQs.  This file is
+usually part of the initialization done at boot-time.  Whether it
+runs or not depends on how you (and/or your distribution) have set
+things up.  It may also depends on the runlevel.  </P>
+<P>Before modifying a configuration file, you can test out a "proposed"
+<CODE>setserial</CODE> command by just typing it on the command line.  In some
+cases the results of this use of <CODE>setserial</CODE> will automatically get
+saved somewhere such as /etc/serial.conf (or autoserial.conf or
+serial) when you shutdown.  So if it worked OK (and solved your
+problem) then there's no need to modify any configuration file.  See
+<A HREF="#config_file">Configuration method using /etc/serial.conf, etc.</A>.</P>
+
+<H3><A NAME="old_sets_script"></A> Edit a script (required prior to version 2.15) </H3>
+
+<P> This is how it was done prior to <CODE>setserial</CODE> 2.15 (1999)
+The objective was to modify (or create) a script file in the /etc
+tree that runs setserial at boot-time.  Most distributions provided
+such a file (but it may not have initially resided in the /etc tree).</P>
+<P>So prior to version 2.15 (1999) it was simpler.  All you did was edit
+a script.  There was no /etc/serial.conf file (or the like) to
+configure setserial.   Thus you needed to find the file that runs
+"setserial" at boot time and edit it.  If it didn't exist, you needed
+to create one (or place the commands in a file that ran early at
+boot-time).  If such a file was currently being used it's likely
+was somewhere in the /etc directory-tree.  But Redhat &lt;6.0 has supplied it
+in /usr/doc/setserial/ but you need to move it to the /etc tree before
+using it.</P>
+<P>The script <CODE>/etc/rc.d/rc.serial</CODE> was commonly used in the past.
+The Debian distribution used <CODE>/etc/rc.boot/0setserial</CODE>.
+Another file once used was <CODE>/etc/rc.d/rc.local</CODE> but it's may
+not have run early enough.  It was reported that other processes may
+try to open the serial port before rc.local ran resulting in serial
+communication failure.  Later on it most likely was found in
+/etc/init.d/ but wasn't normally intended to be edited.</P>
+<P>If such a file was supplied, it likely contained a number of
+commented-out examples.  By uncommenting some of these and/or
+modifying them, you could set things up correctly.  It was important
+use a valid path for <CODE>setserial</CODE>, and a valid
+device name.  You could do a test by executing this file manually
+(just type its name as the super-user) to see if it works right.
+Testing like this was a lot faster than doing repeated reboots to get
+it right.</P>
+<P>For versions >= 2.15 (provided your distribution implemented the
+change, Redhat didn't at first) it may be more tricky to do since the
+file that runs setserial on startup, /etc/init.d/setserial or the like
+was not intended to be edited by the user.  See 
+<A HREF="#config_file">Configuration method using /etc/serial.conf, etc.</A>.</P>
+<P>An example line in such a script was:
+<BLOCKQUOTE><CODE>
+<PRE>
+/sbin/setserial /dev/ttyS3 irq 5 uart 16550A  skip_test
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>or, if you wanted setserial to automatically determine the uart and the
+IRQ for ttyS3 you would have used something like this:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+/sbin/setserial  /dev/ttyS3 auto_irq skip_test autoconfig
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>This was done for every serial port you wanted to auto configure,
+using a device name that really does exist on your machine.  In some
+cases it didn't work right due to the hardware. </P>
+
+<H3><A NAME="config_file"></A> Configuration method using /etc/serial.conf, etc.</H3>
+
+<P> Prior to setserial version 2.15 (1999), the way to configure
+setserial was to manually edit the shell-script that ran setserial at
+boot-time.  See 
+<A HREF="#old_sets_script">Edit a script (before version 2.15)</A>.  This was simple, but the simple and clear method has
+been changed to something that is unnecessarily complex.  Today the
+script and configuration file are two different files instead of one.
+This shell-script is not edited but gets its data from a configuration
+file such as <CODE>/etc/serial.conf</CODE> (or
+<CODE>/var/lib/setserial/autoserial.conf</CODE>).</P>
+<P>Furthermore you may not even need to edit serial.conf (or the like)
+because using the "setserial" command on the command line may
+automatically cause serial.conf to be edited appropriately.  This was
+done so that you may not need to edit any file in order to set up (or
+change) what setserial does each time that Linux is booted.</P>
+<P>What often happens is this:  When you shut down your PC the script
+that ran "setserial" at boot-time is run again, but this time it only
+does what the part for the "stop" case says to do:  It uses
+"setserial" to find out what the current state of "setserial" is, and
+it puts that info into the serial configuration file such as
+<CODE>serial.conf</CODE>.  Thus when you run "setserial" to change
+the serial.conf file, it doesn't get changed immediately but only when
+and if you shut down normally.</P>
+<P>Now you can perhaps guess what problems might occur.  Suppose you
+don't shut down normally (someone turns the power off, etc.) and the
+changes don't get saved.  Suppose you experiment with "setserial" and
+forget to run it a final time to restore the original state (or make a
+mistake in restoring the original state).  Then your "experimental"
+settings are saved.  And worst of all, unless you know which options
+were set in the configuration file, you don't know what will happen.
+One option in Debian (and likely other distributions) is known as
+"AUTOSAVE-ONCE" which saves changes only for the first time you make
+them with the setserial command.</P>
+<P>If the option "###AUTOSAVE###" is set and you manually edit
+serial.conf, then your editing is destroyed when you shut down because
+it gets changed back to the state of setserial at shutdown.  There is
+a way to disable the changing of serial.conf at shutdown and that is
+to remove "###AUTOSAVE###" or the like from first line of serial.conf.
+In the Debian distribution, the removal of "###AUTOSAVE###" from the
+first line was once automatically done after the first time you
+shutdown just after installation.  To retain this effect the
+"AUTOSAVE-ONCE" option was created which only does a save when time
+the system is shut down for the first time (just after you install or
+update the setserial program).</P>
+<P>The file most commonly used to run setserial at boot-time (in
+conformance with the configuration file) is now /etc/init.d/setserial
+(Debian) or /etc/init.d/serial (Redhat), or etc.,  but it should not
+normally be edited.  For 2.15, Redhat 6.0 just had a file
+/usr/doc/setserial-2.15/rc.serial which you have to move to
+/etc/init.d/ if you want setserial to run at boot-time.</P>
+<P>To disable a port, use <CODE>setserial</CODE> to set it to "uart none".  This
+will not be saved.  The format of /etc/serial.conf appears to be just
+like that of the parameters placed after "setserial" on the command
+line with one line for each port.  If you don't use autosave, you may
+edit /etc/serial.conf manually.</P>
+<P>In order to force the current settings set by setserial to be saved to
+the configuration file (serial.conf) without shutting down, do what
+normally happens when you shutdown: Run the shell-script
+<CODE>/etc/init.d/{set}serial stop</CODE>.  The "stop" command will save
+the current configuration but the serial ports still keep working OK.</P>
+<P>In some cases you may wind up with both the old and new configuration
+methods installed but hopefully only one of them runs at boot-time.
+Debian labeled obsolete files with "...pre-2.15".</P>
+
+<H3>IRQs</H3>
+
+<P> By default, both ttyS0 and ttyS2 will share IRQ 4, while ttyS1 and
+ttyS3 share IRQ 3.  But while sharing serial interrupts (using them in
+running programs) is OK for the PCI bus, it's not permitted for the
+ISA bus unless you: 1. have kernel 2.2 or better, and 2. you've
+compiled in support for this, and 3. your serial hardware supports it.
+See</P>
+<P>
+<A HREF="Serial-HOWTO-9.html#int_share-2.2">Interrupt sharing and Kernels 2.2+</A></P>
+<P>If you only have two serial ports, ttyS0 and ttyS1, you're still OK
+since IRQ sharing conflicts don't exist for non-existent devices.</P>
+<P>If you add a legacy internal modem (without plug-and-play) and retain
+ttyS0 and ttyS1, then you should attempt to find an unused IRQ and set
+it in your serial port (or modem card) and then use setserial to
+assign it to your device driver.  If IRQ 5 is not being used for a
+sound card, this could be used for a modem.</P>
+
+<H3><A NAME="laptops_"></A> Laptops: PCMCIA </H3>
+
+<P>If you have a Laptop, read PCMCIA-HOWTO for info on the serial
+configuration.  For serial ports on the motherboard, setserial is used
+just like it is for a desktop.  But for PCMCIA cards (such as a modem)
+it's a different story.  The configuring of the PCMCIA system should
+automatically run setserial so you shouldn't need to run it.  If you
+do run it (by a script file or by /etc/serial.conf) it might be
+different and cause trouble.  The autosave feature for serial.conf
+shouldn't save anything for PCMCIA cards (but Debian did until
+2.15-7).  Of course, it's always OK to use setserial to find out how
+the driver is configured for PCMCIA cards.</P>
+
+
+
+<H2><A NAME="stty_"></A> <A NAME="ss12.4">12.4</A> <A HREF="Serial-HOWTO.html#toc12.4">Stty </A>
+</H2>
+
+<H3>Introduction</H3>
+
+<P> <CODE>stty</CODE> does much of the configuration of the serial port but
+since application programs (and the getty program) often handle this,
+you may not need to use it much.  It's handy if you're having problems
+or want to see how the port is set up.  Try typing ``stty -a'' at your
+terminal/console to see how it's now set.  Also try typing it without
+the -a (all) for a short listing which shows how it's set different
+than normal.  Don't try to learn all the setting unless you want to
+become a serial historian since many of the settings are only for slow
+antique dumb terminals of the 1970's.  Most of the defaults should
+work OK.</P>
+<P><CODE>stty</CODE> is documented in the man pages with a more detailed account
+in the info pages.  Type <CODE>"man stty"</CODE> or <CODE>"info stty"</CODE>.</P>
+<P>Whereas <CODE>setserial</CODE> only deals with actual serial ports, stty is
+used both for serial ports and for virtual terminals such as the standard
+Linux text interface at a PC monitor.  For the PC monitor, many of the
+stty settings are meaningless.  Changing the baud rate, etc. doesn't
+appear to actually do anything.</P>
+<P>Here are some of the items stty configures: speed (bits/sec), parity,
+bits/byte, # of stop bits, strip 8th bit?, modem control signals, flow
+control, break signal, end-of-line markers, change case, padding, beep
+if buffer overrun?, echo what you type to the screen, allow background
+tasks to write to terminal?, define special (control) characters (such
+as what key to press for interrupt).  See the <CODE>stty</CODE> man or info
+page for more details.  Also see the man page: <CODE>termios</CODE> which
+covers the same options set by stty but (as of mid 1999) covers
+features which the stty man page fails to mention.</P>
+
+<P>With some implementations of getty (getty_ps package), the commands
+that one would normally give to stty are typed into a getty
+configuration file: /etc/gettydefs.  Even without this configuration
+file, the getty command line may be sufficient to set things up so
+that you don't need stty.</P>
+<P>One may write C programs which change the stty configuration, etc.
+Looking at some of the documentation for this may help one better
+understand the use of the stty command (and its many possible
+arguments).  Serial-Programming-HOWTO may be useful but it's outdated.
+The manual page: termios contains a description of the C-language
+structure (of type termios) which stores the stty configuration in
+computer memory.  Many of the flag names in this C-structure are
+almost the same (and do the same thing) as the arguments to the stty
+command.</P>
+
+<H3>Flow control options</H3>
+
+<P> To set hardware flow control use "crtscts".  For software flow
+control there are 3 settings: ixon, ixoff, and ixany.</P>
+<P>ixany: Mainly for terminals.  Hitting any key will restart the flow
+after a flow-control stop.  If you stop scrolling with the "stop
+scroll" key (or the like) then hitting any key will resume scrolling.
+It's seldom needed since hitting the "scroll lock" key again will do
+the same thing.</P>
+<P>ixon: Enables the port to listen for Xoff and to stop transmitting
+when it gets an Xoff.  Likewise, it will resume transmitting if it gets
+an Xon.</P>
+<P>ixoff: enables the port to send the Xoff signal out the transmit line
+when its buffers in main memory are nearly full.  It protects the
+device where the port is located from being overrun.</P>
+<P>For a slow dumb terminal (or other slow device) connected to a fast
+PC, it's unlikely that the PC's port will be overrun.  So you seldom
+actually need to enable ixoff.  But it's often enabled "just in case".</P>
+
+<H3>Using stty at a "foreign" terminal</H3>
+
+<P>How do you use stty to view or set a terminal other than the
+terminal you are currently using?  It's usually impossible to do it if
+the foreign terminal is in use and has a shell running on it.  In
+other cases for dealing with say ttyS2 while typing at another
+terminal (such as tty1) use <CODE> stty -F /dev/ttyS2 ...</CODE> (or
+--file instead of F).  If ... is -a it displays all the stty settings
+(-a means all).</P>
+<P>But if the foreign terminal (ttyS2 in this example) has a shell
+running on it, then what you see will likely be deceptive and trying
+to set it will not work.  This problem exists for virtual terminals
+also such as dealing with tty3 from tty1, etc.  See 
+<A HREF="#two_term_interfaces">Two interfaces at a terminal</A> to
+understand it.</P>
+
+<H3><A NAME="two_term_interfaces"></A> Two interfaces at a terminal </H3>
+
+<P> When using a shell (such as bash) with command-line-editing
+enabled there are two different terminal interfaces (what you see when
+you type stty -a).  When you type in modern shells at the command line
+you have a temporary "raw" interface (or raw mode) where each
+character is read by the command-line-editor as you type it.  Once you
+hit the &lt;return&gt; key, the command-line-editor is exited and the
+terminal interface is changed to the nominal "cooked" interface
+(cooked mode) for the terminal.  This cooked mode lasts until the next
+prompt is sent to the terminal (which is only a small fraction of a
+second).  Note that one never gets to type any command in this cooked
+mode but what was typed in raw mode on the command line gets read by
+the shell while in cooked mode.</P>
+<P>When a prompt is sent to the terminal, the terminal goes from "cooked"
+to "raw" mode (just like it does when you start an editor such as vim.
+The prompt signals starting the command-line editor.  The settings for
+the "raw" mode are based only on the basic stty settings taken from the
+"cooked" mode.  Raw mode keeps these setting but changes several other
+settings in order to change the mode to "raw".  It is not at all based
+on the settings used in the previous "raw" mode.  Thus if one uses
+stty to change settings for the raw mode, such settings will be
+permanently lost as soon as one hits the &lt;return&gt; key at the
+terminal that has supposedly been "set".</P>
+<P>Now when one types stty to look at the terminal interface, one may
+either get a view of the cooked mode or the raw mode.  You need to
+figure out which one you're looking at.  It you use stty from a
+foreign terminal (other than the terminal you are currently typing
+at) then you will see the raw mode settings.  Any changes made will
+only be made to the raw mode and will be lost when someone presses
+&lt;return&gt; at the foreign terminal you tried to "set".  But if you
+type a stty command to view/change the configuration of the terminal
+you are using, and then hit &lt;return&gt; it's a different story.
+The &lt;return&gt; puts the terminal in cooked mode.  Your changes are
+saved and will still be there when the terminal goes back into raw
+mode (unless of course it's a setting not allowed in raw mode).</P>
+<P>This situation can create problems.  For example, suppose you corrupt
+your terminal interface.  To restore it you go to another terminal and
+"stty -F dev/ttyS1 sane" (or the like).  It will not work!  Of course
+you can try to type "stty sane ..." at the terminal that is corrupted
+but you can't see what you typed.  All the above not only applies to
+dumb terminals but to virtual terminals used on a PC Monitor as well
+as to the terminal windows in X.  In other words, it applies to almost
+everyone who uses Linux.</P>
+<P>Luckily, when you start up Linux, any file that runs stty at boot-time
+will likely deal with a terminal (or serial port with no terminal)
+that has no shell running on it so there's no problem for this special
+case.</P>
+
+<H3><A NAME="stty_where"></A> Where to put the stty command ? </H3>
+
+<P> Should you need to have <CODE>stty</CODE> set up the serial interface each
+time the computer starts up then you need to put the <CODE>stty</CODE> command
+in a file that will be executed each time the computer is started up
+(Linux boots).  It should be run before the serial port is used
+(including running getty on the port).  There are many possible places
+to put it.  If it gets put in more than one place and you only know
+about (or remember) one of those places, then a conflict is likely.
+So make sure to document what you do.</P>
+<P>One place to put it would be in the same file that runs setserial when
+the system is booted.  The location is distribution and version
+dependent.  It would seem best to put it after the setserial command
+so that the low level stuff is done first.  If you have directories in
+the /etc tree where every file in them is executed at boot-time
+(System V Init) then you could create a file named "stty" for this
+purpose.</P>
+
+<H3>Obsolete redirection method</H3>
+
+<P>Prior to about 2000 you needed to use the redirection operator "&lt;"
+if you wanted to use stty on a foreign terminal.  For example to use
+stty on ttyS2 sitting at tty1 you would type: stty .... &lt; /dev/ttyS2.
+After 2000 (provided your version of setserial is >= 1.17 and stty >=
+2.0) a better method was created using the -F option: stty -F
+/dev/ttyS2.  This will work when the old redirection method fails.  </P>
+<P>The old redirection example above makes ttyS2 the standard input to
+stty.  This gives the stty program a link to the "file" ttyS2 so that
+it may "read" it.  But instead of reading the bytes sent to ttyS2 as
+one might expect, it uses the link to find the configuration settings
+of the port so that it may read or change them.  In olden days, some
+people tried to use ``stty ... &gt; /dev/ttyS2'' to set the terminal.
+This didn't work.  Instead, it takes the message normal displayed
+by the stty command for the terminal you are on (say tty1) and sends
+this message to ttyS2.  But it doesn't change any settings for ttyS2.</P>
+<P>Here's a problem with the old redirection operator (which doesn't
+happen if you use the newer -F option instead).  Sometimes when trying
+to use stty, the command hangs and nothing happens (you don't get a
+prompt for a next command even after hitting &lt;return&gt;).  This is
+likely due to the port being stuck because it's waiting for one of the
+modem control lines to be asserted.  For example, unless you've set
+"clocal" to ignore modem control lines, then if no CD signal is
+asserted the port will not open and stty will not work for it (unless
+you use the newer -F option).  A similar situation seems to exist for
+hardware flow control.  If the cable for the port doesn't even have a
+conductor for the pin that needs to be asserted then there is no easy
+way to stop the hang.</P>
+<P>One way to try to get out of the above hang is to use the newer -F
+option and set "clocal" and/or "crtscts" as needed.  If you don't have
+the -F option then you may try to run some program (such as minicom) on
+the port that will force it to operate even if the control lines say
+not to.  Then hopefully this program might set the port so it doesn't
+need the control signal in the future in order to open: clocal or
+-crtscts.  To use "minicom" to do this you likely will have to
+reconfigure minicom and then exit it and restart it.  Instead of all
+this bother, it may be simpler to just reboot the PC or via using a
+virtual terminal kill the process using "top" (or "ps" to get the
+process number and then "kill" to kill that process.</P>
+<P>The obsolete redirection method (which still works in later versions)
+is to type ``stty ... &lt; /dev/ttyS2''.   If the new method using -F
+works but the obsolete one hangs, it implies that the port is hung due
+to a modem control line not being asserted.  Thus the obsolete
+redirection method might still useful for troubleshooting.</P>
+
+
+<H2><A NAME="ss12.5">12.5</A> <A HREF="Serial-HOWTO.html#toc12.5">What is isapnp ?</A>
+</H2>
+
+<P> <CODE>isapnp</CODE> is a program to configure Plug-and-Play (PnP) devices
+on the ISA bus including internal modems.  It comes in a package
+called "isapnptools" and includes another program, "pnpdump" which
+finds all your ISA PnP devices and shows you options for configuring
+them in a format which may be added to the PnP configuration file:
+/etc/isapnp.conf.  The isapnp command may be put into a startup file
+so that it runs each time you start the computer and thus will
+configure ISA PnP devices.  It is able to do this even if your BIOS
+doesn't support PnP.  See Plug-and-Play-HOWTO.</P>
+
+<H2><A NAME="ss12.6">12.6</A> <A HREF="Serial-HOWTO.html#toc12.6">Connecting two PCs together via serial ports</A>
+</H2>
+
+<P>This is where you run a serial cable (crossover type = null-modem
+type) between the serial ports of two PCs.  Then how do you use this
+line?  One way is for one PC to run login on the serial line and for
+the other PC to run say minicom or picocom to emulate a terminal.  See
+Text-Terminal-HOWTO.  There is no network protocol used in this case
+and no error detection.</P>
+<P>The other method is to run a network protocol on the line.  For
+example, to use PPP in combination with TCP/IP see Serial Laplink
+HOWTO.  Although this HOWTO doesn't mention the old program "slattach"
+(serial line attach) it can put the serial line into a networking mode
+using the protocol you select.  Protocols for slattach include PPP or
+SLIP (an older protocol widely used prior to PPP).</P>
+<P>The Debian package, net-tools, contains slattach.  SLIP is provided as
+a kernel module or can be built into the kernel (2.2, 2.4, or 2.6).</P>
+
+<H2><A NAME="ss12.7">12.7</A> <A HREF="Serial-HOWTO.html#toc12.7">Connect the serial port to a fast network: ser2net</A>
+</H2>
+
+<P>ser2net is a Linux program which will connect a network to the
+serial port.  For example, someone connects to your PC via an ethernet
+port or fast modem using say telnet.  Then (without ser2net) they
+could remotely login to your PC and then run programs on your PC that
+utilize a serial port on the PC.  However, it might be better if they
+didn't need to login and use your software, but instead could
+immediately connect to the serial port.  ser2net running on your PC
+can make this happen.</P>
+<P>It could be like a bridge between the ethernet cable and the serial
+cable.  The ethernet cable would have TCP/IP protocol on it but the
+serial port would just have the raw data taken out of the TCP/IP
+packets.  Optionally, you could use TCP/IP packets on the serial line
+too.  Since an ethernet port has high bandwidth, it could communicate
+with several serial ports at the same time and also have data flowing
+elsewhere as well.</P>
+<P>To set up ser2net, you must specify which network ports (on the
+ethernet) will connect to which serial ports.  Then when network
+packets arrive at your PC over ethernet which are addressed to a
+network port you've tied to a serial port, the data in those packets
+flows to the serial port.  And conversely.  Of course the network
+doesn't have to be ethernet.  It could be a cable modem or DSL line,
+etc.</P>
+
+<HR>
+<A HREF="Serial-HOWTO-13.html">Next</A>
+<A HREF="Serial-HOWTO-11.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc12">Contents</A>
+</BODY>
+</HTML>

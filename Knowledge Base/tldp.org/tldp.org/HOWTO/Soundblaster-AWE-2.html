@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Sound Blaster AWE 32/64 HOWTO: Before you start</TITLE>
+ <LINK HREF="Soundblaster-AWE-3.html" REL=next>
+ <LINK HREF="Soundblaster-AWE-1.html" REL=previous>
+ <LINK HREF="Soundblaster-AWE.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Soundblaster-AWE-3.html">Next</A>
+<A HREF="Soundblaster-AWE-1.html">Previous</A>
+<A HREF="Soundblaster-AWE.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Before you start</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss2.1">2.1 Introduction</A>
+</H2>
+
+<P>
+<P>This document tries to help you install and use a Sound Blaster AWE 32 or
+Sound Blaster AWE 64 from Creative Labs in your Linux system. The reference
+system is a 
+<A HREF="http://www.debian.org">Debian GNU/Linux</A>
+system on an Intel i586 platform, but it should work with any other Linux
+distribution as well as on every platform that is supported by the Linux
+sound driver (differences are mentioned where they appear, if any).
+<P>Be sure to read the Linux Sound HOWTO (see section 
+<A HREF="Soundblaster-AWE-6.html#moreinfo">Additional Information</A>) carefully. I consider my document a supplement
+to the Sound HOWTO, and often you can find more information about things
+I have left out there.
+<P>
+<P>
+<H2><A NAME="ss2.2">2.2 Some general notes about the SB AWE cards</A>
+</H2>
+
+<P>
+<P>The SB AWE 32 sound card provides a raw audio device, standard OPL-2/OPL-3
+synthesis, a MPU-401 MIDI port and 32 voices EMU 8000 Wave Table synthesis
+(for an explanation on these and other terms see the Linux Sound HOWTO).
+One goal of this document is to help you get all these features to
+work properly.
+<P>The SB AWE 64 has the capabilities of the SB AWE 32 and an additional
+Wave Guide synthesis Creative Labs is especially proud of. The problem for
+Linux users is, that the additional 32 voices are software generated and
+output via the raw wave devices. Because Creative Labs sees no market in
+Linux drivers, a Wave Guide synthesis sound driver is only available for
+Windows 3.1 and Windows 95.
+<P>This means that, from a Linux user's point of view, the SB AWE 32 and
+SB AWE 64 are almost identical. From now on I will only refer to the
+SB AWE in general and will only mention differences where they appear (if
+any).
+<P>
+<P>
+<H2><A NAME="ss2.3">2.3 Some general notes about the Plug and Play cards</A>
+</H2>
+
+<P>
+<P>Most modern cards for the Intel platform are ISA PnP cards, which is an
+abbreviation for ``Plug and Play''. This means, that the card has to be
+configured by the operation system, and this has to be done through an
+initialization routine at boot time. In general, there are at least three
+possible ways to do this:
+<P>
+<OL>
+<LI>You have a PnP Bios, which means that your Bios is aware of PnP
+cards and can configure them. If you think you can use all the
+features of your SB AWE PnP just because you have a PnP Bios, you
+are out of luck. Even if the Bios claims to support PnP cards it
+only initializes a subset of the ports and addresses used by your
+sound card. You will probably be able to play raw wave data, but you
+won't be able to play MIDI music, for example. For this reason, a
+PnP Bios is not an option.
+</LI>
+<LI>You have an operating system that supports PnP cards. The current stable
+Linux kernel (2.0.x) is not such an operating system, so we have to wait for
+future kernel releases, that will support PnP devices.
+</LI>
+<LI>You have a special program, started at boot time, that initializes your
+PnP cards. This is the way we do it.</LI>
+</OL>
+<P>The most commonly used software to initialize PnP cards under Linux are the
+``isapnptools'' (see section 
+<A HREF="Soundblaster-AWE-6.html#sources">Sources</A> and section
+<A HREF="Soundblaster-AWE-3.html#isapnp">Getting Started</A>). They provide a predictable way to
+configure all ISA PnP cards in your machine, not only your sound card.
+<P>
+<P>
+<H2><A NAME="ss2.4">2.4 Some general notes about loadable kernel modules</A>
+</H2>
+
+<P>
+<P>Some device drivers can be built as modules instead of compiling them into the
+kernel. You can find more information about modules in the Kernel HOWTO and
+the Module HOWTO (see section 
+<A HREF="Soundblaster-AWE-6.html#moreinfo">Additional Information</A>).
+<P>If you have a PnP card, you <EM>must</EM> install sound support as a loadable kernel
+module. This means, that you can't build the sound driver into the kernel,
+but you will have to build it as a module that can be loaded into the
+kernel at runtime. This is because the kernel will be installed before your
+ISA PnP card can be configured, and your sound driver has to be loaded after
+your ISA PnP card is configured.
+<P>The sound kernel module can be loaded manually via <CODE>insmod sound</CODE> or
+<CODE>modprobe -a sound</CODE> or in the appropriate boot script of your Linux system
+(in Debian, it is sufficient to append a single line containing
+<CODE>sound</CODE> to <CODE>/etc/modules</CODE>). Another approach is to
+launch <CODE>kerneld</CODE>, a daemon that installs and removes kernel
+modules as needed.
+<P>Note that <CODE>kerneld</CODE> may not be the best solution for the AWE
+sound driver module, because it takes time to load the module in the
+kernel, especially if you want to use Wave Table synthesis and load big
+Sound Font banks, which you have to do each time after inserting the
+module. Because <CODE>kerneld</CODE> removes unused modules after one minute by default,
+it is perhaps better to insert the sound module manually or at boot
+time.  Note that inserting the sound module manually or at boot time does prevent
+<CODE>kerneld</CODE> from removing it when it is idle. By the way: You can
+manually insert the sound module and use <CODE>kerneld</CODE> at the same
+time. The two methods don't conflict, but <CODE>kerneld</CODE> does not care
+about the sound module anymore.
+<P>This is especially useful if your mixer settings get disturbed after
+removing and reinstalling the module. A solution for this problem will be
+given in section 
+<A HREF="Soundblaster-AWE-4.html#mixing">Mixing</A>
+(there is described how you can start your mixer automatically
+when the sound module gets inserted). However, it takes time for
+<CODE>kerneld</CODE> to load the module, to load the sound font bank and to start
+your mixer, and for this and other reasons it is better to install the sound module
+at boot time and not let <CODE>kerneld</CODE> remove it.
+<P>
+<P>
+<H2><A NAME="ss2.5">2.5 Some general notes about the kernel sound driver</A>
+</H2>
+
+<P>
+<P>You can install sound support in the kernel as a built-in or as a loadable
+module. If you have a PnP card, you have to install sound support as a
+module, because the PnP card needs to be initialized via the isapnptools
+before the module gets installed.
+<P>As you can imagine, you will have to recompile the kernel. I will give you a
+few hints about it below. For now, let's talk about the sound support in the
+kernel source. The kernel ships with the Free (Lite) Version of the OSS (USS)
+sound driver. The current version of this driver (3.5.4) does not support the
+SB AWE in full, but the SB 16 part of it. So you can have a raw audio device
+and OPL-2/OPL-3 synthesis if you use it, but you will not be able to play midi
+music with Wave Table synthesis.
+<P>If you want to use the Wave Table device, you can either buy the
+commercial sound driver from 
+<A HREF="http://www.4front-tech.com">4Front Technologies</A> (someone please confirm me that it can do it,
+please), or patch your kernel with the AWE 32 Sound Driver Extension by Takashi
+Iwai. The former is beyond the scope of this document, I assume you want to use
+the latter.
+<P>The AWE32 Sound Driver Extension (see section 
+<A HREF="Soundblaster-AWE-6.html#sources">Sources</A>) is published under the GNU copyright license and
+ships with a number of tools to make use of the EMU 8000
+wave synthesis of the SB AWE cards.
+<P>The <CODE>awedrv</CODE> software is already included in newer kernel source trees
+(starting from some 2.1.x kernels, but perhaps you want to upgrade the
+sources in your kernel tree, they may be old.
+<P>
+<P>
+<HR>
+<A HREF="Soundblaster-AWE-3.html">Next</A>
+<A HREF="Soundblaster-AWE-1.html">Previous</A>
+<A HREF="Soundblaster-AWE.html#toc2">Contents</A>
+</BODY>
+</HTML>

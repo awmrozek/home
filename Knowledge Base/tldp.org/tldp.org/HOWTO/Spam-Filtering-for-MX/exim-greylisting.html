@@ -1,0 +1,709 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Adding Greylisting Support</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Exim Implementation"
+HREF="exim.html"><LINK
+REL="PREVIOUS"
+TITLE="Adding SMTP transaction delays"
+HREF="exim-smtpdelays.html"><LINK
+REL="NEXT"
+TITLE="Adding SPF Checks"
+HREF="exim-spf.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="exim-smtpdelays.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix A. Exim Implementation</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="exim-spf.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="exim-greylisting"
+></A
+>A.6. Adding Greylisting Support</H1
+><P
+>&#13;      There are several alternate greylisting implementations
+      available for Exim.  Here we will cover a couple of these.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-greylistd"
+></A
+>A.6.1. greylistd</H2
+><P
+>&#13;        This is a Python implementation developed by <EM
+>yours
+        truly</EM
+>.  (So naturally, this is the implementation
+        I will include in the <A
+HREF="exim-final.html"
+>Final ACLs</A
+> to
+        follow).  It operates as a stand-alone daemon, and thus does
+        not depend on any external database.  Greylist data is
+        stored as simple 32-bit hashes for efficiency.
+      </P
+><P
+>&#13;        You can find it at <A
+HREF="http://packages.debian.org/unstable/mail/greylistd"
+TARGET="_top"
+>http://packages.debian.org/unstable/mail/greylistd</A
+>.
+        Debian users can get it via APT:
+
+        <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+># apt-get install greylistd</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        To consult <TT
+CLASS="option"
+>greylistd</TT
+>, we insert two
+        statements in <A
+HREF="exim-final.html#acl_rcpt_to_final"
+>acl_rcpt_to</A
+> ACL that we
+        previously declared, right before the final
+        <TT
+CLASS="option"
+>accept</TT
+> statement:
+      </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  # Consult "greylistd" to obtain greylisting status for this particular
+  # peer/sender/recipient triplet.
+  #
+  # We do not greylist messages with a NULL sender, because sender 
+  # callout verification would break (and we might not be able to
+  # send mail to a host that performs callouts).
+  #
+  defer
+    message     = $sender_host_address is not yet authorized to deliver mail \
+                  from &#60;$sender_address&#62; to &#60;$local_part@$domain&#62;. \
+                  Please try later.
+    log_message = greylisted.
+    domains     = +local_domains : +relay_to_domains
+    !senders    = : postmaster@*
+    set acl_m9  = $sender_host_address $sender_address $local_part@$domain
+    set acl_m9  = ${readsocket{/var/run/greylistd/socket}{$acl_m9}{5s}{}{}}
+    condition   = ${if eq {$acl_m9}{grey}{true}{false}} 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Unless you incorporate <A
+HREF="exim-sign.html"
+>envelope
+        sender signatures</A
+> to block bogus <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+>s, you may want to add a similar statement in
+        your <A
+HREF="exim-final.html#acl_data_final"
+>acl_data</A
+> to also greylist messages
+        with a NULL sender.
+      </P
+><P
+>&#13;        The data we use for greylisting purposes here will be a little
+        different than above.  In addition to
+        <TT
+CLASS="option"
+>$sender_address</TT
+> being emtpy, neither
+        <TT
+CLASS="option"
+>$local_part</TT
+> nor <TT
+CLASS="option"
+>$domain</TT
+> is
+        defined at this point.  Instead, the variable
+        <TT
+CLASS="option"
+>$recipients</TT
+> contains a comma-separated list
+        of all recipient addresses.  For a legitimate DSN, there
+        should be only one address.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  # Perform greylisting on messages with no envelope sender here.
+  # We did not subject these to greylisting after RCPT TO: because
+  # that would interfere with remote hosts doing sender callouts.
+  #
+  defer
+    message     = $sender_host_address is not yet authorized to send \
+                  delivery status reports to &#60;$recipients&#62;. \
+                  Please try later.
+    log_message = greylisted.
+    senders     = : postmaster@*
+    set acl_m9  = $sender_host_address $recipients
+    set acl_m9  = ${readsocket{/var/run/greylistd/socket}{$acl_m9}{5s}{}{}}
+    condition   = ${if eq {$acl_m9}{grey}{true}{false}}
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-greylist-mysql"
+></A
+>A.6.2. MySQL implementation</H2
+><P
+>&#13;        The following inline implementation was contributed by
+        Johannes Berg <TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:johannes (at) sipsolutions.net"
+>johannes (at) sipsolutions.net</A
+>&#62;</TT
+>,
+        based in part on:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;            work by Rick Stewart <TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:rick.stewart (at)
+            theinternetco.net"
+>rick.stewart (at)
+            theinternetco.net</A
+>&#62;</TT
+>, published at <A
+HREF="http://theinternetco.net/projects/exim/greylist"
+TARGET="_top"
+>http://theinternetco.net/projects/exim/greylist</A
+>,
+            in turn based on
+          </P
+></LI
+><LI
+><P
+>&#13;            a Postgres implementation created by Tollef Fog Heen
+            <TT
+CLASS="email"
+>&#60;<A
+HREF="mailto:tfheen (at) raw.no"
+>tfheen (at) raw.no</A
+>&#62;</TT
+>, available at
+            <A
+HREF="http://raw.no/personal/blog/tech/Debian/2004-03-14-15-55_greylisting"
+TARGET="_top"
+>http://raw.no/personal/blog/tech/Debian/2004-03-14-15-55_greylisting</A
+>
+          </P
+></LI
+></UL
+><P
+>&#13;        It requires no external programs - the entire implementation
+        is based on these configuration snippets along with a MySQL
+        database.
+      </P
+><P
+>&#13;        An archive containing up-to-date configuration snippets as
+        well as a <TT
+CLASS="option"
+>README</TT
+> file is available at:
+        <A
+HREF="http://johannes.sipsolutions.net/wiki/Projects/exim-greylist"
+TARGET="_top"
+>http://johannes.sipsolutions.net/wiki/Projects/exim-greylist</A
+>.
+      </P
+><P
+>&#13;        MySQL needs to be installed on your system.  At a MySQL
+        prompt, create an <TT
+CLASS="option"
+>exim4</TT
+> database with two
+        tables named <TT
+CLASS="option"
+>exim_greylist</TT
+> and
+        <TT
+CLASS="option"
+>exim_greylist_log</TT
+>, as follows:
+        
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;CREATE DATABASE exim4;
+use exim4;
+
+CREATE TABLE exim_greylist (
+   id bigint(20) NOT NULL auto_increment,
+   relay_ip varchar(80) default NULL,
+   sender varchar(255) default NULL,
+   recipient varchar(255) default NULL,
+   block_expires datetime NOT NULL default '0000-00-00 00:00:00',
+   record_expires datetime NOT NULL default '9999-12-31 23:59:59',
+   create_time datetime NOT NULL default '0000-00-00 00:00:00',
+   type enum('AUTO','MANUAL') NOT NULL default 'MANUAL',
+   passcount bigint(20) NOT NULL default '0',
+   blockcount bigint(20) NOT NULL default '0',
+   PRIMARY KEY  (id)
+);
+
+CREATE TABLE exim_greylist_log (
+   id bigint(20) NOT NULL auto_increment,
+   listid bigint(20) NOT NULL,
+   timestamp datetime NOT NULL default '0000-00-00 00:00:00',
+   kind enum('deferred', 'accepted') NOT NULL,
+   PRIMARY KEY (id)
+);
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        In the <EM
+>main</EM
+> section of your Exim
+        configuration file, declare the following macros:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;# if you don't have another database defined, then define it here
+hide mysql_servers = localhost/exim4/<TT
+CLASS="parameter"
+><I
+>user</I
+></TT
+>/<TT
+CLASS="parameter"
+><I
+>password</I
+></TT
+>
+
+# options
+# these need to be valid as xxx in mysql's DATE_ADD(..,INTERVAL xxx)
+# not valid, for example, are plurals: "2 HOUR" instead of "2 HOURS"
+GREYLIST_INITIAL_DELAY = 1 HOUR
+GREYLIST_INITIAL_LIFETIME = 4 HOUR
+GREYLIST_WHITE_LIFETIME = 36 DAY
+GREYLIST_BOUNCE_LIFETIME = 0 HOUR
+
+# you can change the table names
+GREYLIST_TABLE=exim_greylist
+GREYLIST_LOG_TABLE=exim_greylist_log
+
+# comment out to the following line to disable greylisting (temporarily)
+GREYLIST_ENABLED=
+
+# uncomment the following to enable logging
+#GREYLIST_LOG_ENABLED=
+
+# below here, nothing should normally be edited
+
+.ifdef GREYLIST_ENABLED
+# database macros
+GREYLIST_TEST = SELECT CASE \
+   WHEN now() &#62; block_expires THEN "accepted" \
+   ELSE "deferred" \
+ END AS result, id \
+ FROM GREYLIST_TABLE \
+ WHERE (now() &#60; record_expires) \
+   AND (sender      = '${quote_mysql:$sender_address}' \
+        OR (type='MANUAL' \
+            AND (    sender IS NULL \
+                  OR sender = '${quote_mysql:@$sender_address_domain}' \
+                ) \
+           ) \
+       ) \
+   AND (recipient   = '${quote_mysql:$local_part@$domain}' \
+        OR (type = 'MANUAL' \
+            AND (    recipient IS NULL \
+                  OR recipient = '${quote_mysql:$local_part@}' \
+                  OR recipient = '${quote_mysql:@$domain}' \
+                ) \
+           ) \
+       ) \
+   AND (relay_ip    = '${quote_mysql:$sender_host_address}' \
+        OR (type='MANUAL' \
+            AND (    relay_ip IS NULL \
+                  OR relay_ip = substring('${quote_mysql:$sender_host_address}',1,length(relay_ip)) \
+                ) \
+           ) \
+       ) \
+ ORDER BY result DESC LIMIT 1
+
+GREYLIST_ADD = INSERT INTO GREYLIST_TABLE \
+  (relay_ip, sender, recipient, block_expires, \
+   record_expires, create_time, type) \
+ VALUES ( '${quote_mysql:$sender_host_address}', \
+  '${quote_mysql:$sender_address}', \
+  '${quote_mysql:$local_part@$domain}', \
+  DATE_ADD(now(), INTERVAL GREYLIST_INITIAL_DELAY), \
+  DATE_ADD(now(), INTERVAL GREYLIST_INITIAL_LIFETIME), \
+  now(), \
+  'AUTO' \
+) 
+
+GREYLIST_DEFER_HIT = UPDATE GREYLIST_TABLE \
+                     SET blockcount=blockcount+1 \
+                     WHERE id = $acl_m9
+
+GREYLIST_OK_COUNT = UPDATE GREYLIST_TABLE \
+                    SET passcount=passcount+1 \
+                    WHERE id = $acl_m9
+
+GREYLIST_OK_NEWTIME = UPDATE GREYLIST_TABLE \
+                      SET record_expires = DATE_ADD(now(), INTERVAL GREYLIST_WHITE_LIFETIME) \
+                      WHERE id = $acl_m9 AND type='AUTO'
+
+GREYLIST_OK_BOUNCE = UPDATE GREYLIST_TABLE \
+                     SET record_expires = DATE_ADD(now(), INTERVAL GREYLIST_BOUNCE_LIFETIME) \
+                     WHERE id = $acl_m9 AND type='AUTO'
+
+GREYLIST_LOG = INSERT INTO GREYLIST_LOG_TABLE \
+               (listid, timestamp, kind) \
+               VALUES ($acl_m9, now(), '$acl_m8')
+.endif
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Now, in the ACL section (after <TT
+CLASS="option"
+>begin acl</TT
+>),
+        declare a new ACL named <SPAN
+CLASS="QUOTE"
+>"greylist_acl"</SPAN
+>:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;.ifdef GREYLIST_ENABLED
+# this acl returns either deny or accept
+# since we use it inside a defer with acl = greylist_acl,
+# accepting here makes the condition TRUE thus deferring,
+# denying here makes the condition FALSE thus not deferring
+greylist_acl:
+  # For regular deliveries, check greylist.
+
+  # check greylist tuple, returning "accepted", "deferred" or "unknown"
+  # in acl_m8, and the record id in acl_m9
+
+  warn set acl_m8 = ${lookup mysql{GREYLIST_TEST}{$value}{result=unknown}}
+       # here acl_m8 = "result=x id=y"
+
+       set acl_m9 = ${extract{id}{$acl_m8}{$value}{-1}}
+       # now acl_m9 contains the record id (or -1)
+
+       set acl_m8 = ${extract{result}{$acl_m8}{$value}{unknown}}
+       # now acl_m8 contains unknown/deferred/accepted
+
+  # check if we know a certain triple, add and defer message if not
+  accept
+       # if above check returned unknown (no record yet)
+       condition = ${if eq{$acl_m8}{unknown}{1}}
+       # then also add a record
+       condition = ${lookup mysql{GREYLIST_ADD}{yes}{no}}
+
+  # now log, no matter what the result was
+  # if the triple was unknown, we don't need a log entry
+  # (and don't get one) because that is implicit through
+  # the creation time above.
+  .ifdef GREYLIST_LOG_ENABLED
+  warn condition = ${lookup mysql{GREYLIST_LOG}}
+  .endif
+
+  # check if the triple is still blocked
+  accept 
+       # if above check returned deferred then defer
+       condition = ${if eq{$acl_m8}{deferred}{1}}
+       # and note it down
+       condition = ${lookup mysql{GREYLIST_DEFER_HIT}{yes}{yes}}
+
+  # use a warn verb to count records that were hit
+  warn condition = ${lookup mysql{GREYLIST_OK_COUNT}}
+
+  # use a warn verb to set a new expire time on automatic records,
+  # but only if the mail was not a bounce, otherwise set to now().
+  warn !senders = : postmaster@*
+       condition = ${lookup mysql{GREYLIST_OK_NEWTIME}}
+  warn senders = : postmaster@*
+       condition = ${lookup mysql{GREYLIST_OK_BOUNCE}}
+
+  deny
+.endif
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Incorporate this ACL into your <A
+HREF="exim-final.html#acl_rcpt_to_final"
+>acl_rcpt_to</A
+>
+        to greylist triplets where the sender address is non-empty.
+        This is to allow for sender callout verifications:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;.ifdef GREYLIST_ENABLED
+  defer !senders = : postmaster@*
+        acl      = greylist_acl
+        message  = greylisted - try again later
+.endif
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Also incorporate it into your <A
+HREF="exim-firstpass.html#acl_data_1"
+>acl_data</A
+>
+        block, but this time only if the sender address is empty.
+        This is to prevent spammers from getting around greylisting by
+        setting the sender address to NULL.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;.ifdef GREYLIST_ENABLED
+  defer senders  = : postmaster@*
+        acl      = greylist_acl
+        message  = greylisted - try again later
+.endif
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="exim-smtpdelays.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="exim-spf.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Adding SMTP transaction delays</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="exim.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Adding SPF Checks</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

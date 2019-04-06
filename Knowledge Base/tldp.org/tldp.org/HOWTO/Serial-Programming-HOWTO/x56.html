@@ -1,0 +1,415 @@
+<HTML
+><HEAD
+><TITLE
+>Getting started</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="Serial Programming HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Introduction"
+HREF="intro.html"><LINK
+REL="NEXT"
+TITLE="Program Examples"
+HREF="x115.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Serial Programming HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="intro.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x115.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN56"
+>2. Getting started</A
+></H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN58"
+>2.1. Debugging</A
+></H2
+><P
+>      The best way to debug your code is to set up another Linux box, and
+      connect the two computers via a null-modem cable. Use miniterm
+      (available from the LDP programmers guide
+      (<TT
+CLASS="LITERAL"
+>ftp://sunsite.unc.edu/pub/Linux/docs/LDP/programmers-guide/lpg-0.4.tar.gz</TT
+>
+      in the examples directory) to transmit characters to your Linux
+      box. Miniterm can be compiled very easily and will transmit all
+      keyboard input raw over the serial port. Only the define statement
+      <TT
+CLASS="LITERAL"
+>#define MODEMDEVICE "/dev/ttyS0"</TT
+> has to be checked. Set it to
+      <TT
+CLASS="LITERAL"
+>ttyS0</TT
+> for COM1, <TT
+CLASS="LITERAL"
+>ttyS1</TT
+> for COM2, etc.. It is
+      essential for testing, that <EM
+>all</EM
+> characters are transmitted raw
+      (without output processing) over the line. To test your connection,
+      start miniterm on both computers and just type away. The characters
+      input on one computer should appear on the other computer and vice
+      versa. The input will not be echoed to the attached screen.
+    </P
+><P
+>      To make a null-modem cable you have to cross the TxD (transmit) and
+      RxD (receive) lines. For a description of a cable see sect. 7 of the
+      Serial-HOWTO. 
+    </P
+><P
+>      It is also possible to perform this testing with only one computer, if
+      you have two unused serial ports. You can then run two miniterms off
+      two virtual consoles. If you free a serial port by disconnecting the
+      mouse, remember to redirect <TT
+CLASS="LITERAL"
+>/dev/mouse</TT
+> if it exists. If you
+      use a multiport serial card, be sure to configure it correctly. I had
+      mine configured wrong and everything worked fine as long as I was
+      testing only on my computer. When I connected to another computer, the port
+      started loosing characters. Executing two programs on one computer
+      just isn't fully asynchronous.
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN69"
+>2.2. Port Settings</A
+></H2
+><P
+>      The devices <TT
+CLASS="LITERAL"
+>/dev/ttyS*</TT
+> are intended to hook up terminals to
+      your Linux box, and are configured for this use after startup. This
+      has to be kept in mind when programming communication with a raw
+      device. E.g. the ports are configured to echo characters sent from the
+      device back to it, which normally has to be changed for data
+      transmission.
+    </P
+><P
+>      All parameters can be easily configured from within a program. The
+      configuration is stored in a structure <TT
+CLASS="LITERAL"
+>struct termios</TT
+>, which
+      is defined in <TT
+CLASS="LITERAL"
+>&#60;asm/termbits.h&#62;</TT
+>:
+
+      <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>        #define NCCS 19
+        struct termios {
+                tcflag_t c_iflag;		/* input mode flags */
+	        tcflag_t c_oflag;		/* output mode flags */
+	        tcflag_t c_cflag;		/* control mode flags */
+	        tcflag_t c_lflag;		/* local mode flags */
+	        cc_t c_line;			/* line discipline */
+	        cc_t c_cc[NCCS];		/* control characters */
+        };
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>      This file also includes all flag definitions. The input mode flags in
+      <TT
+CLASS="LITERAL"
+>c_iflag</TT
+> handle all input processing, which means that the
+      characters sent from the device can be processed before they are read
+      with <TT
+CLASS="LITERAL"
+>read</TT
+>. Similarly <TT
+CLASS="LITERAL"
+>c_oflag</TT
+> handles the output
+      processing. <TT
+CLASS="LITERAL"
+>c_cflag</TT
+> contains the settings for the port, as
+      the baudrate, bits per character, stop bits, etc.. The local mode
+      flags stored in <TT
+CLASS="LITERAL"
+>c_lflag</TT
+> determine if characters are echoed,
+      signals are sent to your program, etc.. Finally the array
+      <TT
+CLASS="LITERAL"
+>c_cc</TT
+> defines the control characters for end of file, stop,
+      etc..  Default values for the control characters are defined in
+      <TT
+CLASS="LITERAL"
+>&#60;asm/termios.h&#62;</TT
+>. The flags are described in the manual
+      page <TT
+CLASS="LITERAL"
+>termios(3)</TT
+>. The structure <TT
+CLASS="LITERAL"
+>termios</TT
+> contains the
+      <TT
+CLASS="LITERAL"
+>c_line</TT
+> (line discipline) element, which is not used in POSIX compliant systems.
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN88"
+>2.3. Input Concepts for Serial Devices</A
+></H2
+><P
+>    Here three different input concepts will be presented. The appropriate
+    concept has to be chosen for the intended application. Whenever
+    possible, do not loop reading single characters to get a complete
+    string. When I did this, I lost characters, whereas a <TT
+CLASS="LITERAL"
+>read</TT
+> for
+    the whole string did not show any errors.
+  </P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN92"
+>2.3.1. Canonical Input Processing</A
+></H3
+><P
+>      This is the normal processing mode for terminals, but can also be
+      useful for communicating with other dl input is processed in
+      units of lines, which means that a <TT
+CLASS="LITERAL"
+>read</TT
+> will only return a
+      full line of input. A line is by default terminated by a <TT
+CLASS="LITERAL"
+>NL</TT
+>
+      (ASCII <TT
+CLASS="LITERAL"
+>LF</TT
+>), an end of file, or an end of line character. A
+      <TT
+CLASS="LITERAL"
+>CR</TT
+> (the DOS/Windows default end-of-line) will not terminate a
+      line with the default settings.
+    </P
+><P
+>      Canonical input processing can also handle the erase, delete word, and
+      reprint characters, translate <TT
+CLASS="LITERAL"
+>CR</TT
+> to <TT
+CLASS="LITERAL"
+>NL</TT
+>, etc..
+    </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN102"
+>2.3.2. Non-Canonical Input Processing</A
+></H3
+><P
+>      Non-Canonical Input Processing will handle a fixed amount of
+      characters per read, and allows for a character timer. This mode
+      should be used if your application will always read a fixed number of
+      characters, or if the connected device sends bursts of characters.
+    </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN105"
+>2.3.3. Asynchronous Input</A
+></H3
+><P
+>      The two modes described above can be used in synchronous and asynchronous
+      mode. Synchronous is the default, where a <TT
+CLASS="LITERAL"
+>read</TT
+> statement will
+      block, until the read is satisfied. In asynchronous mode the
+      <TT
+CLASS="LITERAL"
+>read</TT
+> statement will return immediatly and send a signal to the
+      calling program upon completion. This signal can be received by a
+      signal handler.
+    </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN110"
+>2.3.4. Waiting for Input from Multiple Sources</A
+></H3
+><P
+>      This is not a different input mode, but might be useful, if you are
+      handling multiple devices. In my application I was handling input over
+      a TCP/IP socket and input over a serial connection from another computer
+      quasi-simultaneously. The program example given below will wait for
+      input from two different input sources. If input from one source
+      becomes available, it will be processed, and the program will then
+      wait for new input.
+    </P
+><P
+>      The approach presented below seems rather complex, but it is important
+      to keep in mind that Linux is a multi-processing operating system. The
+      <TT
+CLASS="LITERAL"
+>select</TT
+> system call will not load the CPU while waiting for
+      input, whereas looping until input becomes available would slow down
+      other processes executing at the same time.
+    </P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="intro.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x115.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Introduction</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Program Examples</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,277 @@
+<HTML
+><HEAD
+><TITLE
+>Load sharing over multiple interfaces</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="The Intermediate queueing device (IMQ)"
+HREF="lartc.imq.html"><LINK
+REL="NEXT"
+TITLE="Caveats"
+HREF="lartc.loadshare.caveats.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.imq.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.loadshare.caveats.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="LARTC.LOADSHARE"
+></A
+>Chapter 10. Load sharing over multiple interfaces</H1
+><DIV
+CLASS="TOC"
+><DL
+><DT
+><B
+>Table of Contents</B
+></DT
+><DT
+>10.1. <A
+HREF="lartc.loadshare.caveats.html"
+>Caveats</A
+></DT
+><DT
+>10.2. <A
+HREF="lartc.loadshare.other.html"
+>Other possibilities</A
+></DT
+></DL
+></DIV
+><P
+>There are several ways of doing this. One of the easiest and straightforward
+ways is 'TEQL' - "True" (or "trivial") link equalizer. Like most things
+having to do with queueing, load sharing goes both ways. Both ends of a link
+may need to participate for full effect.</P
+><P
+>Imagine this situation:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>                 +-------+   eth1   +-------+
+                 |       |==========|       |
+ 'network 1' ----|   A   |          |   B   |---- 'network 2'
+                 |       |==========|       |
+                 +-------+   eth2   +-------+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>A and B are routers, and for the moment we'll assume both run Linux. If
+traffic is going from network 1 to network 2, router A needs to distribute
+the packets over both links to B. Router B needs to be configured to accept
+this. Same goes the other way around, when packets go from network 2 to
+network 1, router B needs to send the packets over both eth1 and eth2.</P
+><P
+>The distributing part is done by a 'TEQL' device, like this (it couldn't be
+easier):</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc qdisc add dev eth1 root teql0
+# tc qdisc add dev eth2 root teql0
+# ip link set dev teql0 up</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Don't forget the 'ip link set up' command!</P
+><P
+>This needs to be done on both hosts. The device teql0 is basically a
+roundrobbin distributor over eth1 and eth2, for sending packets. No data
+ever comes in over an teql device, that just appears on the 'raw' eth1 and
+eth2.</P
+><P
+>But now we just have devices, we also need proper routing. One way to do
+this is to assign a /31 network to both links, and a /31 to the teql0 device
+as well:</P
+><P
+>FIXME: does this need something like 'nobroadcast'? A /31 is too small to
+house a network address and a broadcast address - if this doesn't work as
+planned, try a /30, and adjust the ip addresses accordingly. You might even
+try to make eth1 and eth2 do without an IP address!</P
+><P
+>On router A:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip addr add dev eth1 10.0.0.0/31
+# ip addr add dev eth2 10.0.0.2/31
+# ip addr add dev teql0 10.0.0.4/31</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>On router B:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip addr add dev eth1 10.0.0.1/31
+# ip addr add dev eth2 10.0.0.3/31
+# ip addr add dev teql0 10.0.0.5/31</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Router A should now be able to ping 10.0.0.1, 10.0.0.3 and 10.0.0.5 over the
+2 real links and the 1 equalized device. Router B should be able to ping
+10.0.0.0, 10.0.0.2 and 10.0.0.4 over the links.</P
+><P
+>If this works, Router A should make 10.0.0.5 its route for reaching network
+2, and Router B should make 10.0.0.4 its route for reaching network 1. For
+the special case where network 1 is your network at home, and network 2 is
+the Internet, Router A should make 10.0.0.5 its default gateway.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.imq.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.loadshare.caveats.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>The Intermediate queueing device (IMQ)</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Caveats</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

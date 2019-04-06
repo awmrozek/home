@@ -1,0 +1,270 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root RAID HOWTO cookbook: Appendix B. - Sample SHUTDOWN scripts </TITLE>
+ <LINK HREF="Root-RAID-HOWTO-10.html" REL=next>
+ <LINK HREF="Root-RAID-HOWTO-8.html" REL=previous>
+ <LINK HREF="Root-RAID-HOWTO.html#toc9" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Root-RAID-HOWTO-10.html">Next</A>
+<A HREF="Root-RAID-HOWTO-8.html">Previous</A>
+<A HREF="Root-RAID-HOWTO.html#toc9">Contents</A>
+<HR>
+<H2><A NAME="Appendix-B"></A> <A NAME="s9">9. Appendix B. - Sample SHUTDOWN scripts </A></H2>
+
+<P>
+<UL>
+<LI>
+<A HREF="#Slackware">Slackware</A></LI>
+<LI>
+<A HREF="#Debian">Debian</A></LI>
+</UL>
+<P>
+<H2><A NAME="Slackware"></A> <A NAME="ss9.1">9.1 Slackware - /etc/rc.d/rc.6 </A>
+</H2>
+
+<P>
+<PRE>
+#! /bin/sh
+#
+# rc.6          This file is executed by init when it goes into runlevel
+#               0 (halt) or runlevel 6 (reboot). It kills all processes,
+#               unmounts file systems and then either halts or reboots.
+#
+# Version:      @(#)/etc/rc.d/rc.6      1.50    1994-01-15
+#
+# Author:       Miquel van Smoorenburg &lt;miquels@drinkel.nl.mugnet.org>
+# Modified by:  Patrick J. Volkerding, &lt;volkerdi@ftp.cdrom.com>
+#
+# Modified by:  Michael A. Robinton &lt; michael@bizsystems.com >
+#               to add call to rc.raidown
+  # Set the path.
+  PATH=/sbin:/etc:/bin:/usr/bin
+
+  # Set linefeed mode to avoid staircase effect.
+  stty onlcr
+
+  echo "Running shutdown script $0:"
+
+  # Find out how we were called.
+  case "$0" in
+        *0)
+                message="The system is halted."
+                command="halt"
+                ;;
+        *6)
+                message="Rebooting."
+                command=reboot
+                ;;
+        *)
+                echo "$0: call me as \"rc.0\" or \"rc.6\" please!"
+                exit 1
+                ;;
+  esac
+
+############ Save raid boot and status info ##############
+#
+if [ -x /etc/rc.d/rc.raidown ]; then
+   /etc/rc.d/rc.raidown
+fi
+################## end raid boot #########################
+
+  # Kill all processes.
+  # INIT is supposed to handle this entirely now, but this didn't always
+  # work correctly without this second pass at killing off the processes.
+  # Since INIT already notified the user that processes were being killed,
+  # we'll avoid echoing this info this time around.
+  if [ "$1" != "fast" ]; then # shutdown did not already kill all processes
+    killall5 -15 
+    killall5 -9
+  fi
+
+  # Try to turn off quota and accounting.
+  if [ -x /usr/sbin/quotaoff ]
+  then
+        echo "Turning off quota."
+        /usr/sbin/quotaoff -a
+  fi
+  if [ -x /sbin/accton ]
+  then
+        echo "Turning off accounting."
+        /sbin/accton
+  fi
+
+  # Before unmounting file systems write a reboot or halt record to wtmp.
+  $command -w
+
+  # Save localtime
+  [ -e /usr/lib/zoneinfo/localtime ] &amp;&amp; cp /usr/lib/zoneinfo/localtime /etc
+
+  # Asynchronously unmount any remote filesystems:
+  echo "Unmounting remote filesystems."
+  umount -a -tnfs &amp;
+
+  # Turn off swap, then unmount local file systems.
+  echo "Turning off swap."
+  swapoff -a
+  echo "Unmounting local file systems."
+  umount -a -tnonfs
+  # Don't remount UMSDOS root volumes:
+  if [ ! "`mount | head -1 | cut -d ' ' -f 5`" = "umsdos" ]; then
+    mount -n -o remount,ro /
+  fi
+
+################ for raid arrays #########################
+# Stop all known raid arrays (except root which won't stop)
+if [ -x /sbin/mdstop ]; then
+  echo "Stopping raid"
+  /sbin/mdstop -a
+fi
+##########################################################
+
+  # See if this is a powerfail situation.
+  if [ -f /etc/powerstatus ]; then
+    echo "Turning off UPS, bye."
+    /sbin/powerd -q
+    exit 1
+  fi
+
+  # Now halt or reboot.
+  echo "$message"
+  [ ! -f /etc/fastboot ] &amp;&amp; echo "On the next boot fsck will be FORCED."
+  $command -f
+############### end rc.6 #################################
+</PRE>
+<P>
+<H2><A NAME="Debian"></A> <A NAME="ss9.2">9.2 Debian bo - /etc/init.d/halt and /etc/init.d/reboot </A>
+</H2>
+
+<P>The modifications shown here for Debian bo halt and reboot files are NOT
+TESTED. When you test this, please e-mail me so I can remove this comment.
+<P>
+<H3>/etc/init.d/halt</H3>
+
+<P>
+<PRE>
+#! /bin/sh
+#
+# halt          The commands in this script are executed as the last
+#               step in runlevel 0, ie halt.
+#
+# Version:      @(#)halt  1.10  26-Apr-1997  miquels@cistron.nl
+#
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+############ Save raid boot and status info ##############
+#
+if [ -x /etc/rc.d/rc.raidown ]; then
+   /etc/rc.d/rc.raidown
+fi
+################## end raid boot #########################
+
+# Kill all processes.
+echo -n "Sending all processes the TERM signal... "
+killall5 -15
+echo "done."
+sleep 5
+echo -n "Sending all processes the KILL signal... "
+killall5 -9
+echo "done."
+
+# Write a reboot record to /var/log/wtmp.
+halt -w
+
+# Save the random seed between reboots.
+/etc/init.d/urandom stop
+
+echo -n "Deactivating swap... "
+swapoff -a
+echo "done."
+
+echo -n "Unmounting file systems... "
+umount -a
+echo "done."
+
+mount -n -o remount,ro /
+
+################ for raid arrays #########################
+# Stop all known raid arrays (except root which won't stop)
+if [ -x /sbin/mdstop ]; then
+  echo "Stopping raid"
+  /sbin/mdstop -a
+fi
+##########################################################
+
+# See if we need to cut the power.
+if [ -x /etc/init.d/ups-monitor ]
+then
+        /etc/init.d/ups-monitor poweroff
+fi
+
+halt -d -f
+############# end halt ####################
+</PRE>
+<H3>/etc/init.d/reboot</H3>
+
+<P>
+<PRE>
+#! /bin/sh
+#
+# reboot        The commands in this script are executed as the last
+#               step in runlevel 6, ie reboot.
+#
+# Version:      @(#)reboot  1.9  02-Feb-1997  miquels@cistron.nl
+#
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+############ Save raid boot and status info ##############
+#
+if [ -x /etc/rc.d/rc.raidown ]; then
+   /etc/rc.d/rc.raidown
+fi
+################## end raid boot #########################
+
+# Kill all processes.
+echo -n "Sending all processes the TERM signal... "
+killall5 -15
+echo "done."
+sleep 5
+echo -n "Sending all processes the KILL signal... "
+killall5 -9
+echo "done."
+
+# Write a reboot record to /var/log/wtmp.
+halt -w
+
+# Save the random seed between reboots.
+/etc/init.d/urandom stop
+
+echo -n "Deactivating swap... "
+swapoff -a
+echo "done."
+
+echo -n "Unmounting file systems... "
+umount -a
+echo "done."
+
+mount -n -o remount,ro /
+
+################ for raid arrays #########################
+# Stop all known raid arrays (except root which won't stop)
+if [ -x /sbin/mdstop ]; then
+  echo "Stopping raid"
+  /sbin/mdstop -a
+fi
+##########################################################
+
+echo -n "Rebooting... "
+reboot -d -f -i
+</PRE>
+<P>
+<HR>
+<A HREF="Root-RAID-HOWTO-10.html">Next</A>
+<A HREF="Root-RAID-HOWTO-8.html">Previous</A>
+<A HREF="Root-RAID-HOWTO.html#toc9">Contents</A>
+</BODY>
+</HTML>

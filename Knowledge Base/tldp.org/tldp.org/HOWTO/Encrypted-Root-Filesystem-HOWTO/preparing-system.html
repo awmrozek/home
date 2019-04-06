@@ -1,0 +1,583 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Preparing the system</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Encrypted Root Filesystem HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Encrypted Root Filesystem HOWTO"
+HREF="index.html"><LINK
+REL="NEXT"
+TITLE="Creating the encrypted root filesystem"
+HREF="encrypt-root-filesystem.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Encrypted Root Filesystem HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="index.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="encrypt-root-filesystem.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="preparing-system"
+></A
+>1. Preparing the system</H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="partition-layout"
+></A
+>1.1. Setting up the partition layout</H2
+><P
+>&#13;Your hard disk (hda) should contain at least three partitions:
+        <P
+></P
+><UL
+><LI
+><P
+>&#13;hda1: this small unencrypted partition will ask for
+a password in order to mount the encrypted root filesystem.
+            </P
+></LI
+><LI
+><P
+>&#13;hda2: this partition will contain your encrypted root filesystem;
+make sure it is large enough.
+            </P
+></LI
+><LI
+><P
+>&#13;hda3: this partition holds the current GNU/Linux system.
+            </P
+></LI
+></UL
+>
+        </P
+><P
+>&#13;At this point, both hda1 and hda2 are unused. hda3 is where your
+Linux distribution is currently installed; /usr and /boot must
+<EM
+>not</EM
+> be separated from this partition.
+        </P
+><P
+>&#13;Here's an example of what your partition layout might look like:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+># fdisk -l /dev/hda
+
+Disk /dev/hda: 255 heads, 63 sectors, 2432 cylinders
+Units = cylinders of 16065 * 512 bytes
+
+   Device Boot    Start       End    Blocks   Id  System
+/dev/hda1             1         1      8001   83  Linux
+/dev/hda2             2       263   2104515   83  Linux
+/dev/hda3           264       525   2104515   83  Linux
+/dev/hda4           526      2047  12225465   83  Linux</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="debian-packages"
+></A
+>1.2. Required packages</H2
+><P
+>&#13;If you use Debian, the following packages are mandatory:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>apt-get install gcc make libncurses5-dev patch bzip2 wget</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;To make copy &#38; paste easier, you should also install:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>apt-get install lynx gpm</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="install-kernel-2.4"
+></A
+>1.3. Installing Linux-2.4.29</H2
+><P
+>&#13;There are two main projects which add loopback encryption support in the
+kernel: cryptoloop and loop-AES. This howto is based on loop-AES, since it
+features an extremely fast and highly optimized implementation of Rijndael
+in assembly language, and therefore provides maximum performance if
+you have an IA-32 (x86) CPU. Besides, there are some
+<A
+HREF="http://groups.google.com/groups?selm=1emrG-1Ck-25%40gated-at.bofh.it"
+TARGET="_top"
+>security concerns</A
+>
+about cryptoloop.
+        </P
+><P
+>&#13;First of all, download and unpack the loop-AES package:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cd /usr/src
+wget http://loop-aes.sourceforge.net/loop-AES/loop-AES-v3.0b.tar.bz2
+tar -xvjf loop-AES-v3.0b.tar.bz2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Then you must download and patch the kernel source:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>wget http://ftp.kernel.org/pub/linux/kernel/v2.4/linux-2.4.29.tar.bz2
+tar -xvjf linux-2.4.29.tar.bz2
+cd linux-2.4.29
+rm include/linux/loop.h drivers/block/loop.c
+patch -Np1 -i ../loop-AES-v3.0b/kernel-2.4.28.diff</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Setup the keyboard map:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>dumpkeys | loadkeys -m - &#62; drivers/char/defkeymap.c</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Next, configure your kernel; make sure the following options are set:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>make menuconfig
+
+    Block devices  ---&#62;
+
+        &#60;*&#62; Loopback device support
+        [*]   AES encrypted loop device support (NEW)
+
+        &#60;*&#62; RAM disk support
+        (4096)   Default RAM disk size (NEW)
+        [*]   Initial RAM disk (initrd) support
+
+    File systems  ---&#62;
+
+        &#60;*&#62; Ext3 journalling file system support
+        &#60;*&#62; Second extended fs support
+
+(important note: do not enable /dev file system support)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Compile the kernel and install it:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>make dep bzImage
+make modules modules_install
+cp arch/i386/boot/bzImage /boot/vmlinuz</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;If grub is your bootloader, update /boot/grub/menu.lst
+or /boot/grub/grub.conf:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cat &#62; /boot/grub/menu.lst &#60;&#60; EOF
+default 0
+timeout 10
+color green/black light-green/black
+title Linux
+    root (hd0,2)
+    kernel /boot/vmlinuz ro root=/dev/hda3
+EOF</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Otherwise, update /etc/lilo.conf and run lilo:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cat &#62; /etc/lilo.conf &#60;&#60; EOF
+lba32
+boot=/dev/hda
+prompt
+timeout=60
+image=/boot/vmlinuz
+    label=Linux
+    read-only
+    root=/dev/hda3
+EOF
+lilo</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;You may now restart the system.
+        </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="install-kernel-2.6"
+></A
+>1.4. Installing Linux-2.6.10</H2
+><P
+>&#13;Proceed as described in the previous section, using loop-aes'
+<EM
+>kernel-2.6.10.diff</EM
+> patch instead, and make
+sure cryptoloop support is <EM
+>not</EM
+> activated.
+Note that modules support require that you have the module-init-tools
+package installed.
+        </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="install-util-linux"
+></A
+>1.5. Installing util-linux-2.12p</H2
+><P
+>&#13;The losetup program, which is part of the util-linux package, must be
+patched and recompiled in order to add strong cryptography support.
+Download, unpack and patch util-linux:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cd /usr/src
+wget http://ftp.kernel.org/pub/linux/utils/util-linux/util-linux-2.12p.tar.bz2
+tar -xvjf util-linux-2.12p.tar.bz2
+cd util-linux-2.12p
+patch -Np1 -i ../loop-AES-v3.0b/util-linux-2.12p.diff</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;To use passwords that are less than 20 characters, enter:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>CFLAGS="-O2 -DLOOP_PASSWORD_MIN_LENGTH=8"; export CFLAGS</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Security is certainly your major concern. For this reason, please do not
+enable passwords shorter than 20 characters. Data privacy is not free,
+one has to 'pay' in form of long passwords.
+        </P
+><P
+>&#13;Compile losetup and install it as root:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>./configure &#38;&#38; make lib mount
+mv -f /sbin/losetup /sbin/losetup~
+rm -f /usr/share/man/man8/losetup.8*
+cd mount
+gzip losetup.8
+cp losetup /sbin
+cp losetup.8.gz /usr/share/man/man8/
+chattr +i /sbin/losetup</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="encrypt-root-filesystem.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Encrypted Root Filesystem HOWTO</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Creating the encrypted root filesystem</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,531 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Serial HOWTO: Serial Port Basics </TITLE>
+ <LINK HREF="Serial-HOWTO-5.html" REL=next>
+ <LINK HREF="Serial-HOWTO-3.html" REL=previous>
+ <LINK HREF="Serial-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Serial-HOWTO-5.html">Next</A>
+<A HREF="Serial-HOWTO-3.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="basics_"></A> <A NAME="s4">4.</A> <A HREF="Serial-HOWTO.html#toc4">Serial Port Basics </A></H2>
+
+<P> You don't have to understand the basics to use the serial port But
+understanding it may help to determine what is wrong if you run into
+problems.  This section not only presents new topics but also repeats
+some of what was said in the previous section 
+<A HREF="Serial-HOWTO-3.html#how_hdw_xfers">How the Hardware Transfers Bytes</A> but in greater detail.</P>
+
+<H2><A NAME="ss4.1">4.1</A> <A HREF="Serial-HOWTO.html#toc4.1">What is a Serial Port ?</A>
+</H2>
+
+<H3>Intro to Serial</H3>
+
+<P> The UART serial port (or just "serial port for short" is an I/O (Input/Output) device.</P>
+<P>An I/O device is just a way to get data into and out of a computer.
+There are many types of I/O devices such as the older serial ports and
+parallel ports, network cards, universal serial buses (USB), and
+firewire etc.
+Most pre-2007 PC's have a serial port or two (on older PC's).  Each
+has a 9-pin connector (sometimes 25-pin) on the back of the computer.
+Computer programs can send data (bytes) to the transmit pin (output)
+and receive bytes from the receive pin (input).  The other pins are
+for control purposes and ground.</P>
+<P>The serial port is much more than just a connector.  It converts the
+data from parallel to serial and changes the electrical representation
+of the data.  Inside the computer, data bits flow in parallel (using
+many wires at the same time).  Serial flow is a stream of bits over a
+single wire (such as on the transmit or receive pin of the serial
+connector).  For the serial port to create such a flow, it must
+convert data from parallel (inside the computer) to serial on the
+transmit pin (and conversely).</P>
+<P>Most of the electronics of the serial port is found in a computer chip
+(or a part of a chip) known as a UART.  For more details on UARTs
+see the section
+<A HREF="Serial-HOWTO-19.html#uart_">What Are UARTS?</A> But you may want to finish this section first so that you will
+hopefully understand how the UART fits into the overall scheme of
+things.</P>
+
+<H3>Pins and Wires</H3>
+
+<P> Old PC's used 25 pin connectors but only about 9 pins were
+actually used so later on most connectors were only 9-pin.  Each of
+the 9 pins usually connects to a wire.  Besides the two wires used for
+transmitting and receiving data, another pin (wire) is signal ground.
+The voltage on any wire is measured with respect to this ground.  Thus
+the minimum number of wires to use for 2-way transmission of data is
+3.  Except that it has been known to work with no signal ground wire
+but with degraded performance and sometimes with errors.</P>
+<P>There are still more wires which are for control purposes (signalling)
+only and not for sending bytes.  All of these signals could have been
+shared on a single wire, but instead, there is a separate dedicated
+wire for every type of signal.  Some (or all) of these control wires
+are called "modem control lines".  Modem control wires are either in
+the asserted state (on) of +12 volts or in the negated state (off) of
+-12 volts.  One of these wires is to signal the computer to stop
+sending bytes out the serial port cable.  Conversely, another wire
+signals the device attached to the serial port to stop sending bytes
+to the computer.  If the attached device is a modem, other wires may
+tell the modem to hang up the telephone line or tell the computer that
+a connection has been made or that the telephone line is ringing
+(someone is attempting to call in).  See section
+<A HREF="Serial-HOWTO-20.html#pinout_">Pinout and Signals</A> for more details.</P>
+
+
+
+<H3>RS-232  (EIA-232, etc.)</H3>
+
+<P> The serial port (not the USB) is usually a RS-232-C, EIA-232-D, or
+EIA-232-E.  These three are almost the same thing.  The original RS
+(Recommended Standard) prefix officially became EIA (Electronics
+Industries Association) and later EIA/TIA after EIA merged with TIA
+(Telecommunications Industries Association).  The EIA-232 spec
+provides also for synchronous (sync) communication but the hardware to
+support sync is almost always missing on PC's.  The RS designation is
+was intended to become obsolete but is still widely used and will be
+used in this howto for RS-232.  Other documents may use the full
+EIA/TIA designation, or just EIA or TIA.  For info on other
+(non-RS-232) serial ports see the section 
+<A HREF="Serial-HOWTO-22.html#non_rs232">Other Serial Devices (not async RS-232)</A></P>
+
+<H2><A NAME="ss4.2">4.2</A> <A HREF="Serial-HOWTO.html#toc4.2">IO Address &amp; IRQ</A>
+</H2>
+
+<P> Since the computer needs to communicate with each serial port, the
+operating system must know that each serial port exists and where it
+is (its I/O address).  It also needs to know which wire (IRQ number)
+the serial port must use to request service from the computer's CPU.
+It requests service by sending an interrupt voltage on this wire.
+Thus every serial port device must store in its non-volatile memory
+both its I/O address and its Interrupt ReQuest number: IRQ.  See 
+<A HREF="#interrupt_">Interrupts</A>.  The PCI bus has its own system of
+interrupts.  But since the PCI-aware BIOS sets up these PCI interrupts
+to map to IRQs, it seemingly behaves just as described above.  Except
+that sharing of PCI interrupts is allowed (2 or more devices may use
+the same IRQ number).</P>
+<P>I/O addresses are not the same as memory addresses.  When an I/O
+addresses is put onto the computer's address bus, another wire is
+energized.  This both tells main memory to ignore the address and
+tells all devices which have I/O addresses (such as the serial port)
+to listen to the address sent on the bus to see if it matches the
+device's.  If the address matches, then the I/O device reads the data
+on the data bus.</P>
+<P>The I/O address of a certain device (such as ttyS2) will actually be a
+range of addresses.  The lower address in this range is the base
+address.  "address" usually means just the "base address".</P>
+
+<H2><A NAME="ss4.3">4.3</A> <A HREF="Serial-HOWTO.html#toc4.3">Names: ttyS0, ttyS1, etc.</A>
+</H2>
+
+<P> The serial ports are named ttyS0, ttyS1, etc. (and usually
+correspond respectively to COM1, COM2, etc. in DOS/Windows).  The /dev
+directory has a special file for each port.  Type "ls /dev/ttyS*" to
+see them.  Just because there may be (for example) a ttyS3 file,
+doesn't necessarily mean that there exists a physical serial port
+there.</P>
+<P>Which one of these names (ttyS0, ttyS1, etc.) refers to which
+physical serial port is determined as follows.  The serial driver
+(software) maintains a table showing which I/O address corresponds to
+which ttyS.  This mapping of names (such as ttyS1) to I/O addresses
+(and IRQ's) may be both set and viewed by the "setserial" command.
+See 
+<A HREF="Serial-HOWTO-12.html#set_serial">What is Setserial</A>.  This does
+<CODE>not</CODE> set the I/O address and IRQ in the hardware itself (which is
+set by jumpers or by plug-and-play software).  Thus which physical port
+corresponds to say ttyS1 depends both on what the serial driver thinks
+(per setserial) and what is set in the hardware.  If a mistake has
+been made, the physical port may not correspond to any name (such as
+ttyS2) and thus it can't be used.  See 
+<A HREF="Serial-HOWTO-11.html#ttySN_">Serial Port Devices /dev/ttyS2, etc.</A> for more details.</P>
+
+<H2><A NAME="interrupt_"></A> <A NAME="ss4.4">4.4</A> <A HREF="Serial-HOWTO.html#toc4.4">Interrupts </A>
+</H2>
+
+
+<P>When the serial port receives a number of bytes (may be set to 1, 4,
+8, or 14) into its FIFO buffer, it signals the CPU to fetch them by
+sending an electrical signal known as an interrupt on a certain wire
+normally used only by that port.  Thus the FIFO waits until it has
+received a number of bytes and then issues an interrupt.</P>
+<P>However, this interrupt will also be sent if there is an unexpected
+delay while waiting for the next byte to arrive (known as a timeout).
+Thus if the bytes are being received slowly (such as from someone
+typing on a terminal keyboard) there may be an interrupt issued for
+every byte received.  For some UART chips the rule is like this: If 4
+bytes in a row could have been received in an interval of time, but
+none of these 4 show up, then the port gives up waiting for more bytes
+and issues an interrupt to fetch the bytes currently in the FIFO.  Of
+course, if the FIFO is empty, no interrupt will be issued.</P>
+<P>Each interrupt conductor (inside the computer) has a number (IRQ) and
+the serial port must know which conductor to use to signal on.  For
+example, ttyS0 normally uses IRQ number 4 known as IRQ4 (or IRQ 4).  A
+list of them and more will be found in "man setserial" (search for
+"Configuring Serial Ports").  Interrupts are issued whenever the
+serial port needs to get the CPU's attention.  It's important to do
+this in a timely manner since the buffer inside the serial port can
+hold only 16 incoming bytes.  If the CPU fails to remove such received
+bytes promptly, then there will not be any space left for any more
+incoming bytes and the small buffer may overflow (overrun) resulting
+in a loss of data bytes.</P>
+<P>There is no 
+<A HREF="#flow_control">Flow Control</A> to prevent this.</P>
+<P>Interrupts are also issued when the serial port has just sent out all
+of its bytes from its small transmit FIFO buffer out the external
+cable.  It then has space for 16 more outgoing bytes.  The interrupt
+is to notify the CPU of that fact so that it may put more bytes in the
+small transmit buffer to be transmitted.  Also, when a modem control
+line changes state, an interrupt is issued.</P>
+<P>The buffers mentioned above are all hardware buffers.  The serial port
+also has large buffers in main memory.  This will be explained later</P>
+<P>Interrupts convey a lot of information but only indirectly.  The
+interrupt itself just tells a chip called the interrupt controller
+that a certain serial port needs attention.  The interrupt controller
+then signals the CPU.  The CPU then runs a special program to service
+the serial port.  That program is called an interrupt service routine
+(part of the serial driver software).  It tries to find out what has
+happened at the serial port and then deals with the problem such a
+transferring bytes from (or to) the serial port's hardware buffer.
+This program can easily find out what has happened since the serial
+port has registers at IO addresses known to the serial driver
+software.  These registers contain status information about the serial
+port.  The software reads these registers and by inspecting the
+contents, finds out what has happened and takes appropriate action.</P>
+
+
+
+
+
+<H2><A NAME="ss4.5">4.5</A> <A HREF="Serial-HOWTO.html#toc4.5">Data Flow (Speeds)</A>
+</H2>
+
+<P> Data (bytes representing letters, pictures, etc.) flows into and
+out of your serial port.  Flow rates (such as 56k (56000) bits/sec)
+are (incorrectly) called "speed".  But almost everyone says "speed"
+instead of "flow rate".</P>
+<P>It's important to understand that the average speed is often less than
+the specified speed.  Waits (or idle time) result in a lower average
+speed.  These waits may include long waits of perhaps a second due to
+<A HREF="#flow_control">Flow Control</A>.  At the other extreme
+there may be very short waits (idle time) of several micro-seconds
+between bytes.  If the device on the serial port (such as a modem)
+can't accept the full serial port speed, then the average speed must
+be reduced.</P>
+
+<H2><A NAME="flow_control"></A> <A NAME="ss4.6">4.6</A> <A HREF="Serial-HOWTO.html#toc4.6">Flow Control </A>
+</H2>
+
+<P> Flow control means the ability to slow down the flow of bytes in a
+wire.  For serial ports this means the ability to stop and then
+restart the flow without any loss of bytes.  Flow control is needed
+for modems and other hardware to allow a jump in instantaneous flow rates.</P>
+
+<H3>Example of Flow Control</H3>
+
+<P> For example, consider the case where you connect a 33.6k external
+modem via a short cable to your serial port.  The modem sends and
+receives bytes over the phone line at  33.6k bits per second (bps).
+Assume it's not doing any data compression or error correction.  You
+have set the serial port speed to 115,200 bits/sec (bps), and you are
+sending data from your computer to the phone line.  Then the flow from
+the your computer to your modem over the short cable is at 115.2k bps.
+However the flow from your modem out the phone line is only 33.6k bps.
+Since a faster flow (115.2k) is going into your modem than is coming
+out of it, the modem is storing the excess flow (115.2k -33.6k = 81.6k
+bps) in one of its buffers.  This buffer would soon overrun (run out
+of free storage space) unless the high 115.2k flow is stopped.</P>
+<P>But now flow control comes to the rescue.  When the modem's buffer is
+almost full, the modem sends a stop signal to the serial port.  The
+serial port passes on the stop signal on to the device driver and the
+115.2k bps flow is halted.  Then the modem continues to send out data
+at 33.6k bps drawing on the data it previous accumulated in its
+buffer.  Since nothing is coming into this buffer, the number of bytes
+in it starts to drop.  When almost no bytes are left in the buffer,
+the modem sends a start signal to the serial port and the 115.2k flow
+from the computer to the modem resumes.  In effect, flow control
+creates an average flow rate in the short cable (in this case 33.6k)
+which is significantly less than the "on" flow rate of 115.2k bps.
+This is "start-stop" flow control.</P>
+<P>In the above simple example it was assumed that the modem did no data
+compression.  This could happen when the modem is sending a file
+which is already compressed and can't be compressed further.  Now
+let's consider the opposite extreme where the modem is compressing the
+data with a high compression ratio.  In such a case the modem might
+need an input flow rate of say 115.2k bps to provide an output (to the
+phone line) of 33.6k bps (compressed data).  This compression ratio is
+3.43 (115.2/33.6).   In this case the modem is able to compress the
+115.2 bps PC-to-modem flow and send the same data (in compressed form)
+out the phone line at 33.6bps.  There's no need for flow control here
+so long as the compression ratio remains higher than 3.43.  But the
+compression ratio varies from second to second and if it should drop
+below 3.43, flow control will be needed </P>
+<P>In the above example, the modem was an external modem.  But the same
+situation exists (as of early 2003) for most internal modems.  There is
+still a speed limit on the PC-to-modem speed even though this flow
+doesn't take place over an external cable.  This makes the internal
+modems compatible with the external modems.</P>
+<P>In the above example of flow control, the flow was from the computer to
+a modem.  But there is also flow control which is used for the
+opposite direction of flow: from a modem (or other device) to a
+computer.  Each direction of flow involves 3 buffers: 1. in the modem
+2. in the UART chip (called FIFOs) and 3. in main memory managed by the
+serial driver.  Flow control protects all buffers (except the FIFOs)
+from overflowing.  </P>
+<P>Under Linux, the small UART FIFO buffers are not protected by flow
+control but instead rely on a fast response to the interrupts they
+issue.  Some UART chips can be set to do hardware flow control to
+protect their FIFOs but Linux (as of early 2003) doesn't seem to
+support it.  FIFO stand for "First In, First Out" which is the way it
+handles bytes in a queue.  All the 3 buffers use the FIFO rule but
+only the one in the UART is named "FIFO".   This is the essence of flow
+control but there are still some more details.</P>
+
+
+
+<H3>Symptoms of No Flow Control</H3>
+
+<P> Understanding flow-control theory can be of practical use.  The
+symptom of no flow control is that chunks of data missing from files
+sent without the benefit of flow control.  When overflow happens,
+often hundreds or even thousands of bytes get lost, and all in
+contiguous chunks.</P>
+
+<H3>Hardware vs. Software Flow Control</H3>
+
+<P> If feasible, it's best to use "hardware" flow control that uses two
+dedicated "modem control" wires to send the "stop" and "start"
+signals.  Hardware flow control at the serial port works like this:
+The two pins, RTS (Request to send) and CTS (Clear to send) are used.
+When the computer is ready to receive data it asserts RTS by putting a
+positive voltage on the RTS pin (meaning "Request To Send to me").
+When the computer is not able to receive any more bytes, it negates
+RTS by putting a negative voltage on the pin saying: "stop sending to
+me".  The RTS pin is connected by the serial cable to another pin on
+the modem, printer, terminal, etc.  This other pin's only function is
+to receive this signal.</P>
+<P>For the case of a modem, this "other" pin will be the modem's RTS pin.
+But for a printer, another PC, or a non-modem device, it's usually a
+CTS pin so a "crossover" or "null modem" cable is required.  This
+cable connects the CTS pin at one end with the RTS pin at the other
+end (two wires since each end of the cable has a CTS pin).  For a
+modem, a straight-thru cable is used.</P>
+<P>For the opposite direction of flow a similar scheme is used.  For a
+modem, the CTS pin is used to send the flow control signal to the CTS
+pin on the PC.  For a non-modem, the RTS pin sends the signal.  Thus
+modems and non-modems have the roles of their RTS and CTS pins
+interchanged.  Some non-modems such as dumb terminals may use other
+pins for flow control such as the DTR pin instead of RTS.</P>
+<P>Software flow control uses the main receive and transmit data wires to
+send the start and stop signals.  It uses the ASCII control characters
+DC1 (start) and DC3 (stop) for this purpose.  They are just inserted
+into the regular stream of data.  Software flow control is not only
+slower in reacting but also does not allow the sending of binary data
+unless special precautions are taken.  Since binary data will likely
+contain DC1 and DC3 characters, special means must be taken to
+distinguish between a DC3 that means a flow control stop and a DC3
+that is part of the binary code.  Likewise for DC1.  </P>
+
+<H2><A NAME="ss4.7">4.7</A> <A HREF="Serial-HOWTO.html#toc4.7">Data Flow Path; Buffers </A>
+</H2>
+
+<P>It's been mentioned that there are 3 buffers for each direction of
+flow (3 pairs altogether): 16-byte FIFO buffers (in the UART), a pair
+of larger buffers inside a device connected to the serial port (such
+as a modem), and a pair of buffers (say 8k) in main memory.  When an
+application program sends bytes to the serial port they first get
+stashed in the transmit serial port buffer in main memory.  The other
+member of this pair consists of a receive buffer for the opposite
+direction of byte-flow.  Here's an example diagram for the case of
+browsing the Internet with a browser.  Transmit data flow is left to
+right while receive flow is right to left.  There is a separate buffer
+for each direction of flow.</P>
+<P>
+<PRE>
+application     8k-byte         16-byte        1k-byte        tele-     
+BROWSER ------- MEMORY -------- FIFO --------- MODEM -------- phone
+program         buffer          buffer         buffer         line
+</PRE>
+</P>
+<P>For the transmit case, the serial device driver takes out say 15 bytes
+from this transmit buffer (in main memory), one byte at a time and
+puts them into the 16-byte transmit buffer in the serial UART for
+transmission.  Once in that transmit buffer, there is no way to stop
+them from being transmitted.  They are then transmitted to the
+modem or (other device connected to the serial port) which also has a
+fair sized (say 1k) buffer.  When the device driver (on orders from
+flow control sent from the modem) stops the flow of outgoing bytes
+from the computer, what it actually stops is the flow of outgoing
+bytes from the large transmit buffer in main memory.  Even after this
+has happened and the flow to the modem has stopped, an application
+program may keep sending bytes to the 8k transmit buffer until it
+becomes full.  At the same time, the bytes stored in the FIFO continue
+to be sent out.  Bytes stored in the modem will continue to be sent
+out the phone line unless the modem has gotten a modem-to-modem flow
+control stop from the modem at the other end of the phone line.</P>
+<P>When the memory buffer gets full, the application program can't send
+any more bytes to it (a "write" statement in a C-program blocks) and
+the application program temporarily stops running and waits until some
+buffer space becomes available.  Thus a flow control "stop" is
+ultimately able to stop the program that is sending the bytes.  Even
+though this program stops, the computer does not necessarily stop
+computing since it may switch to running other processes while it's
+waiting at a flow control stop.</P>
+<P>The above was a little oversimplified in three ways.  First, some UARTs
+can do automatic hardware flow control which can stop the transmission
+out of the FIFO buffers if needed (not yet supported by Linux).
+Second, while an application process is waiting to write to the
+transmit buffer, it could possibly perform other tasks.  Third, the
+serial driver (located between the memory buffer and the FIFO) has
+it's own small buffer (in main memory) used to process characters.</P>
+
+
+
+<H2><A NAME="ss4.8">4.8</A> <A HREF="Serial-HOWTO.html#toc4.8">Complex Flow Control Example</A>
+</H2>
+
+<P> For many situations, there is a transmit path involving several
+links, each with its own flow control.  For example, I type at a
+text-terminal connected to a PC and the PC (under my control) dials
+out to another computer using a modem.  Today, a "text-terminal" is
+likely to be just another PC emulating a text-terminal.  The main
+(server) PC, in addition to serving my text-terminal, could also have
+someone else sitting at it doing something else.  Note that calling
+this PC a "server" is not technically correct but it does serve the
+terminal.</P>
+<P>The text-terminal uses a command-line interface with no graphical
+display.  Every letter I type at the text-terminal goes over the
+serial cable to my main PC and then over the phone line to the
+computer that I've dialed out to.  To dial out, I've used the
+communication software: "minicom" which runs on my PC.</P>
+<P>This sounds like a simple data path.  I hit a key and the byte that
+key generates flows over just two cables (besides the keyboard cable):
+1. the cable from my text-terminal to my PC and 2. the telephone line
+cable to some other computer.  Of course, the telephone cable is
+actually a number of telephone system cables and includes switches
+and electronics so that a single physical cable can transmit many
+phone calls.  But I can think of it like one cable (or one link).</P>
+<P>Now, let's count the number and type of electronic devices each
+keystroke-byte has to pass thru.  The terminal-to-PC cable has a
+serial port at each end.  The telephone cable has both a serial port
+and a modem at each end.  This adds up to 4 serial ports and 2 modems.
+Since each serial port has 2 buffers, and each modem one buffer, that
+adds up to 10 buffers.  And that's just for one direction of flow.
+Each byte also must pass thru the minicom software as well.</P>
+<P>While there's just 2 cables in the above scenario, if external modems
+were used there would be an additional cable between each modem and
+it's serial port.  This makes 4 cables in all.  Even with internal
+modems it's like there is a "virtual cable" between the modem and its
+serial port.  On all these 4 links (or cables), flow control takes
+place.</P>
+<P>Now lets consider an example of the operation of flow control.
+Consider the flow of bytes from the remote computer at the other end
+of the phone line to the screen on the text-terminal that I'm sitting
+at.  A real text-terminal has a limit to the speed at which bytes can
+be displayed on its screen and issues a flow control "stop" from time
+to time to slow down the flow.  This "stop" propagates in a direction
+opposite to the flow of bytes it controls.  What happens when such a
+"stop" is issued?  Let's consider a case where the "stop" waits long
+enough before canceling it with a "start", so that it gets thru to
+the remote computer at the other end of the phone line.  When it gets
+there it will stop the program at the remote computer which is sending
+out the bytes.</P>
+<P>Let's trace out the flow of this "stop" (which may be "hardware" on
+some links and "software" on others).  First, suppose I'm "capturing"
+a long file from the remote computer which is being sent
+simultaneously to both my text-terminal and to a file on my hard-disk.
+The bytes are coming in faster than the terminal can handle them so it
+sends a "stop" out its serial port to a serial port on my PC.  The
+device driver detects it and stops sending bytes from the 8k PC serial
+buffer (in main memory) to the terminal.  But minicom still keeps
+sending out bytes for the terminal into this 8k buffer.</P>
+<P>When this 8k transmit buffer (on the first serial port) is full,
+minicom must stop writing to it.  Minicom stops and waits.  But this
+also causes minicom to stop reading from the 8k receive buffer on the
+2nd serial port connected to the modem.  Flow from the modem continues
+until this 8k buffer too fills up and sends a different "stop" to the
+modem.  Now the modem's buffer ceases to send to the serial port and
+also fills up.  The modem (assuming error correction is enabled) sends
+a "stop signal" to the other modem at the remote computer.  This modem
+stops sending bytes out of its buffer and when its buffer gets full,
+another stop signal is sent to the serial port of the remote computer.
+At the remote computer, the 8-k (or whatever) buffer fills up and the
+program at the remote computer can't write to it anymore and thus
+temporarily halts.</P>
+<P>Thus a stop signal from a text terminal has halted a program on a
+remote computer computer.  What a long sequence of events!  Note
+that the stop signal passed thru 4 serial ports, 2 modems, and one
+application program (minicom).  Each serial port has 2 buffers (in one
+direction of flow): the 8k one and the hardware 16-byte one.  The
+application program may have a buffer in its C_code.  This adds up to
+11 different buffers the data is passing thru.  Note that the small
+serial hardware buffers do not participate directly in flow control.
+Also note that the two buffers associated with the text-terminal's
+serial port are going to be dumping their contents to the screen
+during this flow control halt.  This leaves 9 other buffers that may
+be getting filled up during the flow control halt.</P>
+<P>If the terminal speed limitation is the bottleneck in the flow from
+the remote computer to the terminal, then its flow control "stop" is
+actually stopping the program that is sending from the remote computer
+as explained above.  But you may ask: How can a "stop" last so long
+that 9 buffers (some of them large) all get filled up?   It seldom
+happens, but it can actually happen this way if all the buffers were
+near their upper limits when the terminal sent out the "stop".</P>
+<P>But if you were to run a simulation on this you would discover that it's
+usually more complicated than this.  At an instant of time some links
+are flowing and others are stopped (due to flow control).  A "stop"
+from the terminal seldom propagates back to the remote computer neatly as
+described above.  It may take a few "stops" from the terminal to
+result in one "stop" at the remote computer, etc.  To understand what
+is going on you really need to observe a simulation which can be done
+for a simple case with coins on a table.  Use only a few buffers and
+set the upper level for each buffer at only a few coins.</P>
+<P>Does one really need to understand all this?  Well, understanding this
+explained to me why capturing text from a remote computer was loosing
+text.  The situation was exactly the above example but modem-to-modem
+flow control was disabled.  Chunks of captured text that were supposed
+to also get to my hard-disk never got there because of an overflow at
+my modem buffer due to flow control "stops" from the terminal.  Even
+though the remote computer had a flow path to the hard-disk without
+bottlenecks, the same flow also went to a terminal which issued flow
+control "stops" with disastrous results for the branch of the flow
+going to a file on the hard-disk.  The flow to the hard-disk passed
+thru my modem and since the overflow happened at the modem, bytes
+intended for the hard-disk were lost.</P>
+
+
+<H2><A NAME="ss4.9">4.9</A> <A HREF="Serial-HOWTO.html#toc4.9">Serial Driver Module</A>
+</H2>
+
+<P> The device driver for the serial port is the software that
+operates the serial port.  It is now provided as a serial module.
+From kernel 2.2 on, this module will normally get loaded automatically
+if it's needed.  In earlier kernels, you had to have <CODE>kerneld</CODE>
+running in order to do auto-load modules on demand.  Otherwise the
+serial module needed to be explicitly listed in /etc/modules.  Before
+modules became popular with Linux, the serial driver was usually built
+into the kernel (and sometimes still is).  If it's built-in don't let
+the serial module load or else you will have two serial drivers
+running at the same time.  With 2 drivers there are all sorts of
+errors including a possible "I/O error" when attempting to open a
+serial port.  Use "lsmod" to see if the module is loaded.</P>
+<P>When the serial module is loaded it displays a message on the screen
+about the existing serial ports (often showing a wrong IRQ).  But once
+the module is used by <CODE>setserial</CODE> to tell the device driver the
+(hopefully) correct IRQ then you should see a second display similar
+to the first but with the correct IRQ, etc.  See
+<A HREF="Serial-HOWTO-16.html#ser_module">Serial Module</A>
+See 
+<A HREF="Serial-HOWTO-12.html#set_serial">What is Setserial</A> for more info on
+<CODE>setserial</CODE>.</P>
+
+
+
+<HR>
+<A HREF="Serial-HOWTO-5.html">Next</A>
+<A HREF="Serial-HOWTO-3.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,261 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Kolejka</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="droga.html"><< Najkrótsza droga &nbsp;
+<A HREF="../algorytm.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="stos.html">Stos >></A></TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>Kolejka</H1>
+
+<P>
+Kolejka jest to specjalny rodzaj struktury danych, który pozwala na przechowywanie dynamicznych (dodawanych lub usuwanych w miarę wykonywania programu) danych bez względu na stopień sfragmentowania pamięci. Kolejka jest dobrą alternatywą dla rekurencji, która nawiasem mówiąc korzysta ze <SPAN CLASS=Wazne>stosu</SPAN>, a więc również pewnej odmiany kolejki. Nam przyda się na przykład do algorytmu wyszukiwania najkrótszej drogi w labiryncie.
+</P>
+<P>
+Jeśli wiesz o co chodzi we wspomnianym algorytmie, to idea kolejki wydaje ci się pewnie oczywista. Bierzemy punkt, badamy wszystkie <SPAN CLASS=L>8</SPAN> otaczających go punktów, następnie badamy otoczenie każdego z tych ośmiu punktów itd. Zrobienie tego przy pomocy rekurencji jest dziecinnie proste, jednak my nie lubimy rekurencji (przeciąża procesor i ogólnie jest niebezpieczna). Musimy więc gdzieś zapamiętywać kolejne punkty do sprawdzenia. Można by skorzystać ze zwykłej tablicy dynamicznej, jednak jest to bardzo kiepskie rozwiązanie. Za każdym razem, gdy chcielibyśmy zapamiętać nowy punkt w tablicy, musielibyśmy zaalokować nowy obszar pamięci, przenieść do niego "stare" dane, dopisać na końcu nowy element, wreszcie zwolnić "stary" obszar pamięci. Wszystko to bardzo czasochłonne, no a przy dużej liczbie elementów moglibyśmy napotkać kłopoty z fragmentacją pamięci. Co gorsza, również usuwanie elementów z tablicy byłoby tak kłopotliwe...
+</P>
+<P>
+Dzięki kolejce wszystko to przestaje być problemem. Każdy element kolejki ma "przyklejony" wskaźnik do następnego elementu, dzięki czemu kolejka może być rozproszona dosłownie po całej pamięci naszego komputera. Wystarczy, że zapamiętamy gdzieś adres pierwszego elementu i już "po nitce do kłębka" potrafimy znaleźć wszystkie pozostałe elementy. Przedstawia to rysunek:
+</P>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/kolejka.gif" ALT="Schemat kolejki">
+</P>
+
+<P>
+Na rysunku mamy <SPAN CLASS=Wazne>elementy kolejki</SPAN>, składające się z elementu właściwego (może on być dowolnego typu) oraz <SPAN CLASS=Wazne>wskaźnika na następny element</SPAN>. Bez względu na to, ile elementów jest w kolejce, znamy tylko wskaźnik do pierwszego elementu, do pozostałych musimy "dojść".
+</P>
+<P>
+Taki rodzaj kolejki nazywa się w żargonie programistów FIFO (First In First Out), ponieważ pierwszy element, który zostanie dodany do kolejki tylko jako pierwszy może zostać usunięty. Dokładnie tak samo "działa" kolejka w sklepie: o ile nie wpakuje się jakiś kombatant albo kobieta w ciąży, to klienci będą obsługiwani w takiej kolejności, w jakiej weszli do sklepu ;-).
+</P>
+<P>
+Jeśli jeszcze nie zdążyłeś tego wydedukować, przedstawię jak wygląda schemat uzyskiwania dostępu do np. piątego elementu kolejki. Znamy tylko adres pierwszego elementu, ale ten pierwszy element posiada "przyklejony" adres drugiego elementu. Pobieramy ten adres i w ten sposób mamy dany drugi element i adres (wskaźnik) trzeciego. Pod adresem trzeciego elementu mamy też wskaźnik na czwarty element, a pod czwartym - na piąty. Jak widać, uzyskanie dostępu do ostatniego elementu może być czasochłonne, dlatego należy tak konstruować algorytmy wykorzystujące kolejkę, aby raz pobrany element nie był już więcej potrzebny, wtedy można go od razu usunąć i dzięki temu element, którego w danej chwili potrzebujemy, zawsze będzie pierwszy i dostęp do niego będzie natychmiastowy :-). Jeśli zaś to nam nie odpowiada, możemy jeszcze przerobić naszą kolejkę na stos, czyli innymi słowy kolejkę LIFO (Last In First Out), która funkcjonuje w dokładnie odwrotnym kierunku.
+</P>
+
+<H2>
+How to do it?
+</H2>
+
+<P>
+Zastanówmy się najpierw nad prywatną sekcją naszej klasy <SPAN CLASS=T>cKOLEJKA</SPAN>. Przede wszystkim powinna ona zawierać deklarację <SPAN CLASS=T>struktury elementu</SPAN> kolejki. Założymy sobie, że dane elementu będą typu <SPAN CLASS=T>NOWY_TYP</SPAN>. Struktura pojedynczego elementu powinna zawierać jedną zmienną typu <SPAN CLASS=T>NOWY_TYP</SPAN> oraz jedną typu <SPAN CLASS=T>NOWY TYP*</SPAN> - wskaźnik na następny element w kolejce.
+</P>
+<P>
+Skoro mamy już strukturę elementu (nazwaliśmy ją sobie <SPAN CLASS=T>tELEM</SPAN>), deklarujemy dwa wskaźniki do elementów: <SPAN CLASS=T>Pierwszy</SPAN> i <SPAN CLASS=T>Ostatni</SPAN>. Wskaźnik na pierwszy element będzie nam potrzebny, żeby odnaleźć pozostałe elementy w kolejce; wskaźnik na ostatni element wykorzystywany jest, kiedy dodajemy nowy element do kolejki. Ostatnią rzeczą w sekcji prywatnej jest licznik elementów w kolejce (tutaj <SPAN CLASS=T>elcount</SPAN>), który wprawdzie nie jest wykorzystywany bezpośrednio przez klasę, ale może być zwrócony na zewnątrz przez funkcję <SPAN CLASS=T>LiczbaEl</SPAN> (o tym później).
+</P>
+<P>
+Konstruktor i destruktor mają proste zadania. Pierwszy tylko zeruje zmienną <SPAN CLASS=T>elcount</SPAN> oraz oba wskaźniki. Destruktor zwalnia zajętą pamięć, wywołując funkcję <SPAN CLASS=T>Usun</SPAN> (usunięcie pierwszego elementu kolejki) tak długo, aż kolejka będzie pusta.
+</P>
+<P>
+Działania funkcji <SPAN CLASS=T>Dodaj</SPAN> chyba nie trzeba objaśniać - do szczegółów dojdziemy później. Funkcja <SPAN CLASS=T>LiczbaEl</SPAN>, jak już mówiliśmy, zwraca wartość zmiennej <SPAN CLASS=T>elcount</SPAN>. Wreszcie - funkcja <SPAN CLASS=T>Status</SPAN>. Służy ona do uzyskania danych dowolnego elementu kolejki w dowolnym czasie. Oczywiście dojście do ostatniego elementu zajmie więcej czasu, niż do pierwszego - taka jest idea kolejki. Właściwie przy większości zadań, do których zwykle zaprzęga się kolejkę, funkcja taka jest całkowicie zbędna, ale też raczej nie powinna zaszkodzić ;-). Dorzuciłem ją głównie w celach edukacyjnych, aby pokazać, jak przejść przez wszystkie elementy kolejki nie usuwając nic po drodze.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>// Plik kolejka.h</SPAN><BR>
+<BR>
+<SPAN CLASS=K>class</SPAN> cKOLEJKA<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>private:<BR>
+&nbsp;&nbsp;struct</SPAN> tELEM<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;NOWY_TYP Dane;<BR>
+&nbsp;&nbsp;&nbsp;tELEM* Next;<BR>
+&nbsp;&nbsp;} *Pierwszy, *Ostatni;<BR>
+&nbsp;&nbsp;DWORD elcount;<BR>
+&nbsp;<SPAN CLASS=K>public</SPAN>:<BR>
+&nbsp;&nbsp;cKOLEJKA();<BR>
+&nbsp;&nbsp;~cKOLEJKA();<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>void</SPAN> Dodaj(NOWY_TYP elem);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>void</SPAN> Usun(NOWY_TYP* databuf);<BR>
+&nbsp;&nbsp;DWORD LiczbaEl();<BR>
+&nbsp;&nbsp;NOWY_TYP Status(DWORD index);<BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Czas przyjrzeć się właściwemu kodowi źródłowemu. Najpierw konstruktor i destruktor:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>// Plik kolejka.cpp</SPAN><BR>
+<BR>
+cKOLEJKA::cKOLEJKA()<BR>
+{<BR>
+&nbsp;elcount=<SPAN CLASS=L>0</SPAN>;<BR>
+&nbsp;Pierwszy = Ostatni = NULL;<BR>
+}<BR>
+<BR>
+cKOLEJKA::~cKOLEJKA()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(DWORD i=<SPAN CLASS=L>0</SPAN>; i&lt;elcount; i++)<BR>
+&nbsp;Usun(NULL);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, oba są dość banalne. Nawet nie ma co omawiać, więc przechodzimy dalej, czyli do dodawania elementu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> cKOLEJKA::Dodaj(NOWY_TYP elem)<BR>
+{<BR>
+&nbsp;tELEM* Cur = <SPAN CLASS=K>new</SPAN> tELEM;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(++elcount==<SPAN CLASS=L>1</SPAN>)<BR>
+&nbsp;&nbsp;Pierwszy = Cur;<BR>
+&nbsp;<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;&nbsp;Ostatni->Next = Cur;<BR>
+&nbsp;Cur->Dane = elem;<BR>
+&nbsp;Cur->Next = NULL;<BR>
+&nbsp;Ostatni = Cur;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy tu pomocniczy wskaźnik <SPAN CLASS=T>Cur</SPAN>, pod którym alokujemy pamięć na nowy element. Jeśli dodajemy pierwszy element do listy, to jego adres ląduje w zmiennej <SPAN CLASS=T>Pierwszy</SPAN>. W przeciwnym wypadku posługujemy się wskaźnikiem <SPAN CLASS=T>Ostatni</SPAN>, który przechowuje nam adres ostatniego (poprzednio dodanego) elementu w kolejce. Adres tego elementu jest nam potrzebny, aby we wskaźniku <SPAN CLASS=T>Next</SPAN> tego elementu umieścić adres elementu, który właśnie dodajemy. Natomiast wskaźnik <SPAN CLASS=T>Next</SPAN> elementu, który dodajemy, ustawiamy oczywiście na <SPAN CLASS=T>NULL</SPAN>, ponieważ następny po aktualnie dodawanym elemencie nie istnieje. Wreszcie - zapamiętujemy nowy adres ostatniego elementu. Wszystko to może się wydawać trochę dziwne, ale jednak jakoś działa ;-).
+</P>
+<P>
+Teraz bierzemy się za usuwanie elementu. Usuwać możemy tylko pierwszy element kolejki - gdybyśmy usunęli któryś ze środka, to element poprzedzający ten usunięty nadal wskazywałby na obszar, który należał wcześniej do usuniętego właśnie elementu, a w dodatku utracilibyśmy dostęp do wszystkich do elementów dodanych PO elemencie usuniętym. Można by temu zaradzić, przepisując wskaźnik do elementu PO usuniętym do elementu PRZED usuniętym. Problem w tym, że nie możemy uzyskać elementu PRZED usuniętym bez przechodzenia przez całą kolejkę od początku, co wymagałoby prawdopodobnie zbyt wiele czasu. Dlatego zresztą nasza kolejka nosi nazwę jednokierunkowej.
+</P>
+<P>
+Druga ważna rzecz wiążąca się z usuwaniem: zazwyczaj jeśli już usuwamy element, to raczej tylko wtedy, gdy chcemy go wykorzystać. Warto połączyć te dwie czynności w jedną. Dlatego nasza funkcja <SPAN CLASS=T>Usun</SPAN> przyjmuje jako argument wskaźnik do bufora, do którego zapisuje wartość zmiennej <SPAN CLASS=T>Dane</SPAN> usuwanego elementu. Jeśli jako argument podaje <SPAN CLASS=T>NULL</SPAN>, wtedy oczywiście wartość zmiennej nie jest nigdzie zapisywana (patrz kod destruktora klasy):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> cKOLEJKA::Usun(NOWY_TYP* databuf)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(elcount&lt;<SPAN CLASS=L>1</SPAN>)<SPAN CLASS=K> return</SPAN>;<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(databuf!=NULL) *databuf=Pierwszy->Dane; <SPAN CLASS=C>//zwróć usuwany element</SPAN><BR>
+&nbsp;tELEM *tmp = Pierwszy->Next;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <SPAN CLASS=C>//zapamiętaj drugi element</SPAN><BR>
+&nbsp;<SPAN CLASS=K>delete</SPAN> Pierwszy;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <SPAN CLASS=C>//skasuj pierwszy element</SPAN><BR>
+&nbsp;Pierwszy = tmp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<SPAN CLASS=C>//drugi element staje się pierwszym</SPAN><BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(--elcount==<SPAN CLASS=L>0</SPAN>) Pierwszy = NULL;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jeśli mamy już sprawdzone, czy kolejka w ogóle zawiera jakieś elementy oraz gdy zwróciliśmy wartość usuwanego elementu i zmniejszyliśmy licznik, możemy przystąpić do właściwego usuwania. Polega ono na takiej małej roszadzie: zapamiętujemy najpierw adres drugiego elementu (po usunięciu pierwszego drugi stanie się pierwszym :-)), zwalniamy pamięć zajętą przez obecny pierwszy element, po czym adres dawnego drugiego elementu wpisujemy do wskaźnika <SPAN CLASS=T>Pierwszy</SPAN>. To wszystko.
+</P>
+<P>
+Funkcja <SPAN CLASS=T>LiczbaEl</SPAN> nie należy do skomplikowanych:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DWORD cKOLEJKA::LiczbaEl() { <SPAN CLASS=K>return</SPAN> elcount; }<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wreszcie - funkcja <SPAN CLASS=T>Status</SPAN>. Ma ona podawać wartość elementu o indeksie <SPAN CLASS=T>index</SPAN>. Aby to zrobić, musimy przejść kolejno przez wszystkie elementy, począwszy od pierwszego. Wykonujemy to zadanie za pomocą tymczasowego wskaźnika <SPAN CLASS=T>Cur</SPAN>, który wskazuje na ten element kolejki, do którego aktualnie mamy dostęp. Inicjalnie jest to pierwszy element kolejki, następnie pobieramy "rekurencyjnie" wskaźniki do następnych elementów, aż napotkamy element o indeksie równym <SPAN CLASS=T>index</SPAN>. Jeśli dojdziemy do końca kolejki, co rozpoznawane jest tutaj w ten sposób, że zmienna wskaźnikowa <SPAN CLASS=T>Cur</SPAN> przyjmuje wartość <SPAN CLASS=T>NULL</SPAN> (składowa <SPAN CLASS=T>Next</SPAN> ostatniego elementu kolejki zawsze powinna być równa <SPAN CLASS=T>NULL</SPAN>).
+</P>
+<P>
+Kryje się tu drobny zgrzyt. Mianowicie funkcja <SPAN CLASS=T>Status</SPAN> jest tu skonstruowana trochę topornie, bo zawsze musi zwracać jakąś wartość typu <SPAN CLASS=T>NOWY_TYP</SPAN>. Na wypadek, gdyby argument <SPAN CLASS=T>index</SPAN> zawierał indeks nieistniejącego argumentu, zwracamy jakąś tam wartość zerową, ale i tak użytkownik naszej kolejki musi sam zadbać, żeby wartość <SPAN CLASS=T>index</SPAN> była prawidłowa (tj. mniejsza od liczby elementów kolejki), bo zwykle nie sposób odróżnić, czy zwrócone zero to prawidłowa wartość elementu czy nie.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+NOWY_TYP cKOLEJKA::Status(DWORD index)<BR>
+{<BR>
+&nbsp;tELEM* Cur = Pierwszy;<BR>
+&nbsp;DWORD licznik=<SPAN CLASS=L>0</SPAN>;<BR>
+&nbsp;<SPAN CLASS=K>while</SPAN>(Cur!=NULL)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(licznik++==index) <SPAN CLASS=K>return</SPAN> Cur->Dane;<BR>
+&nbsp;&nbsp;Cur = Cur->Next;<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> NOWY_TYP(<SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Cały ten kod złożony do kupy daje nam w pełni działającą kolejkę. Można jeszcze dodać do tego kilka przydatnych rzeczy, jak na przykład funkcję <SPAN CLASS=T>UsunWszystko</SPAN>, która będzie spełniała podobne zadanie, jak destruktor - szybko usuwała wszystkie elementy z kolejki na raz. Z tym jednak poradzisz sobie bez problemu sam, prawda? ;-)
+</P>
+<P>
+W zależności od tego, co właściwie chcesz wrzucać do kolejki, musisz oczywiście zmienić wszystkie ciągi znaków <SPAN CLASS=T>NOWY_TYP</SPAN> na nazwę typu zmiennej, którą chcesz dodawać do kolejki. Jeszcze lepiej zrobić uniwersalny szablon kolejki, ale to również zostawiam ci jako pracę domową :-).
+</P>
+<P>
+Na koniec mały programik przykładowy, demonstrujący działanie kolejki w praktyce. Będzie to kolejka elementów typu <SPAN CLASS=K>int</SPAN>. Załóżmy, że cały powyższy kod kolejki mamy już w pliku <SPAN CLASS=C>kolejka.cpp</SPAN>, natomiast prototyp klasy - w pliku <SPAN CLASS=C>kolejka.h</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;stdio.h&gt;<BR>
+#include &lt;iostream.h&gt;<BR>
+#include "kolejka.h"</SPAN><BR>
+<BR>
+cKOLEJKA Kolejka;<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> Wypisz()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//wypisujemy stan kolejki na ekran</SPAN><BR>
+&nbsp;cout << <SPAN CLASS=L>"Aktualny stan kolejki: "</SPAN> << endl;<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;Kolejka.LiczbaEl(); i++)<BR>
+&nbsp;&nbsp;cout << <SPAN CLASS=L>"Element "</SPAN> << i << <SPAN CLASS=L>": "</SPAN> << Kolejka.Status(i) << endl;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>//dodajemy jakies trzy liczby do kolejki...</SPAN><BR>
+&nbsp;Kolejka.Dodaj(<SPAN CLASS=L>11</SPAN>);<BR>
+&nbsp;Kolejka.Dodaj(<SPAN CLASS=L>25</SPAN>);<BR>
+&nbsp;Kolejka.Dodaj(<SPAN CLASS=L>34</SPAN>);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//pokazujemy aktualny stan</SPAN><BR>
+&nbsp;Wypisz();<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//usuwamy pierwszy element</SPAN><BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> element;<BR>
+&nbsp;Kolejka.Usun(&element);<BR>
+&nbsp;cout << <SPAN CLASS=L>"Usunieto pierwszy element o wartosci "</SPAN> << element << endl;<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//ponownie wypisujemy stan - tym razem beda 2 liczby</SPAN><BR>
+&nbsp;Wypisz();<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>//nie musimy czyscic kolejki - zrobi to za nas destruktor</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Kolejka, zwłaszcza w połączeniu ze stosem (szczegóły w dalszej części tego kursu) to bardzo przydatne narzędzie w rękach programisty. Szybko przekonasz się, że wręcz nieodzowne. Zapewne wkrótce wszystko co tylko się da, będziesz wrzucał do kolejki ;-). I prawdopodobnie bardzo dobrze :-).
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="droga.html"><< Najkrótsza droga &nbsp;
+<A HREF="../algorytm.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="stos.html">Stos >></A></TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

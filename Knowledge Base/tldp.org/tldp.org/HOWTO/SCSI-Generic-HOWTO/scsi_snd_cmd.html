@@ -1,0 +1,259 @@
+<HTML
+><HEAD
+><TITLE
+>SCSI_IOCTL_SEND_COMMAND</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Ioctl()s"
+HREF="ioctl.html"><LINK
+REL="PREVIOUS"
+TITLE="SCSI_IOCTL_PROBE_HOST"
+HREF="scsi_p_host.html"><LINK
+REL="NEXT"
+TITLE="Direct and Mmap-ed IO"
+HREF="dmmio.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="scsi_p_host.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 8. Ioctl()s</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="dmmio.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="SCSI_SND_CMD">8.26. SCSI_IOCTL_SEND_COMMAND</H1
+><DIV
+CLASS="FORMALPARA"
+><P
+><B
+>SCSI_IOCTL_SEND_COMMAND 0x1. </B
+>This ioctl() also offers a "pass through" SCSI command capability
+which is a subset of what is offered by the sg driver.</P
+></DIV
+><P
+>The structure that we are passed should look like:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>   struct sdata {
+    unsigned int inlen;     [i] Length of data written to device
+    unsigned int outlen;    [i] Length of data read from device
+    unsigned char cmd[x];   [i] SCSI command (6 &#60;= x &#60;= 16)
+                            [o] Data read from device starts here
+                            [o] On error, sense buffer starts here
+    unsigned char wdata[y]; [i] Data written to device starts here
+   };</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Notes:
+<P
+></P
+><UL
+><LI
+><P
+> The SCSI command length is determined by examining the 1st byte of the 
+given command
+<A
+NAME="AEN681"
+HREF="#FTN.AEN681"
+>[1]</A
+>
+. There is no way to override this.</P
+></LI
+><LI
+><P
+>Data transfers are limited to PAGE_SIZE (4K on i386, 8K on alpha).</P
+></LI
+><LI
+><P
+>The length (x + y) must be at least OMAX_SB_LEN bytes long to accommodate
+the sense buffer when an error occurs. The sense buffer is truncated to
+OMAX_SB_LEN (16) bytes so that old code will not be surprised.</P
+></LI
+><LI
+><P
+>If a Unix error occurs (e.g. ENOMEM) then the user will receive a 
+negative return and the Unix error code in 'errno'. If the SCSI command 
+succeeds then 0 is returned. Positive numbers returned are the compacted 
+SCSI error codes (4 bytes in one int) where the lowest byte is the SCSI 
+status. See the drivers/scsi/scsi.h file for more information on this.</P
+></LI
+></UL
+>&#13;</P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN681"
+HREF="scsi_snd_cmd.html#AEN681"
+>[1]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>Here is the mapping from the SCSI opcode "group" (top 3 bits of opcode)
+to the assumed length (in lk 2.4.15):
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>unsigned char scsi_command_size[8] =
+{
+        6, 10, 10, 12,
+        16, 12, 10, 10
+};</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+The assumed length of group 4 commands changed from 12 to 16 in lk 2.4.15
+reflecting support for 16 byte SCSI commands being added to the kernel.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="scsi_p_host.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="dmmio.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>SCSI_IOCTL_PROBE_HOST</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="ioctl.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Direct and Mmap-ed IO</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

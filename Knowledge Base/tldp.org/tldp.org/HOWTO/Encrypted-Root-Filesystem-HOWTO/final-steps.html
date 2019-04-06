@@ -1,0 +1,242 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Final steps</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Encrypted Root Filesystem HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Setting up the boot device"
+HREF="setup-boot-device.html"><LINK
+REL="NEXT"
+TITLE="About this HOWTO"
+HREF="about.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Encrypted Root Filesystem HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="setup-boot-device.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="about.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="final-steps"
+></A
+>4. Final steps</H1
+><P
+>&#13;Still inside chroot, modify /etc/fstab so that it contains:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>/dev/loop0      /               ext3    defaults       0       1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;Delete /etc/mtab and exit from chroot. Finally, run "umount -d /mnt/efs"
+and reboot. If something goes wrong, you can still boot your unencrypted
+partition by entering "Linux root=/dev/hda3" at the LILO: prompt.
+    </P
+><P
+>&#13;If everything went well, you can now re-partition your disk and encrypt
+hda3 as well as hda4. In the following scripts, we assume that hda3 will
+hold the swap device and hda4 will contain /home; you should initialize
+both partitions first:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>shred -n 1 -v /dev/hda3
+shred -n 1 -v /dev/hda4
+losetup -e aes256 -S xxxxxx /dev/loop1 /dev/hda3
+losetup -e aes256 -S xxxxxx /dev/loop2 /dev/hda4
+mkswap /dev/loop1
+mke2fs -j /dev/loop2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;Then create a script in the system startup directory and update fstab:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cat &#62; /etc/init.d/loop &#60;&#60; "EOF"
+#!/bin/sh
+
+if [ "`/usr/bin/md5sum /dev/hda1`" != \
+     "5671cebdb3bed87c3b3c345f0101d016  /dev/hda1" ]
+then
+    echo -n "WARNING! hda1 integrity verification FAILED - press enter."
+    read
+fi
+
+echo "1st password chosen above" | \
+    /sbin/losetup -p 0 -e aes256 -S xxxxxx /dev/loop1 /dev/hda3
+
+echo "2nd password chosen above" | \
+    /sbin/losetup -p 0 -e aes256 -S xxxxxx /dev/loop2 /dev/hda4
+
+/sbin/swapon /dev/loop1
+
+for i in `seq 0 63`
+do
+    echo -n -e "\33[10;10]\33[11;10]" &#62; /dev/tty$i
+done
+
+EOF
+
+chmod 700 /etc/init.d/loop
+ln -s ../init.d/loop /etc/rcS.d/S00loop
+vi /etc/fstab
+...
+/dev/loop2      /home           ext3    defaults       0       2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="setup-boot-device.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="about.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Setting up the boot device</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>About this HOWTO</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

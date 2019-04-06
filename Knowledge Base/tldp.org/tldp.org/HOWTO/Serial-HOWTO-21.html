@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Serial HOWTO: Voltage Waveshapes </TITLE>
+ <LINK HREF="Serial-HOWTO-22.html" REL=next>
+ <LINK HREF="Serial-HOWTO-20.html" REL=previous>
+ <LINK HREF="Serial-HOWTO.html#toc21" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Serial-HOWTO-22.html">Next</A>
+<A HREF="Serial-HOWTO-20.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc21">Contents</A>
+<HR>
+<H2><A NAME="volt_shape"></A> <A NAME="s21">21.</A> <A HREF="Serial-HOWTO.html#toc21">Voltage Waveshapes </A></H2>
+
+<H2><A NAME="ss21.1">21.1</A> <A HREF="Serial-HOWTO.html#toc21.1">Voltage for a Bit</A>
+</H2>
+
+<P> At the RS-232 serial port, voltages are bipolar (positive or
+negative with respect to ground) and should be about 5 volts in
+magnitude (some are 3 to 12 volts).   For the transmit and receive
+pins +5 volts is a 0-bit (sometimes called "space") and -5 volts is
+a 1-bit (sometimes called "mark").  This is known as inverted logic
+since normally a 0-bit is both false and negative while a one is
+normally both true and positive.  Although the receive and transmit
+pins are inverted logic, other pins (modem control lines) are normal
+logic with a positive voltage being true (or "on" or "asserted") and a
+negative voltage being false (or "off" or "negated").  Zero voltage
+has no meaning (except it usually means that the unit is powered off).</P>
+<P>Skip this paragraph unless you are interested in unimportant
+technicalities.  Precisely speaking, the RS-232 spec has the modem
+control lines using inverted logic since a positive voltage is logic 0
+(and not logic 1).  But the rules (which are also an inverted logic of
+sorts) say that logic 0 means asserted.  The result is that two
+applications of inverted logic result in what appear to be normal
+logic for the modem control lines.</P>
+<P>A range of voltages is allowed.  The specs say the magnitude of a
+transmitted signal should be between 5 and 15 volts but must never
+exceed 25 V.  Any voltage received under 3 V is undefined (but some
+devices will accept a lower voltage as valid).  The voltage on older
+PC (non-Mac) hardware from say the 1990's is likely to be higher, like
+11-12 volts.  If you are using a RS-422 port on a Mac computer as an
+RS-232 (requires a special cable) or EIA-423 (RS-423) then the voltage
+will actually be 5 V.</P>
+<P>Note that normal computer logic normally is just a few volts (5 volts
+was once the standard) so that if you try to use test equipment
+designed for testing 3-5 volt computer logic (TTL) on the 12 volts of
+an older serial port, it may damage the test equipment.</P>
+
+<H2><A NAME="byte_seq"></A> <A NAME="ss21.2">21.2</A> <A HREF="Serial-HOWTO.html#toc21.2">Voltage Sequence for a Byte </A>
+</H2>
+
+<P> The transmit pin (TxD) is held at -5 V (mark) at idle when nothing
+is being sent.  To start a byte it jumps to +5 V (space) for the
+start bit and remains at +5 V for the duration (period) of the start
+bit.  Next comes the low-order bit of the data byte.  If it's a 0-bit
+nothing changes and the line remains at +5 V for another bit-period.
+If it's a 1-bit the voltage jumps from +5 to -5 V.  After that comes
+the next bit (-5 V if a 1 or +5 V if a 0), etc., etc.  After the
+last data bit, a parity bit may be sent and then a -5 V (mark) stop
+bit.  Then the line remains at -5 V (idle) until the next start bit.
+Note that there is no return to 0 volts and thus there is no simple
+way (except by a synchronizing signal) to tell where one bit ends and
+the next one begins for the case where 2 consecutive bits are the same
+polarity (both zero or both one).</P>
+<P>A 2nd stop bit would also be -5 V, just the same as the first stop
+bit.  Since there is no signal to mark the boundaries between these
+bits, the only effect of the 2nd stop bit is that the line must remain
+at -5 V idle twice as long.  The receiver has no way of detecting the
+difference between a 2nd stop bit and a longer idle time between
+bytes.  Thus communications works OK if one end uses one stop bit and
+the other end uses 2 stop bits, but using only one stop bit is
+obviously faster.  In rare cases 1 1/2 stop bits are used.  This means
+that the line is kept at -5 V for 1 1/2 time periods (like a stop bit
+50% wider than normal).</P>
+
+<H2><A NAME="parity_def"></A> <A NAME="ss21.3">21.3</A> <A HREF="Serial-HOWTO.html#toc21.3">Parity Explained </A>
+</H2>
+
+<P> Characters are normally transmitted with either 7 or 8 bits of
+data.  An additional parity bit may (or may not) be appended to this
+resulting in a byte length of 7, 8 or 9 bits.  Some terminal emulators
+and older terminals do not allow 9 bits.  Some prohibit 9 bits if 2
+stop bits are used (since this would make the total number of bits too
+large: 12 bits total after adding the start bit).</P>
+<P>The parity may be set to odd, even or none (mark and space parity may
+be options on some terminals or other serial devices).  With odd
+parity, the parity bit is selected so that the number of 1-bits in a
+byte, including the parity bit, is odd.  If a such a byte gets
+corrupted by a bit being flipped, the result is an illegal byte of
+even parity.  This error will be detected and if it's an incoming byte
+to the terminal an error-character symbol will appear on the screen.
+Even parity works in a similar manner with all legal bytes (including
+the parity bit) having an even number of 1-bits.  During set-up, the
+number of bits per character usually means only the number of data
+bits per byte (7 for true ASCII and 8 for various ISO character sets).</P>
+<P>A "mark" is a 1-bit (or logic 1) and a "space" is a 0-bit (or logic
+0).  For mark parity, the parity bit is always a one-bit.  For space
+parity it's always a zero-bit.  Mark or space parity (also known as
+"sticky parity") only wastes bandwidth and should be avoided if
+feasible.  The <CODE>stty</CODE> command can't set sticky parity but it's
+supported by serial hardware and can be dealt with by programming in
+C.  "No parity" means that no parity bit is added.   For terminals
+that don't permit 9 bit bytes, "no parity" must be selected when using
+8 bit character sets since there is no room for a parity bit.</P>
+
+<H2><A NAME="ss21.4">21.4</A> <A HREF="Serial-HOWTO.html#toc21.4">Forming a Byte (Framing)</A>
+</H2>
+
+<P> In serial transmission of bytes via RS-232 ports, the low-order
+bit is always sent first (the bit-order).  Serial ports on PC's use
+asynchronous communication where there is a start bit and a stop bit
+to mark the beginning and end of a byte.  This is called framing and
+the framed byte is sometimes called a frame.  As a result a total of
+9, 10, or 11 bits are sent per byte with 10 being the most common.
+8-N-1 means 8 data bits, No parity, 1 stop bit.  This adds up to 10
+bits total when one counts the start bit.  One stop bit is almost
+universally used.  At 110 bits/sec (and sometimes at 300 bits/sec) 2
+stop bits were once used but today the 2nd stop bit is used only in
+very unusual situations (or by mistake since it still works OK that
+way but wastes bandwidth).</P>
+<P>Don't confuse this type of framing with the framing used for a packet
+of bytes on a network.  The serial port just frames every byte.  For a
+network, many bytes are framed into a packet (sometimes called a
+frame).  For a network frame, instead of a start bit, there is a
+sequence of bytes called a header.  On a network that uses serial
+ports (with modems), a report of a frame error usually refers to a
+multi-byte frame and not the serial port frame of a single byte.</P>
+
+<H2><A NAME="ss21.5">21.5</A> <A HREF="Serial-HOWTO.html#toc21.5">How "Asynchronous" is Synchronized</A>
+</H2>
+
+<P> The RS-232 serial port as implemented on PC is asynchronous which
+in effect means that there is no "clock" signal sent with "ticks" to
+mark when each bit is sent..  There are only two states of the
+transmit (or receive) wire: mark (-5 V) or space (+5 V).  There is
+no state of 0 V.  Thus a sequence of 1-bits is transmitted by just a
+steady -5 V with no markers of any kind between bits.  For the
+receiver to detect individual bits it must always have a clock signal
+which is in synchronization with the transmitter clock.  Such a clock
+would generate a "tick" in synchronization with each transmitted (or
+received) bit.</P>
+<P>For asynchronous transmission, synchronization is achieved by framing
+each byte with a start bit and a stop bit (done by hardware).  The
+receiver listens on the negative line for a positive start bit and
+when it detects one it starts its clock ticking.  It uses this clock
+tick to time the reading of the next 7, 8 or 9 bits.  (It actually is
+a little more complex than this since several samples of a bit are
+normally taken and this requires additional timing ticks.)  Then the
+stop bit is read, the clock stops and the receiver waits for the next
+start bit.  Thus async is actually synchronized during the reception
+of a single byte but there is no synchronization between one byte and
+the next byte.</P>
+
+<HR>
+<A HREF="Serial-HOWTO-22.html">Next</A>
+<A HREF="Serial-HOWTO-20.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc21">Contents</A>
+</BODY>
+</HTML>

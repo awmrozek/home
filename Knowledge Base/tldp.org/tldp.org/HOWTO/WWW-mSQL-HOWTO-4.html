@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>A mSQL and perl Web Server Mini HOWTO: Running an Example Database</TITLE>
+ <LINK HREF="WWW-mSQL-HOWTO-5.html" REL=next>
+ <LINK HREF="WWW-mSQL-HOWTO-3.html" REL=previous>
+ <LINK HREF="WWW-mSQL-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="WWW-mSQL-HOWTO-5.html">Next</A>
+<A HREF="WWW-mSQL-HOWTO-3.html">Previous</A>
+<A HREF="WWW-mSQL-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Running an Example Database</A></H2>
+
+<P>
+<P>After completing the system installation we can now finally run
+a model application. Depending on the version of msql installed
+and the perl database interface used, we have to modify the sample
+programs in a few points.
+<P>First however, the file <CODE>index.html</CODE> residing in
+<CODE>/home/httpd/html/</CODE> must be modified to allow calling a
+sample database application. We can place our database (which we call
+<CODE>database.cgi</CODE> or <CODE>inventur.cgi</CODE> here despite its archive name
+<CODE>perl.lst.ck</CODE>) in <CODE>/home/httpd/html/test/</CODE>. 
+<P>We add one line (of course, depending on your installation choices)
+similar to the following to <CODE>index.html</CODE>:
+<HR>
+<PRE>
+&lt;LI>Test the &lt;A HREF="test/database.cgi">Database, DBI:DBD-mSQL style!&lt;/A>
+&lt;LI>Test the &lt;A HREF="test/inventur.cgi">Database, MsqlPerl style!&lt;/A>
+</PRE>
+<HR>
+
+Usually you should only pick one of these two choices but if you
+have both types of database interface installed you can leave both
+lines here as they are. You can then compare performance, etc.
+<P>
+<H2><A NAME="ss4.1">4.1 Adapting the sample script for MsqlPerl</A>
+</H2>
+
+<P>Our sample script 
+has to be told
+to use the MsqlPerl 
+interface. The modification takes place in several locations. First,
+near the beginning of the file, we change the <CODE>use</CODE> clause:
+<HR>
+<PRE>
+#
+# use DBI;            # Generisches Datenbank-Interface
+use Msql;
+</PRE>
+<HR>
+<P>Then, near line 27, the MsqlPerl syntax does not require the mentioning
+of a specific driver:
+<HR>
+<PRE>
+# $dbh = DBI->connect($host, $database, '', $driver) ||
+$dbh = Msql->connect($host, $database) ||
+</PRE>
+<HR>
+<P>Then, from line 33 onward throughout the whole script,  we have to
+change all instances of <CODE>do</CODE> against <CODE>query</CODE>:
+<HR>
+<PRE>
+# $dbh->do("SELECT * FROM hw") || db_init($dbh);
+$dbh->query("SELECT * FROM hw") || db_init($dbh);
+</PRE>
+<HR>
+<P>Finally, in MsqlPerl speak, line 207 can be commented out:
+<HR>
+<PRE>
+# $sth->execute || msg("SQL Error:", $sth->errstr);
+</PRE>
+<HR>
+<P>In addition, it may become necessary to swap all <CODE>errstr</CODE> calls
+like the one in the preceding code fragment against <CODE>errmsg</CODE>.
+This is also version dependent.
+<P>After these modifications, the script should run smoothly.
+<P>
+<H2><A NAME="ss4.2">4.2 Adapting the sample script for msql-2</A>
+</H2>
+
+<P>The SQL syntax was redefined during the development of mslq-2. The
+original script will fail to execute the table initialization
+statements in lines 45 -- 58. The <CODE>primary key</CODE> modifier is no
+longer supported by msql-2, and should simply be skipped:
+<HR>
+<PRE>
+    $dbh->do(&lt;&lt;EOT) || die $dbh->errstr; # Neue Personen-Tabelle
+        create table person (
+# We do not need the 'primary key' modifier anymore in msql-2!
+#           pn        int primary key,   # Personalnummer
+            pn        int,               # Personalnummer
+            name      char(80),          # Nachname, Vorname
+            raum      int                # Raumnummer
+        )
+EOT
+    $dbh->do(&lt;&lt;EOT) || die $dbh->errstr; # Neue Hardware-Tabelle
+        create table hw (
+# We do not need the 'primary key' modifier anymore in msql-2!
+#           asset int primary key,       # Inventurnummer
+            asset int,                   # Inventurnummer
+            name   char(80),             # Bezeichnung
+            person int                   # Besitzer
+        )
+EOT
+</PRE>
+<HR>
+<P>Unfortunately, this specific script will then accept new entries
+with identical personnel numbers; the msql-1 modifier <CODE>primary
+key</CODE> intends to prevent exactly this behaviour. The msql-2
+documentation shows how to use the <CODE>CREATE INDEX</CODE> clause to
+create unique entries.
+<P>
+<HR>
+<A HREF="WWW-mSQL-HOWTO-5.html">Next</A>
+<A HREF="WWW-mSQL-HOWTO-3.html">Previous</A>
+<A HREF="WWW-mSQL-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

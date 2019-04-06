@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Diald Howto: Conecting a computer to a group of different ISPs with a modem and PPP</TITLE>
+ <LINK HREF="Diald-HOWTO-8.html" REL=next>
+ <LINK HREF="Diald-HOWTO-6.html" REL=previous>
+ <LINK HREF="Diald-HOWTO.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Diald-HOWTO-8.html">Next</A>
+<A HREF="Diald-HOWTO-6.html">Previous</A>
+<A HREF="Diald-HOWTO.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="s7">7. Conecting a computer to a group of different ISPs with a modem and PPP</A></H2>
+
+<P>
+<P>Many times, one standalone computer does not only connect to just one
+network. It is common to connect to different networks or to the Internet
+using some different service providers. In this case, changing
+configuration files each time you want to connect to a different site can
+be annoying.
+<P>The solution i propose here consist in using different sets of
+configuration files for each different connection. You can find here some
+scripts to automate changing from one to another.
+<P>
+<H2><A NAME="ss7.1">7.1 Note about sending mail using a relay host</A>
+</H2>
+
+<P>
+<P>If your email client program uses a local Message Transfer Agent with a
+<CODE>smtp</CODE> relay host to send all messages, or if you use a email client
+program that sends the messages directly to your provider's <CODE>smtp</CODE>
+server, changing where you are connecting means you need to reconfigure
+this option for the <CODE>smtp</CODE> relay server. This is because the providers
+usually check if the receipt mailbox is local or to any domain directly
+maintained by this provider or if the origin ip address is from the range
+of ip addresses that this provider assigns, to avoid having an open relay
+server that can be used to send spam, anonymous message and so on.  
+<P>In the following examples, you will find how to change this parameter in
+the <EM>Smail</EM> configuration files in a simple configuration where all
+external messages are sent to a <CODE>smtp</CODE> relay server. If you use another
+Message Transfer Agent (MTA) in your system, you can send me what you must
+change in your MTA to include it here. If you use an email client program
+that directly sends to the external <CODE>smtp</CODE> server (Kmail, Netscape,
+etc.) send me your changes too.
+<P>
+<H2><A NAME="ss7.2">7.2 Scripts to automate multiple connections and changing from one to another</A>
+</H2>
+
+<H3>Starting up</H3>
+
+<P>
+<P>First of all, create a subdirectory of <CODE>/etc/diald</CODE> called
+<CODE>providers</CODE> where you store your scripts to automatically change from
+one to another provider and the subdirectories with the set of files to
+configure each of the providers connections.
+<P>With the next script this directory is created and filled with the
+current configuration files from <EM>Diald</EM>, <EM>chat</EM>, <EM>pppd</EM> and
+<EM>Smail</EM>, that will be treated as a template for the next
+configurations.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+#File /etc/diald/providers/setupdialdmultiprovider
+mkdir /etc/diald/providers
+mkdir /etc/diald/providers/setup
+cp /etc/ppp/pap-secrets /etc/diald/providers/setup
+cp /etc/ppp/chap-secrets /etc/diald/providers/setup
+cp /etc/resolv.conf /etc/diald/providers/setup
+cp /etc/diald/diald.options /etc/diald/providers/setup
+cp /etc/diald/standard.filter /etc/diald/providers/setup
+cp /etc/diald/personal.filter /etc/diald/providers/setup
+cp /etc/diald/diald.connect /etc/diald/providers/setup
+cp /etc/chatscripts/provider /etc/diald/providers/setup
+cp /etc/diald/ip-up /etc/diald/providers/setup
+cp /etc/diald/ip-down /etc/diald/providers/setup
+cp /etc/smail/routers /etc/diald/providers/setup
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>New provider</H3>
+
+<P>
+<P>With the next script the template configuration will be copied to a new
+directory to prepare it for a new provider connection or a new net
+connection. This script (<CODE>/etc/diald/providers/newdialdprovider</CODE>)
+will need a parameter with the provider or net name.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+#File /etc/diald/providers/newdialdprovider
+mkdir /etc/diald/providers/$1
+cp /etc/diald/providers/setup/* /etc/diald/providers/$1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Now, you will modify as you need the new files in
+<CODE>/etc/diald/providers/provdidername</CODE>, being <CODE>providername</CODE>
+the parameter passed to <CODE>newdialdprovider</CODE>.
+<P>
+<H3>Changing from one to another</H3>
+
+<P>
+<P>At the end, with this script you will change all your configuration files
+related to <EM>Diald</EM> to connect to another provider or net. I use
+symbolic links to avoid using duplicate files. Using symbolic links, if
+you change any config file in its original location like
+<CODE>/etc/resolv.conf</CODE>, the change is really made in the 
+<CODE>/etc/diald/providers/providername/resolv.conf</CODE> file.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+#File /etc/diald/providers/setdialdprovider
+/etc/init.d/diald stop
+#wait for Diald to stop.
+sleep 4
+ln -sf /etc/diald/providers/$1/pap-secrets /etc/ppp
+ln -sf /etc/diald/providers/$1/chap-secrets /etc/ppp
+ln -sf /etc/diald/providers/$1/resolv.conf /etc
+ln -sf /etc/diald/providers/$1/diald.options /etc/diald
+ln -sf /etc/diald/providers/$1/standard.filter /etc/diald
+ln -sf /etc/diald/providers/$1/personal.filter /etc/diald
+ln -sf /etc/diald/providers/$1/diald.connect /etc/diald
+ln -sf /etc/diald/providers/$1/provider /etc/chatscripts
+ln -sf /etc/diald/providers/$1/ip-up /etc/diald
+ln -sf /etc/diald/providers/$1/ip-down /etc/diald
+ln -sf /etc/diald/providers/$1/routers /etc/smail
+/etc/init.d/diald start
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="Diald-HOWTO-8.html">Next</A>
+<A HREF="Diald-HOWTO-6.html">Previous</A>
+<A HREF="Diald-HOWTO.html#toc7">Contents</A>
+</BODY>
+</HTML>

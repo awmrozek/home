@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux IPCHAINS-HOWTO: Appendix: Differences between ipchains and ipfwadm.</TITLE>
+ <LINK HREF="IPCHAINS-HOWTO-9.html" REL=next>
+ <LINK HREF="IPCHAINS-HOWTO-7.html" REL=previous>
+ <LINK HREF="IPCHAINS-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="IPCHAINS-HOWTO-9.html">Next</A>
+<A HREF="IPCHAINS-HOWTO-7.html">Previous</A>
+<A HREF="IPCHAINS-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="ipfwadm-diff"></A> <A NAME="s8">8. Appendix: Differences between ipchains and ipfwadm.</A></H2>
+
+<P>Some of these changes are a result of kernel changes, and some a
+result of <CODE>ipchains</CODE> being different from <CODE>ipfwadm</CODE>.
+<P>
+<P>
+<OL>
+<LI> Many arguments have been remapped: capitals now indicates a
+command, and lower case now indicates an option.
+</LI>
+<LI> Arbitrary chains are supported, so even built-in chains have
+full names instead of flags (eg. `input' instead of `-I').
+</LI>
+<LI> The `-k' option has vanished: use `! -y'.
+</LI>
+<LI> The `-b' option actually inserts/appends/deletes two rules,
+rather than a single `bidirectional' rule.
+</LI>
+<LI> The `-b' option can be passed to `-C' to do two checks (one in
+each direction).
+</LI>
+<LI> The `-x' option to `-l' has been replaced by `-v'.
+</LI>
+<LI> Multiple source and destination ports are not supported
+anymore.  Hopefully being able to negate the port range will somewhat
+make up for that.
+</LI>
+<LI> Interfaces can only be specified by name (not address).  The
+old semantics got silently changed in the 2.1 kernel series anyway.
+</LI>
+<LI> Fragments are examined, not automatically allowed through.
+</LI>
+<LI> Explicit accounting chains have been done away with.
+</LI>
+<LI> Arbitrary protocols over IP can be tested for.
+</LI>
+<LI> The old behavior of SYN and ACK matching (which was previously
+ignored for non-TCP packets) has changed; the SYN option is not valid
+for non-TCP-specific rules.
+</LI>
+<LI> Counters are now 64-bit on 32-bit machines, not 32-bit.
+</LI>
+<LI> Inverse options are now supported.
+</LI>
+<LI> ICMP codes are now supported.
+</LI>
+<LI> Wildcard interfaces are now supported.
+</LI>
+<LI> TOS manipulations are now sanity-checked: the old kernel code
+would silently stop you from (illegally) manipulating the `Must Be
+Zero' TOS bit; ipchains now returns an error if you try, as well as
+for other illegal cases.</LI>
+</OL>
+<P>
+<H2><A NAME="ss8.1">8.1 Quick-Reference table.</A>
+</H2>
+
+<P>[ Mainly, command arguments are UPPER CASE, and option arguments are
+lower case ]
+<P>
+<P>One thing to note, masquerading is specified by `-j MASQ'; it is
+completely different from `-j ACCEPT', and not treated as merely a
+side-effect, unlike <CODE>ipfwadm</CODE> does.
+<P>
+<P>
+<PRE>
+================================================================
+| ipfwadm      | ipchains              | Notes
+----------------------------------------------------------------
+| -A [both]    | -N acct               | Create an `acct' chain
+|              |&amp; -I 1 input -j acct   | and have output and input
+|              |&amp; -I 1 output -j acct  | packets traverse it.
+|              |&amp; acct                 |
+----------------------------------------------------------------
+| -A in        | input                 | A rule with no target
+----------------------------------------------------------------
+| -A out       | output                | A rule with no target
+----------------------------------------------------------------
+| -F           | forward               | Use this as [chain].
+----------------------------------------------------------------
+| -I           | input                 | Use this as [chain].
+----------------------------------------------------------------
+| -O           | output                | Use this as [chain].
+----------------------------------------------------------------
+| -M -l        | -M -L                 |
+----------------------------------------------------------------
+| -M -s        | -M -S                 |
+----------------------------------------------------------------
+| -a policy    | -A [chain] -j POLICY  | (but see -r and -m).
+----------------------------------------------------------------
+| -d policy    | -D [chain] -j POLICY  | (but see -r and -m).
+----------------------------------------------------------------
+| -i policy    | -I 1 [chain] -j POLICY| (but see -r and -m).
+----------------------------------------------------------------
+| -l           | -L                    |
+----------------------------------------------------------------
+| -z           | -Z                    |
+----------------------------------------------------------------
+| -f           | -F                    |
+----------------------------------------------------------------
+| -p           | -P                    |
+----------------------------------------------------------------
+| -c           | -C                    |
+----------------------------------------------------------------
+| -P           | -p                    |
+----------------------------------------------------------------
+| -S           | -s                    | Only takes one port or 
+|              |                       | range, not multiples.
+----------------------------------------------------------------
+| -D           | -d                    | Only takes one port or 
+|              |                       | range, not multiples.
+----------------------------------------------------------------
+| -V           | &lt;none>                | Use -i [name].
+----------------------------------------------------------------
+| -W           | -i                    |
+----------------------------------------------------------------
+| -b           | -b                    | Now actually makes 2 rules.
+----------------------------------------------------------------
+| -e           | -v                    |
+----------------------------------------------------------------
+| -k           | ! -y                  | Doesn't work unless 
+|              |                       | -p tcp also specified.
+----------------------------------------------------------------
+| -m           | -j MASQ               |
+----------------------------------------------------------------
+| -n           | -n                    |
+----------------------------------------------------------------
+| -o           | -l                    |
+----------------------------------------------------------------
+| -r [redirpt] | -j REDIRECT [redirpt] |
+----------------------------------------------------------------
+| -t           | -t                    |
+----------------------------------------------------------------
+| -v           | -v                    |
+----------------------------------------------------------------
+| -x           | -x                    |
+----------------------------------------------------------------
+| -y           | -y                    | Doesn't work unless 
+|              |                       | -p tcp also specified.
+----------------------------------------------------------------
+</PRE>
+<P>
+<H2><A NAME="ss8.2">8.2 Examples of translated ipfwadm commands</A>
+</H2>
+
+<P>Old command: ipfwadm -F  -p deny
+<P>New command: ipchains -P forward DENY
+<P>
+<P>Old command: ipfwadm -F -a m -S 192.168.0.0/24 -D 0.0.0.0/0
+<P>New command: ipchains -A forward -j MASQ -s 192.168.0.0/24 -d 0.0.0.0/0
+<P>
+<P>Old command: ipfwadm -I -a accept -V 10.1.2.1 -S 10.0.0.0/8 -D 0.0.0.0/0
+<P>New command: ipchains -A input -j ACCEPT -i eth0 -s 10.0.0.0/8 -d 0.0.0.0/0
+<P>(Note that there is no equivalent for specifying interfaces by
+address: use the interface name.  On this machine, 10.1.2.1
+corresponds to eth0).
+<P>
+<HR>
+<A HREF="IPCHAINS-HOWTO-9.html">Next</A>
+<A HREF="IPCHAINS-HOWTO-7.html">Previous</A>
+<A HREF="IPCHAINS-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,885 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Create RPMs of Your Fonts</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Optimal Use of Fonts on Linux"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Producing Portable Documents"
+HREF="portable.html"><LINK
+REL="NEXT"
+TITLE="Designer's Guide for Modern Good Looking Documents"
+HREF="typography.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Optimal Use of Fonts on Linux</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="portable.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="typography.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="rpm"
+></A
+>6. Create <SPAN
+CLASS="acronym"
+>RPM</SPAN
+>s of Your Fonts</H1
+><P
+>Do not just throw <TT
+CLASS="filename"
+>.ttf</TT
+> files someplace on your system. It makes migrations more difficult, and makes a big mess in your computer. Package management software like <SPAN
+CLASS="acronym"
+>RPM</SPAN
+> lets you easily install your fonts in an organized standard way, manage font upgrades, and make massive font distribution a piece of cake.</P
+><P
+>Here we'll provide templates and instructions for you to easily build <SPAN
+CLASS="acronym"
+>RPM</SPAN
+> packages of your fonts. We'll accept contributions with instructions to build different types of packages.</P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="rpmmacro"
+></A
+>6.1. Step 1: Prepare Your Environment to Build The Package</H2
+><P
+>To build <SPAN
+CLASS="acronym"
+>RPM</SPAN
+>s, you need a special structure of directories and some configurations on your environment. You should do everything as a regular user, in all steps. In fact, we recommend that you do not do this as <SPAN
+CLASS="acronym"
+>root</SPAN
+>.</P
+><P
+>To create this directories, do this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>cd ~</B
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>mkdir -p src/rpm</B
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>cd src/rpm</B
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>cp -r /usr/src/redhat/* .</B
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>ls</B
+>
+<TT
+CLASS="computeroutput"
+>BUILD/  RPMS/  SOURCES/  SPECS/  SRPMS/</TT
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+>
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>(the "~" is an alias to the current user's home directory name, and the command line knows it should interpret it this way)</P
+><P
+>Of course this is on a Red Hat system, but the important point is to have the following directories under <TT
+CLASS="filename"
+>src/rpm</TT
+>:</P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;						<TT
+CLASS="filename"
+>BUILD/</TT
+>
+					</P
+></LI
+><LI
+><P
+>&#13;						<TT
+CLASS="filename"
+>RPMS/noarch/</TT
+>
+					</P
+></LI
+><LI
+><P
+>&#13;						<TT
+CLASS="filename"
+>SRPMS/</TT
+>
+					</P
+></LI
+></UL
+><P
+>Then, you'll have to create the <TT
+CLASS="filename"
+>.rpmmacros</TT
+> file in you home directory, with this single line content:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;%_topdir        YOUR_HOME_DIR_HERE/src/rpm
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>And you should substitute <TT
+CLASS="replaceable"
+><I
+>YOUR_HOME_DIR_HERE</I
+></TT
+> with the absolute name of your <TT
+CLASS="envar"
+>$HOME</TT
+> directory. So as an example, my <TT
+CLASS="filename"
+>.rpmmacros</TT
+> file contains this line:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;%_topdir        /home/aviram/src/rpm
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="rpmtgz"
+></A
+>6.2. Step 2: Prepare the Fonts Files to Package</H2
+><P
+>Now you must think about a name for your font collection. To make things easy in this documentation, we'll use the name <TT
+CLASS="replaceable"
+><I
+>myfonts</I
+></TT
+> from now on. Then you must create a directory named <TT
+CLASS="filename"
+>~/src/myfonts/myfonts</TT
+> (yes, <TT
+CLASS="filename"
+>myfonts</TT
+> two times) and put all your <TT
+CLASS="filename"
+>.ttf</TT
+> files right under it. So you'll have something like:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>cd ~/src</B
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>find myfonts/myfonts/</B
+>
+<TT
+CLASS="computeroutput"
+>&#13;myfonts/myfonts/
+myfonts/myfonts/font1.ttf
+myfonts/myfonts/font2.ttf
+myfonts/myfonts/font3.ttf
+...
+</TT
+>
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="rpmspec"
+></A
+>6.3. Step 3: Create a <TT
+CLASS="filename"
+>.spec</TT
+> File With This Template</H2
+><P
+>To build an <SPAN
+CLASS="acronym"
+>RPM</SPAN
+> package you'll have to create a <TT
+CLASS="filename"
+>.spec</TT
+> file that provides instructions to the package builder on how to organize the files, package description, author, copyright, etc. We provide a template <A
+HREF="template.spec"
+TARGET="_top"
+>here</A
+> that you can use to start your work. The template looks like this:</P
+><DIV
+CLASS="example"
+><A
+NAME="spectemplate"
+></A
+><P
+><B
+>Example 1. The <TT
+CLASS="filename"
+>.spec</TT
+> file template</B
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="programlisting"
+>&#13;Name: myfonts     <A
+NAME="spectemplate.name"
+><IMG
+SRC="../images/callouts/1.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(1)"></A
+>
+Summary: Collection of My Funny Fonts   <A
+NAME="spectemplate.summary"
+><IMG
+SRC="../images/callouts/2.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(2)"></A
+>
+Version: 1.1   <A
+NAME="spectemplate.version"
+><IMG
+SRC="../images/callouts/3.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(3)"></A
+>
+Release: 1
+License: GPL    <A
+NAME="spectemplate.license"
+><IMG
+SRC="../images/callouts/4.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(4)"></A
+>
+Group: User Interface/X
+Source: %{name}.tar.gz
+BuildRoot: %{_tmppath}/build-root-%{name}
+BuildArch: noarch
+Requires: freetype
+Packager: Avi Alkalay &#60;avi unix sh&#62;    <A
+NAME="spectemplate.packager"
+><IMG
+SRC="../images/callouts/5.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(5)"></A
+>
+Prefix: /usr/share/fonts
+Url: http://myfonts.com/     <A
+NAME="spectemplate.url"
+><IMG
+SRC="../images/callouts/6.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(6)"></A
+>
+
+%description    <A
+NAME="spectemplate.description"
+><IMG
+SRC="../images/callouts/7.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(7)"></A
+>
+These are the fonts used in our marketing campaign, designed by our marketing agency specially for us.
+The package includes the following fonts: Font 1, Font 2, Font 3, Font 4.
+
+
+%prep
+
+%setup -q -n %{name}
+
+%build
+
+%install
+mkdir -p $RPM_BUILD_ROOT/%{prefix}
+cp -r %{name}/ $RPM_BUILD_ROOT/%{prefix}
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+%files
+%defattr(-,root,root,0755)
+%{prefix}/%{name}
+
+
+%post
+{
+	if test -x /sbin/conf.d/SuSEconfig.fonts ; then
+		# This is a SUSE system. Use proprietary SuSE tools...
+		if test "$YAST_IS_RUNNING" != "instsys" ; then
+			if test -x /sbin/SuSEconfig -a -f /sbin/conf.d/SuSEconfig.fonts ; then
+				/sbin/SuSEconfig --module fonts
+			else
+				echo -e "\nERROR: SuSEconfig or requested SuSEconfig module not present!\n" ; exit 1
+			fi
+		fi
+
+		if test -x /sbin/conf.d/SuSEconfig.pango ; then
+			if test "$YAST_IS_RUNNING" != "instsys" ; then 
+				if test -x /sbin/SuSEconfig -a -f /sbin/conf.d/SuSEconfig.pango ; then
+					/sbin/SuSEconfig --module pango
+				else
+					echo -e "\nERROR: SuSEconfig or requested SuSEconfig module not present!\n" ; exit 1
+				fi
+			fi
+		fi
+	else
+		# Use regular open standards methods...
+		ttmkfdir -d %{prefix}/%{name} \
+			-o %{prefix}/%{name}/fonts.scale
+		umask 133
+		/usr/X11R6/bin/mkfontdir %{prefix}/%{name}
+		/usr/sbin/chkfontpath -q -a %{prefix}/%{name}
+		[ -x /usr/bin/fc-cache ] &#38;&#38; /usr/bin/fc-cache
+	fi
+} &#38;&#62; /dev/null || :
+
+
+%preun
+{
+	if [ "$1" = "0" ]; then
+		cd %{prefix}/%{name}
+		rm -f fonts.dir fonts.scale fonts.cache*
+	fi
+} &#38;&#62; /dev/null || :
+
+%postun
+
+{
+	if test -x /sbin/conf.d/SuSEconfig.fonts ; then
+		# This is a SUSE system. Use proprietary SuSE tools...
+		if test "$YAST_IS_RUNNING" != "instsys" ; then
+			if test -x /sbin/SuSEconfig -a -f /sbin/conf.d/SuSEconfig.fonts ; then
+				/sbin/SuSEconfig --module fonts
+			else
+				echo -e "\nERROR: SuSEconfig or requested SuSEconfig module not present!\n" ; exit 1
+			fi
+		fi
+
+		if test -x /sbin/conf.d/SuSEconfig.pango ; then
+			if test "$YAST_IS_RUNNING" != "instsys" ; then 
+				if test -x /sbin/SuSEconfig -a -f /sbin/conf.d/SuSEconfig.pango ; then
+					/sbin/SuSEconfig --module pango
+				else
+					echo -e "\nERROR: SuSEconfig or requested SuSEconfig module not present!\n" ; exit 1
+				fi
+			fi
+		fi
+	else
+		# Use regular open standards methods...
+		if [ "$1" = "0" ]; then
+			/usr/sbin/chkfontpath -q -r %{prefix}/%{name}
+		fi
+		[ -x /usr/bin/fc-cache ] &#38;&#38; /usr/bin/fc-cache
+	fi
+} &#38;&#62; /dev/null || :
+
+
+
+
+
+
+
+
+%changelog    <A
+NAME="spectemplate.changelog"
+><IMG
+SRC="../images/callouts/8.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(8)"></A
+>
+* Sun Apr 15 2007 Avi Alkalay &#60;avi unix sh&#62; 1.1
+- Added support to SUSE on installation scriptlets
+* Thu Dec 14 2002 Avi Alkalay &#60;avi unix sh&#62; 1.0
+- Tested
+- Ready for deployment
+* Thu Dec 10 2002 Avi Alkalay &#60;avi unix sh&#62; 0.9
+- First version of the template
+
+					</PRE
+></TD
+></TR
+></TABLE
+><P
+>You must change the following items to meet your package characteristic's (leave everything else untouched):</P
+><DIV
+CLASS="calloutlist"
+><DL
+COMPACT="COMPACT"
+><DT
+><A
+HREF="rpm.html#spectemplate.name"
+><IMG
+SRC="../images/callouts/1.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(1)"></A
+></DT
+><DD
+>Put the name of your package or font collection here.</DD
+><DT
+><A
+HREF="rpm.html#spectemplate.summary"
+><IMG
+SRC="../images/callouts/2.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(2)"></A
+></DT
+><DD
+>Put a brief summary about your package here.</DD
+><DT
+><A
+HREF="rpm.html#spectemplate.version"
+><IMG
+SRC="../images/callouts/3.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(3)"></A
+></DT
+><DD
+>The version of the package.</DD
+><DT
+><A
+HREF="rpm.html#spectemplate.license"
+><IMG
+SRC="../images/callouts/4.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(4)"></A
+></DT
+><DD
+>The usage license of your package here.</DD
+><DT
+><A
+HREF="rpm.html#spectemplate.packager"
+><IMG
+SRC="../images/callouts/5.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(5)"></A
+></DT
+><DD
+>The name of the person responsible for this package here.</DD
+><DT
+><A
+HREF="rpm.html#spectemplate.url"
+><IMG
+SRC="../images/callouts/6.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(6)"></A
+></DT
+><DD
+>URL to get more info about this package or fonts here. This entire line can be removed if there is no URL to point to.</DD
+><DT
+><A
+HREF="rpm.html#spectemplate.description"
+><IMG
+SRC="../images/callouts/7.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(7)"></A
+></DT
+><DD
+>A more detailed description about this fonts here.</DD
+><DT
+><A
+HREF="rpm.html#spectemplate.changelog"
+><IMG
+SRC="../images/callouts/8.gif"
+HSPACE="0"
+VSPACE="0"
+BORDER="0"
+ALT="(8)"></A
+></DT
+><DD
+>The evolution history of this package here. Must follow this layout.</DD
+></DL
+></DIV
+></DIV
+><P
+>This file must be named as the name of the package - <TT
+CLASS="filename"
+>myfonts.spec</TT
+> in our example. And you must put it under the main directory of the package. So in the end we'll have something like this:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>cd ~/src</B
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>find myfonts</B
+>
+<TT
+CLASS="computeroutput"
+>myfonts/
+myfonts/myfonts.spec
+myfonts/myfonts/
+myfonts/myfonts/font1.ttf
+myfonts/myfonts/font2.ttf
+myfonts/myfonts/font3.ttf
+...
+</TT
+>
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="rpmbuild"
+></A
+>6.4. Step 4: Build It</H2
+><P
+>We are almost ready to go. Next steps:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>cd ~/src</B
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>tar -czvf myfonts.tar.gz myfonts</B
+>
+<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>rpmbuild -ta myfonts.tar.gz</B
+>
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Done (after seeing a lot of messages about the building process). So we basically created a <TT
+CLASS="filename"
+>.tar.gz</TT
+> containing all our font files and <TT
+CLASS="filename"
+>myfonts.spec</TT
+>, and then we used <B
+CLASS="command"
+>rpmbuild</B
+> on it, that will look for <TT
+CLASS="filename"
+>myfonts.spec</TT
+> inside the archive and follow its instructions.</P
+><P
+>You'll find the generated <SPAN
+CLASS="acronym"
+>RPM</SPAN
+> under <TT
+CLASS="filename"
+>~/src/rpm/RPMS/noarch/</TT
+> directory, and this is the file you'll deploy and install. Under <TT
+CLASS="filename"
+>~/src/rpm/SRPMS/</TT
+> you'll find the source <SPAN
+CLASS="acronym"
+>RPM</SPAN
+> file, which you should backup if you need to regenerate the deployable <SPAN
+CLASS="acronym"
+>RPM</SPAN
+> again in the future. When you'll need it, you should do:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;<TT
+CLASS="prompt"
+>bash$ </TT
+><B
+CLASS="command"
+>rpmbuild --rebuild myfonts-1.0-1.src.rpm</B
+>
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>And the <SPAN
+CLASS="acronym"
+>RPM</SPAN
+> file will be generated again.</P
+><P
+>For more information and advanced <SPAN
+CLASS="acronym"
+>RPM</SPAN
+> packaging, read the <A
+HREF="http://www.rpm.org/max-rpm/"
+TARGET="_top"
+>Maximum RPM</A
+> book, available in many formats in the <A
+HREF="http://www.rpm.org"
+TARGET="_top"
+>rpm.org site</A
+>.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="portable.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="typography.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Producing Portable Documents</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Designer's Guide for Modern Good Looking Documents</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

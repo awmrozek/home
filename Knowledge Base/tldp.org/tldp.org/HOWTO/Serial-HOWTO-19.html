@@ -1,0 +1,188 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Serial HOWTO: What Are UARTs?  How Do They Affect Performance? </TITLE>
+ <LINK HREF="Serial-HOWTO-20.html" REL=next>
+ <LINK HREF="Serial-HOWTO-18.html" REL=previous>
+ <LINK HREF="Serial-HOWTO.html#toc19" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Serial-HOWTO-20.html">Next</A>
+<A HREF="Serial-HOWTO-18.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc19">Contents</A>
+<HR>
+<H2><A NAME="uart_"></A> <A NAME="s19">19.</A> <A HREF="Serial-HOWTO.html#toc19">What Are UARTs?  How Do They Affect Performance? </A></H2>
+
+<H2><A NAME="ss19.1">19.1</A> <A HREF="Serial-HOWTO.html#toc19.1">Introduction to UARTS</A>
+</H2>
+
+<P> UARTs (<B>U</B>niversal <B>A</B>synchronous <B>R</B>eceiver
+<B>T</B>ransmitter) are serial chips on your PC motherboard (or on an
+internal modem card).   The UART function may also be done on a chip
+that does other things as well.  On older computers like many 486's,
+the chips were on the disk IO controller card.  Still older computer
+have dedicated serial boards.</P>
+<P>When PCs all had parallel bus architecture, the UART's purpose was to
+convert bytes from the PC's parallel bus to a serial bit-stream.  The
+cable going out of the serial port is serial and has only one wire for
+each direction of flow.  The serial port sends out a stream of bits,
+one bit at a time.  Conversely, the bit stream that enters the serial
+port via the external cable was converted to parallel bytes that the
+computer can understand.  UARTs deal with data in byte sized pieces,
+which is conveniently also the size of ASCII characters.</P>
+<P>Say you have a terminal hooked up to a serial port on your PC.  When
+you type a character, the terminal gives that character to its
+transmitter (also a UART).  The transmitter sends that byte out onto
+the serial line, one bit at a time, at a specific rate.  On the PC
+end, the receiving UART takes all the bits and reconstruct the byte
+(parallel on older PCs) and puts it in a buffer.  For newer PCs that
+might have a PCI-e serial port, the UART doesn't need to convert
+parallel-to-serial since the PCI-e "bus" is already a serial line.
+But the PCI-e line carries an encoded signal which must be decoded and
+then greatly slowed down to the speed of the RS-232 serial line.</P>
+<P>Along with converting between serial and parallel, the UART does some
+other things as a byproduct (side effect) of its primary task.  The
+voltage used to represent bits is also converted (changed).  Extra
+bits (called start and stop bits) are added to each byte before it is
+transmitted.  See the Serial-HOWTO section 
+<A HREF="Serial-HOWTO-21.html#volt_shape">Voltage Waveshapes</A> for details.  Also, while the flow rate
+(in bytes/sec) on the parallel bus inside the computer is very high,
+the flow rate out the UART on the serial port side of it is much
+lower.  The UART has a fixed set of rates (speeds) which it can use at
+its serial port interface.</P>
+
+<H2><A NAME="ss19.2">19.2</A> <A HREF="Serial-HOWTO.html#toc19.2">Two Types of UARTs</A>
+</H2>
+
+<P> There are two basic types of UARTs: dumb UARTS and FIFO UARTS.
+Dumb UARTs are the 8250, 16450, early 16550, and early 16650.  They
+are obsolete but if you understand how they work it's easy to
+understand how the modern ones work with FIFO UARTS ( late 16550,
+16550A, and higher numbers).  Note that the driver for all of them is
+still labeled a "8250" driver in Linux where you may see it in compile
+options if you compile your own kernel, etc.</P>
+<P>There is some confusion regarding 16550.  Early models had a bug and
+worked properly only as 16450's (no FIFO).  Later models with the bug
+fixed were named 16550A but many manufacturers did not accept the name
+change and continued calling it a 16550.  Most all 16550's in use
+today are like 16550A's.  Linux will report it as being a 16550A even
+though your hardware manual (or a label note) says it's a 16550.  A
+similar situation exists for the 16650 (only it's worse since the
+manufacturer allegedly didn't admit anything was wrong).  Linux will
+report a late 16650 as being a 16650V2.  If it reports it as 16650 it
+is bad news and only is used as if it had a one-byte buffer.</P>
+
+<H2><A NAME="fifo_"></A> <A NAME="ss19.3">19.3</A> <A HREF="Serial-HOWTO.html#toc19.3">FIFOs </A>
+</H2>
+
+<P> To understand the differences between dumb and FIFO (First In,
+First Out queue discipline) first let's examine what happens when a
+UART has sent or received a byte.  The UART itself can't do anything
+with the data passing thru it, it just receives and sends it.  For the
+obsolete dumb UARTS, the CPU gets an interrupt from the serial device
+every time a byte has been sent or received.  The CPU then moves the
+received byte out of the UART's buffer and into memory somewhere, or
+gives the UART another byte to send.  The obsolete 8250 and 16450
+UARTs only have a 1 byte buffer.  That means, that every time 1 byte
+is sent or received, the CPU is interrupted.  At low transfer rates,
+this is OK.  But, at high transfer rates, the CPU gets so busy dealing
+with the UART, that is doesn't have time to adequately tend to other
+tasks.  In some cases, the CPU does not get around to servicing the
+interrupt in time, and the byte is overwritten, because they are
+coming in so fast.  This is called an "overrun" or "overflow".</P>
+<P>FIFO UARTs help solve this problem.  The 16550A (or 16550) FIFO chip
+comes with 16 byte FIFO buffers.  This means that it can receive up to
+14 bytes (or send 16 bytes) before it has to interrupt the CPU.  Not
+only can it wait for more bytes, but the CPU then can transfer all (14
+to 16) bytes at a time.  This is a significant advantage over the
+obsolete UARTs, which only had 1 byte buffers.  The CPU receives less
+interrupts, and is free to do other things.  Data is rarely lost.
+Note that the interrupt threshold of FIFO buffers (trigger level) may
+be set at less than 14.  1, 4 and 8 are other possible choices.  As of
+late 2000 there was no way the Linux user could set these directly
+(setserial can't do it).  While many PC's only have a 16550 with
+16-byte buffers, better UARTS have even larger buffers.</P>
+<P>Note that the interrupt is issued slightly before the buffer gets full
+(at say a "trigger level" of 14 bytes for a 16-byte buffer).  This
+allows room for a couple more bytes to be received before the
+interrupt service routine is able to actually fetch all these bytes.
+The trigger level may be set to various permitted values by kernel
+software.  A trigger level of 1 will be almost like an obsolete UART
+(except that it still has room for 15 more bytes after it issues the
+interrupt).</P>
+<P>Now consider the case where you're on the Internet.  It's just sent
+you a short webpage of text.  All of this came in thru the serial
+port.  If you had a 16-byte buffer on the serial port which held back
+characters until it had 14 of them, some of the last several
+characters on the screen might be missing as the FIFO buffer waited to
+get the 14th character.  But the 14th character doesn't arrive since
+you've been sent the entire page (over the phone line) and there are
+no more characters to send to you.  It could be that these last
+characters are part of the HTML formatting, etc. and are not
+characters to display on the screen but you don't want to lose format
+either.</P>
+<P>There is a "timeout" to prevent the above problem.  The "timeout"
+works like this for the receive UART buffer: If characters arrive one
+after another, then an interrupt is issued only when say the 14th
+character reaches the buffer.  But if a character arrives and the next
+character doesn't arrive soon thereafter, then an interrupt is issued
+anyway.  This results in fetching all of the characters in the FIFO
+buffer, even if only a few (or only one) are present.  There is also
+"timeout" for the transmit buffer as well.</P>
+
+<H2><A NAME="ss19.4">19.4</A> <A HREF="Serial-HOWTO.html#toc19.4">Why FIFO Buffers are Small</A>
+</H2>
+
+<P>You may wonder why the FIFO buffers are not larger.  After all,
+memory is cheap and it wouldn't cost much more to use buffers in the
+kilo-byte range.  The reason is flow control.  Flow control stops the
+flow of data (bytes) on serial line when necessary.  If a stop signal
+is sent to serial port, then the stop request is handled by software
+(even if the flow control is "hardware").  The serial port hardware
+knows nothing about flow control.</P>
+<P>If the serial port buffer contains 64 bytes ready to send when it
+receives a flow control signal to stop sending, it will send out the
+64 bytes anyway in violation of the stop request.  There is no
+stopping it since it doesn't know about flow control.  If the buffer
+was large, then many more bytes would be sent in violation of flow
+control's request to stop.</P>
+
+<H2><A NAME="ss19.5">19.5</A> <A HREF="Serial-HOWTO.html#toc19.5">UART Model Numbers</A>
+</H2>
+
+<P> Here's a list of some UARTs.  <EM>TL</EM> is <EM>T</EM>rigger <EM>L</EM>evel
+<UL>
+<LI> 8250, 16450, early 16550: Obsolete with 1-byte buffers</LI>
+<LI> 16550, 16550A, 16C552: 16-byte buffers, TL=1,4,8,14;
+115.2 kbps standard, many support 230.4 or 460.8 kbps</LI>
+<LI> 16650:  32-byte buffers. 460.8 kbps</LI>
+<LI> 16750:  64-byte buffer for send, 56-byte for receive. 921.6 kbps</LI>
+<LI> 16850, 16C850: 128-byte buffers.  460.8 kbps or 1.5 mbps</LI>
+<LI> 16950</LI>
+<LI> Hayes ESP: 1k-byte buffers.</LI>
+</UL>
+</P>
+<P>For V.90 56k modems, it may be a several percent faster with a 16650
+(especially if you are downloading large uncompressed files).  The
+main advantage of the 16650 is its larger buffer size as the extra
+speed isn't needed unless the modem compression ratio is high.  Some
+56k internal modems may come with a 16650 ??</P>
+<P>Non-UART, and intelligent multiport boards use DSP chips to
+do additional buffering and control, thus relieving the CPU
+even more.  For example, the Cyclades Cyclom, and Stallion
+EasyIO boards use a Cirrus Logic CD1400 RISC UART, and many
+boards use 80186 CPUs or even special RISC CPUs, to handle the
+serial IO.</P>
+<P>Many 486 PCs (old) and all Pentiums (or the like) should have at least
+16550As (usually called just 16550's) with FIFOs.  Some better
+motherboards today (2000) even have 16650s.  For replacing obsolete
+UARTs with newer ones in pre 1990 hardware see the Appendix: Obsolete
+...</P>
+
+<HR>
+<A HREF="Serial-HOWTO-20.html">Next</A>
+<A HREF="Serial-HOWTO-18.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc19">Contents</A>
+</BODY>
+</HTML>

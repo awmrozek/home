@@ -1,0 +1,239 @@
+<HTML
+><HEAD
+><TITLE
+>Controlling the Size and Appearance of $PWD</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Bash Prompt HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Prompt Code Snippets"
+HREF="c679.html"><LINK
+REL="PREVIOUS"
+TITLE="Number of Processes"
+HREF="x771.html"><LINK
+REL="NEXT"
+TITLE="Laptop Power"
+HREF="x794.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Bash Prompt HOWTO: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x771.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 11. Prompt Code Snippets</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x794.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN783"
+></A
+>11.10. Controlling the Size and Appearance of $PWD</H1
+><P
+>Unix allows long file names, which can lead to the value of $PWD being very
+long.  Some people (notably the default RedHat prompt) choose to use the
+basename of the current working directory (ie. "giles" if
+$PWD="/home/giles").  I like more info than that, but it's often desirable
+to limit the length of the directory name, and it makes the most sense to
+truncate on the left.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>#   How many characters of the $PWD should be kept
+local pwdmaxlen=30
+#   Indicator that there has been directory truncation:
+#trunc_symbol="&#60;"
+local trunc_symbol="..."
+if [ ${#PWD} -gt $pwdmaxlen ]
+then
+	local pwdoffset=$(( ${#PWD} - $pwdmaxlen ))
+	newPWD="${trunc_symbol}${PWD:$pwdoffset:$pwdmaxlen}"
+else
+	newPWD=${PWD}
+fi&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The above code can be executed as part of PROMPT_COMMAND, and the
+environment variable generated (<TT
+CLASS="VARNAME"
+>newPWD</TT
+>) can then 
+be included in the prompt.  Thanks to Alexander Mikhailian
+<TT
+CLASS="EMAIL"
+>&#60;<A
+HREF="mailto:mikhailian at altern dot org"
+>mikhailian at altern dot org</A
+>&#62;</TT
+> who rewrote the code to utilize
+new Bash functionality, thus speeding it up considerably.&#13;</P
+><P
+>Risto Juola (risto AT risto.net) wrote to say that he preferred to have the
+"~" in the <TT
+CLASS="VARNAME"
+>$newPWD</TT
+>, so he wrote another version:&#13;</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>pwd_length=20
+
+DIR=`pwd`
+
+echo $DIR | grep "^$HOME" &#62;&#62; /dev/null
+
+if [ $? -eq 0 ]
+then
+  CURRDIR=`echo $DIR | awk -F$HOME '{print $2}'`
+  newPWD="~$CURRDIR"
+
+  if [ $(echo -n $newPWD | wc -c | tr -d " ") -gt $pwd_length ]
+  then
+    newPWD="~/..$(echo -n $PWD | sed -e "s/.*\(.\{$pwd_length\}\)/\1/")"
+  fi
+elif [ "$DIR" = "$HOME" ]
+then
+  newPWD="~"
+elif [ $(echo -n $PWD | wc -c | tr -d " ") -gt $pwd_length ]
+then
+  newPWD="..$(echo -n $PWD | sed -e "s/.*\(.\{$pwd_length\}\)/\1/")"
+else
+  newPWD="$(echo -n $PWD)"
+fi</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Relative speed: the first version takes about 0.45 seconds on an 
+unloaded 486SX25.  Risto's version takes about 0.80 to 0.95 seconds.  The
+variation in this case is due to whether or not truncation is required.&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x771.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x794.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Number of Processes</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c679.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Laptop Power</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

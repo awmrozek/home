@@ -1,0 +1,361 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Router Advertisement Daemon (radvd)</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IPv6 HOWTO (en)"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Hints for IPv6-enabled daemons"
+HREF="chapter-hints-daemons.html"><LINK
+REL="PREVIOUS"
+TITLE="Webserver Apache2 (httpd2)"
+HREF="hints-daemons-apache2..html"><LINK
+REL="NEXT"
+TITLE="Dynamic Host Configuration v6 Server (dhcp6s)"
+HREF="hints-daemons-dhcpv6..html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IPv6 HOWTO (en)</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="hints-daemons-apache2..html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 22. Hints for IPv6-enabled daemons</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="hints-daemons-dhcpv6..html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="HINTS-DAEMONS-RADVD"
+></A
+>22.4. Router Advertisement Daemon (radvd)</H1
+><P
+>The router advertisement daemon is very useful on a LAN, if clients should be auto-configured. The daemon itself should run on the Linux default IPv6 gateway router (it's not required that this is also the default IPv4 gateway, so pay attention who on your LAN is sending router advertisements). </P
+><P
+>You can specify some information and flags which should be contained in the advertisement. Common used are</P
+><P
+></P
+><UL
+><LI
+><P
+>Prefix (needed)</P
+></LI
+><LI
+><P
+>Lifetime of the prefix</P
+></LI
+><LI
+><P
+>Frequency of sending advertisements (optional)</P
+></LI
+></UL
+><P
+>After a proper configuration, the daemon sends advertisements through specified interfaces and clients are hopefully receive them and auto-magically configure addresses with received prefix and the default route.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2647"
+></A
+>22.4.1. Configuring radvd</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2649"
+></A
+>22.4.1.1. Simple configuration</H3
+><P
+>Radvd's config file is normally /etc/radvd.conf. An simple example looks like following:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>interface eth0 { 
+        AdvSendAdvert on;
+        MinRtrAdvInterval 3; 
+        MaxRtrAdvInterval 10;
+        prefix 2001:0db8:0100:f101::/64 { 
+                AdvOnLink on; 
+                AdvAutonomous on; 
+                AdvRouterAddr on; 
+        };
+};</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This results on client side in</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip -6 addr show eth0 
+3: eth0: &#60;BROADCAST,MULTICAST,UP&#62; mtu 1500 qdisc pfifo_fast qlen 100 
+    inet6 2001:0db8:100:f101:2e0:12ff:fe34:1234/64 scope global dynamic 
+       valid_lft 2591992sec preferred_lft 604792sec 
+    inet6 fe80::2e0:12ff:fe34:1234/10 scope link</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Because no lifetime was defined, a very high value was used.</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2656"
+></A
+>22.4.1.2. Special 6to4 configuration</H3
+><P
+>Version since 0.6.2pl3 support the automatic (re)-generation of the prefix depending on an IPv4 address of a specified interface. This can be used to distribute advertisements in a LAN after the 6to4 tunneling has changed. Mostly used behind a dynamic dial-on-demand Linux router. Because of the sure shorter lifetime of such prefix (after each dial-up, another prefix is valid), the lifetime configured to minimal values:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>interface eth0 { 
+        AdvSendAdvert on;
+        MinRtrAdvInterval 3; 
+        MaxRtrAdvInterval 10;
+        prefix 0:0:0:f101::/64 { 
+                AdvOnLink off; 
+                AdvAutonomous on; 
+                AdvRouterAddr on; 
+                Base6to4Interface ppp0;
+                AdvPreferredLifetime 20; 
+                AdvValidLifetime 30;
+        };
+};</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This results on client side in (assuming, ppp0 has currently 1.2.3.4 as local IPv4 address):</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># /sbin/ip -6 addr show eth0 
+3: eth0: &#60;BROADCAST,MULTICAST,UP&#62; mtu 1500 qdisc pfifo_fast qlen 100 
+   inet6 2002:0102:0304:f101:2e0:12ff:fe34:1234/64 scope global dynamic 
+      valid_lft 22sec preferred_lft 12sec
+   inet6 fe80::2e0:12ff:fe34:1234/10 scope link</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Because a small lifetime was defined, such prefix will be thrown away quickly, if no related advertisement was received.</P
+><P
+>Additional note: if you do not used special 6to4 support in initscripts, you have to setup a special route on the internal interface on the router, otherwise you will get some backrouting problems. for the example showh here:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># /sbin/ip -6 route add 2002:0102:0304:f101::/64 dev eth0 metric 1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This route needs to be replaced every time the prefix changes, which is the case after a new IPv4 address was assigned to the dial-up interface.</P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2666"
+></A
+>22.4.2. Debugging</H2
+><P
+>A program called &#8220;radvdump&#8221; can help you looking into sent or received advertisements. Simple to use:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># radvdump 
+Router advertisement from fe80::280:c8ff:feb9:cef9 (hoplimit 255) 
+        AdvCurHopLimit: 64 
+        AdvManagedFlag: off 
+        AdvOtherConfigFlag: off 
+        AdvHomeAgentFlag: off 
+        AdvReachableTime: 0 
+        AdvRetransTimer: 0 
+        Prefix 2002:0102:0304:f101::/64 
+                AdvValidLifetime: 30 
+                AdvPreferredLifetime: 20 
+                AdvOnLink: off 
+                AdvAutonomous: on 
+                AdvRouterAddr: on 
+        Prefix 2001:0db8:100:f101::/64 
+                AdvValidLifetime: 2592000 
+                AdvPreferredLifetime: 604800 
+                AdvOnLink: on 
+                AdvAutonomous: on 
+                AdvRouterAddr: on 
+        AdvSourceLLAddress: 00 80 12 34 56 78</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Output shows you each advertisement package in readable format. You should see your configured values here again, if not, perhaps it's not your radvd which sends the advertisement...look for another router on the link (and take the LLAddress, which is the MAC address for tracing).</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="hints-daemons-apache2..html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="hints-daemons-dhcpv6..html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Webserver Apache2 (httpd2)</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="chapter-hints-daemons.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Dynamic Host Configuration v6 Server (dhcp6s)</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

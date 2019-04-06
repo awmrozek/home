@@ -1,0 +1,331 @@
+<HTML
+><HEAD
+><TITLE
+>Daemons setup</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Network Boot and Exotic Root HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Building the kernel"
+HREF="x150.html"><LINK
+REL="NEXT"
+TITLE="Clients setup, creation of the root filesystem"
+HREF="x251.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Network Boot and Exotic Root HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x150.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x251.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN219">4. Daemons setup</H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN221">4.1. NFS daemon</H2
+><P
+>Just export the directory in which the client's root filesystem will reside (see the exports manpage for more information about this topic). The simplest is to export it no_root_squash and rw, but a perfect setup would export most of the root filesystem root_squash and ro, and have separate lines in the <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> for directories which really require no_root_squash and/or rw. Just start with everything rw and no_root_squash, the fine tuning will be done later.</P
+><P
+>Of course, you don't need any NFS server at all if you plan to run your clients entirely from ramdisk.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN226">4.2. BOOTP daemon</H2
+><P
+>I assume you have installed the bootpd package. The default configuration file is <TT
+CLASS="FILENAME"
+>/etc/bootptab</TT
+>, and its syntax is detailed in the bootptab manpage. Let's create it.</P
+><P
+>First, open as root your favourite text editor. It is vim. Yes, it is. If it is not, it has to become. Now, enter the following lines (they are the default attributes). All the attributes you give here and do not override in a machine's specific attributes list will be given to clients):
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        .default\
+                :sm=your subnet mask\
+                :ds=the IP address of your DNS server\
+                :ht=ethernet\
+                :dn=your domain name\
+                :gw=the IP address of your gateway\
+                :sa=the IP address of the TFTP server\
+                :bf=path to find the kernel image\
+                :rp=path of the root filesystem\
+                :hn
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    Of course, not all these parameters are required, this depends on your network configuration and BOOTP implementations, but these will work in most cases.</P
+><P
+>Then, add an entry per client in your network. An entry should look like this:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        dns of the client\
+                :ha=MAC address of the client\
+                :ip=IP address of the client
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    The MAC address above is the hexadecimal hardware address of the client without the ':' characters.</P
+><P
+>Here is a sample <TT
+CLASS="FILENAME"
+>/etc/bootptab</TT
+> file:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>              .default\
+                      :sm=255.255.0.0\
+                      :ds=192.168.0.2\
+                      :ht=ethernet\
+                      :dn=frtest.org\
+                      :gw=192.168.0.1\
+                      :sa=192.168.0.2\
+                      :bf=/tftpboot/kernel\
+                      :rp=/nfsroot\
+                      :hn
+
+              foo\
+                      :ha=001122334455\
+                      :ip=192.168.2.12
+
+              bar\
+                      :ha=00FFEEDDCCBB\
+                      :ip=192.168.12.42\
+                      :ds=192.168.2.42
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    </P
+><P
+>Then, run the bootpd daemon with the bootpd -s command (it is also a good idea to add it to your startup scripts), or add the following line to your <TT
+CLASS="FILENAME"
+>/etc/inetd.conf</TT
+>:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        bootps dgram udp wait root /usr/sbin/tcpd bootpd -i -t 120
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    </P
+><P
+>If you want to test the BOOTP server, add an entry to your <TT
+CLASS="FILENAME"
+>/etc/bootptab</TT
+> and use the bootptest program.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN242">4.3. TFTP</H2
+><P
+>Setting up the TFTP daemon is not the hard part: just install the tftpd package if you have one, and add the following line to your <TT
+CLASS="FILENAME"
+>/etc/inetd.conf</TT
+> (again, I assume <TT
+CLASS="FILENAME"
+>/tftpboot</TT
+> is the directory where the kernel image resides):
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        tftp dgram udp wait root /usr/sbin/tcpd in.tftpd /tftpboot
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    Don't forget to chmod 555 the <TT
+CLASS="FILENAME"
+>/tftpboot</TT
+> directory, as most TFTP servers won't send the files if they are not world readable.</P
+><P
+>You should be aware of the limitations implied by running the TFTP daemon from the inetd. Most inetd's will shutdown a service if it is spawned to frequently. So if you have many clients, you should look for another inetd like xinetd, or run a standalone TFTP daemon.</P
+><P
+>Now you have properly setup all daemons, you can restart the inetd and take a coffee. Don't forget to tell everyone the server setup is over, so you think you're a hero before you start building the root filesystem for the clients.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x150.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x251.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Building the kernel</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Clients setup, creation of the root filesystem</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

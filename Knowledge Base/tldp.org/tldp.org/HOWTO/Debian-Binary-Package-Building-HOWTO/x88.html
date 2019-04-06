@@ -1,0 +1,360 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Hands On</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Debian Binary Package Building HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Package Structure"
+HREF="x60.html"><LINK
+REL="NEXT"
+TITLE="Double Check"
+HREF="x121.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Debian Binary Package Building HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x60.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x121.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="AEN88"
+></A
+>4. Hands On</H1
+><P
+>&#13;	 Now it is time to get practical ourselves.
+	 I have a simple shell script named 'linuxstatus' which I want to install
+as '/usr/bin/linuxstatus'.
+
+    So first let's create a directory named 'debian' next to the file 'linuxstatus'.
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;$ mkdir -p ./debian/usr/bin
+$ cp linuxstatus ./debian/usr/bin
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN92"
+></A
+>4.1. control</H2
+><P
+>&#13;Let's start with the control file. The version number must have a dash with
+an additional Debian package version number, e.g. '1.1-1'. If your program consists
+e.g. only of portable shell scripts, use 'all' as its 'Architecture'.
+</P
+><P
+>&#13;
+For 'Depends' you might need to find out to which package a certain file or program
+your new package relies onto belongs to.
+You can use 'dpkg -S &#60;file&#62;' for this to find this out, e.g.:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;$ dkpg -S /bin/cat
+coreutils: /bin/cat
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;Then to find out more about package 'coreutils' you can use
+the command 'apt-cache showpkg coreutils', which will tell you
+among other things the current version number that is installed
+on the system.</P
+><P
+>&#13;
+As a side note, there are two more ways to find the same information.
+There is a web page where you can search for Debian files: <A
+HREF="http://www.debian.org/distrib/packages"
+TARGET="_top"
+>http://www.debian.org/distrib/packages</A
+>.
+Go to the bottom of that page to fill out the web form.</P
+><P
+>&#13;
+Last not least there is a nice GUI application named 'kpackage',
+which provides convenient package browsing options and also allows
+to search after packages given individual file names.
+</P
+><P
+>&#13;
+'Suggests', 'Conflicts', and 'Replaces' etc. can be left out if not needed.
+</P
+><P
+>&#13;So here is the result of our first 'control' file:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>Package: linuxstatus
+Version: 1.1-1
+Section: base
+Priority: optional
+Architecture: all
+Depends: bash (&#62;= 2.05a-11), textutils (&#62;= 2.0-12), awk, procps (&#62;= \
+1:2.0.7-8), sed (&#62;= 3.02-8), grep (&#62;= 2.4.2-3), coreutils (&#62;= 5.0-5)
+Maintainer: Chr. Clemens Lee &#60;clemens@kclee.de&#62;
+Description: Linux system information
+ This script provides a broad overview of different
+ system aspects.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;The 'control' file gets copied into a directory called 'DEBIAN' inside the other
+'debian' directory.
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;$ mkdir -p debian/DEBIAN
+$ find ./debian -type d | xargs chmod 755   # this is necessary on Debian Woody, don't ask me why
+$ cp control debian/DEBIAN
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;If you expect your package to have a bigger audience in the future
+it might help to read this
+<A
+HREF="http://people.debian.org/~walters/descriptions.html"
+TARGET="_top"
+>Writing Debian package descriptions</A
+>
+article.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN108"
+></A
+>4.2. dpkg-deb</H2
+><P
+>&#13;Now it is almost done. Just type:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;$ dpkg-deb --build debian
+dpkg-deb: building package `linuxstatus' in `debian.deb'.
+$ mv debian.deb linuxstatus_1.1-1_all.deb
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;Uh, that was all easier than expected. Now we just have to install this package on our box
+and we are done:
+</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;root# dpkg -i ./linuxstatus_1.1-1_all.deb
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>&#13;Type '<TT
+CLASS="literal"
+>linuxstatus</TT
+>' or '<TT
+CLASS="literal"
+>ls -l /usr/bin/linuxstatus</TT
+>' to see if it worked.
+If you don't like your package any more, just type '<TT
+CLASS="literal"
+>dpkg -r linuxstatus</TT
+>'
+and check again that the package is deinstalled. If you install a newer version
+you don't have to remove the old one first, thought.</P
+><P
+>&#13;
+If you are curious about the version numbering scheme and 
+naming conventions for a Debian package, have a read at 
+<A
+HREF="http://www.debian.org/doc/manuals/reference/ch-system.en.html#s-pkgname"
+TARGET="_top"
+>this section</A
+> in <A
+HREF="http://www.debian.org/doc/manuals/reference/reference.en.html"
+TARGET="_top"
+>The Debian Reference</A
+>.
+</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x60.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x121.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Package Structure</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Double Check</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

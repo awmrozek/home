@@ -1,0 +1,992 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>KernelAnalysis-HOWTO: Linux Peculiarities</TITLE>
+ <LINK HREF="KernelAnalysis-HOWTO-6.html" REL=next>
+ <LINK HREF="KernelAnalysis-HOWTO-4.html" REL=previous>
+ <LINK HREF="KernelAnalysis-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="KernelAnalysis-HOWTO-6.html">Next</A>
+<A HREF="KernelAnalysis-HOWTO-4.html">Previous</A>
+<A HREF="KernelAnalysis-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Linux Peculiarities</A></H2>
+
+<H2><A NAME="ss5.1">5.1 Overview</A>
+</H2>
+
+<P>Linux has some peculiarities that distinguish it from other OSs.
+These peculiarities include:
+<P>
+<P>
+<OL>
+<LI>Pagination only</LI>
+<LI>Softirq</LI>
+<LI>Kernel threads</LI>
+<LI>Kernel modules</LI>
+<LI>''Proc'' directory
+</LI>
+</OL>
+<H3>Flexibility Elements</H3>
+
+<P>Points 4 and 5 give system administrators an enormous flexibility
+on system configuration from user mode allowing them to solve also
+critical kernel bugs or specific problems without have to reboot
+the machine. For example, if you needed to change something on a
+big server and you didn't want to make a reboot, you could prepare
+the kernel to talk with a module, that you'll write. 
+<P>
+<H2><A NAME="ss5.2">5.2 Pagination only</A>
+</H2>
+
+<P>Linux doesn't use segmentation to distinguish Tasks from each
+other; it uses pagination. (Only 2 segments are used for all Tasks,
+CODE and DATA/STACK) 
+<P>
+<P>We can also say that an interTask page fault never occurs, because
+each Task uses a set of Page Tables that are different for each Task.
+There are some cases where different Tasks point to same Page Tables,
+like shared libraries: this is needed to reduce memory usage; remember
+that shared libraries are CODE only cause all datas are stored into
+actual Task stack.
+<P>
+<H3>Linux segments</H3>
+
+<P>Under the Linux kernel only 4 segments exist: 
+<P>
+<P>
+<OL>
+<LI>Kernel Code [0x10]</LI>
+<LI>Kernel Data / Stack [0x18]</LI>
+<LI>User Code [0x23]</LI>
+<LI>User Data / Stack [0x2b]
+</LI>
+</OL>
+<P>[syntax is ''Purpose [Segment]'']
+<P>
+<P>Under Intel architecture, the segment registers used are:
+<P>
+<P>
+<UL>
+<LI>CS for Code Segment</LI>
+<LI>DS for Data Segment</LI>
+<LI>SS for Stack Segment</LI>
+<LI>ES for Alternative Segment (for example used to make a memory
+copy between 2 different segments)
+</LI>
+</UL>
+<P>So, every Task uses 0x23 for code and 0x2b for data/stack.
+<P>
+<H3>Linux pagination</H3>
+
+<P>Under Linux 3 levels of pages are used, depending on the architecture.
+Under Intel only 2 levels are supported. Linux also supports Copy
+on Write mechanisms (please see Cap.10 for more information).
+<P>
+<H3>Why don't interTasks address conflicts exist?</H3>
+
+<P>The answer is very very simple: interTask  address conflicts
+cannot exist because  they are impossible. Linear -&gt; physical
+mapping is done by "Pagination", so it just needs to assign physical
+pages in an univocal fashion.
+<P>
+<H3>Do we need to defragment memory?</H3>
+
+<P>No. Page assigning is a dynamic process. We need a page only
+when a Task asks for it, so we choose it from free memory paging
+in an ordered fashion. When we want to release the page, we only
+have to add it to the free pages list.
+<P>
+<H3>What about Kernel Pages?</H3>
+
+<P>Kernel pages have a problem: they can be allocated in a dynamic
+fashion but we cannot have a guarantee that they are in contiguous
+area allocation, because linear kernel space is equivalent to physical
+kernel space.
+<P>
+<P>For Code Segment there is no problem. Boot code is allocated
+at boot time (so we have a fixed amount of memory to allocate), and
+on modules we only have to allocate a memory area which could contain
+module code.
+<P>
+<P>The real problem is the stack segment because each Task uses
+some kernel stack pages. Stack segments must be contiguous (according
+to stack definition), so we have to establish a maximum limit for
+each Task's stack dimension. If we exceed this limit bad things happen.
+We overwrite kernel mode process data structures.
+<P>
+<P>The structure of the Kernel helps us, because kernel functions
+are never:
+<P>
+<P>
+<UL>
+<LI>recursive</LI>
+<LI>intercalling more than N times.
+</LI>
+</UL>
+<P>Once we know N, and we know the average of static variables for
+all kernel functions, we can estimate a stack limit.
+<P>
+<P>If you want to try the problem out, you can create a module with
+a function inside calling itself many times. After a fixed number
+of times, the kernel module will hang because of a page fault exception
+handler (typically write to a read-only page).
+<P>
+<H2><A NAME="ss5.3">5.3 Softirq</A>
+</H2>
+
+<P>When an IRQ comes, task switching is deferred until later to
+get better performance. Some Task jobs (that could have to be done
+just after the IRQ and that could take much CPU in interrupt time,
+like building up a TCP/IP packet) are queued and will be done at
+scheduling time (once a time-slice will end).
+<P>
+<P>In recent kernels (2.4.x) the softirq mechanisms are given to
+a kernel_thread: ''ksoftirqd_CPUn''. n stands for the number of CPU
+executing kernel_thread (in a monoprocessor system ''ksoftirqd_CPU0''
+uses PID 3).
+<P>
+<H3>Preparing Softirq</H3>
+
+<H3>Enabling Softirq</H3>
+
+<P>''cpu_raise_softirq'' is a routine that will wake_up ''ksoftirqd_CPU0''
+kernel thread, to let it manage the enqueued job.
+<P>
+<P>
+<PRE>
+|cpu_raise_softirq
+   |__cpu_raise_softirq
+   |wakeup_softirqd
+      |wake_up_process
+</PRE>
+<P>
+<UL>
+<LI>cpu_raise_softirq [kernel/softirq.c]</LI>
+<LI>__cpu_raise_softirq [include/linux/interrupt.h]</LI>
+<LI>wakeup_softirq [kernel/softirq.c]</LI>
+<LI>wake_up_process [kernel/sched.c]
+</LI>
+</UL>
+<P>''__cpu_raise_softirq'' routine will set right bit in the vector
+describing softirq pending.
+<P>
+<P>''wakeup_softirq'' uses ''wakeup_process'' to wake up ''ksoftirqd_CPU0''
+kernel thread.
+<P>
+<H3>Executing Softirq</H3>
+
+<P>TODO: describing data structures involved in softirq mechanism.
+<P>
+<P>When kernel thread ''ksoftirqd_CPU0'' has been woken up, it will
+execute queued jobs
+<P>
+<P>The code of ''ksoftirqd_CPU0'' is (main endless loop):
+<P>
+<P>
+<PRE>
+for (;;) {
+   if (!softirq_pending(cpu)) 
+      schedule();
+      __set_current_state(TASK_RUNNING);
+   while (softirq_pending(cpu)) { 
+      do_softirq(); 
+      if (current-&gt;need_resched) 
+         schedule 
+   }
+   __set_current_state(TASK_INTERRUPTIBLE)
+}
+</PRE>
+<P>
+<UL>
+<LI>ksoftirqd [kernel/softirq.c]
+</LI>
+</UL>
+<H2><A NAME="ss5.4">5.4 Kernel Threads</A>
+</H2>
+
+<P>Even though Linux is a monolithic OS, a few ''kernel threads''
+exist to do  housekeeping work. 
+<P>
+<P>These Tasks don't utilize USER memory; they share KERNEL memory.
+They also operate at the highest privilege (RING 0 on a i386 architecture)
+like any other kernel mode piece of code.
+<P>
+<P>Kernel threads are created by ''kernel_thread [arch/i386/kernel/process]''
+function, which calls ''clone'' [arch/i386/kernel/process.c]
+system call from assembler (which is a ''fork'' like system call):
+<P>
+<P>
+<PRE>
+int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
+{
+        long retval, d0;
+ 
+        __asm__ __volatile__(
+                &quot;movl %%esp,%%esi\n\t&quot;
+                &quot;int $0x80\n\t&quot;         /* Linux/i386 system call */
+                &quot;cmpl %%esp,%%esi\n\t&quot;  /* child or parent? */
+                &quot;je 1f\n\t&quot;             /* parent - jump */
+                /* Load the argument into eax, and push it.  That way, it does
+                 * not matter whether the called function is compiled with
+                 * -mregparm or not.  */
+                &quot;movl %4,%%eax\n\t&quot;
+                &quot;pushl %%eax\n\t&quot;               
+                &quot;call *%5\n\t&quot;          /* call fn */
+                &quot;movl %3,%0\n\t&quot;        /* exit */
+                &quot;int $0x80\n&quot;
+                &quot;1:\t&quot;
+                :&quot;=&amp;a&quot; (retval), &quot;=&amp;S&quot; (d0)
+                :&quot;0&quot; (__NR_clone), &quot;i&quot; (__NR_exit),
+                 &quot;r&quot; (arg), &quot;r&quot; (fn),
+                 &quot;b&quot; (flags | CLONE_VM)
+                : &quot;memory&quot;);
+        return retval;
+}
+</PRE>
+<P>Once called, we have a new Task (usually with very low PID number,
+like 2,3, etc.) waiting for a very slow resource, like swap or usb
+event. A very slow resource is used because we would have a task
+switching overhead otherwise.
+<P>
+<P>Below is a list of most common kernel threads (from ''ps x''
+command):
+<P>
+<P>
+<PRE>
+PID      COMMAND
+ 1        init
+ 2        keventd
+ 3        kswapd
+ 4        kreclaimd
+ 5        bdflush
+ 6        kupdated
+ 7        kacpid
+67        khubd
+
+</PRE>
+<P>'init' kernel thread is the first process created, at boot time.
+It will call all other User Mode Tasks (from file /etc/inittab) like
+console daemons, tty daemons and network daemons (''rc'' scripts).
+<P>
+<H3>Example of Kernel Threads: kswapd [mm/vmscan.c].</H3>
+
+<P>''kswapd'' is created by ''clone() [arch/i386/kernel/process.c]''
+<P>
+<P>Initialisation routines:
+<P>
+<P>
+<PRE>
+|do_initcalls
+   |kswapd_init
+      |kernel_thread
+         |syscall fork (in assembler)
+</PRE>
+<P>do_initcalls [init/main.c]
+<P>
+<P>kswapd_init [mm/vmscan.c]
+<P>
+<P>kernel_thread [arch/i386/kernel/process.c]
+<P>
+<H2><A NAME="ss5.5">5.5 Kernel Modules</A>
+</H2>
+
+<H3>Overview</H3>
+
+<P>Linux Kernel modules are pieces of code (examples: fs, net, and
+hw driver) running in kernel mode that you can add at runtime.
+<P>
+<P>The Linux core cannot be modularized: scheduling and interrupt
+management or core network, and so on.
+<P>
+<P>Under "/lib/modules/KERNEL_VERSION/" you can find all the modules
+installed on your system.
+<P>
+<H3>Module loading and unloading</H3>
+
+<P>To load a module, type the following:
+<P>
+<P>
+<PRE>
+insmod MODULE_NAME parameters
+
+example: insmod ne io=0x300 irq=9
+</PRE>
+<P>NOTE: You can use modprobe in place of insmod if you want the
+kernel automatically search some parameter (for example when using
+PCI driver, or if you have specified parameter under /etc/conf.modules
+file).
+<P>
+<P>To unload a module, type the following:
+<P>
+<P>
+<PRE>
+ rmmod MODULE_NAME
+</PRE>
+<H3>Module definition</H3>
+
+<P>A module always contains:
+<P>
+<P>
+<OL>
+<LI>"init_module" function, executed at insmod (or modprobe) command
+ </LI>
+<LI>"cleanup_module" function, executed at rmmod command
+</LI>
+</OL>
+<P>If these functions are not in the module, you need to add 2 macros
+to specify what functions  will act as init and exit module:
+<P>
+<P>
+<OL>
+<LI>module_init(FUNCTION_NAME)</LI>
+<LI>module_exit(FUNCTION_NAME)
+</LI>
+</OL>
+<P>NOTE: a module can "see" a kernel variable only if it has been
+exported (with macro EXPORT_SYMBOL).
+<P>
+<H3>A useful trick for adding flexibility to your kernel</H3>
+
+<P>
+<PRE>
+// kernel sources side
+void (*foo_function_pointer)(void *);
+ 
+if (foo_function_pointer)
+  (foo_function_pointer)(parameter);
+  
+ 
+
+
+// module side
+extern void (*foo_function_pointer)(void *);
+
+void my_function(void *parameter) {
+  //My code
+}
+ 
+int init_module() {
+  foo_function_pointer = &amp;my_function;
+}
+
+int cleanup_module() {
+  foo_function_pointer = NULL;
+}
+</PRE>
+<P>This simple trick allows you to have very high flexibility in
+your Kernel, because only when you load the module you'll make "my_function"
+routine execute. This routine will do everything you want to do:
+for example ''rshaper'' module, which controls bandwidth input traffic
+from the network, works in this kind of matter.
+<P>
+<P>Notice that the whole module mechanism is possible thanks to
+some global variables exported to modules, such as head list (allowing
+you to extend the list as much as you want). Typical examples are
+fs, generic devices (char, block, net, telephony). You have to prepare
+the kernel to accept your new module; in some cases you have to create
+an infrastructure (like telephony one, that was recently created)
+to be as standard as possible.
+<P>
+<H2><A NAME="ss5.6">5.6 Proc directory</A>
+</H2>
+
+<P>Proc fs is located in the  /proc directory, which is a special
+directory allowing you to talk directly with kernel.
+<P>
+<P>Linux uses ''proc'' directory to support direct kernel communications:
+this is necessary in many cases, for example when you want see main
+processes data structures or enable ''proxy-arp'' feature on one
+interface and not in others, you want to change max number of threads,
+or if you want to debug some bus state, like ISA or PCI, to know
+what cards are installed and what I/O addresses and IRQs are assigned
+to them.
+<P>
+<P>
+<PRE>
+|-- bus
+|   |-- pci
+|   |   |-- 00
+|   |   |   |-- 00.0
+|   |   |   |-- 01.0
+|   |   |   |-- 07.0
+|   |   |   |-- 07.1
+|   |   |   |-- 07.2
+|   |   |   |-- 07.3
+|   |   |   |-- 07.4
+|   |   |   |-- 07.5
+|   |   |   |-- 09.0
+|   |   |   |-- 0a.0
+|   |   |   `-- 0f.0
+|   |   |-- 01
+|   |   |   `-- 00.0
+|   |   `-- devices
+|   `-- usb
+|-- cmdline
+|-- cpuinfo
+|-- devices
+|-- dma
+|-- dri
+|   `-- 0
+|       |-- bufs
+|       |-- clients
+|       |-- mem
+|       |-- name
+|       |-- queues
+|       |-- vm
+|       `-- vma
+|-- driver
+|-- execdomains
+|-- filesystems
+|-- fs
+|-- ide
+|   |-- drivers
+|   |-- hda -&gt; ide0/hda
+|   |-- hdc -&gt; ide1/hdc
+|   |-- ide0
+|   |   |-- channel
+|   |   |-- config
+|   |   |-- hda
+|   |   |   |-- cache
+|   |   |   |-- capacity
+|   |   |   |-- driver
+|   |   |   |-- geometry
+|   |   |   |-- identify
+|   |   |   |-- media
+|   |   |   |-- model
+|   |   |   |-- settings
+|   |   |   |-- smart_thresholds
+|   |   |   `-- smart_values
+|   |   |-- mate
+|   |   `-- model
+|   |-- ide1
+|   |   |-- channel
+|   |   |-- config
+|   |   |-- hdc
+|   |   |   |-- capacity
+|   |   |   |-- driver
+|   |   |   |-- identify
+|   |   |   |-- media
+|   |   |   |-- model
+|   |   |   `-- settings
+|   |   |-- mate
+|   |   `-- model
+|   `-- via
+|-- interrupts
+|-- iomem
+|-- ioports
+|-- irq
+|   |-- 0
+|   |-- 1
+|   |-- 10
+|   |-- 11
+|   |-- 12
+|   |-- 13
+|   |-- 14
+|   |-- 15
+|   |-- 2
+|   |-- 3
+|   |-- 4
+|   |-- 5
+|   |-- 6
+|   |-- 7
+|   |-- 8
+|   |-- 9
+|   `-- prof_cpu_mask
+|-- kcore
+|-- kmsg
+|-- ksyms
+|-- loadavg
+|-- locks
+|-- meminfo
+|-- misc
+|-- modules
+|-- mounts
+|-- mtrr
+|-- net
+|   |-- arp
+|   |-- dev
+|   |-- dev_mcast
+|   |-- ip_fwchains
+|   |-- ip_fwnames
+|   |-- ip_masquerade
+|   |-- netlink
+|   |-- netstat
+|   |-- packet
+|   |-- psched
+|   |-- raw
+|   |-- route
+|   |-- rt_acct
+|   |-- rt_cache
+|   |-- rt_cache_stat
+|   |-- snmp
+|   |-- sockstat
+|   |-- softnet_stat
+|   |-- tcp
+|   |-- udp
+|   |-- unix
+|   `-- wireless
+|-- partitions
+|-- pci
+|-- scsi
+|   |-- ide-scsi
+|   |   `-- 0
+|   `-- scsi
+|-- self -&gt; 2069
+|-- slabinfo
+|-- stat
+|-- swaps
+|-- sys
+|   |-- abi
+|   |   |-- defhandler_coff
+|   |   |-- defhandler_elf
+|   |   |-- defhandler_lcall7
+|   |   |-- defhandler_libcso
+|   |   |-- fake_utsname
+|   |   `-- trace
+|   |-- debug
+|   |-- dev
+|   |   |-- cdrom
+|   |   |   |-- autoclose
+|   |   |   |-- autoeject
+|   |   |   |-- check_media
+|   |   |   |-- debug
+|   |   |   |-- info
+|   |   |   `-- lock
+|   |   `-- parport
+|   |       |-- default
+|   |       |   |-- spintime
+|   |       |   `-- timeslice
+|   |       `-- parport0
+|   |           |-- autoprobe
+|   |           |-- autoprobe0
+|   |           |-- autoprobe1
+|   |           |-- autoprobe2
+|   |           |-- autoprobe3
+|   |           |-- base-addr
+|   |           |-- devices
+|   |           |   |-- active
+|   |           |   `-- lp
+|   |           |       `-- timeslice
+|   |           |-- dma
+|   |           |-- irq
+|   |           |-- modes
+|   |           `-- spintime
+|   |-- fs
+|   |   |-- binfmt_misc
+|   |   |-- dentry-state
+|   |   |-- dir-notify-enable
+|   |   |-- dquot-nr
+|   |   |-- file-max
+|   |   |-- file-nr
+|   |   |-- inode-nr
+|   |   |-- inode-state
+|   |   |-- jbd-debug
+|   |   |-- lease-break-time
+|   |   |-- leases-enable
+|   |   |-- overflowgid
+|   |   `-- overflowuid
+|   |-- kernel
+|   |   |-- acct
+|   |   |-- cad_pid
+|   |   |-- cap-bound
+|   |   |-- core_uses_pid
+|   |   |-- ctrl-alt-del
+|   |   |-- domainname
+|   |   |-- hostname
+|   |   |-- modprobe
+|   |   |-- msgmax
+|   |   |-- msgmnb
+|   |   |-- msgmni
+|   |   |-- osrelease
+|   |   |-- ostype
+|   |   |-- overflowgid
+|   |   |-- overflowuid
+|   |   |-- panic
+|   |   |-- printk
+|   |   |-- random
+|   |   |   |-- boot_id
+|   |   |   |-- entropy_avail
+|   |   |   |-- poolsize
+|   |   |   |-- read_wakeup_threshold
+|   |   |   |-- uuid
+|   |   |   `-- write_wakeup_threshold
+|   |   |-- rtsig-max
+|   |   |-- rtsig-nr
+|   |   |-- sem
+|   |   |-- shmall
+|   |   |-- shmmax
+|   |   |-- shmmni
+|   |   |-- sysrq
+|   |   |-- tainted
+|   |   |-- threads-max
+|   |   `-- version
+|   |-- net
+|   |   |-- 802
+|   |   |-- core
+|   |   |   |-- hot_list_length
+|   |   |   |-- lo_cong
+|   |   |   |-- message_burst
+|   |   |   |-- message_cost
+|   |   |   |-- mod_cong
+|   |   |   |-- netdev_max_backlog
+|   |   |   |-- no_cong
+|   |   |   |-- no_cong_thresh
+|   |   |   |-- optmem_max
+|   |   |   |-- rmem_default
+|   |   |   |-- rmem_max
+|   |   |   |-- wmem_default
+|   |   |   `-- wmem_max
+|   |   |-- ethernet
+|   |   |-- ipv4
+|   |   |   |-- conf
+|   |   |   |   |-- all
+|   |   |   |   |   |-- accept_redirects
+|   |   |   |   |   |-- accept_source_route
+|   |   |   |   |   |-- arp_filter
+|   |   |   |   |   |-- bootp_relay
+|   |   |   |   |   |-- forwarding
+|   |   |   |   |   |-- log_martians
+|   |   |   |   |   |-- mc_forwarding
+|   |   |   |   |   |-- proxy_arp
+|   |   |   |   |   |-- rp_filter
+|   |   |   |   |   |-- secure_redirects
+|   |   |   |   |   |-- send_redirects
+|   |   |   |   |   |-- shared_media
+|   |   |   |   |   `-- tag
+|   |   |   |   |-- default
+|   |   |   |   |   |-- accept_redirects
+|   |   |   |   |   |-- accept_source_route
+|   |   |   |   |   |-- arp_filter
+|   |   |   |   |   |-- bootp_relay
+|   |   |   |   |   |-- forwarding
+|   |   |   |   |   |-- log_martians
+|   |   |   |   |   |-- mc_forwarding
+|   |   |   |   |   |-- proxy_arp
+|   |   |   |   |   |-- rp_filter
+|   |   |   |   |   |-- secure_redirects
+|   |   |   |   |   |-- send_redirects
+|   |   |   |   |   |-- shared_media
+|   |   |   |   |   `-- tag
+|   |   |   |   |-- eth0
+|   |   |   |   |   |-- accept_redirects
+|   |   |   |   |   |-- accept_source_route
+|   |   |   |   |   |-- arp_filter
+|   |   |   |   |   |-- bootp_relay
+|   |   |   |   |   |-- forwarding
+|   |   |   |   |   |-- log_martians
+|   |   |   |   |   |-- mc_forwarding
+|   |   |   |   |   |-- proxy_arp
+|   |   |   |   |   |-- rp_filter
+|   |   |   |   |   |-- secure_redirects
+|   |   |   |   |   |-- send_redirects
+|   |   |   |   |   |-- shared_media
+|   |   |   |   |   `-- tag
+|   |   |   |   |-- eth1
+|   |   |   |   |   |-- accept_redirects
+|   |   |   |   |   |-- accept_source_route
+|   |   |   |   |   |-- arp_filter
+|   |   |   |   |   |-- bootp_relay
+|   |   |   |   |   |-- forwarding
+|   |   |   |   |   |-- log_martians
+|   |   |   |   |   |-- mc_forwarding
+|   |   |   |   |   |-- proxy_arp
+|   |   |   |   |   |-- rp_filter
+|   |   |   |   |   |-- secure_redirects
+|   |   |   |   |   |-- send_redirects
+|   |   |   |   |   |-- shared_media
+|   |   |   |   |   `-- tag
+|   |   |   |   `-- lo
+|   |   |   |       |-- accept_redirects
+|   |   |   |       |-- accept_source_route
+|   |   |   |       |-- arp_filter
+|   |   |   |       |-- bootp_relay
+|   |   |   |       |-- forwarding
+|   |   |   |       |-- log_martians
+|   |   |   |       |-- mc_forwarding
+|   |   |   |       |-- proxy_arp
+|   |   |   |       |-- rp_filter
+|   |   |   |       |-- secure_redirects
+|   |   |   |       |-- send_redirects
+|   |   |   |       |-- shared_media
+|   |   |   |       `-- tag
+|   |   |   |-- icmp_echo_ignore_all
+|   |   |   |-- icmp_echo_ignore_broadcasts
+|   |   |   |-- icmp_ignore_bogus_error_responses
+|   |   |   |-- icmp_ratelimit
+|   |   |   |-- icmp_ratemask
+|   |   |   |-- inet_peer_gc_maxtime
+|   |   |   |-- inet_peer_gc_mintime
+|   |   |   |-- inet_peer_maxttl
+|   |   |   |-- inet_peer_minttl
+|   |   |   |-- inet_peer_threshold
+|   |   |   |-- ip_autoconfig
+|   |   |   |-- ip_conntrack_max
+|   |   |   |-- ip_default_ttl
+|   |   |   |-- ip_dynaddr
+|   |   |   |-- ip_forward
+|   |   |   |-- ip_local_port_range
+|   |   |   |-- ip_no_pmtu_disc
+|   |   |   |-- ip_nonlocal_bind
+|   |   |   |-- ipfrag_high_thresh
+|   |   |   |-- ipfrag_low_thresh
+|   |   |   |-- ipfrag_time
+|   |   |   |-- neigh
+|   |   |   |   |-- default
+|   |   |   |   |   |-- anycast_delay
+|   |   |   |   |   |-- app_solicit
+|   |   |   |   |   |-- base_reachable_time
+|   |   |   |   |   |-- delay_first_probe_time
+|   |   |   |   |   |-- gc_interval
+|   |   |   |   |   |-- gc_stale_time
+|   |   |   |   |   |-- gc_thresh1
+|   |   |   |   |   |-- gc_thresh2
+|   |   |   |   |   |-- gc_thresh3
+|   |   |   |   |   |-- locktime
+|   |   |   |   |   |-- mcast_solicit
+|   |   |   |   |   |-- proxy_delay
+|   |   |   |   |   |-- proxy_qlen
+|   |   |   |   |   |-- retrans_time
+|   |   |   |   |   |-- ucast_solicit
+|   |   |   |   |   `-- unres_qlen
+|   |   |   |   |-- eth0
+|   |   |   |   |   |-- anycast_delay
+|   |   |   |   |   |-- app_solicit
+|   |   |   |   |   |-- base_reachable_time
+|   |   |   |   |   |-- delay_first_probe_time
+|   |   |   |   |   |-- gc_stale_time
+|   |   |   |   |   |-- locktime
+|   |   |   |   |   |-- mcast_solicit
+|   |   |   |   |   |-- proxy_delay
+|   |   |   |   |   |-- proxy_qlen
+|   |   |   |   |   |-- retrans_time
+|   |   |   |   |   |-- ucast_solicit
+|   |   |   |   |   `-- unres_qlen
+|   |   |   |   |-- eth1
+|   |   |   |   |   |-- anycast_delay
+|   |   |   |   |   |-- app_solicit
+|   |   |   |   |   |-- base_reachable_time
+|   |   |   |   |   |-- delay_first_probe_time
+|   |   |   |   |   |-- gc_stale_time
+|   |   |   |   |   |-- locktime
+|   |   |   |   |   |-- mcast_solicit
+|   |   |   |   |   |-- proxy_delay
+|   |   |   |   |   |-- proxy_qlen
+|   |   |   |   |   |-- retrans_time
+|   |   |   |   |   |-- ucast_solicit
+|   |   |   |   |   `-- unres_qlen
+|   |   |   |   `-- lo
+|   |   |   |       |-- anycast_delay
+|   |   |   |       |-- app_solicit
+|   |   |   |       |-- base_reachable_time
+|   |   |   |       |-- delay_first_probe_time
+|   |   |   |       |-- gc_stale_time
+|   |   |   |       |-- locktime
+|   |   |   |       |-- mcast_solicit
+|   |   |   |       |-- proxy_delay
+|   |   |   |       |-- proxy_qlen
+|   |   |   |       |-- retrans_time
+|   |   |   |       |-- ucast_solicit
+|   |   |   |       `-- unres_qlen
+|   |   |   |-- route
+|   |   |   |   |-- error_burst
+|   |   |   |   |-- error_cost
+|   |   |   |   |-- flush
+|   |   |   |   |-- gc_elasticity
+|   |   |   |   |-- gc_interval
+|   |   |   |   |-- gc_min_interval
+|   |   |   |   |-- gc_thresh
+|   |   |   |   |-- gc_timeout
+|   |   |   |   |-- max_delay
+|   |   |   |   |-- max_size
+|   |   |   |   |-- min_adv_mss
+|   |   |   |   |-- min_delay
+|   |   |   |   |-- min_pmtu
+|   |   |   |   |-- mtu_expires
+|   |   |   |   |-- redirect_load
+|   |   |   |   |-- redirect_number
+|   |   |   |   `-- redirect_silence
+|   |   |   |-- tcp_abort_on_overflow
+|   |   |   |-- tcp_adv_win_scale
+|   |   |   |-- tcp_app_win
+|   |   |   |-- tcp_dsack
+|   |   |   |-- tcp_ecn
+|   |   |   |-- tcp_fack
+|   |   |   |-- tcp_fin_timeout
+|   |   |   |-- tcp_keepalive_intvl
+|   |   |   |-- tcp_keepalive_probes
+|   |   |   |-- tcp_keepalive_time
+|   |   |   |-- tcp_max_orphans
+|   |   |   |-- tcp_max_syn_backlog
+|   |   |   |-- tcp_max_tw_buckets
+|   |   |   |-- tcp_mem
+|   |   |   |-- tcp_orphan_retries
+|   |   |   |-- tcp_reordering
+|   |   |   |-- tcp_retrans_collapse
+|   |   |   |-- tcp_retries1
+|   |   |   |-- tcp_retries2
+|   |   |   |-- tcp_rfc1337
+|   |   |   |-- tcp_rmem
+|   |   |   |-- tcp_sack
+|   |   |   |-- tcp_stdurg
+|   |   |   |-- tcp_syn_retries
+|   |   |   |-- tcp_synack_retries
+|   |   |   |-- tcp_syncookies
+|   |   |   |-- tcp_timestamps
+|   |   |   |-- tcp_tw_recycle
+|   |   |   |-- tcp_window_scaling
+|   |   |   `-- tcp_wmem
+|   |   `-- unix
+|   |       `-- max_dgram_qlen
+|   |-- proc
+|   `-- vm
+|       |-- bdflush
+|       |-- kswapd
+|       |-- max-readahead
+|       |-- min-readahead
+|       |-- overcommit_memory
+|       |-- page-cluster
+|       `-- pagetable_cache
+|-- sysvipc
+|   |-- msg
+|   |-- sem
+|   `-- shm
+|-- tty
+|   |-- driver
+|   |   `-- serial
+|   |-- drivers
+|   |-- ldisc
+|   `-- ldiscs
+|-- uptime
+`-- version
+
+</PRE>
+<P>In the directory there are also all the tasks using PID as file
+names (you have access to all Task information, like path of binary
+file, memory used, and so on).
+<P>
+<P>The interesting point is that you cannot only see kernel values
+(for example, see info about any task or about network options enabled
+of your TCP/IP stack) but you are also able to modify some of it,
+typically that ones under /proc/sys directory:
+<P>
+<P>
+<PRE>
+/proc/sys/ 
+          acpi
+          dev
+          debug
+          fs
+          proc
+          net
+          vm
+          kernel
+</PRE>
+<H3>/proc/sys/kernel</H3>
+
+<P>Below are very important and well-know kernel values, ready to
+be modified:
+<P>
+<P>
+<PRE>
+overflowgid
+overflowuid
+random
+threads-max // Max number of threads, typically 16384
+sysrq // kernel hack: you can view istant register values and more
+sem
+msgmnb
+msgmni
+msgmax
+shmmni
+shmall
+shmmax
+rtsig-max
+rtsig-nr
+modprobe // modprobe file location
+printk
+ctrl-alt-del
+cap-bound
+panic
+domainname // domain name of your Linux box
+hostname // host name of your Linux box
+version // date info about kernel compilation
+osrelease // kernel version (i.e. 2.4.5)
+ostype // Linux!
+</PRE>
+<H3>/proc/sys/net</H3>
+
+<P>This can be considered the most useful proc subdirectory. It
+allows you to change very important settings for your network kernel
+configuration.
+<P>
+<P>
+<PRE>
+core
+ipv4
+ipv6
+unix
+ethernet
+802
+</PRE>
+<H3>/proc/sys/net/core</H3>
+
+<P>Listed below are general net settings, like "netdev_max_backlog"
+(typically 300), the length of all your network packets. This value
+can limit your network bandwidth when receiving packets, Linux has
+to wait up to scheduling time to flush buffers (due to bottom half
+mechanism), about 1000/HZ ms
+<P>
+<P>
+<PRE>
+  300    *        100             =     30 000
+packets     HZ(Timeslice freq)         packets/s
+ 
+30 000   *       1000             =      30 M
+packets     average (Bytes/packet)   throughput Bytes/s
+</PRE>
+<P>If you want to get higher throughput, you need to increase netdev_max_backlog,
+by typing:
+<P>
+<P>
+<PRE>
+echo 4000 &gt; /proc/sys/net/core/netdev_max_backlog
+</PRE>
+<P>Note: Warning for some HZ values: under some architecture (like
+alpha or arm-tbox) it is 1000, so you can have 300 MBytes/s of average
+throughput.
+<P>
+<H3>/proc/sys/net/ipv4</H3>
+
+<P>"ip_forward", enables or disables ip forwarding in your Linux box.
+This is a generic setting for all devices, you can  specify  each
+device you choose.
+<P>
+<H3>/proc/sys/net/ipv4/conf/interface</H3>
+
+<P>I think this is the most useful /proc entry, because it allows
+you to change some net settings to support wireless networks (see
+<A HREF="http://www.bertolinux.com">Wireless-HOWTO</A> for more information).
+<P>
+<P>Here are some examples of when you could use this setting:
+<P>
+<P>
+<UL>
+<LI>"forwarding", to enable ip forwarding for your interface</LI>
+<LI>"proxy_arp", to enable proxy arp feature. For more see Proxy arp
+HOWTO under 
+<A HREF="http://www.tldp.org">Linux Documentation Project</A> and 
+<A HREF="http://www.bertolinux.com">Wireless-HOWTO</A> for proxy arp use in Wireless networks.</LI>
+<LI>"send_redirects" to avoid interface to send ICMP_REDIRECT (as before,
+see 
+<A HREF="http://www.bertolinux.com">Wireless-HOWTO</A> for more).
+</LI>
+</UL>
+<HR>
+<A HREF="KernelAnalysis-HOWTO-6.html">Next</A>
+<A HREF="KernelAnalysis-HOWTO-4.html">Previous</A>
+<A HREF="KernelAnalysis-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

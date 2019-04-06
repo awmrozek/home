@@ -335,3 +335,106 @@ git pull
 git pull
 vim simple/simple.c 
 ls .ssh/
+vim .gitignore 
+cd
+ls -lart
+git commit -m "Initial commit"
+git push origin master
+mkdir MatLAB
+mv *m MatLAB/
+git add .
+git commit -m "Moved matlab to MATLABBBBB"
+git push origin master
+vim .gitignore 
+git push origin master
+git push origin master
+git add .
+git push origin master
+git pull --rebase
+git commit -m "Moved matlab to MATLABBBBB"
+git push origin master
+git pull --rebase
+git branch
+git pulll remote master
+git pull remote master
+git pull  master
+git pull --rebase
+git pull
+git reset --hard
+git pull
+git status
+git commit -a
+git add edaf15/
+git pull
+git pull origin master
+git pull origin master
+git push origin master
+mkdir change
+git add .
+git commit -m "Testing change in maindir"
+git pull
+git pull origin master
+git push origin master
+mv Assignment7/ MatLAB/
+cd git/
+ls
+ls
+cd ..
+ls
+cd edaf15/
+ls
+ls +lart
+ls -lart
+cd ..
+mv edaf15/ git/
+cd git/
+ls -lart
+cd ..
+git add .
+git commit -m "Removed edaf15 from maindir, moved to git"
+git pull && git push origin master
+git pull
+git push origin master
+ssh amr@84.55.119.97
+ssh amr@84.55.119.97
+du -h
+git clone 
+820K    ./.cache/wallpaper
+git clone git@github.com:awmrozek/home.git
+cat .ssh/id_rsa.pub 
+mkdir git
+vim .gitignore
+git clone git@github.com:awmrozek/home.git
+cd home
+ls
+cd ..
+rm -r home/
+rm -rf home
+git clone git@github.com:awmrozek/home.git .
+git init
+git remote add origin git@github.com:awmrozek/home.git
+git pull origin master
+vim .gitignore 
+git add .
+screen -x
+screen
+ssh-keygen -t rsa
+cd .ssh/
+ls
+cat id_rsa.pub 
+cd
+cd git/
+ls
+mkdir a3
+cd a3/
+git init
+git add remote origin git@84.55.119.97:gita3/
+git add remote origin git@84.55.119.97:gita3/
+git add remote git@84.55.119.97:gita3/
+git add origin git@84.55.119.97:gita3/
+git remote origin git@84.55.119.97:gita3/
+git remote add git@84.55.119.97:gita3/
+git clone git@84.55.119.97:/p1.git
+git clone git@84.55.119.97:/git/p1.git
+git clone git@84.55.119.97:/git/p1
+git clone git@84.55.119.97:/p1.git

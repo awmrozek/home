@@ -1,0 +1,77 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Red Hat Linux 6.X as an Internet Gateway for a Home Network: Configuring Masquerading</TITLE>
+ <LINK HREF="Home-Network-mini-HOWTO-5.html" REL=next>
+ <LINK HREF="Home-Network-mini-HOWTO-3.html" REL=previous>
+ <LINK HREF="Home-Network-mini-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Home-Network-mini-HOWTO-5.html">Next</A>
+<A HREF="Home-Network-mini-HOWTO-3.html">Previous</A>
+<A HREF="Home-Network-mini-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Configuring Masquerading</A> </H2>
+
+<P>All right! The preliminaries are over, this is where the magic begins.
+IP masquerading is one of the truly magical services Linux provides. There
+are commercial products for Windows which do the same thing, but not nearly
+as efficiently: an ancient 386 can merrily provide IP masquerading services
+to a whole medium sized office, but cannot even run Windows 95, let alone the
+add on masquerading package. (As an addendum, I read in some recent reviews
+that Windows 2000 will support "connection sharing" without addon software. It
+looks like the companies which sold connection sharing software have been "embraced
+and extended" by MicroSoft. However, I wouldn't recommend you try the Windows
+2000 solution on a 386.)
+<P>Linux has an extremely versatile firewalling capability, and we are going
+to be using it in the simplest and crudest possible manner. If you want to
+learn how to do firewalling like an expert, you should read both the 
+<A HREF="http://www.linuxdoc.org/HOWTO/Firewall-HOWTO.html">Firewalling HOWTO</A> for an
+understanding of the theory and the 
+<A HREF="http://www.linuxdoc.org/HOWTO/IPCHAINS-HOWTO.html">IPChains HOWTO</A> for instructions on the new <CODE>ipchains</CODE> firewalling
+tool which ships with the Linux 2.2.X kernel (and by extension Red Hat 6.X).
+There is also now a very good 
+<A HREF="http://www.linuxdoc.org/HOWTO/IP-Masquerade-HOWTO.html">IP Masquerading HOWTO</A> available which has more details on masquerading
+tweaks.
+<P>Configuring simple masquerading is very very easy once your internal and
+external networking is operational. Edit the <CODE>/etc/rc.d/rc.local</CODE> file and add
+the following lines to the bottom:
+<P>
+<PRE>
+# 1) Flush the rule tables. 
+/sbin/ipchains -F input 
+/sbin/ipchains -F forward 
+/sbin/ipchains -F output 
+# 2) Set the MASQ timings and allow packets in for DHCP configuration. 
+/sbin/ipchains -M -S 7200 10 60 
+/sbin/ipchains -A input -j ACCEPT -i eth0 -s 0/0 68 -d 0/0 67 -p udp 
+# 3) Deny all forwarding packets except those from local network. 
+#    Masquerage those. 
+/sbin/ipchains -P forward DENY 
+/sbin/ipchains -A forward -s 192.168.1.0/24 -j MASQ 
+# 4) Load forwarding modules for special services. 
+/sbin/modprobe ip_masq_ftp 
+/sbin/modprobe ip_masq_raudio
+ 
+</PRE>
+<P>The last two lines insert kernel modules which allow FTP and RealAudio
+to work for computers on the inside network. There are other modules for special
+services which you can tack on if you need them:
+<P>
+<UL>
+<LI>CUSeeMe (<CODE>/sbin/modprobe ip_masq_cuseeme</CODE>) </LI>
+<LI>Internet Relay Chat (<CODE>/sbin/modprobe ip_masq_irc</CODE>) </LI>
+<LI>Quake (<CODE>/sbin/modprobe ip_masq_quake</CODE>) </LI>
+<LI>VDOLive (<CODE>/sbin/modprobe ip_masq_vdolive</CODE>) </LI>
+</UL>
+<P>Now you're ready to try masquerading! Run the <CODE>rc.local</CODE> script with the
+command <CODE>/etc/rc.d/rc.local</CODE> and you are ready to go! Sit down at one of your
+other computers and try some web surfing. With any luck, everything is now
+hunky dory.
+<HR>
+<A HREF="Home-Network-mini-HOWTO-5.html">Next</A>
+<A HREF="Home-Network-mini-HOWTO-3.html">Previous</A>
+<A HREF="Home-Network-mini-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

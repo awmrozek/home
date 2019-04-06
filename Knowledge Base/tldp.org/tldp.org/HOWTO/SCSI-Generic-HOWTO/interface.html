@@ -1,0 +1,273 @@
+<HTML
+><HEAD
+><TITLE
+>Interface</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="The Linux SCSI Generic (sg) HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Identifying the version of the SG driver"
+HREF="iddriver.html"><LINK
+REL="NEXT"
+TITLE="Theory of operation"
+HREF="theory.html"></HEAD
+><BODY
+CLASS="CHAPTER"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>The Linux SCSI Generic (sg) HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="iddriver.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="theory.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="CHAPTER"
+><H1
+><A
+NAME="INTERFACE">Chapter 4. Interface</H1
+><P
+>This driver supports the following system calls, most of which are typical
+for a character device driver in Linux. They are: 
+<P
+></P
+><UL
+><LI
+><P
+>open()</P
+></LI
+><LI
+><P
+>close()</P
+></LI
+><LI
+><P
+>write()</P
+></LI
+><LI
+><P
+>read()</P
+></LI
+><LI
+><P
+>ioctl()</P
+></LI
+><LI
+><P
+>poll()</P
+></LI
+><LI
+><P
+>fcntl(sg_fd, F_SETFL, oflags | FASYNC)</P
+></LI
+><LI
+><P
+>mmap()</P
+></LI
+></UL
+>
+The interface to these calls as seem from Linux applications is well
+documented in the "man" pages (in section 2).</P
+><P
+>A user application accesses the sg driver by using the open() system call
+on sg device file name. Each sg device file name corresponds to one 
+(potentially) attached SCSI device. These are usually found in the 
+<TT
+CLASS="FILENAME"
+>/dev</TT
+> directory. Here are some sg device file names:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ ls -l /dev/sg[01]
+crw-rw----    1 root     disk      21,   0 Aug 30 16:30 /dev/sg0
+crw-rw----    1 root     disk      21,   1 Aug 30 16:30 /dev/sg1</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+The leading "c" at the front of the permissions indicates a character
+device. The absence of read or write permissions for "others" is prudent
+security. The major number of all sg device names is 21 while the minor
+number is the same as the number following "sg" in the device file name.
+When the device file system (devfs) is active on a system then the
+primarily sg device file names are found at the bottom of an informative
+subtree:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ cd /dev/scsi/host1/bus0/target0/lun0
+$ ls -l generic
+crw-r-----    1 root     root      21,   1 Dec 31  1969 generic</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Under devfs (when its daemon [devfsd] is running) there would usually
+be a symbolic link from <TT
+CLASS="FILENAME"
+>/dev/sg1</TT
+> to 
+<TT
+CLASS="FILENAME"
+>/dev/scsi/host1/bus0/target0/lun0/generic</TT
+>. This is
+so existing applications looking for the abridged device file name will
+not be surprised. One advantage of devfs is that only attached SCSI devices
+appear in the <TT
+CLASS="FILENAME"
+>/dev/scsi</TT
+> subtree.</P
+><P
+>A significant addition in sg v3 is an ioctl() called SG_IO which
+is functionally equivalent to a write() followed by a blocking read().
+In certain contexts the write()/read() combination have advantages over
+SG_IO (e.g. command queuing) and continue to be supported.</P
+><P
+>The existing (and original) sg interface based on the sg_header structure
+is still available using a write()/read() sequence as before. The SG_IO
+ioctl will only accept the new interface based on the sg_io_hdr_t structure.</P
+><P
+>The sg v3 driver thus has a write() call that can accept either the older
+sg_header structure or the new sg_io_hdr_t structure. The write() calls
+decides which interface is being used
+based on the second integer position of the passed header (i.e.
+sg_header::reply_len or sg_io_hdr_t::dxfer_direction). If it is a positive
+number then the old interface is assumed. If it is a negative number then
+the new interface is assumed. The direction constants placed in
+'dxfer_direction' in the new interface have been chosen to have negative
+values.</P
+><P
+>If a request is sent to a write() with the sg_io_hdr_t interface then the
+corresponding read() that fetches the response must also use the sg_io_hdr_t
+interface. The same rule applies to the sg_header interface.</P
+><P
+>This document concentrates on the sg_io_hdr_t interface introduced in
+the sg version 3 driver. For the definition of the older sg_header
+interface see the sg version 2 documentation. A brief description is
+given in <A
+HREF="sg_header.html"
+>Appendix B</A
+>.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="iddriver.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="theory.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Identifying the version of the SG driver</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Theory of operation</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

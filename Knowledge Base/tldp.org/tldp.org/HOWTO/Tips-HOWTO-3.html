@@ -1,0 +1,456 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux Tips HOWTO: Detailed Tips</TITLE>
+ <LINK HREF="Tips-HOWTO-2.html" REL=previous>
+ <LINK HREF="Tips-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+Next
+<A HREF="Tips-HOWTO-2.html">Previous</A>
+<A HREF="Tips-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Detailed Tips</A></H2>
+
+<H2><A NAME="ss3.1">3.1 Sharing swap partitions between Linux and Windows. <I>Tony Acero,</I> <CODE>ace3@midway.uchicago.edu</CODE></A>
+</H2>
+
+<P>
+<OL>
+<LI> Format the partition as a dos partition, and create the Windows
+swap file on it, but don't run windows yet. (You want to keep the swap
+file completely empty for now, so that it compresses well).
+</LI>
+<LI> Boot linux and save the partition into a file.  For example if the partition was /dev/hda8:
+<BLOCKQUOTE><CODE>
+<PRE>
+dd if=/dev/hda8 of=/etc/dosswap
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI> Compress the dosswap file; since it is virtually all 0's it will compress very well
+<BLOCKQUOTE><CODE>
+<PRE>
+gzip -9 /etc/dosswap
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI> Add the following to the /etc/rc file to prepare and install the swap space under Linux:
+
+<EM>XXXXX is the number of blocks in the swap partition</EM>
+<BLOCKQUOTE><CODE>
+<PRE>
+mkswap /dev/hda8 XXXXX
+swapon -av   
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Make sure you add an entry for the swap partition in your /etc/fstab file
+</LI>
+<LI> If your init/reboot package supports /etc/brc or /sbin/brc add the
+following to /etc/brc, else do this by hand when you want to boot to
+dos|os/2 and you want to convert the swap partition back to the
+dos/windows version:</LI>
+</OL>
+
+<BLOCKQUOTE><CODE>
+<PRE>
+swapoff -av
+zcat /etc/dosswap.gz | dd of=/dev/hda8 bs=1k count=100
+</PRE>
+</CODE></BLOCKQUOTE>
+
+# Note that this only writes the first 100 blocks back to the partition. I've found empirically that this is sufficient 
+<P>&gt;&gt;  What are the pros and cons of doing this?
+<P>Pros: you save a substantial amount of disk space.
+<P>Cons: if step 5 is not automatic, you have to remember to do it by hand,
+and it slows the reboot process by a nanosecond :-)
+<P>
+<H2><A NAME="ss3.2">3.2 Desperate Undelete. <I>Michael Hamilton,</I> <CODE>michael@actrix.gen.nz</CODE></A>
+</H2>
+
+<P>Here's a trick I've had to use a few times.
+<P>Desperate person's text file undelete.
+<P>If you accidentally remove a text file, for example, some email, or
+the results of a late night programming session, all may not be lost.
+If the file ever made it to disk, ie it was around for more than 30
+seconds, its contents may still be in the disk partition.
+<P>You can use the grep command to search the raw disk partition for the
+contents of file.
+<P>For example, recently, I accidentally deleted a piece of email.
+So I immediately ceased any activity that could modify that partition:
+in this case I just refrained from saving any files or doing any compiles
+etc.  On other occasions, I've actually gone to the trouble of bring the
+system down to single user mode, and unmounted the filesystem.
+<P>I then used the egrep command on the disk partition:  in my case the email
+message was in /usr/local/home/michael/, so from the output from df,
+I could see this was in /dev/hdb5
+<BLOCKQUOTE><CODE>
+<PRE>
+  sputnik3:~ % df
+    Filesystem         1024-blocks  Used Available Capacity Mounted on
+    /dev/hda3              18621    9759     7901     55%   /
+    /dev/hdb3             308852  258443    34458     88%   /usr
+    /dev/hdb5             466896  407062    35720     92%   /usr/local
+
+    sputnik3:~ % su
+    Password:
+    [michael@sputnik3 michael]# egrep -50 'ftp.+COL' /dev/hdb5 > /tmp/x
+ 
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Now I'm ultra careful when fooling around with disk partitions, so I
+paused to make sure I understood the command syntax BEFORE pressing
+return.  In this case the email contained the word 'ftp' followed by
+some text followed by the word 'COL'.  The message was about 20 lines
+long, so I used -50 to get all the lines around the phrase.  In the
+past I've used -3000 to make sure I got all the lines of some source
+code.  I directed the output from the egrep to a different disk
+partition - this prevented it from over writing the message I was
+looking for.
+<P>I then used strings to help me inspect the output
+<BLOCKQUOTE><CODE>
+<PRE>
+   strings /tmp/x | less
+ 
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Sure enough the email was in there.
+<P>This method can't be relied on, all, or some, of the disk space may
+have already been re-used.
+<P>This trick is probably only useful on single user systems.  On
+multi-users systems with high disk activity, the space you free'ed up
+may have already been reused.  And most of use can't just rip the box
+out from under our users when ever we need to recover a file.
+<P>On my home system this trick has come in handy on about three
+occasions in the past few years - usually when I accidentally trash
+some of the days work.  If what I'm working survives to a point where
+I feel I made significant progress, it get's backed up onto floppy, so
+I haven't needed this trick very often.
+<P>
+<P>
+<H2><A NAME="ss3.3">3.3 How to use the immutable flag. <I>Jim Dennis,</I> <CODE>jadestar@rahul.net</CODE></A>
+</H2>
+
+<P>Use the Immutable Flag
+<P>Right after you install and configure your system
+go through the /bin, /sbin/, /usr/bin, /usr/sbin and
+/usr/lib (and a few of the other usual suspects and
+make liberal use of the 'chattr +i command'.  Also add that
+to the the kernel files in root.  Now 'mkdir /etc/.dist/'
+copy everything from /etc/ on down (I do this in two steps
+using /tmp/etcdist.tar to avoid recursion) into that directory.
+(Optionally you can just create /etc/.dist.tar.gz) -- and
+mark that as immutable.
+<P>The reason for all of this is to limit the damage that you can
+do when logged in as root.  You won't overwrite files with a
+stray redirection operator, and you won't make the system
+unusable with a stray space in an 'rm -fr' command (you might
+still do alot of damage to your data -- but your libs and
+bins will be safer.
+<P>This also makes a variety of security and denial of service
+exploits either impossible or more difficult (since many of
+them rely on overwriting a file through the actions of some
+SUID program that *isn't providing an arbitrary shell command*).
+<P>The only inconvenience of this is when building and
+doing your 'make install' on various sorts of system binaries.
+On the other hand it also prevents the 'make install' from
+over-writing the files.  When you forget to read the Makefile
+and chattr -i the files that are to be overwritten (and the
+directories to which you want to add files) -- the make fails,
+you just use the chattr command and rerun it.  You can also
+take that opportunity to move your old bin's, libs, or whatever
+into a .old/ directory or rename or tar them or whatever.
+<P>
+<H2><A NAME="ss3.4">3.4 A suggestion for where to put new stuff.</A>
+<I>Jim Dennis,</I> <CODE>jadestar@rahul.net</CODE></H2>
+
+<P>All new stuff starts under /usr/local! or /usr/local/`hostname`
+<P>If your distribution is one that leaves /usr/local empty
+then just create your /usr/local/src, /usr/local/bin etc
+and use that.  If your distribution puts things in the /usr/local
+tree than you may want to 'mkdir /usr/local/`hostname`' and
+give the 'wheel' group +w to it (I also make it SUID and SGID
+to insure that each member of the wheel group can only mess with
+their own files thereunder, and that all files created will
+belong to the 'wheel' group.
+<P>Now discipline yourself to *ALWAYS! ALWAYS! ALWAYS!* put new
+packages under /usr/local/src/.from/$WHEREVER_I_GOT_IT/
+(for the .tar or whatever files) and build them  under
+/usr/local/src (or .../$HOSTNAME/src).  Make sure that it
+installs under the local hierarchy.  If it *absolutely must*
+be installed back in /bin or /usr/bin or somewhere else --
+put a symlink from the local heirarchy to each element that
+when anywhere else.
+<P>The reason for this -- even though it's more work -- is that
+it helps isolate what has to be backed up and restored or
+reinstalled in the event of a full re-install from the
+distribution medio (usually CD these days).  By using a
+/usr/local/.from directory you also keep an informal log
+of where your sources are coming from -- which helps when
+you're looking for new updates -- and may be critical when
+monitoring the security announcement lists.
+<P>One of my systems at home (the one I'm calling from)
+was put together before I adopted these policies for myself.
+I still don't "know" all the ways that it differs from the
+stock "as installed" system.  This is despite the fact that
+I've done very little with my home system's configuration
+and I'm the *only* person who ever uses it.
+<P>By contrast the systems I've set up at work (when I was thrust
+into the role of system administrator there) have all been
+configured this way -- have been administered by many
+contractors and other MIS people, and have had a large number
+of upgrades and package installations.  Nonetheless I have a
+very good idea which precise elements were put in *after*
+the initial installation and configuration.
+<P>
+<H2><A NAME="ss3.5">3.5 Converting all files in a directory to lowercase. <I>Justin Dossey,</I> <CODE>dossey@ou.edu</CODE></A>
+</H2>
+
+<P>
+<P>I noticed a few overly difficult or unnecessary procedures recommended
+in the 2c tips section of Issue 12.  Since there is more than one, I'm
+sending it to you:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+#!/bin/sh
+         # lowerit
+         # convert all file names in the current directory to lower case
+         # only operates on plain files--does not change the name of directories
+         # will ask for verification before overwriting an existing file
+         for x in `ls`
+           do
+           if [ ! -f $x ]; then
+             continue
+             fi
+           lc=`echo $x  | tr '[A-Z]' '[a-z]'`
+           if [ $lc != $x ]; then
+             mv -i $x $lc
+           fi
+           done
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+
+Wow.  That's a long script.  I wouldn't write a script to do that;
+instead, I would use this command:
+<BLOCKQUOTE><CODE>
+<PRE>
+for i in * ; do [ -f $i ] &amp;&amp; mv -i $i `echo $i | tr '[A-Z]' '[a-z]'`;
+done;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+on the command line.
+<P>The contributor says he wrote the script how he did for
+understandability (see below).
+<P>On the next tip, this one about adding and removing users, Geoff is
+doing fine until that last step.  Reboot?  Boy, I hope he doesn't reboot
+every time he removes a user.  All you have to do is the first two
+steps.  What sort of processes would that user have going, anyway?  An
+irc bot?  Killing the processes with a simple
+<BLOCKQUOTE><CODE>
+<PRE>
+kill -9 `ps -aux |grep ^&lt;username> |tr -s " " |cut -d " " -f2`
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Example, username is foo
+<BLOCKQUOTE><CODE>
+<PRE>
+kill -9 `ps -aux |grep ^foo |tr -s " " |cut -d " " -f2`
+</PRE>
+</CODE></BLOCKQUOTE>
+
+That taken care of, let us move to the forgotten root password.
+<P>The solution given in the Gazette is the most universal one, but not the
+easiest one.  With both LILO and loadlin, one may provide the boot
+parameter &quot;single&quot; to boot directly into the default shell with no login
+or password prompt.  From there, one may change or remove any passwords
+before typing &quot;init 3&quot; to start multiuser mode.
+Number of reboots: 1
+The other way
+Number of reboots: 2
+<P>
+<P>Justin Dossey
+<P>
+<P>
+<H2><A NAME="ss3.6">3.6 How To Upgrade Sendmail</A>
+<I>Paul Anderson,</I> <CODE>paul@geeky1.ebtech.net</CODE></H2>
+
+<P>We're starting from raw, clean source.  First, obtain the sendmail source code.
+I've d/led version 8.9.0, which is, as you will notice, bleeding edge.
+I grabbed it from ftp.sendmail.org:/pub/sendmail/sendmail.8.9.0.tar.gz
+<P>It's about 1Meg, and considering I'm running 8.7.6, I think it's worth the
+effort.  If this works, you'll undoubtedly hear about it, elsewise
+I can't get the new HOWTO versions out without e-mail:)
+<P>Now, once you've got the source d/led, unpack it.  It'll create a dir called
+<CODE>sendmail-8.9.0</CODE> in the current directory.  Change into that directory,
+read the README and RELEASE_NOTES files(and be amazed at the updates they've
+done).  Now, cd in src.  This is where most of your work will be done.
+<P><EM>A quick note: Sendmail is a small, powerful and well-written program.
+The sendmail binary itself compiled in less than 5 minutes on my
+5x86 133 with 32Megs RAM!  The entire compile and install(sans config)
+took under 15 minutes!</EM>
+<P>I don't normally run BIND on my system, so I found the lines:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# ifndef NAMED_BIND
+#  define NAMED_BIND    1       /* use Berkeley Internet Domain Server */
+# endif
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>and changed the 1 to a 0, ala:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# ifndef NAMED_BIND
+#  define NAMED_BIND    0       /* use Berkeley Internet Domain Server */
+# endif
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<P>On Debian 1.3.1, db.h is by default installed in /usr/include/db, instead
+of /usr/include, where sendmail hopes to find it.  Change to the src, 
+mailstats, makemap, praliases, rmail and smrsh directories and execute
+the following command:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ ./Build -I/usr/include/db
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Once you've done that, cd .. and type make install.  There!  Sendmail
+version 8.9.0 should now be installed!  This is, of course, assuming you
+already have your original configuration.  For everything to work smoothly
+on my system, since I host free mailing lists for people using majordomo,
+I had to add the following to the beginning of my /etc/sendmail.cf:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+O DontBlameSendmail=forwardfileinunsafedirpath, forwardfileinunsafedirpathsafe
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>Sendmail 8.9.0 is rather pedantic about directory and file permissions
+these days, and will complain about dirs and files in aliases or .forward
+files that are group or world writeable.  While it's not a good idea
+to disable this pedantry, I am only running with a single person at
+the console and I felt it was okay to allow this minor security
+hole.  YMMV.
+<P>
+<P>
+<P>
+<H2><A NAME="ss3.7">3.7 Some tips for new sysadmins.</A>
+<I>Jim Dennis,</I> <CODE>jadestar@rahul.net</CODE></H2>
+
+<P>Create and maintain a /README.`hostname` and/or a
+/etc/README.`hostname`
+<EM>[Or possibly /usr/local/etc/README.`hostname` -Maint. ]</EM>
+<P>Absolutely, from *day one* of administering a system
+take notes in an online log file.  You might make
+&quot;vi /README.$(hostname)&quot; a line in root's &nbsp;/bash_logout.
+Another way to do this is to write an su or a sudo script
+that does something like:
+<BLOCKQUOTE><CODE>
+<PRE>
+                function exit \
+                        { unset exit; exit; \
+                          cat ~/tmp/session.$(date +%y%m%d) \
+                          >> /README.$(hostname) &amp;&amp; \
+                          vi /README.$(hostname)
+                          }
+                script -a ~/tmp/session.$(date +%y%m%d)
+                /bin/su.org -
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>(use the typescript command to create a session log
+and create a function to automate appending and updating
+the log).
+<P>I'll admit that I haven't implemented this automation of
+policy -- I've just relied on self-discipline so far.
+However I have been toying with the idea (even to the
+point of prototyping the scripts and shell functions as you
+see them).  One thing that holds me back on this is
+the 'script' command itself.  I think I'll have to grab the
+sources and add a couple of command line parameters (to
+pause/stop the script recording from the command line) before
+I commit to using this).
+<P>My last suggestion (for this round):
+<P>Root's path should consist of 'PATH=&nbsp;/bin'
+<P>That's it.  Nothing else on root's path.  Everything root
+does is provided by a symlink from &nbsp;/bin or by an alias or
+shell function, or is a script or binary in &nbsp;/bin, or is
+typed out with an explicit path.
+<P>This makes anyone running as root aware (sometimes painfully
+so) of how he or she is trusting binaries.  The wise admin
+of a multi-user host will periodically look through his or
+here &nbsp;/bin and &nbsp;/.*history files to look for patterns and
+loopholes.
+<P>The really motivated admin will spot sequences
+that can be automated, places where sanity checks can be
+inserted, and tasks for which &quot;root&quot; privileges should be
+temporarily eschewed (launching editors, MTA's and other
+large interactive programs with elaborate scripting features
+that *might* be embedded in transparent or data files --
+like the infamous vi ./.exrc and emacs ./.emacs and the
+even more insidous $EXINIT and the embedded header/footer
+macros).  Naturally those sorts of commands can be run
+with something like:
+<BLOCKQUOTE><CODE>
+<PRE>
+                cp $data $some_users_home/tmp
+                su -c $origcommand $whatever_switches
+                cp $some_users_home/tmp $data
+</PRE>
+</CODE></BLOCKQUOTE>
+
+(...where the specifics depend on the command).
+<P>Mostly these last sorts of precautions are overboard for the
+home or &quot;single&quot; user workstation -- but they are very good
+policy the admin of a multi-user -- particular a publicly
+exposed system (like the one's at netcom).
+<P>
+<P>
+<H2><A NAME="ss3.8">3.8 How to configure xdm's chooser for host selection. <I>Arrigo Triulzi,</I> <CODE>a.triulzi@ic.ac.uk</CODE></A>
+</H2>
+
+<P>
+<OL>
+<LI> Edit the file that launches xdm 
+most likely /etc/rc/rc.6 or /etc/rc.local) so that it contains the
+following lines in the xdm startup section.
+<BLOCKQUOTE><CODE>
+<PRE>
+        
+/usr/bin/X11/xdm
+exec /usr/bin/X11/X -indirect hostname
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI> Edit /usr/lib/X11/xdm/Xservers and comment out the line which
+starts the server on the local machine (i.e. starting 0:)</LI>
+<LI> Reboot the machine and you're home and away.</LI>
+</OL>
+<P>I add this because when I was, desperately, trying to set it up for
+my own subnet over here it took me about a week to suss out all the
+problems.
+<P>Caveat: with old SLS (1.1.1) for some reason you can leave a -nodaemon
+after the xdm line -- this does <B>NOT</B> work for later releases.
+<HR>
+Next
+<A HREF="Tips-HOWTO-2.html">Previous</A>
+<A HREF="Tips-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

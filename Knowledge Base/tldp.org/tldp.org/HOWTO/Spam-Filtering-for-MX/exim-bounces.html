@@ -1,0 +1,526 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Accept Bounces Only for Real Users</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Exim Implementation"
+HREF="exim.html"><LINK
+REL="PREVIOUS"
+TITLE="Adding Envelope Sender Signatures"
+HREF="exim-sign.html"><LINK
+REL="NEXT"
+TITLE="Exempting Forwarded Mail"
+HREF="exim-forward.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="exim-sign.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix A. Exim Implementation</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="exim-forward.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="exim-bounces"
+></A
+>A.12. Accept Bounces Only for Real Users</H1
+><P
+>&#13;      As discussed in <A
+HREF="collateral.html#dsnrealuser"
+>Accept Bounces Only for Real Users</A
+>, there is now a
+      loophole that prevents us from catching bogus <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+> sent to system users and aliases, such as
+      <TT
+CLASS="option"
+>postmaster</TT
+>.  Here we cover two alternate ways
+      to ensure that bounces are only accepted for users that actually
+      send outgoing mail.
+    </P
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-dsn-mailbox"
+></A
+>A.12.1. Check for Recipient Mailbox</H2
+><P
+>&#13;        The first method is performed in the <A
+HREF="exim-final.html#acl_rcpt_to_final"
+>acl_rcpt_to</A
+> ACL.  Here, we check that the
+        recipient address corresponds to a local mailbox:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  # Deny mail for users that do not have a mailbox (i.e. postmaster,
+  # webmaster...) if no sender address is provided.  These users do
+  # not send outgoing mail, so they should not receive returned mail.
+  #
+  deny
+    message     = This address never sends outgoing mail. \
+                  You are responding to a forged sender address.
+    log_message = bogus bounce for system user &#60;$local_part@$domain&#62;
+    senders     = : postmaster@*
+    domains     = +local_domains
+    !<TT
+CLASS="parameter"
+><I
+>mailbox check</I
+></TT
+>
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Unfortunately, how we perform the <TT
+CLASS="parameter"
+><I
+>mailbox
+        check</I
+></TT
+> will depend on how you deliver your mail (as
+        before, we extract the portion before the first <SPAN
+CLASS="QUOTE"
+>"="</SPAN
+>
+        sign of the recipient address, to accomodate for <A
+HREF="exim-sign.html"
+>Envelope Sender Signatures</A
+>):
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;            If mailboxes map to local user accounts on your server, we
+            can check that the recipient name maps to a user ID that
+            corresponds to <SPAN
+CLASS="QUOTE"
+>"regular"</SPAN
+> users on your
+            system, e.g. in the range 500 - 60000:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  set acl_m9 = ${extract{1}{=}{${lc:$local_part}}}
+  set acl_m9 = ${extract{2}{:}{${lookup passwd {$acl_m9}{$value}}}{0}}
+  condition  = ${if and {{&#62;={$acl_m9}{500}} {&#60;${acl_m9}{60000}}} {true}}
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          </P
+></LI
+><LI
+><P
+>&#13;            If you deliver mail to the <A
+HREF="http://asg.web.cmu.edu/cyrus/"
+TARGET="_top"
+>Cyrus</A
+> IMAP
+            suite, you can use the provided <B
+CLASS="command"
+>mbpath</B
+>
+            command-line utility to check that the mailbox exists.
+            You will want to make sure that the Exim user has
+            permission to check for mailboxes (for instance, you may
+            add it to the <TT
+CLASS="option"
+>cyrus</TT
+> group:
+            <B
+CLASS="command"
+># adduser exim4 cyrus</B
+>).
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  set acl_m9 = ${extract{1}{=}{${lc:$local_part}}}
+  condition  = ${run {/usr/sbin/mbpath -q -s user.$acl_m9} {true}}
+  
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          </P
+></LI
+><LI
+><P
+>&#13;            If you forward all mail to a remote machine for delivery,
+            you may need to perform a <A
+HREF="smtpchecks.html#callforward"
+>Recipient Callout Verification</A
+>
+            and let that machine decide whether to accept the mail.
+            You need to keep the original envelope sender intact in
+            the callout:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  verify = recipient/callout=use_sender
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          </P
+></LI
+></UL
+><P
+>&#13;        Since in the case of locally delivered mail, this mailbox
+        check duplicates some of the logic that is performed in the
+        routers, and since it is specific to the mail delivery
+        mechanism on our site, it is perhaps a bit kludgy for the
+        perfectionists among us.  So we will now provide an alternate
+        way.
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-dsn-noalias"
+></A
+>A.12.2. Check for Empty Sender in Aliases Router</H2
+><P
+>&#13;        You probably have a router named
+        <TT
+CLASS="option"
+>system_aliases</TT
+> or similar, to redirect mail
+        for users such as <TT
+CLASS="option"
+>postmaster</TT
+> and
+        <TT
+CLASS="option"
+>mailer-demon</TT
+>.  Typically, these aliases are
+        not used in the sender address of outgoing mail.  As such, you
+        can ensure that incoming <A
+HREF="gloss.html#dsn"
+><I
+CLASS="glossterm"
+>Delivery Status Notification</I
+></A
+>s are not routed
+        through it by adding the following condition to the router:
+
+        <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>!senders = : postmaster@*</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        A sample aliases router may now look like this:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;system_aliases:
+  driver         = redirect
+  domains        = +local_domains
+  !senders       = : postmaster@*
+  allow_fail
+  allow_defer
+  data           = ${lookup{$local_part}lsearch{/etc/aliases}}
+  user           = mail
+  group          = mail
+  file_transport = address_file
+  pipe_transport = address_pipe
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Although we now block bounces to <EM
+>some</EM
+>
+        system aliases, other aliases were merely shadowing existing
+        system users (such as <SPAN
+CLASS="QUOTE"
+>"root"</SPAN
+>,
+        <SPAN
+CLASS="QUOTE"
+>"daemon"</SPAN
+>, etc).  If you deliver local mail
+        through the the <TT
+CLASS="option"
+>accept</TT
+> driver, and use
+        <TT
+CLASS="option"
+>check_local_user</TT
+> to validate the recipient
+        address, you may now find yourself routing mail directly to
+        these system accounts.
+      </P
+><P
+>&#13;        To fix this problem, we now want to add an additional
+        condition in the router that handles your local mail
+        (e.g. <EM
+>local_user</EM
+>) to ensure that the
+        recipient not only exists, but is a <SPAN
+CLASS="QUOTE"
+>"regular"</SPAN
+>
+        user.  For instance, as above, we can check that the user ID
+        is in the range 500 - 60000:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  condition  = ${if and {{&#62;={$local_user_uid}{500}}\
+                         {&#60;{$local_user_uid}{60000}}}\
+                    {true}}
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        A sample router for local delivery may now look like this:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;local_user:
+  driver           = accept
+  domains          = +local_domains
+  check_local_user
+  condition        = ${if and {{&#62;={$local_user_uid}{500}}\
+                               {&#60;{$local_user_uid}{60000}}}\
+                              {true}}
+  transport        = <TT
+CLASS="parameter"
+><I
+>transport</I
+></TT
+>
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Beware that if you implement this method, the reject response
+        from your server in response to bogus bounce mail for system
+        users will be the same as for unknown recipients (<B
+CLASS="command"
+>550
+        Unknown User</B
+> in our case).
+      </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="exim-sign.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="exim-forward.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Adding Envelope Sender Signatures</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="exim.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Exempting Forwarded Mail</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

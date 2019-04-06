@@ -1,0 +1,261 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Predefiniowane dialogi</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apidlg3.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidlg5.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h2>
+Dialog wyboru koloru
+</h2>
+
+<P>
+Więc chodź, pomaluj mój świat na żółto i na niebieeeesko! No dobra, ale najpierw przydałoby się wybrać te kolory, bo inaczej pomalujemy świat na czarno, a przecież nie jesteśmy żadnymi wrednymi satanistami (bez względu na to, co sugeruje nazwa tej strony ;-)) i kolorki lubimy. Dialog, jaki sobie tym razem wyczarujemy, wygląda następująco:
+</P>
+
+<P align=center>
+<img src="../gfx/colordlg.gif" alt="Kolorowo, aż się niedobrze robi ;-)">
+</P>
+
+<P>
+Czarowanie rozpoczniemy, jak się pewnie domyślasz, od przedstawienia nowej struktury. Będzie to struktura typu <SPAN CLASS=T>CHOOSECOLOR</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>typedef struct</SPAN><BR>
+ {   <SPAN CLASS=C>// cc</SPAN><BR> 
+&nbsp;   DWORD        lStructSize;<BR>
+&nbsp;   HWND         hwndOwner;<BR>
+&nbsp;   HWND         hInstance;<BR> 
+&nbsp;   COLORREF     rgbResult;<BR>
+&nbsp;   COLORREF*    lpCustColors;<BR>
+&nbsp;   DWORD        Flags;<BR>
+&nbsp;   LPARAM       lCustData;<BR> 
+&nbsp;   LPCCHOOKPROC lpfnHook;<BR>
+&nbsp;   LPCTSTR      lpTemplateName;<BR>
+} CHOOSECOLOR; 
+</TD></TR>
+</TABLE>
+
+
+<P>
+Jak widzisz, w porównaniu z <SPAN CLASS=T>OPENFILENAME</SPAN> nie ma się czego bać :-). Zresztą znów możemy bezczelnie pominąć kilka pól, które na razie nam się nie przydadzą. Dwa pierwsze pola już znasz, takie same były w strukturze <SPAN CLASS=T>OPENFILENAME</SPAN>. Znaczenia czwartego i piątego się pewnie domyślasz - tak, tu będzie przechowywany rezultat dialogu.
+</P>
+<P>
+Zwróć uwagę na pole <SPAN CLASS=T>lpCustColors</SPAN>. Powinien on wskazywać na tablicę <SPAN CLASS=L>16</SPAN> kolorów. Musimy ją sobie sami stworzyć. Jak widać, na dialogu wyboru koloru mamy <SPAN CLASS=L>48</SPAN> predefiniowanych (standardowych) kolorów - tych zmieniać nie możemy, można je tylko wybrać, oraz <SPAN CLASS=L>16</SPAN> kolorów niestandardowych, definiowanych przez użytkownika. To właśnie na nie jest ta tablica. Jeśli jej nie utworzymy, dialog nie będzie miał gdzie przechowywać danych o tych kolorach.
+</P>
+<P>
+Tablicę, wskazywaną przez <SPAN CLASS=T>lpCustColors</SPAN> dobrze jest zainicjalizować, albo przynajmniej wyzerować funkcją <SPAN CLASS=T>ZeroMemory</SPAN>. Jeśli tego nie zrobimy, to nic złego się nie stanie, po prostu dialog będzie wyświetlał <SPAN CLASS=L>16</SPAN> przypadkowych kolorów.
+</P>
+<P>
+Nie pozostaje nic innego, jak tylko wypełnić strukturę i wywołać dialog na scenę:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+CHOOSECOLOR ccl;<BR>
+COLORREF TabKol[<SPAN CLASS=L>16</SPAN>];<BR>
+BOOL bResult;<BR>
+<BR>
+ZeroMemory(&ccl, <SPAN CLASS=K>sizeof</SPAN>(CHOOSECOLOR));<BR>
+ccl.lStructSize = <SPAN CLASS=K>sizeof</SPAN>(CHOOSECOLOR);<BR>
+ccl.hwndOwner = hwnd;<BR>
+ccl.lpCustColors = TabKol;<BR>
+ccl.Flags = CC_ANYCOLOR;<BR>
+bResult = ChooseColor(&ccl);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jeśli wszystko pójdzie zgodnie z planem, to funkcja <SPAN CLASS=T>ChooseColor</SPAN> zwróci <SPAN CLASS=T>TRUE</SPAN>. W przeciwnym wypadku będziemy musieli wywołać specjalną funkcję <SPAN CLASS=T>CommDlgExtendedError</SPAN> w celu sprawdzenia, jaki konkretnie błąd wystąpił. Jeśli <SPAN CLASS=T>ChooseColor</SPAN> zwróci <SPAN CLASS=T>FALSE</SPAN>, ale <SPAN CLASS=T>CommDlgExtendedError</SPAN> zwróci <SPAN CLASS=L>0</SPAN>, będzie to oznaczało, że żadnego błędu nie było, tylko użytkownik wcisnął przycisk Anuluj:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DWORD dwErr;<BR>
+bResult = ChooseColor(&ccl);<BR>
+<BR>
+<SPAN CLASS=K>if</SPAN>(bResult)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wybrano nowy kolor", "test"</SPAN>, MB_ICONINFORMATION);<BR>
+<SPAN CLASS=K>else</SPAN><BR>
+{<BR>
+&nbsp;dwErr = CommDlgExtendedError();<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(!dwErr)<BR>
+&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Anulowano wybór koloru", "test"</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wystąpił jakowyś błąd", "test"</SPAN>, MB_ICONSTOP);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Ten przykład ilustruje tylko samo wywołanie dialogu, nie robi nic z wybranym kolorem (który zwracany jest w polu <SPAN CLASS=T>rgbResult</SPAN>, jak nietrudno się domyślić) ani nawet nie sprawdza, czy użytkownik wybrał w ogóle jakiś kolor. To wszystko pozostawiam tobie do samodzielnych eksperymentów.
+</P>
+
+
+<h2>
+Dialog wyboru czcionki
+</h2>
+
+<P>
+Z wyborem czcionek sprawa ma się podobnie. Tym razem struktura nazywa się <SPAN CLASS=T>CHOOSEFONT</SPAN>, a funkcja otwierająca dialog - <SPAN CLASS=T>ChooseFont</SPAN>. Mamy też i flagi - w większości oznaczają one rodzaje czcionek, jakie mają być dostępne do wyboru:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>typedef struct</SPAN><BR> { <SPAN CLASS=C>   // cf</SPAN><BR> 
+&nbsp;DWORD        lStructSize;<BR>
+&nbsp;HWND         hwndOwner;<BR>
+&nbsp;HDC          hDC;<BR>
+&nbsp;LPLOGFONT    lpLogFont;<BR>
+&nbsp;INT          iPointSize;<BR>
+&nbsp;DWORD        Flags;<BR>
+&nbsp;DWORD        rgbColors;<BR> 
+&nbsp;LPARAM       lCustData;<BR>
+&nbsp;LPCFHOOKPROC lpfnHook;<BR>
+&nbsp;LPCTSTR      lpTemplateName;<BR>
+&nbsp;HINSTANCE    hInstance;<BR>
+&nbsp;LPTSTR       lpszStyle;<BR>
+&nbsp;WORD         nFontType;<BR>
+&nbsp;WORD         ___MISSING_ALIGNMENT__;<BR>
+&nbsp;INT          nSizeMin;<BR>
+&nbsp;INT          nSizeMax;<BR>
+} CHOOSEFONT;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Trochę tego więcej niż ostatnio, ale nie marudzimy i zabieramy się do roboty:
+</P>
+
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+CHOOSEFONT cfnt;<BR>
+LOGFONT lf;<BR>
+<BR>
+ZeroMemory(&cfnt, <SPAN CLASS=K>sizeof</SPAN>(CHOOSEFONT));<BR>
+cfnt.lStructSize = <SPAN CLASS=K>sizeof</SPAN>(CHOOSEFONT);<BR>
+cfnt.hwndOwner = hwnd;<BR>
+cfnt.Flags = CF_EFFECTS | CF_FORCEFONTEXIST | CF_SCREENFONTS;<BR>
+cfnt.lpLogFont = &lf;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Podobnie jak w przypadku dialogu z kolorkami, tutaj również potrzebujemy własnej zmiennej, tym razem typu <SPAN CLASS=T>LOGFONT</SPAN>. Wskaźnik do niej musimy przekazać w polu <SPAN CLASS=T>lpLogFont</SPAN> (ostatnia linijka przykładu). Jest to bardzo ważne, gdyż inaczej dialog nie będzie miał gdzie zapamiętać wybranej czcionki. Gdybyśmy dorzucili do flag <SPAN CLASS=T>CF_INITTOLOGFONTSTRUCT</SPAN>, a zmienna <SPAN CLASS=T>lf</SPAN> zawierałaby już prawidłowy opis czcionki, to dialog przyjąłby tę czcionkę za domyślną.
+</P>
+
+<P align=center>
+<img src="../gfx/fontdlg.gif" alt="Dialog wyboru czcionki">
+</P>
+
+<P>
+Użyliśmy trzech flag, jak widać. Pierwsza, <SPAN CLASS=T>CF_EFFECTS</SPAN>, oznacza że dialog powinien umożliwiać wybór efektów dla czcionki. Te efekty to: podkreślenie, przekreślenie oraz kolor. Nie są to zbyt potrzebne rzeczy, ale domyślnie są ukryte, co paskudnie wygląda.
+</P>
+<P>
+Flaga <SPAN CLASS=T>CF_FORCEFONTEXIST</SPAN> oznacza, że użytkownik musi wybrać istniejącą czcionkę. Jeśli menda wpisze złośliwie coś dziwnego w pole z nazwą czcionki, a ta flaga jest ustawiona, to system ochrzani użytkownika za pisanie głupot ;-).
+</P>
+<P>
+No i wreszcie <SPAN CLASS=T>CF_SCREENFONTS</SPAN> mówi systemowi, że ma nam wyświetlić tylko czcionki ekranowe. Gdyby była taka potrzeba, moglibyśmy wyświetlić tylko czcionki drukarki (flaga <SPAN CLASS=T>CF_PRINTERFONTS</SPAN>) albo i jedne, i drugie (flaga <SPAN CLASS=T>CF_BOTH</SPAN>). Jeśli natomiast nie damy żadnej z wymienionych w tym akapicie trzech flag, to dostaniemy uroczy (i absurdalny) komunikat, że nie zainstalowano żadnych czcionek w systemie, a następnie funkcja <SPAN CLASS=T>ChooseFont</SPAN> zwróci <SPAN CLASS=T>FALSE</SPAN>, co oznacza błąd.
+</P>
+<P>
+Jeśli jednak do takiej niewesołej sytuacji nie doszło, to <SPAN CLASS=T>ChooseFont</SPAN> zwraca <SPAN CLASS=T>TRUE</SPAN> i wówczas możemy skorzystać z kilku następnych pól naszej struktury <SPAN CLASS=T>CHOOSEFONT</SPAN>, ażeby uzyskać informacje o wybranej przez użytkownika czcionce. Pole <SPAN CLASS=T>iPointSize</SPAN> będzie wówczas zawierało wybrany rozmiar czcionki, <SPAN CLASS=T>rgbColors</SPAN> - jej kolor, <SPAN CLASS=T>nFontType</SPAN> - typ czcionki (zawiera informację o pogrubieniu / pochyleniu czcionki, o tym czy jest to czcionka ekranowa czy też czcionka drukarki itp.). No i najważniejsze pole - <SPAN CLASS=T>lpLogFont</SPAN> będzie zawierało wskaźnik do struktury <SPAN CLASS=T>LOGFONT</SPAN>, opisującej wybraną czcionkę.
+</P>
+<P>
+Pozostaje pytanie, jak wykorzystać informacje zawarte w <SPAN CLASS=T>LOGFONT</SPAN>... Wiemy bowiem, że aby wybrać czcionkę dla danego kontekstu, podajemu uchwyt do niej (typu <SPAN CLASS=T>HFONT</SPAN>). Na szczęście uzyskanie uchwytu na podstawie struktury <SPAN CLASS=T>LOGFONT</SPAN> nie jest to zbyt skomplikowane. Służy do tego funkcja <SPAN CLASS=T>CreateFontIndirect</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HFONT hfnMyFont;<BR>
+hfnMyFont = CreateFontIndirect(cfnt.lpLogFont);<BR>
+<SPAN CLASS=K>if</SPAN>(hfnMyFont == NULL)<BR>
+&nbsp;MessageBox(hwnd, <SPAN CLASS=L>"Wredna czciona nie chce się utworzyć..."</SPAN>, NULL, MB_ICONEXCLAMATION);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pora na krótki przykład zastosowania. Załóżmy, że mamy EDIT-a o globalnym uchwycie <SPAN CLASS=T>g_hEdit</SPAN>, przycisk (o uchwycie <SPAN CLASS=T>g_hButton</SPAN>) do otwierania dialogu wyboru czcionki oraz globalny uchwyt <SPAN CLASS=T>g_hfnNowy</SPAN> typu <SPAN CLASS=T>HFONT</SPAN> (domyślnie ustawiony na <SPAN CLASS=T>NULL</SPAN>):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_COMMAND:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>( (HWND)lParam != g_hButton ) <SPAN CLASS=K>break</SPAN>;<BR>
+<BR>
+&nbsp;CHOOSEFONT cfnt;<BR>
+&nbsp;LOGFONT lf;<BR>
+&nbsp;ZeroMemory(&cfnt, <SPAN CLASS=K>sizeof</SPAN>(CHOOSEFONT));<BR>
+&nbsp;cfnt.lStructSize = <SPAN CLASS=K>sizeof</SPAN>(CHOOSEFONT);<BR>
+&nbsp;cfnt.hwndOwner = hwnd;<BR>
+&nbsp;cfnt.Flags = CF_EFFECTS | CF_FORCEFONTEXIST | CF_SCREENFONTS;<BR>
+&nbsp;cfnt.lpLogFont = &lf;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(!ChooseFont(&cfnt))<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;DWORD dwErr = CommDlgExtendedError();<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(dwErr) MessageBox(hwnd, <SPAN CLASS=L>"Straszliwy błąd dialogu!"</SPAN>, NULL, MB_ICONEXCLAMATION);<BR>
+&nbsp;}<BR>
+&nbsp;<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(g_hfnNowy != NULL)<BR>
+&nbsp;&nbsp;&nbsp;DeleteObject(g_hfnNowy);<BR>
+&nbsp;&nbsp;g_hfnNowy = CreateFontIndirect(cfnt.lpLogFont);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(hfnNowy != NULL)<BR>
+&nbsp;&nbsp;&nbsp;SendMessage(g_hEdit, WM_SETFONT, (WPARAM)hfnNowy, MAKELPARAM(TRUE,<SPAN CLASS=L>0</SPAN>));<BR>
+&nbsp;}<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+<SPAN CLASS=K>case</SPAN> WM_DESTROY:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(g_hfnNowy != NULL) DeleteObject(g_hfnNowy);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>);<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+
+
+</TD></TR>
+</TABLE>
+
+<P>
+Jak łatwo się przekonać (a dla niektórych wystarczy nawet spojrzeć ;-)), powyższy kod sprawia, że naciśnięcie przycisku otwiera dialog wyboru czcionki, a w przypadku gdyby użytkownik był na tyle miły i wybrał jakąś, to czcionka ta zostanie ustawiona dla pola tekstowego.
+</P>
+
+<P>
+Do ustawienia czcionki dla okna (tutaj dla pola tekstowego) posłużyliśmy się komunikatem WM_SETFONT. Jego parametry to: uchwyt czcionki oraz flaga oznaczająca, czy po zmianie czcionki okno (kontrolka) ma być odświeżone (u nas jak najbardziej <SPAN CLASS=T>TRUE</SPAN>).
+</P>
+
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apidlg3.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apidlg5.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>

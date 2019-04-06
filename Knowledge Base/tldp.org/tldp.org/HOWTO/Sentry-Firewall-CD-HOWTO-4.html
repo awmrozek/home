@@ -1,0 +1,261 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Sentry Firewall CD HOWTO: Using the Sentry Firewall CDROM</TITLE>
+ <LINK HREF="Sentry-Firewall-CD-HOWTO-5.html" REL=next>
+ <LINK HREF="Sentry-Firewall-CD-HOWTO-3.html" REL=previous>
+ <LINK HREF="Sentry-Firewall-CD-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Sentry-Firewall-CD-HOWTO-5.html">Next</A>
+<A HREF="Sentry-Firewall-CD-HOWTO-3.html">Previous</A>
+<A HREF="Sentry-Firewall-CD-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Using the Sentry Firewall CDROM</A></H2>
+
+<H2><A NAME="ss4.1">4.1 Introduction</A>
+</H2>
+
+<P> The configuration scripts which are run from /etc/rc.d/rc.S first look for
+a configuration file called 'sentry.conf' on a floppy disk which, if present,
+will be mounted on /floppy.  In order to configure the Linux system for use
+in any particular environment the user must have the ability to replace the
+system default files with his/her own copies.  The 'sentry.conf' file basically
+tells the configuration scripts which files it should replace and where those
+files are.
+<P>A good example of a sentry.conf file can be found on the Sentry Firewall CD
+in the directory /SENTRY/scripts/cd-config/.  Configuration floppy disk
+images(1.44M) can also be found in /SENTRY/images/ on the CD.  These files are also
+available on the website, 
+<A HREF="http://www.SentryFirewall.com/">http://www.SentryFirewall.com/</A><P>
+<P><BR>
+<H2><A NAME="ss4.2">4.2 The sentry.conf file</A>
+</H2>
+
+<P> The main configuration file for the system is called 'sentry.conf'.  It will
+first be looked for on a floppy disk(/dev/fd0).  The file accepts several
+configuration directives, many of which will be discussed below.
+<P><BR>
+<H3>Example</H3>
+
+<P>A basic configuration file looks like the following (everything after a '#'
+sign is interpreted as a comment):
+<P>
+<PRE>
+----snip----
+## Basic Sentry Firewall CD config file(sentry.conf)
+
+rc.local = /floppy/config1/rc.local
+fstab = /floppy/config1/fstab
+
+passwd = /floppy/config1/passwd
+shadow = /floppy/config1/shadow
+
+# EOF #
+----snip----
+</PRE>
+<P>The syntax is pretty simple, the default 'rc.local' file will be replaced with
+the user defined 'rc.local' file located in the '/floppy/config1/' directory.  Same
+goes for 'fstab', 'passwd', and the 'shadow' file.   But it is important to
+remember, the first place the sentry.conf file will be looked for is on
+/dev/fd0, which if found, will be mounted on /floppy.  This is why all these
+files appear to be located in the /floppy directory, it is simply the mount
+point for the floppy disk.
+<P><B>NOTE:</B> As of version 1.3.0, a user may now omit the `/floppy'
+prefix.  So, for example a line in sentry.conf that says the following:
+<P>
+<PRE>
+   shadow = config1/shadow
+</PRE>
+<P>Will be assumed to mean(in most cases) the following:
+<PRE>
+   fstab = /floppy/config1/shadow
+</PRE>
+
+As long as /floppy/config1/shadow exists.
+<P>
+<P><BR>Unfortunately, you cannot arbitrarily replace files, for example the
+following will likely not be parsed correctly:
+<PRE>
+     foo.conf = /floppy/config1/foo.conf
+</PRE>
+<P>The configuration scripts only recognize a certain number of configuration
+files, so it probably won't know what to do with "foo.conf".  There are other
+very easy ways to copy configuration files into their proper location, however.
+These methods will be discussed below.
+<P>
+<P><BR>
+<H2><A NAME="ss4.3">4.3 Network Configuration</A>
+</H2>
+
+<P> As of version 1.0.5, a new syntax for the configuration directives are
+recognized; those with an "http://" or "ftp://" prefix.  This basically means
+that the following syntax is now supported:
+<PRE>
+     inetd.conf = ftp://[user:pass@]123.123.123.123/config1/inetd.conf
+     hosts = http://[user:pass@]123.123.123.123/config1/hosts
+</PRE>
+<P>As of version 1.3.0, "https://", "scp://", and "sftp://" URLs are also supported.
+For example:
+<PRE>
+     shadow = scp://&lt;user&gt;:&lt;pass&gt;@123.123.123.123/dir/shadow
+     passwd = sftp://&lt;user&gt;:&lt;pass&gt;@123.123.123.123/dir/passwd
+     fstab = https://[user:pass@]123.123.123.123/dir/fstab
+</PRE>
+<P><B>NOTE:</B> The username and password fields are required when retrieving files
+via scp or sftp.  Empty passwords are not permitted.
+<P>
+<P><BR>In order to accomplish this the configuration scripts need to have the
+ability to set up an ethernet interface, as well as obtain nameserver
+information from the sentry.conf file.  The syntax to accomplish this is the
+following:
+<PRE>
+     device{1..10} = &lt;device&gt;:&lt;driver&gt;:&lt;IP address&gt;[|Gateway_IP]
+
+     or..
+
+     device{1..10} = &lt;device&gt;:&lt;driver&gt;:dhcp[|Hostname]
+</PRE>
+<P>And to set up a nameserver:
+<PRE>
+     nameserver = &lt;IP_ADDRESS&gt;
+</PRE>
+<P>
+<P><BR>Additionally, when retrieving files using "http", "https", or "ftp",
+you may also set up a proxy server.  The following directives will allow you
+to do so (they may not all be required for your setup):
+<PRE>
+     http_proxy = http://&lt;hostname&gt;/
+     ftp_proxy = http://&lt;hostname&gt;/
+     proxy-user = &lt;PROXY_USER&gt;
+     proxy-passwd = &lt;PROXY_PASSWORD&gt;
+</PRE>
+<P>
+<P>Passive FTP may also be required.  If so, use the 'passive-ftp' option, ie:
+<PRE>
+     passive-ftp = &lt;on|off>  ## Default == off
+</PRE>
+<P>
+<P><BR>So, for example to set up an interface called "eth0", which uses the "tulip"
+driver and can obtain its ip address from a DHCP server, we can use the
+following line:
+<PRE>
+     device1 = eth0:tulip:dhcp
+</PRE>
+<P>
+<P> As you can see, a total of 10 devices are allowed.  Let's say we now want to
+set up an interface "eth1" that uses an "rtl8139" chip, and has a static
+IP(192.168.1.2) and a default gateway(192.168.1.1):
+<PRE>
+     device2 = eth1:8139too:192.168.1.2|192.168.1.1
+</PRE>
+<P><B>NOTE:</B> It is important to keep in mind that whatever devices you set up during the
+configuration process will be promptly taken down after the configuration is
+complete.  This setup is only used so you can retrieve configuration files over
+the network, via http(s)/ftp/scp/sftp.  For more permanent network configuration, please
+use the rc.inet1 file.
+<P>
+<P><BR>
+<H3>Example</H3>
+
+<P>
+<PRE>
+----snip----
+## Basic Sentry Firewall CD config file to retrieve files via HTTP(s)/FTP/SCP/SFTP.
+
+device1 = eth0:tulip:192.168.1.2|192.168.1.1
+nameserver = 123.123.123.123  ## This should be the IP of your DNS server.
+
+rc.M = ftp://user:pass@config.sentry.net/node1/rc.M
+rc.inet1 = http://user:pass@config.sentry.net/all_nodes/rc.inet1
+
+passwd = scp://user:pass@config.sentry.net/all_nodes/passwd
+shadow = sftp://user:pass@config.sentry.net/node1/shadow
+
+# EOF #
+----snip----
+</PRE>
+<P><BR>
+<H2><A NAME="ss4.4">4.4 Other Useful Configuration Directives</A>
+</H2>
+
+<P> Copy file /floppy/someconfig.conf to /etc/someconfig.conf -
+<PRE>
+     /floppy/someconfig.conf |= /etc/someconfig.conf
+
+     OR, this does the same thing -
+
+     /etc/someconfig.conf = /floppy/someconfig.conf
+
+     and this is also possible(v1.3.0) -
+
+     /etc/someconfig.conf = ftp://&lt;server>/someconfig.conf
+</PRE>
+<P>Make a symlink called /etc/someconfig.conf that points to
+/etc/otherconfig.conf -
+<P>
+<PRE>
+     /etc/someconfig.conf => /etc/otherconfig.conf
+</PRE>
+<P>The include directive.  Grabs another sentry.conf file either from another
+location -
+<PRE>
+     include = ftp://user:pass@config.sentry.net/node1/sentry.conf
+</PRE>
+<P>Keep in mind, however, that the include directive is one of the first directives
+to be parsed.  Any configuration directives parsed from the included sentry.conf
+file that conflict with directives in the previously parsed sentry.conf files
+will clobber the old ones.
+<P>
+<P><BR>
+<H2><A NAME="ss4.5">4.5 Putting it all together, managing multiple nodes from a single location.</A>
+</H2>
+
+<P> In order to manage multiple nodes at a single location, you can use a bare
+sentry.conf file located on a floppy disk, and then grab files from your ftp or
+http servers.
+<P>
+<PRE>
+----snip----
+## Basic Sentry Firewall CD config file.
+
+device1 = eth0:tulip:dhcp
+nameserver = &lt;DNS_IP&gt;
+include = ftp://user:pass@config.sentry.net/node1/sentry.conf
+
+----snip----
+</PRE>
+<P>The included sentry.conf file will then be parsed, and files replaced via http
+or ftp if you like.  You can now edit your sentry.conf and configuration files
+at a central location.
+<P>
+<P><BR>
+<H2><A NAME="ss4.6">4.6 Example sentry.conf and disk images</A>
+</H2>
+
+<P> An example configuration disk image is available on the CDROM.  The disk is
+an ext2 formatted disk, and is located in the '/SENTRY/images/' directory on the
+CD.  There is also a very complete sentry.conf file on the disk which may help
+clarify alot of these directives.  Use a command like the following to create
+the configuration disk:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+blah@wherever:~$ dd if=/cdrom/SENTRY/images/ext2-144.img of=/dev/fd0
+2880+0 records in
+2880+0 records out
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The disk images and a sample sentry.conf file can also be found on the website,
+<A HREF="http://www.SentryFirewall.com/">http://www.SentryFirewall.com/</A><P>
+<P>
+<P>
+<P>
+<P><BR>
+<HR>
+<A HREF="Sentry-Firewall-CD-HOWTO-5.html">Next</A>
+<A HREF="Sentry-Firewall-CD-HOWTO-3.html">Previous</A>
+<A HREF="Sentry-Firewall-CD-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

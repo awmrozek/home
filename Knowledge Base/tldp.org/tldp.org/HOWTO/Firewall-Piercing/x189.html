@@ -1,0 +1,381 @@
+<HTML
+><HEAD
+><TITLE
+>Secure solution: piercing using ssh</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="Firewall Piercing mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Understanding the problem"
+HREF="x137.html"><LINK
+REL="NEXT"
+TITLE="Unsecure solution: piercing using telnet"
+HREF="x244.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Firewall Piercing mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x137.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x244.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN189"
+>4. Secure solution: piercing using ssh</A
+></H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN191"
+>4.1. Principle</A
+></H2
+><P
+>Let's assume that your firewall administrator allows
+transparent TCP connections to some port on some server machine
+on the other side of the firewall
+(be it the standard SSH port 22, or an alternate destination port,
+like the HTTP port 80 or whatever),
+or that you somehow managed to get some port in one side of the firewall
+to get redirected to a port on the other side
+(using <B
+CLASS="COMMAND"
+>httptunnel</B
+>, <B
+CLASS="COMMAND"
+>mailtunnel</B
+>,
+some tunnel over <B
+CLASS="COMMAND"
+>telnet</B
+>, or whatelse).</P
+><P
+>Then, you can run an <B
+CLASS="COMMAND"
+>sshd</B
+> on the server side port,
+and connect to it with an <B
+CLASS="COMMAND"
+>ssh</B
+> on the client side port.
+On both sides of the <B
+CLASS="COMMAND"
+>ssh</B
+> connection,
+you run IP emulators ( <B
+CLASS="COMMAND"
+>pppd</B
+>),
+and there you have your VPN, Virtual Public Network,
+that circumvents the stupid firewall limitations,
+with the added bonus of being encrypted for privacy
+(beware: the firewall administrator still knows the other end of the tunnel,
+and whatever authentication information you might have sent before to run
+<B
+CLASS="COMMAND"
+>ssh</B
+>).</P
+><P
+>The exact same technology can be used to build a VPN, Virtual Private Network,
+whereby you securely join physical sites into a one logical network
+without sacrificing security with respect to the transport network
+between the sites.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN204"
+>4.2. A sample session</A
+></H2
+><P
+>Below is a sample script for you to adapt to your needs.
+It uses the array feature of <B
+CLASS="COMMAND"
+>zsh</B
+>,
+but you may easily adapt it to your favorite shell.
+Use option <B
+CLASS="COMMAND"
+>-p</B
+> for <B
+CLASS="COMMAND"
+>ssh</B
+>
+to try another port than port 22
+(but then, be sure to run <B
+CLASS="COMMAND"
+>sshd</B
+> on same port).</P
+><P
+>Note that the script supposes that <B
+CLASS="COMMAND"
+>ssh</B
+>
+can login without your having to interactively type your password
+(indeed, it's controlling tty will be connected to <B
+CLASS="COMMAND"
+>pppd</B
+>,
+so if it asks for a password, you lose).
+This can be done either by ssh keys in your
+<TT
+CLASS="FILENAME"
+>&#732;/.ssh/authorized_keys</TT
+>
+that either do not require a password,
+or that you unlock using <B
+CLASS="COMMAND"
+>ssh-agent</B
+>
+or <B
+CLASS="COMMAND"
+>ssh-askpass</B
+>.
+See your SSH documentation.
+Actually, you might also use a <B
+CLASS="COMMAND"
+>chat</B
+> script
+to enter your password,
+but this is definitely <EM
+>not</EM
+> the Right Thing.</P
+><P
+>If you are not <B
+CLASS="COMMAND"
+>root</B
+> on the server end,
+or simply if want to screen your client's network from outbound connections,
+you can use <B
+CLASS="COMMAND"
+>slirp</B
+> instead of <B
+CLASS="COMMAND"
+>pppd</B
+>
+as the server's PPP emulator.
+Just uncomment the relevant line.</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>#!/bin/zsh -f
+SERVER_ACCOUNT=root@server.fqdn.tld
+SERVER_PPPD="pppd ipcp-accept-local ipcp-accept-remote"
+#SERVER_PPPD="pppd" ### This usually suffices if it's in /usr/sbin/
+#SERVER_PPPD="/home/joekluser/bin/slirp ppp"
+CLIENT_PPPD=( pppd
+	silent
+	10.0.2.15:10.0.2.2
+	### For debugging purposes, you may uncomment the following:
+	# updetach debug
+	### Another potentially useful option (see section on Routing):
+	# defaultroute
+)
+$CLIENT_PPPD pty "ssh -t $SERVER_ACCOUNT $SERVER_PPPD"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Note that default options from your <TT
+CLASS="FILENAME"
+>/etc/ppp/options</TT
+>
+or <TT
+CLASS="FILENAME"
+>&#732;/.slirprc</TT
+>
+may break this script, so remove any unwanted option from there.</P
+><P
+>Also note that <TT
+CLASS="LITERAL"
+>10.0.2.2</TT
+>
+is the default setting for <B
+CLASS="COMMAND"
+>slirp</B
+>,
+which might or not fit your specific setup.
+In any case, you should most likely be using some address in one
+of the ranges reserved by RFC 1918 for private networks:
+<TT
+CLASS="LITERAL"
+>10.0.0.0/8</TT
+>,
+<TT
+CLASS="LITERAL"
+>172.16.0.0/12</TT
+> or <TT
+CLASS="LITERAL"
+>192.168.0.0/16</TT
+>.
+The firewall-protected LAN might already be using some of them,
+and avoiding clashes is your responsibility.
+For more customization, please read the appropriate documentation.</P
+><P
+>If your client's <B
+CLASS="COMMAND"
+>pppd</B
+> is old or non-linux (e.g. BSD)
+and hasn't got the <B
+CLASS="COMMAND"
+>pty</B
+> option, use
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>cotty -d -- $CLIENT_PPPD -- ssh -t $SERVER_ACCOUNT $SERVER_PPPD</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Catches: don't put quotes around commands given to cotty,
+as they are just <B
+CLASS="COMMAND"
+>exec()</B
+>'d as is,
+and don't forget to specify the full path for
+the server's <B
+CLASS="COMMAND"
+>pppd</B
+>
+if it's not in the standard path setup by <B
+CLASS="COMMAND"
+>ssh</B
+>.</P
+><P
+>Automatic reconnection is left as an exercise to the reader
+(hint: the <B
+CLASS="COMMAND"
+>nodetach</B
+> option from <B
+CLASS="COMMAND"
+>pppd</B
+>
+might help for that).</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x137.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x244.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Understanding the problem</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Unsecure solution: piercing using telnet</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

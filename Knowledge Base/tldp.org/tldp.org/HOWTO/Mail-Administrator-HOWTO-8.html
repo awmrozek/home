@@ -1,0 +1,214 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux Electronic Mail Administrator HOWTO: Handling remote mail</TITLE>
+ <LINK HREF="Mail-Administrator-HOWTO-9.html" REL=next>
+ <LINK HREF="Mail-Administrator-HOWTO-7.html" REL=previous>
+ <LINK HREF="Mail-Administrator-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Mail-Administrator-HOWTO-9.html">Next</A>
+<A HREF="Mail-Administrator-HOWTO-7.html">Previous</A>
+<A HREF="Mail-Administrator-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8. Handling remote mail</A></H2>
+
+<P>
+<P>This section describes using POP or IMAP to handle remote mail.
+<P>Other options include nfs-mounting the spool partition on client
+machines (Danger Will Robinson! Is everyone using the same lock
+method?) or using a mail-to-web gateway (quite popular now).
+<P>
+<H2><A NAME="ss8.1">8.1 History </A>
+</H2>
+
+<P>
+<P>On a workstation network, mail has always been a problem:
+<P>
+<UL>
+<LI>Either you use "user@computer.foo.com" with problems when "computer" is
+down, making your network known to the people outside, having different
+addresses for a same person switching to another computer, ... 
+</LI>
+<LI>Or you take a mail hub, "mailhost.foo.com" with rules for rewriting,
+so every user seems to post from the same address, even if they are on
+different computers.</LI>
+</UL>
+<P>But in that case, how can users read their mail?
+<P>Using a rsh with elm? :-)
+<P>It would overload our mail hub!
+One method was forwarding or UUCP, smtp, etc. but it's too complicated.
+<P>Then came POP/IMAP, both with security problems at the beginning, (now
+fixed using ssh on new versions): a mail program has sometimes to be set
+locally (like qmail, smail or vmail if, for example, you use elm, but
+mozilla will avoid that!) however, getting and sending Email is simpler.
+<P>
+<H2><A NAME="ss8.2">8.2 Getting mail </A>
+</H2>
+
+<P>
+<P>Here come POP's main drawbacks:
+<P>
+<UL>
+<LI>the password is sent as a clear text on the network,</LI>
+<LI>you must choose a POP-aware mailer; many do now (like Pine,
+Emacs, Mozilla, Netscape, Mutt, IE, Pegasus, Eudora, Claris...),</LI>
+<LI>when a user may roam (read mail from different machines) having
+e-mail popped on the computer used yesterday can be a nuisance,</LI>
+<LI>some POP servers (e.g. qpopper, ipop3d) on high-use servers can
+load the machine significantly. Consider controlling options (such as
+not leaving mail on the server) and/or changing the pop server
+(e.g. cucipop), as well as avoiding running it from inetd.</LI>
+</UL>
+<P>The password problem can be solved creating a crypted "channel" to have
+POP on it or using APOP or RPOP extensions. The mail reader problem can
+be solved either by changing mail reader (don't underestimate the effort
+required to re-educate users!) or by using a POP "mail sucker" with a
+local mail program.
+<P>IMAP can be preferable to POP in various situations like remote (and
+especially roaming) access, while you restrict POP to a LAN where
+snooping of passwords isn't so much of a concern.  Mark Aitchison
+reported a solution here is to use hosts.deny and hosts.allow files
+(please see Net-3 HOWTO ; this assumes you are starting pop from
+inet).
+<P>The policy of leaving mail on the server or not has implications for
+server disk space and easier backup/security of the mail, as well as
+allowing roaming, so the best solution depends on the type of
+organization. Of course, this will not ensure your mail can't be read,
+but nobody will be able to delete it ; if all your mail is pgp
+encrypted this is a better solution.
+<P>Here are some pop programs worth trying:
+<P>
+<UL>
+<LI> gwpop (a Good Way to POP) is very protected since it creates a crypted
+"channel" and puts mail directly in the "spool" ; however, it depends on Perl.</LI>
+<LI> popclient, simple to use:
+
+For example if your login is john and your password
+PrettySecret, you will run:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+$ popclient -3 -v mail.acme.net -u john -p "PrettySecret" -k -o JOHN-INET-MAIL
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+It is strongly discouraged in case of multi-user machine;
+other user can see your password by, for example with "ps auxw"
+</LI>
+<LI> fetchmail, which is actively supported and incredibly simple to use:
+it is configured in <CODE>~/.fetchmailrc</CODE>, so you only need to run
+<CODE>fetchmail</CODE> when you want to retrive your mail.
+
+Here's my .fetchmailrc:
+<BLOCKQUOTE><CODE>
+<PRE>
+poll mail.server protocol pop3:
+        forcecr
+        password PrettySecret;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+Don't forget to "chmod 600 &nbsp;/.fetchmailrc" or fetchmail will ask for it.
+
+Please note that the forcecr option is needed to use fetchmail with
+qmail, which strictly respects RFCs.</LI>
+</UL>
+<P>
+<H2><A NAME="ss8.3">8.3 Sending mail </A>
+</H2>
+
+<P>
+<P>For this, you must use smtp-aware mail software, like qmail, smail, vmail
+or mozilla (this one does everything: mail reader, POP receive, smtp send!)
+<P>Go to one of the previous sections to install and configure the one
+you like best. Then, when you will reach "Testing", try to send some
+mail to a local account on the mail hub.
+<P>
+<H2><A NAME="ss8.4">8.4 Reading mail </A>
+</H2>
+
+<P>
+<P>If your program doesn't do everything itself, you can install elm, pgp, mush,
+pine ... many good programs are freely available for linux platforms!
+<P>
+<H2><A NAME="ss8.5">8.5 Testing </A>
+</H2>
+
+<P>
+<P>To check whether your mail server has pop, try:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ telnet mailhost 110
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If it works, you will get something like "OK Pop server (...) starting": type
+"quit"!
+<P>To install a ssh crypted "channel", first test your mail server typing:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ ssh mailhost date
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you get the date, you should be OK. Please note ssh will not ask
+for a password, therefore you must create a ".shosts" file on the mail
+server, containing client's name. To test ssh port redirection (which
+gwpop uses), type:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ ssh -n -f -L 12314:localhost:110 mailhost sleep 30
+
+then
+
+$ telnet localhost 12314
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Then will you hopefully see mail hub's pop banner. If you don't use
+ssh, don't forget to comment out $ssh on gwpop script. To check
+whether procmail is running, try "procmail -v"
+<P>
+<H2><A NAME="ss8.6">8.6 Using </A>
+</H2>
+
+<P>
+<P>Now you can edit gwpop Perl script to check everything is ok, then run gwpop:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ gwpop -v your-username
+POP password on mailhost: yoursecretpasword
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If gwpop "error messages" are normal, the mail from mail hub will be downloaded
+to your local machine wherever you told gwpop to put it.
+(please test with some mail!).
+<P>You can also use gwpop as a daemon:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ gwpop -d $HOME/tmp your-username
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>gwpop messages are then sent to syslog and gwpop will run endlessly ; a "HUP"
+signal will force gwpop to get your mail.
+<P>You can get POP software here used on:
+<BLOCKQUOTE><CODE>
+<PRE>
+ftp://ftp.unina.it/pub/Unix/pkgs/network/mail/gwpop
+ftp://ftp.informatik.rwth-aachen.de/pub/packages/procmail
+http://www.cs.hut.fi/ssh/
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="Mail-Administrator-HOWTO-9.html">Next</A>
+<A HREF="Mail-Administrator-HOWTO-7.html">Previous</A>
+<A HREF="Mail-Administrator-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

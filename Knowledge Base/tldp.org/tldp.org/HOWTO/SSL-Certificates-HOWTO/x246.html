@@ -1,0 +1,294 @@
+<HTML
+><HEAD
+><TITLE
+>Securing Internet Protocols.</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="SSL Certificates HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Using Certificates in Applications"
+HREF="c244.html"><LINK
+REL="PREVIOUS"
+TITLE="Using Certificates in Applications"
+HREF="c244.html"><LINK
+REL="NEXT"
+TITLE="Securing E-mails."
+HREF="x282.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>SSL Certificates HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="c244.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. Using Certificates in Applications</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x282.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN246">3.1. Securing Internet Protocols.</H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN248">3.1.1. Using a certificate with mod_ssl in apache</H2
+><P
+>First never use your self-signed root CA Certificate with any application and especially with apache as it requires you to remove the passphrase on your private key.</P
+><P
+>First generate and sign a certificate request with the Common Name (CN) as www.mysite.com. Remove any extra information to keep only the ---CERTIFCATE --- part.</P
+><P
+>The key needs to be made insecure, so no password is required when reading the private key. Take the newreq.pem files that contains your private key and remove the passphrase from it. </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl rsa -in newreq.pem -out wwwkeyunsecure.pem</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Because the key (PRIVATE Key) is insecure, you must know what you are doing: check file permissions, etc... If someone gets its hand on it, your site is compromised (you have been warned). Now you can use the newcert and cakeyunsecure.pem for apache.</P
+><P
+>Copy wwwkeyunsecure.pem and newcert.pem in the directory /etc/httpd/conf/ssl/ as wwwkeyunsecure.pem and wwwcert.crt respectively.</P
+><P
+>Edit /etc/httpd/conf/ssl/ssl.default-vhost.conf.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>---- 
+# Server Certificate: 
+# Point SSLCertificateFile at a PEM encoded certificate. If 
+# the certificate is encrypted, then you will be prompted for a 
+# pass phrase. Note that a kill -HUP will prompt again. A test 
+# certificate can be generated with `make certificate' under 
+# built time. 
+#SSLCertificateFile conf/ssl/ca.crt 
+SSLCertificateFile wwwcert.crt
+# Server Private Key: 
+# If the key is not combined with the certificate, use this 
+# directive to point at the key file. 
+#SSLCertificateKeyFile conf/ssl/ca.key.unsecure 
+SSLCertificateKeyFile wwwkeyunsecure.pem 
+----</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Stop and start httpd (/etc/rc.d/init.d/httpd stop) ensure that all processes are dead (killall httpd) and start httpd (/etc/rc.d/init.d/httpd start)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN259">3.1.2. Using a certificate with IMAPS</H2
+><P
+>Read the paragraph on &#8220;Using a certificate with POPS&#8221;, for more information.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN262">3.1.3. Using a certificate with POPS</H2
+><P
+>A pem file for ipop3sd can be created by generating a certificate, unsecuring the private key and combining the two into /etc/ssl/imap/ipop3sd.pem. This is the location where the imap rpm on Mandrake 9.0 expects to find the file. A similar procedure can be used for imap and putting the file in /etc/ssl/imap/imapsd.pem.</P
+><P
+>The CN should be the name that the mail client connects to (e.g mail.xyz.org). In MS-Outlook, on the server tab, enter for the incoming mail server mail.xyz.org and on the Advanced tab check the &#8220;This server requires a secure connection (SSL)&#8221;, this will change the connection port to 995 (imaps). The trusted root CA must be installed in MS Internet Explorer to validate the certificate from mail.xyz.org.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN266">3.1.4. Using a certificate with Postfix</H2
+><P
+>FIXME</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN269">3.1.5. Using a certificate with Stunnel</H2
+><P
+>FIXME</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN272">3.1.6. Generate and Sign a key with Microsoft Key Manager</H2
+><P
+>In Microsoft Key Manager, select the service you want to create a key for, for instance IMAP (or WWW). Use the wizard to generate a new key. Ensure that the distinguished name won't be identical to previous generated keys, for Instance for the Common Name (CN) use imap.mycompany.com. The wizard will place the request in the file C:\NewKeyRq.txt. Key Manager shows a Key with a strike to indicate the key is not signed.</P
+><P
+>Import this file in the OpenSSL /var/ssl directory, rename it to newreq.pem and sign the request as usual. </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>CA.pl -sign</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The file newcert.pem is not yet suitable for key manager as it contains some text and the -CERTIFICATE- section. We have to remove the text, the easy way is to do: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>openssl x509 -in newcert.pem -out newcertx509.pem</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Using a text editor is also suitable to delete everything outside the -CERTIFICATE- section.</P
+><P
+>The newcertx509.pem file now contains only the -CERTIFICATE- section.</P
+><P
+>Export the file newcertx509.pem to the Computer running key Manager and while selecting the key icon in the Key Manager application, right click and click on Install the Key Certificate, select this file, enter the passphrase. The key is now fully functional.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="c244.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x282.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Using Certificates in Applications</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c244.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Securing E-mails.</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

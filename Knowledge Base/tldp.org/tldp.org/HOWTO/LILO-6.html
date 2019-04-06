@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>LILO mini-HOWTO: How do i know the BIOS number for my SCSI disks</TITLE>
+ <LINK HREF="LILO-7.html" REL=next>
+ <LINK HREF="LILO-5.html" REL=previous>
+ <LINK HREF="LILO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="LILO-7.html">Next</A>
+<A HREF="LILO-5.html">Previous</A>
+<A HREF="LILO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6.</A> <A HREF="LILO.html#toc6">How do i know the BIOS number for my SCSI disks</A></H2>
+
+<P><EM>The contribution from Marc Tanguy (mtanguy@ens.uvsq.fr), 2001-09-27</EM></P>
+
+
+<H2><A NAME="ss6.1">6.1</A> <A HREF="LILO.html#toc6.1">The theory</A>
+</H2>
+
+<P>Actually, it exists two ways to know it :</P>
+
+<P>If you have an adaptec scsi card (2940u2, 29160, 39160), you simply
+use the 'diagnose' mode (using BIOS v3.10.0 recommended). It must be
+activated in the scsi card BIOS menu.
+Then you just have to wait and see something like :</P>
+<P>
+<BR><CENTER>
+<TABLE BORDER><TR><TD>
+... </TD><TD> ID </TD><TD> LUN </TD><TD> Vendor </TD><TD> Product </TD><TD> Rev </TD><TD> Size </TD><TD> Sync </TD><TD> Bus </TD><TD><B>HD#</B> </TD></TR><TR><TD>
+... </TD><TD> 0 </TD><TD> 0 </TD><TD> QUANTUM </TD><TD> ATLAS10K2 </TD><TD> DDD6 </TD><TD> 17GB </TD><TD> 160 </TD><TD> 16 </TD><TD><B>80h</B> </TD></TR><TR><TD>
+... </TD><TD> 1 </TD><TD> 0 </TD><TD> QUANTUM </TD><TD> ATLAS10K2 </TD><TD> DDD6 </TD><TD> 17GB </TD><TD> 160 </TD><TD> 16 </TD><TD><B>81h</B> </TD></TR><TR><TD>
+... </TD><TD> 2 </TD><TD> 0 </TD><TD> IBM </TD><TD> DDRS </TD><TD> DC1B </TD><TD> 4GB </TD><TD> 80 </TD><TD> 16 </TD><TD><B>82h</B> </TD></TR><TR><TD>
+... </TD><TD> 3 </TD><TD> 0 </TD><TD> IBM </TD><TD> DNES </TD><TD> SAH0 </TD><TD> 9GB </TD><TD> 80 </TD><TD> 16 </TD><TD><B>83h</B>
+</TD></TR></TABLE>
+</CENTER><BR>
+</P>
+
+<P>If you don't own an adaptec card, you have to
+know what is the 'booting' disk (usually ID 0, but not necessary, it
+can be defined in the scsi card BIOS) where LILO is going to be found
+and start : this is the first disk so it has number 0x80.
+Then it's very simple, the BIOS follows the IDs.</P>
+
+<P>By example :</P>
+<P>
+<PRE>
+ID 0 -> boot  -> 0x80
+ID 1 -> empty
+ID 2 -> disk  -> 0x81
+ID 3 -> disk  -> 0x82
+</PRE>
+</P>
+<P>or</P>
+<P>
+<PRE>
+ID 0 -> disk  -> 0x81
+ID 1 -> empty
+ID 2 -> disk  -> 0x82
+ID 3 -> boot  -> 0x80
+ID 4 -> disk  -> 0x83
+</PRE>
+</P>
+
+<P>This part doesn't care at all of what is installed on the scsi drives.
+But you should note that if you use an ID higher than the SCSI adapter it c
+an
+be a problem. So you should always try to set the SCSI adapter ID after the
+SCSI devices IDs.</P>
+
+
+<H2><A NAME="ss6.2">6.2</A> <A HREF="LILO.html#toc6.2">How to swap linux and NT booting ?</A>
+</H2>
+
+<P>OK, but NT must be the first disk to boot, so i want it in 0x80, but i
+already have LILO and a full ext2 only drive on 0x80 and my NT drive is
+in 0x83. How can i 'swap' linux and NT ?
+This a very easy : you just have to tell BIOS that NT drive is now 0x80
+and the Linux drive is 0x83.</P>
+<P>
+<PRE>
+other=/dev/sdd1
+      label=nt
+      map-drive = 0x83
+      to = 0x80
+      map-drive = 0x80
+      to = 0x83
+</PRE>
+</P>
+<P>This change will produce a warning :
+<PRE>
+  Warning: BIOS drive 0x8? may not be accessible
+</PRE>
+</P>
+<P>but if you know what you are doing it will run without problem.</P>
+<P>I used it on this configuration which has a Red Hat Linux 7.1 and a Windows
+2000 Pro :</P>
+<P>
+<PRE>
+Name        Flags      Part Type  FS Type          [Label]        Size (MB)
+
+Disk Drive: /dev/sda - 0x80
+sda1        Boot        Primary   Linux ext2       [/boot]            24.68
+sda2                    Primary   Linux Swap                         139.83
+sda3                    Primary   Linux ext2       [/usr]           3150.29
+sda4                    Primary   Linux ext2       [/home]         15044.04
+
+Disk Drive: /dev/sdb - 0x81
+sdb1                    Primary   Linux Swap                         139.83
+sdb2                    Primary   Linux ext2       [/]              3150.29
+sdb3                    Primary   Linux ext2       [/opt]           1052.84
+sdb4                    Primary   Linux ext2       [/public]       14015.88
+
+Disk Drive: /dev/sdc - 0x82
+sdc1                    Primary   Linux ext2       [/var]           1052.84
+sdc2                    Primary   Linux ext2       [/tmp]            106.93
+sdc3                    Primary   Linux ext2       [/cache]         1052.84
+sdc4                    Primary   Linux ext2       [/chroot]        2352.44
+
+Disk Drive: /dev/sdd - 0x83
+sdd1        Boot        Primary   NTFS             [WINDOWS_2000]   9162.97
+</PRE>
+</P>
+
+<P>My full /etc/lilo.conf :
+<PRE>
+boot=/dev/sda
+map=/boot/map
+install=/boot/boot.b
+prompt
+default=Linux
+read-only
+compact
+image=/boot/vmlinuz
+  label=Linux
+  root=/dev/sdb2
+other=/dev/sdd1
+  label=Windows
+  map-drive = 0x83
+  to = 0x80
+  map-drive = 0x80
+  to = 0x83
+</PRE>
+</P>
+
+
+<H2><A NAME="ss6.3">6.3</A> <A HREF="LILO.html#toc6.3">Miscellaneous</A>
+</H2>
+
+<P>I just plugged a new scsi drive, and now LILO refuse to boot, what's
+going on ?</P>
+<P>When you plug a disk, you must be careful with the IDs. If you add a drive
+between two already plugged disks the BIOS numbers are changed :</P>
+<P>
+<PRE>
+         Before            ---->             After
+scsi id -       - BIOS id        scsi id -          - BIOS id
+ID 0    - disk  - 0x80           ID 0    - disk     - 0x80
+ID 1    - empty                  ID 1    - new disk - 0x81
+ID 2    - disk  - 0x81           ID 2    - disk     - 0x82 !!
+</PRE>
+</P>
+<P>If you change the BIOS ids, you have to re-evaluate them.</P>
+
+
+<HR>
+<A HREF="LILO-7.html">Next</A>
+<A HREF="LILO-5.html">Previous</A>
+<A HREF="LILO.html#toc6">Contents</A>
+</BODY>
+</HTML>

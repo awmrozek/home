@@ -1,0 +1,244 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Ftape-HOWTO: Getting and installing ftape</TITLE>
+ <LINK HREF="Ftape-HOWTO-5.html" REL=next>
+ <LINK HREF="Ftape-HOWTO-3.html" REL=previous>
+ <LINK HREF="Ftape-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ftape-HOWTO-5.html">Next</A>
+<A HREF="Ftape-HOWTO-3.html">Previous</A>
+<A HREF="Ftape-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Getting and installing <CODE>ftape</CODE></A></H2>
+
+<P>
+<P>
+<P>
+<H2><A NAME="getting"></A> <A NAME="ss4.1">4.1 Getting <CODE>ftape</CODE></A>
+</H2>
+
+<P>
+<P>The v2.0.x versions of the kernel include version 2.08 of <CODE>ftape</CODE> I
+recommend, however, that you grab the latest version of the full source
+code package for <CODE>ftape</CODE>. It is a newer version, includes files that
+are not included in the kernel v2.0.X distribution, and includes much
+better documentation about how to install <CODE>ftape</CODE>.
+The v2.1.x and later versions of the kernel include the version 3.04
+of <CODE>ftape</CODE>.
+<P>
+<P>I recommend that you download the latest stable version of <CODE>ftape</CODE>
+which is 4.02 at the time of this writing and is available from
+<P>
+<A HREF="http://www-math.math.rwth-aachen.de/~LBFM/claus/ftape/archives.html">http://www-math.math.rwth-aachen.de/~LBFM/claus/ftape/archives.html</A><P>as well as from
+<P>
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/kernel/tapes/">ftp://sunsite.unc.edu/pub/Linux/kernel/tapes/</A>.
+<P>You probably should also grab the <CODE>ftape-doc</CODE> and the
+<CODE>ftape-tools</CODE> package that are available from the same locations.
+<P>If you still want to use the <CODE>ftape-2.08</CODE> which is shipped with the
+v2.0.x kernels, then you get a version of the driver which is really
+out of date and doesn't support QIC-3020 tapes at 2Mbps correctly,
+neither does it support the Ditto 2GB drives nor the Ditto Max drives
+nor any kind of parallel port tape drive. The section
+<A HREF="Ftape-HOWTO-6.html#supp_drives">Supported drives</A>
+gives detailed information about which version of the <CODE>ftape</CODE> driver
+supports which hardware.
+<P>
+<H2><A NAME="ss4.2">4.2 Differences between <CODE>ftape-2.x</CODE>, <CODE>ftape-3.x</CODE> and <CODE>ftape-4.x</CODE> versions</A>
+</H2>
+
+<P>
+<P><CODE>ftape-3.x</CODE> and <CODE>ftape-4.x</CODE> use the file system interface that
+was implemented for a branch release which was called
+<CODE>zftape</CODE>. Actually, the module that implements the <B>VFS</B>
+(<CODE>Virtual File System</CODE>) interface of <CODE>ftape-3.x</CODE> and
+<CODE>ftape-4.x</CODE> still is called <CODE>zftape.o</CODE> and its <CODE>C</CODE>-sources
+inside the kernel tree reside in
+<CODE>[/usr/src/linux/]drivers/char/ftape/zftape/</CODE>.
+<P><CODE>ftape-2.x</CODE> (i.e. the version still contained in the v2.0.x kernel)
+uses another file system interface, that was implemented by
+<CODE>ftape's</CODE> original author Bas Larhoven.
+<P>
+<DL>
+<DT><B>File Marks</B><DD><P>The conceptional difference between <CODE>ftape-2.x</CODE> and later versions
+of <CODE>ftape</CODE> is the way <EM>file marks</EM> are implemented.
+<P><EM>Floppy tape devices</EM> don't have real file marks.
+<BLOCKQUOTE> <B>File
+marks</B> are used to distinguish different backup sets if you write
+multiple backup sets to a tape. SCSI and QIC-150 tapes have
+<EM>real</EM> file marks, i.e. between two different backup sets there
+is a region on the tape that is written special data to so that the
+drive logic can detect that marker when the tape is wound with
+(possibly) high speed over those file marks.</BLOCKQUOTE>
+ Because the goal
+of <CODE>ftape's</CODE> file system interface was from the beginning on to
+provide an interface that could be used with standard Unix-like tape
+utilities (i.e. <CODE>mt</CODE>) the developers of <CODE>ftape</CODE> started to
+emulate file marks by storing the positions on the tape where a file
+mark should be located in certain fields of the header
+segments.
+<BLOCKQUOTE><B>header segments</B> refers to a region at the
+beginning of the tape sized two times 29k to hold some important
+information about the tape format and size and some status
+information.</BLOCKQUOTE>
+<P>However, the <CODE>QIC</CODE> standards already designate a special region to
+store such information in, the so called <B>volume table
+segment</B>. Since <CODE>ftape-3.x</CODE> this <EM>volume table segment</EM> is used
+instead of using unused data fields in the header segment. As a result
+it is possible to use your tape cartridge with different operating
+systems in the sense that your Win or DOS backup program will realize
+that certain regions of the tape cartridge are already occupied with
+data, and <CODE>ftape-3.x</CODE> and later will detect the regions used by
+those DOS and Win programs. However, you can't extract a DOS backup
+set under Linux or extract a volume written by <CODE>ftape</CODE> under DOS,
+safe you write your own software to do that.
+<P>
+<DT><B>IOCTL interface</B><DD><P>There are certain differences in the <B>IOCTL</B>
+<BLOCKQUOTE>This <EM>IO
+control</EM> interface is used by e.g. <CODE>mt</CODE> to rewind the tape or skip
+to the next file mark or do any other tape operation.</BLOCKQUOTE>
+
+interface between <CODE>ftape-2.x</CODE> and <CODE>ftape-3.x</CODE> and later. A
+detailed description can be found in the <CODE>ftape-manual</CODE> contained
+in the <CODE>ftape-doc</CODE> package.  See 
+<A HREF="#getting">Getting Ftape</A>.
+<P>
+<DT><B>Formatting</B><DD><P>Formatting of cartridges is supported with <CODE>ftape-3.x</CODE> and later
+<B>only</B>. Please get the <CODE>ftape-tools</CODE> package that contains the
+<CODE>ftformat</CODE> program that interfaces to the driver to format
+cartridges.  See 
+<A HREF="#getting">Getting Ftape</A>. The
+<CODE>ftape-tools</CODE> package comes with (more or less) detailed
+documentation, so the case of formatting cartridges is not dealt with
+in this document.
+<P>
+<DT><B>Compression</B><DD><P><CODE>ftape-3.x</CODE> supported user transparent on-the-fly compression in
+software. This feature (or <EM>bug</EM>) has vanished in <CODE>ftape-4.x</CODE> as
+it made further improvements concerning the realiability of backups
+very very hard. This means, <CODE>ftape-4.x</CODE> comes without compression
+support.
+<P>However <B>de-compression</B> of compressed archives produced with
+<CODE>ftape-3.x</CODE> <B>is</B> supported in order not to brake existing backup
+programs where a user-level filter would not suffice to preserve
+compatibility. Think, e.g., of <CODE>taper</CODE> which calls the <CODE>MTIOC</CODE>
+ioctls itself instead of relying on the <CODE>mt</CODE> program to perform
+tape operations.
+<P>
+</DL>
+<P>The <CODE>ftape-manual</CODE> contained in the <CODE>ftape-doc</CODE> package contains
+much more detailed information about <CODE>ftape`s</CODE> file system
+interface as well as implementation notes which by far exceed the
+scope of this HOWTO. See 
+<A HREF="#getting">Getting Ftape</A> for
+informations about where to obtain the manual.
+<P>
+<P>
+<P>
+<H2><A NAME="inst20"></A> <A NAME="ss4.3">4.3 Installing the driver with v2.0.x and earlier kernels</A>
+</H2>
+
+<P>
+<P>The following section provides some useful information to get you
+going with the installation of v4.x which is <B>not</B> shipped with the
+kernel source tree yet but has to be downloaded separately, see the
+section 
+<A HREF="#getting">Getting ftape</A> above.
+<P>Once you've downloaded the source code (probably
+<CODE>ftape-4.02-tar.gz</CODE>), untar it.  You can do this by determining what
+directory you want the source code to be located in.  I recommend
+<CODE>/usr/src/</CODE> or <CODE>~/src</CODE>.  When the tar file is extracted,
+it will dump everything into a <CODE>ftape-4.02</CODE> subdirectory, so that
+you'll end up, in the example I've given, with something like
+<CODE>/usr/src/ftape-4.02</CODE> or <CODE>~/src/ftape-4.02</CODE>.
+<P><B>NOTE:</B> you cannot compile <CODE>ftape-4.02</CODE> into your v2.0.x
+kernel. Instead, configure your kernel to <B>not</B> compile the
+<CODE>ftape</CODE> driver and follow the installation instructions in the
+<CODE>ftape-4.02</CODE> distribution and install <CODE>ftape-4.02</CODE> as a module.
+<P>Read the <CODE>README</CODE> file.  The <CODE>README</CODE> is required reading.  It's
+the top of the tree, so to speak.  If there are specific files that
+the <CODE>README</CODE> tells you to read then read them.  It will make the
+process much less complicated.
+<P>Do NOT proceed with compiling the package until you have read the
+appropriate <CODE>README</CODE> files and the <CODE>INSTALL</CODE> file.
+<P>Afterwards you need to edit the <CODE>MCONFIG</CODE> file and configure you
+package according to your hardware. The <CODE>MCONFIG</CODE> file contains lots
+of explanations so it should be fairly easy to go along with it.
+<P>However, most of the hardware configuration can be done via setting
+parameters during module load time so most parameters specified in the
+file <CODE>MCONFIG</CODE> simply give the default configuration, but you don't
+need to recompile the driver to change IO addresses or interrupt
+settings. The file <CODE>INSTALL</CODE> and the file <CODE>modules/insert</CODE>
+contain examples how to specify the proper module parameters when
+loading the kernel modules, so I won't go into further detail here.
+<P>If you are using a Linux-v1.3.x kernel, you should consider moving to
+v2.0.x.  v1.3.x was the development release prior to the production
+release v2.0.x.
+<P>
+<P>
+<H2><A NAME="ss4.4">4.4 Installing the driver with v2.1.x and later kernels</A>
+</H2>
+
+<P>
+<P>
+<H4>Comment</H4>
+Maybe <CODE>ftape-4.02</CODE> will be included into the v2.2.x kernel, but
+this isn't clear at the time of this writing. This HOWTO will be
+revised appropriately when this has become clear. So long you have to
+refer to the previous section 
+<A HREF="#inst20">Installing the driver with v2.0.x and earlier kernels</A> and disregard the contents of
+this section.
+<P>
+<P>The Linux kernel v2.1.x and later already include <CODE>ftape-4.x</CODE> so you
+don't need to download the <CODE>ftape-4.x</CODE> kernel driver package.
+<P><CODE>ftape-4.x</CODE> as included in the v2.1.x versions of the kernel can be
+completely configured using the kernel configuration menus (either with
+<CODE>make menuconfig</CODE> or <CODE>make xconfig</CODE>. Also, there is online help
+available that documents each parameter setting which I won't repeat
+here.
+<P>The various boot- and loadtime parameter settings are explained in the
+file 
+<P><CODE>[/usr/src/linux/]Documentation/ftape.txt</CODE>
+<P>of the Linux-v2.1.x and later kernel distributions.
+<P>
+<H2><A NAME="tape-channel"></A> <A NAME="ss4.5">4.5 Following the development of the <CODE>ftape</CODE> driver</A>
+</H2>
+
+<P>
+<P>If you want to follow the development of the <CODE>ftape</CODE> driver, you
+should subscribe to the Linux Tape mailing list
+<CODE>linux-tape@vger.rutgers.edu</CODE>. To do so you need to send an email
+saying `<CODE>subscribe linux-tape</CODE>' (<EM>in the body</EM>) to
+<CODE>majordomo@vger.rutgers.edu</CODE>.  When you subscribe, you will be sent
+a greeting mail, which will tell you how to submit real mails and how
+to get off the list again. <B>Store this email in a safe
+place</B>. Please.
+<P>Please note that I do not, repeat <B>DO NOT</B>, have any special
+powers with regard to this mailing list.  If you're stuck on the list,
+don't bother to tell me that.  I can only shrug and send you my
+sympathy (but that won't get you off the list).
+<P>
+<P>
+<H2><A NAME="ss4.6">4.6 Mixing <CODE>ftape</CODE> and floppies</A>
+</H2>
+
+<P>
+<P>If you use your floppy tape drive with the standard FDC then the floppy
+drive and the floppy tape drive cannot run concurrently as they share
+the same hardware, the FDC, and the <CODE>floppy</CODE> and the <CODE>ftape</CODE>
+driver do not talk to each other.  Thus, if you have mounted a floppy
+and then try to access the tape drive, <CODE>ftape</CODE> will complain that it
+cannot grab IRQ6 and then die.  This is especially a problem when
+designing a emergency disk for use with ftape.  This solution is to
+either load the boot/root disk into a ramdisk and then unmount the
+floppy, or have two floppy drive controllers.
+<P>
+<P>
+<P>
+<HR>
+<A HREF="Ftape-HOWTO-5.html">Next</A>
+<A HREF="Ftape-HOWTO-3.html">Previous</A>
+<A HREF="Ftape-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

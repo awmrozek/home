@@ -1,0 +1,509 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Writing Your Own Loadable Kernel Module</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Loadable Kernel Module HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Technical Details"
+HREF="x627.html"><LINK
+REL="NEXT"
+TITLE="Differences Between Versions Of Linux"
+HREF="linuxversions.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Loadable Kernel Module HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x627.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="linuxversions.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN839"
+></A
+>11. Writing Your Own Loadable Kernel Module</H1
+><P
+><A
+HREF="http://tldp.org/LDP/lkmpg"
+TARGET="_top"
+><I
+CLASS="CITETITLE"
+>The Linux Kernel
+Module Programming Guide</I
+></A
+> by Peter J Salzman,
+Michael Burian, and Ori Pomerantz is a complete explanation of writing
+your own LKM.  This book is also available in print.  There are two
+versions of it: one for Linux 2.4, and another for 2.6.</P
+><P
+>At one time, the Linux 2.4 version of this document was rather out of
+date and contained an error or two.</P
+><P
+>Here are a few things about writing an LKM that, at least at one time,
+weren't in there.  Let the author of the LKM HOWTO know if it's still
+true.  If not, he can remove this section from the LKM HOWTO.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN846"
+></A
+>11.1. Simpler hello.c</H2
+><P
+>Lkmpg gives an example of the world's simplest LKM, hello-1.c.  But it
+is not as simple as it could be and depends on your having kernel
+messaging set up a certain way on your system to see it work.
+Finally, the program requires you to include <TT
+CLASS="PARAMETER"
+><I
+>-D</I
+></TT
+>
+options on your compile command to work, because it does not define
+some macros in the source code, where the definitions belong.</P
+><P
+>Here is an improved world's simplest LKM, <TT
+CLASS="LITERAL"
+>hello.c</TT
+>.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>/* hello.c 
+ * 
+ * "Hello, world" - the loadable kernel module version. 
+ *
+ * Compile this with 
+ *
+ *          gcc -c hello.c -Wall
+ */
+
+/* Declare what kind of code we want from the header files */
+#define __KERNEL__         /* We're part of the kernel */
+#define MODULE             /* Not a permanent part, though. */
+
+/* Standard headers for LKMs */
+#include &#60;linux/modversions.h&#62; 
+#include &#60;linux/module.h&#62;  
+
+#include &#60;linux/tty.h&#62;      /* console_print() interface */
+
+/* Initialize the LKM */
+int init_module()
+{
+  console_print("Hello, world - this is the kernel speaking\n");
+  /* More normal is printk(), but there's less that can go wrong with 
+     console_print(), so let's start simple.
+  */
+
+  /* If we return a non zero value, it means that 
+   * init_module failed and the LKM can't be loaded 
+   */
+  return 0;
+}
+
+
+/* Cleanup - undo whatever init_module did */
+void cleanup_module()
+{
+  console_print("Short is the life of an LKM\n");
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Compile this with the simple command
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>$ gcc -c -Wall -nostdinc -I /usr/src/linux/include hello.c</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>The <TT
+CLASS="PARAMETER"
+><I
+>-I</I
+></TT
+> above assumes that you have the source
+code from which your base kernel (the base kernel of the kernel into
+which you hope to load <TT
+CLASS="LITERAL"
+>hello.c</TT
+>) was built in the
+conventional spot, <TT
+CLASS="FILENAME"
+>/usr/src/linux</TT
+>.  If you're masochistic
+enough to be using symbol versioning in your base kernel, then you
+better have run 'make dep' on that kernel source too, because that's
+what builds the .ver files that change the names of all your symbols.</P
+><P
+>But note that it's reasonably common <EM
+>not</EM
+> to have
+the kernel headers installed there, and often, the
+<EM
+>wrong</EM
+> headers are installed there.  When you use
+a kernel that you loaded from a distribution CD, you often have to
+separately load the headers for it.  To be safe, if you're playing
+with compiling LKMs, you really should compile your own kernel, so you
+know exactly what you're working with and can be absolutely sure
+you're working with matching header files.</P
+><P
+>The <TT
+CLASS="PARAMETER"
+><I
+>-nostdinc</I
+></TT
+> option isn't strictly necessary,
+but is the right thing to do.  It will keep you out of trouble and
+also remind you that the services of the standard C library, which you
+may have melded in your mind with C itself, are not available to
+kernel code.  <TT
+CLASS="PARAMETER"
+><I
+>-nostdinc</I
+></TT
+> says not to include
+"standard" directories in the include file search path.
+This means, most notably, <TT
+CLASS="FILENAME"
+>/usr/include</TT
+>.</P
+><P
+>The <TT
+CLASS="PARAMETER"
+><I
+>-c</I
+></TT
+> option says you just want to create an
+object (.o) file, as opposed to gcc's default which is to create the
+object file, then link it with a few other standard object files to 
+create something suitable for exec'ing in a user process.  As you will
+not be exec'ing this module but rather adding it to the kernel, that
+link phase would be entirely inappropriate.</P
+><P
+><TT
+CLASS="PARAMETER"
+><I
+>-Wall</I
+></TT
+> (which makes the compiler warn you about
+lots of kinds of questionable code) is obviously not necessary, but
+this program should not generate any warnings.  If it does, you need
+to fix something.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN870"
+></A
+>11.2. Using the Kernel Build System</H2
+><P
+>Lkmpg contains fine instructions for building (compiling) an LKM
+(except that the __KERNEL__ macro and usually the MODULE macro should
+be defined in the source code instead of with
+<TT
+CLASS="PARAMETER"
+><I
+>-D</I
+></TT
+> compiler options as Lkmpg suggests).  But it
+deserves mention that some Linux kernel programmers believe that the
+only right way to build an LKM is to add it to a copy of the complete
+Linux source tree and build it with the existing Linux make files
+just like the LKMs that are part of Linux.</P
+><P
+>There are advantages to this.  The biggest one is that when Linux
+programmers change the way LKMs interface with the rest of the kernel
+in a way that affects how you build an LKM, you're covered.</P
+><P
+>On the other hand, you will probably find from a code management point
+of view that you really have to keep your own code and Linux separate,
+and from a coding point of view, you really need to understand all the
+intricacies of how your code gets compiled, especially when it
+changes.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN876"
+></A
+>11.3. Rubini et al: Linux Device Drivers</H2
+><P
+>The most popular book on writing device drivers is O'Reilly's
+<I
+CLASS="CITETITLE"
+>Linux Device Drivers</I
+> by Alessandro
+Rubini, Jonathan Corbet, and Greg Kroah-Hartman.</P
+><P
+>Even if you're writing an LKM that isn't a device driver, you can learn
+a lot from this book that will help you.</P
+><P
+>The first edition of this book covers Linux 2.0, with notes about
+differences in 2.2.  The second edition (June 2001) covers Linux 2.4.
+The third edition (April 2005) covers Linux 2.6.  Of course, if you know
+anything about Linux, you know that a book like this doesn't perfectly
+cover any release, because Linux changes frequently.  Linux 2.6 as was
+current a month after the Third Edition was released had significant
+differences from the Linux 2.6 about which the book was written.</P
+><P
+>The second edition of this book is available under the FDL.  You can
+read it at
+<A
+HREF="http://www.xml.com/ldd/chapter/book/"
+TARGET="_top"
+>http://www.xml.com/ldd/chapter/book/</A
+>.
+The third edition is available under the terms of the Creative Commons
+Attribution-ShareAlike license, and you'll find it at
+<A
+HREF="http://lwn.net/Kernel/LDD3/"
+TARGET="_top"
+>http://lwn.net/Kernel/LDD3/</A
+>.</P
+><P
+>This book is also available in print in any decent technical book store.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="USECOUNT"
+></A
+>11.4. Module Use Counts</H2
+><P
+>It is essential that the kernel not try to reference the code of a
+module after it has been unloaded; i.e. you must not unload a module
+while it is in use.  An example of in use is a device driver for which
+a device special file is open.  Because there is an open file
+descriptor for it, a user might do a read of the device and to execute
+that read, the kernel would want to call a function that is in the
+device driver.  You can see that there would be a problem if you
+unloaded that device driver module before the read -- the kernel would
+reuse the memory that used to contain the read subroutine and there's
+no telling what instructions the kernel would branch to when it thinks
+it's calling the read subroutine.</P
+><P
+>In the original design, the LKM increments and decrements its use
+count to tell the module manager whether it is OK to unload it.  For
+example, if it's a filesystem driver, it would increment the use count
+when someone mounts a filesystem of the type it drives, and decrement
+it at unmount time.</P
+><P
+>Later a more flexible alternative was added.  Your LKM can register a
+function that the module manager will call whenever it wants to know
+if it is OK to unload the module.  If the function returns a
+<TT
+CLASS="LITERAL"
+>true</TT
+> value, that means the LKM is busy and cannot
+be unloaded.  If it returns a <TT
+CLASS="LITERAL"
+>false</TT
+> value, the LKM
+is idle and can be unloaded.  The module manager holds the big kernel
+lock from before calling the module-busy function until after its
+cleanup subroutine returns or sleeps, and unless you've done something
+odd, that should mean that your LKM cannot become busy between the
+time that you report "not busy" and the time you clean up.</P
+><P
+>So how do you register the module-busy function?  By putting its
+address in the unfortunately named <TT
+CLASS="VARNAME"
+>can_unload</TT
+> field
+in the module descriptor ("struct module").  The name is truly
+unfortunate because the boolean value it returns is the exact opposite
+of what "can unload" means: true if the module manager
+<EM
+>cannot</EM
+> unload the LKM.</P
+><P
+>The module manager ensures that it does not attempt to unload the
+module before its initialization subroutine has returned or sleeps, so
+you are safe in setting the <TT
+CLASS="VARNAME"
+>can_unload</TT
+> field
+anywhere in the initialization subroutine except after a sleep.</P
+><P
+><TT
+CLASS="VARNAME"
+>can_unload</TT
+> is little known and rarely used.  Starting
+with Linux 2.6, it no longer exists.</P
+><P
+>Whether you use traditional use counts of
+<TT
+CLASS="VARNAME"
+>can_unload</TT
+>, there are cases where you cannot be
+sure that your module doesn't get unloaded while it is still in use.
+If your LKM creates a kernel thread that executes LKM code, it is just
+about impossible to be absolutely sure that thread is gone before the
+LKM gets unloaded.  There are various other kernel services that you
+can give addresses within your LKM that won't properly let you know
+when they have forgotten them.</P
+><P
+>The problem used to be worse than it is now.  For example, it used to
+be that if your LKM created a proc filesystem file, you couldn't stop
+the LKM from getting unloaded while some process was executing your
+read and write routines for the file.  This and other instances of the
+problem have been fixed by having code <EM
+>outside</EM
+>
+the LKM understand that the address it's using might be in an LKM, and
+therefore increment and decrement the use count as necessary.  Where
+this function is implemented, you often see a structure member named
+"owner" which is a handle for the LKM (i.e. a struct module address).</P
+><P
+>These problems may be fixed in future version of Linux.  Until then,
+you can just cross your fingers.  Some people believe these types of
+problems are so hard to fix that the proper design for Linux is just
+to make it impossible ever to unload an LKM.  Starting with Linux 2.6,
+the CONFIG_MODULE_UNLOAD kernel build configuration option determines
+whether module unloading is allowed or not.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x627.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="linuxversions.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Technical Details</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Differences Between Versions Of Linux</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

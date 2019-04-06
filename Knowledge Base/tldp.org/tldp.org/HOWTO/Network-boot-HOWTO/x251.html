@@ -1,0 +1,613 @@
+<HTML
+><HEAD
+><TITLE
+>Clients setup, creation of the root filesystem</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Network Boot and Exotic Root HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Daemons setup"
+HREF="x219.html"><LINK
+REL="NEXT"
+TITLE="Several ways of obtaining the kernel"
+HREF="x359.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Network Boot and Exotic Root HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x219.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x359.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN251">5. Clients setup, creation of the root filesystem</H1
+><P
+>Tired? No you're not. Remember you're a hero. Here comes the tricky part. We will (err... <EM
+>you</EM
+> will) build the client's root filesystem. This shouldn't be very hard, but you probably will have to use trial and error.</P
+><P
+>The simplest way to create a root filesystem is to use an already working filesystem and customize it for the needs of diskless operation. Of course, you can also build one by hand (like in the good old times) if you like:=), but I won't explain this here.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN256">5.1. Creating the first files and directories</H2
+><P
+>First, <B
+CLASS="COMMAND"
+>cd</B
+> to your future station's root directory. You can safely create the future <TT
+CLASS="FILENAME"
+>/home</TT
+> directory with the <B
+CLASS="COMMAND"
+>mkdir</B
+> command, or by copying it from anywhere you want (you can use <B
+CLASS="COMMAND"
+>cp -a</B
+> to do a recursive copy preserving owners, groups, symlinks, and permissions). Same thing for the future <TT
+CLASS="FILENAME"
+>/mnt</TT
+>, <TT
+CLASS="FILENAME"
+>/root</TT
+>, <TT
+CLASS="FILENAME"
+>/tmp</TT
+> (don't forget to <B
+CLASS="COMMAND"
+>chmod 0</B
+> it, this is only a mount point for the actual <TT
+CLASS="FILENAME"
+>/tmp</TT
+> we will use, because each workstation needs to have its own <TT
+CLASS="FILENAME"
+>/tmp</TT
+>). Then, copy some existing <TT
+CLASS="FILENAME"
+>/bin</TT
+>, <TT
+CLASS="FILENAME"
+>/sbin</TT
+>, <TT
+CLASS="FILENAME"
+>/boot</TT
+>, and <TT
+CLASS="FILENAME"
+>/usr</TT
+> into this future root directory (use <B
+CLASS="COMMAND"
+>cp -a</B
+>). You can create the <TT
+CLASS="FILENAME"
+>/proc</TT
+> directory with mkdir, and <B
+CLASS="COMMAND"
+>chmod 0</B
+> it. Note some applications need write access to their user's home directory.</P
+><P
+>The <TT
+CLASS="FILENAME"
+>/lib</TT
+> directory can be safely copied from somewhere else, but you will have to put the proper modules in it. To do so, use the following commands (assuming you have compiled the kernel for your clients on the server in <TT
+CLASS="FILENAME"
+>/usr/src/linux</TT
+>, and the root filesystem will reside in <TT
+CLASS="FILENAME"
+>/nfsroot</TT
+>):
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>cd /usr/src/linux
+        <TT
+CLASS="PROMPT"
+># </TT
+>make modules_install INSTALL_MOD_PATH=/nfsroot
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    </P
+><P
+>Don't forget to put the <TT
+CLASS="FILENAME"
+>System.map</TT
+> file in <TT
+CLASS="FILENAME"
+>/nfsroot/boot</TT
+>. A first problem we will have to fix is that, depending on your configuration, your system may try to run fsck on the root filesystem at boot time. It shouldn't if there is no hard drive in the box. Most distributions will also skip this fsck if they find a <TT
+CLASS="FILENAME"
+>fastboot</TT
+> file in the root directory. So, issue the following commands if you do not plan to mount any hard drive:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>cd /nfsroot
+        <TT
+CLASS="PROMPT"
+># </TT
+>touch fastboot
+        <TT
+CLASS="PROMPT"
+># </TT
+>chmod 0 fastboot
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    Another method is tell <B
+CLASS="COMMAND"
+>fsck</B
+> that checking a NFS filesystem always succeeds:
+
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>      <TT
+CLASS="PROMPT"
+># </TT
+>cd /nfsroot/sbin
+      <TT
+CLASS="PROMPT"
+># </TT
+>ln -s ../bin/true fsck.nfs
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    </P
+><P
+>The <TT
+CLASS="FILENAME"
+>/dev</TT
+> directory can also be safely copied from another place into <TT
+CLASS="FILENAME"
+>/nfsroot</TT
+>. But permissions and symlinks have to be preserved, so use <B
+CLASS="COMMAND"
+>cp -a</B
+>. Another solution is to use kernel 2.2.x devfs feature, which will reduce memory consumption and improve performance, but the drawback of this method is that all symlinks created in <TT
+CLASS="FILENAME"
+>/dev</TT
+> will be lost. The point to remember is that each workstation needs to have its own <TT
+CLASS="FILENAME"
+>/dev</TT
+>, so you will have to copy it on a ramdisk if you plan to use several clients and not to use devfs.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN301">5.2. The <TT
+CLASS="FILENAME"
+>/var</TT
+> and <TT
+CLASS="FILENAME"
+>/etc</TT
+> directories</H2
+><P
+>We will use ramdisks for these directories, because each client needs to have its own one. But we still need them at the beginning to create their standard structure. Note you are not required to do so if you use a single client. So copy these directories (<B
+CLASS="COMMAND"
+>cp -a</B
+>) from another place into <TT
+CLASS="FILENAME"
+>/nfsroot</TT
+>. Then you can make some cleanup in <TT
+CLASS="FILENAME"
+>/var</TT
+>: you can remove everything in <TT
+CLASS="FILENAME"
+>/nfsroot/var/log</TT
+> and <TT
+CLASS="FILENAME"
+>/nfsroot/var/run</TT
+>. You also probably can remove everything in <TT
+CLASS="FILENAME"
+>/nfsroot/var/spool/mail</TT
+>, if you plan to export it via NFS. You also will have to remove the files containing host specific information in /nfsroot/etc to build them on the fly during the boot process.</P
+><P
+>The startup scripts will have to be customized in order to mount some
+    parts of the filesystem: the <TT
+CLASS="FILENAME"
+>/dev</TT
+> directory, if you don't use devfs, the <TT
+CLASS="FILENAME"
+>/tmp</TT
+>, the <TT
+CLASS="FILENAME"
+>/var</TT
+>, and the <TT
+CLASS="FILENAME"
+>/etc</TT
+> directories. Here is some code which will achieve this:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        # this part only if you don't use devfs
+        mke2fs -q -i 1024 /dev/ram0 16384
+        mount -n -t ext2 -o rw,suid,dev,exec, \
+            async,nocheck /dev/ram0 /dev
+        # this part for everyone
+        mke2fs -q -i 1024 /dev/ram1 16384
+        mount -n -t ext2 -o rw,suid,dev,exec, \
+            async,nocheck /dev/ram1 /tmp
+        chmod 1777 /tmp
+        cp -a /etc /tmp
+        mke2fs -q -i 1024 /dev/ram2 16384
+        mount -n -t ext2 -o rw,suid,dev,exec, \
+            async,nocheck /dev/ram2 /etc
+        find /tmp/etc -maxdepth 1 -exec cp -a '{}' /etc ';'
+        mount -f -t ext2 -o rw,suid,dev,exec, \
+            async,nocheck,remount /dev/ram2 /etc
+        mount -f -o remount /
+        cp -a /var /tmp
+        mke2fs -q -i 1024 /dev/ram3 16384
+        mount -t ext2 -o rw,suid,dev,exec, \
+            async,nocheck /dev/ram3 /var
+        find /tmp/var -maxdepth 1 -exec cp -a '{}' /var ';'
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    </P
+><P
+>If you plan to use more than a single client, you will also have to change files dynamically at boot time in <TT
+CLASS="FILENAME"
+>/etc</TT
+>: the files which contain the IP and hostname of the client. These files depend on your distribution, but you will easily find them with a few greps. Just remove client-specific information from them, and add code into your startup files to generate this information again at boot time <EM
+>but only once the new <TT
+CLASS="FILENAME"
+>/etc</TT
+> has been mounted on the ramdisk!</EM
+> A way to obtain your IP address and hostname at bootup is the following (if you have the bootpc package installed on the workstations'filesystem):
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        IPADDR="$(bootpc | awk '/IPADDR/ \
+                                {
+                                  match($0,"[A-Za-z]+")
+                                  s=substr($0,RSTART+RLENGTH)
+                                  match(s,"[0-9.]+")
+                                  print substr(s,RSTART,RLENGTH)
+                                }
+                               ')"
+
+        HOST="$(bootpc | awk '/HOSTNAME/ \
+                              {
+                                match($0,"[A-Za-z]+")
+                                s=substr($0,RSTART+RLENGTH)
+                                match(s,"[A-Za-z0-9-]+")
+                                print substr(s,RSTART,RLENGTH)
+                              }')"
+
+        DOMAIN="$(bootpc | awk '/DOMAIN/ \
+                                {
+                                  match($0,"[A-Za-z]+")
+                                  s=substr($0,RSTART+RLENGTH)
+                                  match(s,"[A-Za-z0-9-.]+")
+                                  print substr(s,RSTART,RLENGTH)
+                                }')"
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    This is a complicated solution, but I guess it should work on most sites. The IP address can alternatively be obtained with the output of <B
+CLASS="COMMAND"
+>ifconfig</B
+> and the hostname can be obtained from the output of the host command, but this is not portable, because these outputs differ from system to system depending on the distribution you are using, and the locales settings.</P
+><P
+>Then, the hostname should be set with the <B
+CLASS="COMMAND"
+>hostname $HOSTNAME</B
+> command. When this is done, it is time to generate on the fly the configuration files which contain the IP address or the hostname of the client.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN326">5.3. Last details</H2
+><P
+>Now, it's time to do the fine tuning of the client. As <TT
+CLASS="FILENAME"
+>/var</TT
+> will be mounted on a ramdisk (unless you have a single client), you will have to send the logs to a logs server if you want to keep them. One way to do that is to delete the <TT
+CLASS="FILENAME"
+>/nfsroot/etc/syslog.conf</TT
+> file and replacing it by the following file (see man syslog.conf for details):
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        *.*     /dev/tty12
+        *.*     @dns or IP of the logs server
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    If you do so, the logs server will have to run <B
+CLASS="COMMAND"
+>syslogd</B
+> with the -r option (see the syslogd manual page).</P
+><P
+>If you use <B
+CLASS="COMMAND"
+>logrotate</B
+> and you have done the preceding operation, you should replace the <B
+CLASS="COMMAND"
+>logrotate</B
+> configuration file (<TT
+CLASS="FILENAME"
+>/etc/logrotate.conf</TT
+> on most boxes) by an empty file:
+
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>        <TT
+CLASS="PROMPT"
+># </TT
+>rm -f /etc/logrotate.conf
+        <TT
+CLASS="PROMPT"
+># </TT
+>touch /etc/logrotate.conf
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+    If you don't use it, just remove the logs rotation scripts from the crontab, and as you no longer have log files in <TT
+CLASS="FILENAME"
+>/var/log</TT
+>, put an <B
+CLASS="COMMAND"
+>exit 0</B
+> at the beginning of your logs rotation scripts.</P
+><P
+>In the <TT
+CLASS="FILENAME"
+>/nfsroot/etc/fstab</TT
+> file, remove anything related to the hard drive, floppy disk reader, or cdrom if you don't have such devices on your workstations. Add an entry for the <TT
+CLASS="FILENAME"
+>/var/spool/mail</TT
+> directory, which should be exported by the server through NFS or any other network filesystem. You probably also want to put an entry for the <TT
+CLASS="FILENAME"
+>/home</TT
+> directory in this file.</P
+><P
+>You can also comment the lines running newaliases, activating swap, and running depmod -a and remove the <TT
+CLASS="FILENAME"
+>/nfsroot/etc/mtab</TT
+> file. Comment out the line(s) removing <TT
+CLASS="FILENAME"
+>/fastboot</TT
+>, <TT
+CLASS="FILENAME"
+>/fsckoptions</TT
+>, and <TT
+CLASS="FILENAME"
+>/forcefsck</TT
+> in your startup scripts. Also remove or comment any line in the startup scripts that would try to write on the root filesystem except for really necessary writes, which should all be redirected to some ramdisk location if you use several clients.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN351">5.4. Trial...</H2
+><P
+>Time has come for a small trial. MAKE A BACKUP OF YOUR NEWLY CREATED
+    <TT
+CLASS="FILENAME"
+>/nfsroot</TT
+>. tar -cvvIf should do
+    fine. Take a minute to verify we didn't forget anything. Try to boot a
+    client.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN355">5.5. And Error!</H2
+><P
+>Look carefully at the client's screen during the boot process. Oh, I didn't tell you to connect a screen... Run, forest! Run an get one. You will probably see some error messages. Fix the problems, and make frequent backups of your <TT
+CLASS="FILENAME"
+>/nfsroot</TT
+>. One day, the client will boot properly. This day, you will have to fix errors occurring during shutdown;=P.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x219.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x359.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Daemons setup</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Several ways of obtaining the kernel</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

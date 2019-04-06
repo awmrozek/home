@@ -1,0 +1,241 @@
+<HTML
+><HEAD
+><TITLE
+>A sample /etc/ppp/ip-up script</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.52"><LINK
+REL="HOME"
+TITLE="Linux PPP HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="After the link comes up - the /etc/ppp/ip-up script"
+HREF="ip-up.html"><LINK
+REL="PREVIOUS"
+TITLE="Handling email queues"
+HREF="x1448.html"><LINK
+REL="NEXT"
+TITLE="Handling email"
+HREF="x1464.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+><A
+HREF="http://www.linuxports.com/howto/ppp"
+TARGET="_top"
+>Linux PPP HOWTO</A
+></TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x1448.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 25. After the link comes up - the <TT
+CLASS="LITERAL"
+>/etc/ppp/ip-up</TT
+> script</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x1464.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN1455"
+>25.3. A sample <TT
+CLASS="LITERAL"
+>/etc/ppp/ip-up</TT
+> script</A
+></H1
+><P
+>The example below provides a variety of example uses.</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>#!/bin/bash
+#
+# Script which handles the routing issues as necessary for pppd
+# Only the link to Newman requires this handling.
+#
+# When the ppp link comes up, this script is called with the following
+# parameters
+#       $1      the interface name used by pppd (e.g. ppp3)
+#       $2      the tty device name
+#       $3      the tty device speed
+#       $4      the local IP address for the interface
+#       $5      the remote IP address
+#       $6      the parameter specified by the 'ipparam' option to pppd
+#
+case "$5" in
+# Handle the routing to the Newman Campus server
+        202.12.126.1)
+                /sbin/route add -net 202.12.126.0 gw 202.12.126.1
+# and flush the mail queue to get their email there asap!
+		/usr/sbin/sendmail -q &#38;
+                ;;
+	139.130.177.2)
+# Our Internet link
+# When the link comes up, start the time server and synchronise to the world
+# provided it is not already running
+                if [ ! -f /var/lock/subsys/xntpd ]; then
+                        /etc/rc.d/init.d/xntpd.init start &#38;
+                fi
+# Start the news server (if not already running)
+                if [ ! -f /var/lock/subsys/news ]; then
+                        /etc/rc.d/init.d/news start &#38;
+                fi
+                ;;
+	203.18.8.104)
+# Get the email down to my home machine as soon as the link comes up
+# No routing is required as my home Ethernet is handled by IP
+# masquerade and proxyarp routing.
+		/usr/sbin/sendmail -q &#38;
+		;;
+        *)
+esac
+exit 0</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>As a result of bringing up the ppp link to our Newman campus and this
+script, we end up with the following routing table entries (this machine
+also is our general dial up PPP server AND handles our Internet link). I
+have interspersed comments in the output to help explain what each entry
+is) :-</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>[root@kepler /root]# route -n
+Kernel routing table
+Destination     Gateway         Genmask         Flags MSS    Window Use Iface
+# the HOST route to our remote internet gateway
+139.130.177.2   *               255.255.255.255 UH    1500   0      134 ppp4
+# the HOST route to our Newman campus server
+202.12.126.1    *               255.255.255.255 UH    1500   0       82 ppp5
+# the HOST route to my home ethernet
+203.18.8.104    *               255.255.255.255 UH    1500   0       74 ppp3
+# two of our general dial up PPP lines
+203.18.8.64     *               255.255.255.255 UH    552    0        0 ppp2
+203.18.8.62     *               255.255.255.255 UH    552    0        1 ppp1
+# the specific network route to the Newman campus LAN
+202.12.126.0    202.12.126.1    255.255.255.0   UG    1500   0        0 ppp5
+# the route to our local Ethernet (super-netting two adjacent C classes)
+203.18.8.0      *               255.255.254.0   U     1500   0     1683 eth0
+# the route to the loop back device
+127.0.0.0       *               255.0.0.0       U     3584   0      483 lo
+# the default route to the Internet
+default         139.130.177.2   *               UG    1500   0     3633 ppp4</PRE
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x1448.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x1464.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Handling email queues</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="ip-up.html"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Handling email</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

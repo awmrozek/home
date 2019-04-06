@@ -1,0 +1,940 @@
+<HTML
+><HEAD
+><TITLE
+>Miscellaneous Topics</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="Ingres II HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="ICE (Internet Commerce Enabled)"
+HREF="ice.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Ingres II HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="ice.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+>&nbsp;</TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="MISC"
+>9. Miscellaneous Topics</A
+></H1
+><P
+>Further hints to the use of <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AUTOM"
+>9.1. Automatic Startup and Shutdown</A
+></H2
+><P
+>If you want <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> to start automatically
+	whenever Linux boots and stop when you shutdown or reboot the system, do
+	the following:</P
+><P
+>Log in as root.</P
+><P
+>Check if your Linux variant has System V or <SPAN
+CLASS="ACRONYM"
+>BSD</SPAN
+> style
+	<B
+CLASS="COMMAND"
+>init</B
+> (<B
+CLASS="COMMAND"
+>init</B
+>'s <B
+CLASS="COMMAND"
+>man</B
+>
+	page will tell that).</P
+><P
+>If your system conforms to System V, the
+	<TT
+CLASS="FILENAME"
+>/etc/rc.d/init.d</TT
+> directory must exist.
+	Create a file there (call it <B
+CLASS="COMMAND"
+>ingres</B
+> or any other name you
+	wish).
+	The file should contain at least the following:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>#!/bin/sh
+
+case $1 in
+  start)
+    echo "Starting <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>"
+    su - ingres -c "ingstart"
+    ;;
+
+  stop)
+    echo "Stopping <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>"
+    su - ingres -c "ingstop"
+    ;;
+
+  *)
+    echo "Usage: ingres {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Link the file as <TT
+CLASS="FILENAME"
+>K01ingres</TT
+> to the directories
+	that correspond to the run levels in which <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>
+	should <EM
+>stop</EM
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+># ln -s /etc/rc.d/init.d/ingres /etc/rc.d/rc0.d/K01ingres
+# ln -s /etc/rc.d/init.d/ingres /etc/rc.d/rc1.d/K01ingres
+# ln -s /etc/rc.d/init.d/ingres /etc/rc.d/rc6.d/K01ingres
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Also link it as <TT
+CLASS="FILENAME"
+>S99ingres</TT
+> to the directories
+	that correspond to the run levels in which <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>
+	should <EM
+>start</EM
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+># ln -s /etc/rc.d/init.d/ingres /etc/rc.d/rc2.d/S99ingres
+# ln -s /etc/rc.d/init.d/ingres /etc/rc.d/rc3.d/S99ingres
+# ln -s /etc/rc.d/init.d/ingres /etc/rc.d/rc4.d/S99ingres
+# ln -s /etc/rc.d/init.d/ingres /etc/rc.d/rc5.d/S99ingres
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>It is not important to call the links <TT
+CLASS="FILENAME"
+>K01ingres</TT
+>
+	and <TT
+CLASS="FILENAME"
+>S99ingres</TT
+>, the point is that the name starting with
+	<TT
+CLASS="CONSTANT"
+>K</TT
+> should contain a small number (so that
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> stops early when changing to a lower
+	runlevel) and the name starting with <TT
+CLASS="CONSTANT"
+>S</TT
+> should contain
+	a large number (so that <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> starts after
+	everything else has started).
+	Naturally, the file names must not clash with names of existing files.</P
+><P
+>If you have a <SPAN
+CLASS="ACRONYM"
+>BSD</SPAN
+> style <B
+CLASS="COMMAND"
+>init</B
+>,
+	put the following lines into <TT
+CLASS="FILENAME"
+>/etc/rc.d/rc.local</TT
+>:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>echo "Starting <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>"
+su - ingres -c "ingstart"
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This will start <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>.
+	(As a matter of fact, you can use <TT
+CLASS="FILENAME"
+>/etc/rc.d/rc.local</TT
+>
+	even if you have a System V style <B
+CLASS="COMMAND"
+>init</B
+>.)</P
+><P
+>To stop <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> automatically, create a file in
+	<TT
+CLASS="FILENAME"
+>/etc/shutdown.d</TT
+>
+	(call it, say, <B
+CLASS="COMMAND"
+>ingres</B
+>) that contains the commands:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>echo "Stopping <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>"
+su - ingres -c "ingstop"
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>No matter which type your system is, the files you create must be
+	executable files, owned by root.</P
+><P
+>Naturally, if your system provides a utility for configuring programs
+	to start and stop automatically (such as <B
+CLASS="COMMAND"
+>chkconfig</B
+> in
+	RedHat), use that if you wish.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="INGMENU"
+>9.2. ingmenu</A
+></H2
+><P
+>The easiest way to access an <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> database
+	(at least, for beginners) is via the <B
+CLASS="COMMAND"
+>ingmenu</B
+> program.
+	From <B
+CLASS="COMMAND"
+>ingmenu</B
+>, you can reach
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>' forms-based utilities, by which you can
+	create, update and query tables, create, edit and run reports and
+	<SPAN
+CLASS="ACRONYM"
+>ABF</SPAN
+> or <SPAN
+CLASS="APPLICATION"
+>Vision</SPAN
+> applications.
+	Its usage is:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ ingmenu test
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+><SPAN
+CLASS="DATABASE"
+>Test</SPAN
+> is the name of the database.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="CIRCUM"
+>9.3. Circumventing Ingres Net</A
+></H2
+><P
+>Without Ingres/Net, in theory it is not possible for
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> applications to access databases on
+	different machines.
+	However, there exists a method, not supported by <SPAN
+CLASS="ACRONYM"
+>CA</SPAN
+>, by which
+	sometimes you can come around this problem.</P
+><P
+>Let us suppose your application runs on host ingdev and the database
+	(called <SPAN
+CLASS="DATABASE"
+>test</SPAN
+>) you would like to update or query resides
+	on host ingserv.
+	Your first task is to find out the port number of the appropriate
+	<SPAN
+CLASS="ACRONYM"
+>DBMS</SPAN
+> server running on ingserv.
+	You can use <B
+CLASS="COMMAND"
+>ipm</B
+> for this purpose: as ingres, start
+	<B
+CLASS="COMMAND"
+>ipm</B
+> on ingserv and choose option
+	<SPAN
+CLASS="GUIMENUITEM"
+>Server List</SPAN
+>.
+	In the list of servers select one that is of type <TT
+CLASS="CONSTANT"
+>INGRES</TT
+>
+	and handles the <SPAN
+CLASS="DATABASE"
+>test</SPAN
+> database (you have to see either
+	<TT
+CLASS="CONSTANT"
+>test</TT
+> or <TT
+CLASS="CONSTANT"
+>ALL</TT
+> in column
+	<TT
+CLASS="VARNAME"
+>Connecting to Databases</TT
+>).
+	You find the port number of the <SPAN
+CLASS="ACRONYM"
+>DBMS</SPAN
+> server in the
+	first column.
+	Let us suppose it is 1259.</P
+><P
+>On machine ingdev, set the shell variable <TT
+CLASS="ENVAR"
+>II_DBMS_SERVER</TT
+>
+	in the following way:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ export II_DBMS_SERVER='ingserv::1259'
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now run the command:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ sql test
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>If it works, you have access to the <SPAN
+CLASS="DATABASE"
+>test</SPAN
+> database
+	on host ingserv.</P
+><P
+>This solution is applicable only if both machines are of the same
+	architecture, the same operating system is running on both of them, the
+	character set is the same in both <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>
+	installations, and so on: I do not know the full list of necessary conditions.
+	Therefore, I cannot guarantee that this trick will work.</P
+><P
+>On the other hand, if you restart <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>
+	on host ingserv, the <SPAN
+CLASS="ACRONYM"
+>DBMS</SPAN
+> server process will get a
+	different <SPAN
+CLASS="ACRONYM"
+>TCP/IP</SPAN
+> port, therefore you probably have to
+	automate the fetching of the current port number to the application server.
+	You can use the <B
+CLASS="COMMAND"
+>show</B
+> command of the
+	<B
+CLASS="COMMAND"
+>iinamu</B
+> utility for this purpose.
+	The following command line gives the port number of the <SPAN
+CLASS="ACRONYM"
+>DBMS</SPAN
+>
+	server if there is only one server running:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>$ echo show | iinamu | grep INGRES | tr -s ' ' '\t' | cut -f4
+	</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="FORMS"
+>9.4. Forms-Based Development Tools</A
+></H2
+><P
+>The <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> installation includes a sample
+	application, created by <SPAN
+CLASS="ACRONYM"
+>ABF</SPAN
+>,
+	the traditional development tool of <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>.
+	You can load it with the <B
+CLASS="COMMAND"
+>abfdemo</B
+> command.
+	Unfortunately, the manuals of <SPAN
+CLASS="ACRONYM"
+>ABF</SPAN
+>
+	and <SPAN
+CLASS="APPLICATION"
+>Vision</SPAN
+> cannot be found either
+	on the <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> CD or on the
+	<SPAN
+CLASS="ACRONYM"
+>CA</SPAN
+> site.</P
+><P
+>There is a problem with the <SPAN
+CLASS="ACRONYM"
+>SDK</SPAN
+> under glibc 2.1:
+	applications created by <SPAN
+CLASS="ACRONYM"
+>ABF</SPAN
+> or
+	<SPAN
+CLASS="APPLICATION"
+>Vision</SPAN
+> cannot be either compiled or run directly
+	from the database.
+	This problem is solved in the full <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> version.
+	For the <SPAN
+CLASS="ACRONYM"
+>SDK</SPAN
+>, install the RedHat glibc 2.0 compatibility
+	packages.
+	If you do not have RedHat, download them from the following
+	<SPAN
+CLASS="ACRONYM"
+>URLs</SPAN
+>:
+	</P
+><P
+></P
+><UL
+><LI
+><P
+><A
+HREF="ftp://ftp.redhat.com/pub/redhat/redhat-6.0/i386/RedHat/RPMS/compat-binutils-5.2-2.9.1.0.23.1.i386.rpm"
+TARGET="_top"
+>			ftp://ftp.redhat.com/pub/redhat/redhat-6.0/i386/RedHat/RPMS/compat-binutils-5.2-2.9.1.0.23.1.i386.rpm</A
+></P
+></LI
+><LI
+><P
+><A
+HREF="ftp://ftp.redhat.com/pub/redhat/redhat-6.0/i386/RedHat/RPMS/compat-egcs-5.2-1.0.3a.1.i386.rpm"
+TARGET="_top"
+>			ftp://ftp.redhat.com/pub/redhat/redhat-6.0/i386/RedHat/RPMS/compat-egcs-5.2-1.0.3a.1.i386.rpm</A
+></P
+></LI
+><LI
+><P
+><A
+HREF="ftp://ftp.redhat.com/pub/redhat/redhat-6.0/i386/RedHat/RPMS/compat-glibc-5.2-2.0.7.1.i386.rpm"
+TARGET="_top"
+>			ftp://ftp.redhat.com/pub/redhat/redhat-6.0/i386/RedHat/RPMS/compat-glibc-5.2-2.0.7.1.i386.rpm</A
+></P
+></LI
+><LI
+><P
+><A
+HREF="ftp://ftp.redhat.com/pub/redhat/redhat-6.0/i386/RedHat/RPMS/compat-libs-5.2-1.i386.rpm"
+TARGET="_top"
+>			ftp://ftp.redhat.com/pub/redhat/redhat-6.0/i386/RedHat/RPMS/compat-libs-5.2-1.i386.rpm</A
+></P
+></LI
+></UL
+><P
+>Besides the compatibility packages, you need an
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> patch.
+	It was posted on the <A
+HREF="news:comp.databases.ingres"
+TARGET="_top"
+>	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> newsgroup</A
+> in September, 1999.
+	I have a copy of it, email me if you wish to install it.</P
+><P
+>The compatibility packages and the patch probably do not work for all
+	Linux distributions.
+	I only tested them on RedHat and Caldera Open Linux.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="PERL"
+>9.5. Ingperl and Perl DBI</A
+></H2
+><P
+>Previous <SPAN
+CLASS="APPLICATION"
+>Perl</SPAN
+> versions, version 4 included,
+	made <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> access possible via libraries known
+	as ingperl.
+	You can find information on ingperl at
+	<A
+HREF="http://www.contrib.andrew.cmu.edu/~lfm/ingperl.html"
+TARGET="_top"
+>	http://www.contrib.andrew.cmu.edu/~lfm/ingperl.html</A
+>.</P
+><P
+>In <SPAN
+CLASS="APPLICATION"
+>Perl 5</SPAN
+> a new, unified database
+	interface, called <SPAN
+CLASS="APPLICATION"
+>Perl</SPAN
+> <SPAN
+CLASS="ACRONYM"
+>DBI</SPAN
+>,
+	appeared.
+	Its site is
+	<A
+HREF="http://www.symbolstone.org/technology/perl/DBI/index.html"
+TARGET="_top"
+>	http://www.symbolstone.org/technology/perl/DBI/index.html</A
+>.</P
+><P
+>You can download the <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+>
+	module of <SPAN
+CLASS="ACRONYM"
+>DBI</SPAN
+> from that site.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="LINKS"
+>9.6. Ingres links</A
+></H2
+><P
+>I leave you with a few pointers to important
+	<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> sites:</P
+><P
+></P
+><UL
+><LI
+><P
+><A
+HREF="http://www.cai.com/ingres/"
+TARGET="_top"
+>			http://www.cai.com/ingres/</A
+>:
+			home page of the <SPAN
+CLASS="APPLICATION"
+>Ingres RDBMS</SPAN
+> on
+			<SPAN
+CLASS="ACRONYM"
+>CA</SPAN
+>'s site.</P
+></LI
+><LI
+><P
+><A
+HREF="http://support.cai.com/ingressupp.html"
+TARGET="_top"
+>			http://support.cai.com/ingressupp.html</A
+>:
+			<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> Technical Support.</P
+></LI
+><LI
+><P
+> <A
+HREF="http://www.cai.com/ingres/inquire/"
+TARGET="_top"
+>			http://www.cai.com/ingres/inquire/</A
+>:
+			inquire_ingres: <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> technical
+			magazine.</P
+></LI
+><LI
+><P
+><A
+HREF="http://www.naiua.org/faqs.html"
+TARGET="_top"
+>			http://www.naiua.org</A
+>: the North American Ingres Users
+			Association's site.
+			Check the <SPAN
+CLASS="ACRONYM"
+>FAQ</SPAN
+> page, and the
+			<TT
+CLASS="FILENAME"
+>/papers</TT
+> directory.</P
+></LI
+><LI
+><P
+><A
+HREF="news:comp.databases.ingres"
+TARGET="_top"
+>			news:comp.databases.ingres</A
+>: the
+			<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> newsgroup.</P
+></LI
+><LI
+><P
+><A
+HREF="http://www.deja.com/group/comp.databases.ingres"
+TARGET="_top"
+>			http://www.deja.com/group/comp.databases.ingres</A
+>: the
+			archived <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> newsgroup on Deja.</P
+></LI
+><LI
+><P
+><A
+HREF="http://munkora.cs.mu.oz.au/~yuan/Ingres/ingres.html"
+TARGET="_top"
+>			http://munkora.cs.mu.oz.au/~yuan/Ingres/ingres.html</A
+>: William
+			Yuan's <SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> Reference Page with lots of
+			<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> information.</P
+></LI
+><LI
+><P
+><A
+HREF="http://www.mercurie.co.uk/ingres/"
+TARGET="_top"
+>			http://www.mercurie.co.uk/ingres/</A
+>: Prijesh Patel's Unofficial
+			<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> Web Page with edited posts from the
+			<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> newsgroup.</P
+></LI
+><LI
+><P
+><A
+HREF="http://www.palslib.com/Ingres_II/Ingres_II.html"
+TARGET="_top"
+>			http://www.palslib.com/Ingres_II/Ingres_II.html</A
+>: the
+			<SPAN
+CLASS="APPLICATION"
+>Ingres</SPAN
+> section of Pal's Linux RDBMS
+			Library.</P
+></LI
+></UL
+><P
+>Have fun!</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="ice.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>&nbsp;</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>ICE (Internet Commerce Enabled)</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>&nbsp;</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,529 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux 2.4.x Initialization for IA-32 HOWTO: Linux early setup</TITLE>
+ <LINK HREF="Linux-Init-HOWTO-4.html" REL=next>
+ <LINK HREF="Linux-Init-HOWTO-2.html" REL=previous>
+ <LINK HREF="Linux-Init-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Linux-Init-HOWTO-4.html">Next</A>
+<A HREF="Linux-Init-HOWTO-2.html">Previous</A>
+<A HREF="Linux-Init-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Linux early setup</A></H2>
+
+<P>
+<P>(from linux/arch/i386/boot/setup.S and linux/arch/i386/boot/video.S)
+<P>NOTE:  Register notation is %regname and constant notation is a number,
+with or without a leading '$' sign.
+<P>
+<H2><A NAME="ss3.1">3.1 IA-32 Kernel Setup </A>
+</H2>
+
+<P>
+<P>"setup.S" is responsible for getting the system data from the BIOS
+and putting them into the appropriate places in system memory.
+<P>Both "setup.S" and the kernel have been loaded by the boot block.
+<P>"setup.S" is assembled as 16-bit real-mode code.
+It switches the processor to 32-bit protected mode and jumps to
+the 32-bit kernel code.
+<P>This code asks the BIOS for memory/disk/other parameters, and
+puts them in a "safe" place: 0x90000-0x901FF, that is, where the
+boot block used to be.  It is then up to the protected mode
+system to read them from there before the area is overwritten
+for buffer-blocks.
+<P>The "setup.S" code begins with a jmp instruction around the
+"setup header", which must begin at location %cs:2.
+<P>This is the setup header:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+                .ascii  "HdrS"          # header signature
+                .word   0x0202          # header version number
+realmode_swtch: .word   0, 0            # default_switch, SETUPSEG
+start_sys_seg:  .word   SYSSEG
+                .word   kernel_version  # pointer to kernel version string
+type_of_loader: .byte   0
+loadflags:
+LOADED_HIGH     = 1             # If set, the kernel is loaded high
+#ifndef __BIG_KERNEL__
+                .byte   0
+#else
+                .byte   LOADED_HIGH
+#endif
+setup_move_size: .word  0x8000  # size to move, when setup is not
+                                # loaded at 0x90000.
+code32_start:                   # here loaders can put a different
+                                # start address for 32-bit code.
+#ifndef __BIG_KERNEL__
+                .long   0x1000  # default for zImage
+#else
+                .long   0x100000# default for big kernel
+#endif
+ramdisk_image:  .long   0       # address of loaded ramdisk image
+ramdisk_size:   .long   0       # its size in bytes
+bootsect_kludge: .word  bootsect_helper, SETUPSEG
+heap_end_ptr:   .word   modelist+1024   # (Header version 0x0201 or later)
+                                        # space from here (exclusive) down to
+                                        # end of setup code can be used by setup
+                                        # for local heap purposes.
+pad1:           .word   0
+cmd_line_ptr:   .long   0       # (Header version 0x0202 or later)
+                                # If nonzero, a 32-bit pointer
+                                # to the kernel command line.
+trampoline:     call    start_of_setup  # no return from start_of_setup
+                .space  1024
+# End of setup header #####################################################
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>start_of_setup: </H3>
+
+<P>
+<P>
+<H3>Read second hard drive DASD type </H3>
+
+<P>
+<P>Read the DASD type of the second hard drive (BIOS int. 0x13,
+%ax=0x1500, %dl=0x81).
+<P># Bootlin depends on this being done early. [TBD:why?]
+<P>
+<H3>Check that LILO loaded us right </H3>
+
+<P>
+<P>Check the signature words at the end of setup.
+Signature words are used to ensure that LILO loaded us right.
+If the two words are not found correctly, copy the
+setup sectors and check for the signature words again.
+If they still aren't found, panic("No setup signature found ...").
+<P>
+<H3>Check old loader trying to load a big kernel </H3>
+
+<P>
+<P>If the kernel image is "big" (and hence is "loaded high"), then
+if the loader cannot handle "loaded high" images, then
+panic ("Wrong loader, giving up...").
+<P>
+<P>
+<H3>Determine system memory size </H3>
+
+<P>
+<P>Get the extended memory size {above 1 MB} in KB.
+First clear the extended memory size to 0.
+<P>#ifndef STANDARD_MEMORY_BIOS_CALL
+<P>Clear the E820 memory area counter.
+<P>Try three different memory detection schemes. <BR>
+First, try E820h, which lets us assemble a memory map, then try E801h,
+which returns a 32-bit memory size, and finally 88h, which
+returns 0-64 MB.
+<P>Method E820H populates a table in the empty_zero_block that contains
+a list of usable address/size/type tuples.
+In "linux/arch/i386/kernel/setup.c", this information is
+transferred into the e820map, and in "linux/arch/i386/mm/init.c", that
+new information is used to mark pages reserved or not.
+<P>Method E820H: <BR>
+Get the BIOS memory map.  E820h returns memory classified into
+different types and allows memory holes.
+We scan through this memory map and build a list of the first
+32 memory areas {up to 32 entries or BIOS says that there are no
+more entries}, which we return at "E820MAP".
+[See URL: http://www.teleport.com/&nbsp;acpi/acpihtml/topic245.htm]
+<P>Method E801H: <BR>
+We store the 0xe801 memory size in a completely different place,
+because it will most likely be longer than 16 bits.
+<P>This is the sum of 2 registers, normalized to 1 KB chunk sizes:
+%ecx = memory size from 1 MB to 16 MB range, in 1 KB chunks +
+%edx = memory size above 16 MB, in 64 KB chunks.
+<P>Ye Olde Traditional Methode: <BR>
+BIOS int. 0x15/AH=0x88 returns the memory size (up to 16 MB or 64 MB,
+depending on the BIOS).
+We always use this method, regardless of the results of the other
+two methods.
+<P>#endif
+<P>Set the keyboard repeat rate to the maximum rate using
+using BIOS int. 0x16.
+<P>
+<H3>Video adapter modes </H3>
+
+<P>
+<P>Find the video adapter and its supported modes and allow the
+user to browse video modes.
+<P>call video           # {see Video section below}
+<P>
+<H3>Get Hard Disk parameters </H3>
+
+<P>
+<P>Get hd0 data:
+Save the hd0 descriptor (from int. vector 0x41) at INITSEG:0x80 length 0x10.
+<P>Get hd1 data:
+Save the hd1 descriptor (from int. vector 0x46) at INITSEG:0x90 length 0x10.
+<P>Check that there IS an hd1, using BIOS int. 0x13.
+If not, clear its descriptor.
+<P>
+<H3>Get Micro Channel bus information </H3>
+
+<P>
+<P>Check for Micro Channel (MCA) bus:
+<UL>
+<LI> Set MCA feature table length to 0 in case not found.</LI>
+<LI> Get System Configuration Parameters (BIOS int. 0x15/%ah=0xc0).
+This sets %es:%bx to point to the system feature table.</LI>
+<LI> We keep only the first 16 bytes of the system feature table if found:
+Structure size, Model byte, Submodel byte, BIOS revision,
+and Feature information bytes 1-5.
+Bit 0 or 1 (either one) of Feature byte 1 indicates that the system
+contains a Micro Channel bus.</LI>
+</UL>
+<P>
+<H3>Check for mouse </H3>
+
+<P>
+<P>Check for PS/2 pointing device by using BIOS int. 0x11 {get equipment list}.
+<UL>
+<LI> Clear the pointing device flag (default).</LI>
+<LI> BIOS int. 0x11: get equipment list.</LI>
+<LI> If bit 2 (value 0x04) is set, then a mouse is installed and the
+pointing device flag is set to indicate that the device is present.</LI>
+</UL>
+<P>
+<H3>Check for APM BIOS support </H3>
+
+<P>
+<P>Check for an APM BIOS (if kernel is configured for APM support):
+<UL>
+<LI> start: clear version field to 0, which means no APM BIOS present.</LI>
+<LI> Check for APM BIOS installation using BIOS int. 0x15.</LI>
+<LI> If not present, done.</LI>
+<LI> Check for "PM" signature returned in %bx.</LI>
+<LI> If no signature, then no APM BIOS: done.</LI>
+<LI> Check for 32-bit support in %cx.</LI>
+<LI> If no 32-bit support, no (good) APM BIOS: done.
+Must have 32-bit APM BIOS support to be used by Linux.</LI>
+<LI> Save the BIOS code segment, BIOS entry point offset,
+BIOS 16-bit code segment, BIOS data segment,
+BIOS code segment length, and BIOS data segment length.</LI>
+<LI> Record the APM BIOS version and flags.</LI>
+</UL>
+<P>
+<H3>Prepare to move to protected mode </H3>
+
+<P>
+<P>We build a jump instruction to the kernel's code32_start address.
+(The loader may have changed it.)
+<P>Move the kernel to its correct place if necessary.
+<P>Load the segment descriptors (load %ds = %cs).
+<P>Make sure that we are at the right position in memory, to
+accommodate the command line and boot parameters at their
+fixed locations.
+<P>Load the IDT pointer register with 0,0.
+<P>Calculate the linear base address of the kernel GDT (table) and load the
+GDT pointer register with its base address and limit.
+This early kernel GDT describes kernel code as 4 GB, with base address 0,
+code/readable/executable, with granularity of 4 KB.
+The kernel data segment is described as 4 GB, with base address 0,
+data/readable/writable, with granularity of 4 KB.
+<P>
+<H3>Enable address line A20 </H3>
+
+<P>
+<P>
+<UL>
+<LI> Empty the 8042 (keyboard controller) of any queued keys.</LI>
+<LI> Write 0xd1 (Write Output Port) to Command Register port 0x64.</LI>
+<LI> Empty the 8042 (keyboard controller) of any queued keys.</LI>
+<LI> Write 0xdf (Gate A20 + more) to Output port 0x60.</LI>
+<LI> Empty the 8042 (keyboard controller) of any queued keys.</LI>
+<LI> Set bit number 1 (value 0x02: FAST_A20) in the "port 0x92"
+system control register.  This enables A20 on some systems, depending
+on the chipset used in them.</LI>
+<LI> Wait until A20 really *is* enabled; it can take a fair amount of
+time on certain systems.
+The memory location used here (0x200) is the int 0x80
+vector, which should be safe to use.
+When A20 is disabled, the test memory locations are an alias
+of each other (segment 0:offset 0x200 and segment 0xffff:offset 0x210).
+{0xffff0 + 0x210 = 0x100200, but if A20 is disabled, this becomes
+0x000200.}
+We just wait (busy wait/loop) until these memory locations are
+no longer aliased.</LI>
+</UL>
+<P>
+<H3>Make sure any possible coprocessor is properly reset </H3>
+
+<P>
+<P>
+<UL>
+<LI> Write 0 to port 0xf0 to clear the Math Coprocessor '-busy' signal.</LI>
+<LI> Write 0 to port 0xf1 to reset the Math Coprocessor.</LI>
+</UL>
+<P>
+<H3>Mask all interrupts </H3>
+
+<P>
+<P>Now we mask all interrupts; the rest is done in init_IRQ().
+<P>
+<UL>
+<LI> Mask off all interrupts on the slave PIC: write 0xff to port 0xa1.</LI>
+<LI> Mask off all interrupts on the master PIC except for IRQ2,
+which is the cascaded IRQ input from the slave PIC: write 0xfb to port 0x21.</LI>
+</UL>
+<P>
+<H3>Move to Protected Mode </H3>
+
+<P>
+<P>Now is the time to actually move into protected mode.  To make
+things as simple as possible, we do no register setup or anything,
+we let the GNU-compiled 32-bit programs do that.  We just jump to
+absolute address 0x1000 (or the loader supplied one),
+in 32-bit protected mode.
+<P>Note that the short jump isn't strictly needed, although there are
+reasons why it might be a good idea.  It won't hurt in any case.
+<P>Set the PE (Protected mode Enable) bit in the MSW and jump to the
+following instruction to flush the instruction fetch queue.
+<P>Clear %bx to indicate that this is the BSP (first CPU only).
+<P>
+<H3>Jump to startup_32 code </H3>
+
+<P>
+<P>Jump to the 32-bit kernel code (startup_32).
+<P>NOTE:  For high-loaded big kernels we need: <BR>
+<BLOCKQUOTE><CODE>
+<PRE>
+        jmpi    0x100000,__KERNEL_CS
+</PRE>
+</CODE></BLOCKQUOTE>
+
+but we yet haven't reloaded the %cs register, so the default size 
+of the target offset still is 16 bit.
+However, using an operand prefix (0x66), the CPU will properly
+take our 48-bit far pointer. (INTeL 80386 Programmer's Reference
+Manual, Mixing 16-bit and 32-bit code, page 16-6).
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        .byte 0x66, 0xea                # prefix + jmpi-opcode
+code32: .long   0x1000                  # or 0x100000 for big kernels
+        .word   __KERNEL_CS
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This jumps to "startup_32" in "linux/arch/i386/kernel/head.S".
+<P>
+<H2><A NAME="ss3.2">3.2 Video Setup </A>
+</H2>
+
+<P>
+<P>"linux/arch/i386/boot/video.S" is included into
+"linux/arch/i386/boot/setup.S", so they are assembled together.
+The file separation is a logical module separation even though
+the two modules aren't built separately.
+<P>"video.S" handles Linux/i386 display adapter and video mode setup.
+For more information about Linux/i386 video modes, see
+"linux/Documentation/svga.txt" by Martin Mares [mj@ucw.cz].
+<P>Video mode selection is a kernel build option.  When it is
+enabled, You can select a specific (fixed) video mode to be used
+during kernel booting or you can ask to view a selection menu
+and then choose a video mode from that menu.
+<P>There are a few esoteric (!) "video.S" build options that
+not covered here.  See "linux/Documentation/svga.txt" for all
+of them.
+<P>CONFIG_VIDEO_SVGA (for automatic detection of SVGA adapters and
+modes) is normally #undefined.  The normal method of video
+adapter detection on Linux/i386 is VESA (CONFIG_VIDEO_VESA,
+for autodetection of VESA modes).
+<P>"video:" is the main entry point called by "setup.S".
+The %ds register *must* be pointing to the bootsector.
+The "video.S" code uses different segments from the main "setup.S" code.
+<P>This is a simplified description of the code flow in "video.S".
+It does not address the CONFIG_VIDEO_LOCAL, CONFIG_VIDEO_400_HACK,
+and CONFIG_VIDEO_GFX_HACK build options and it does not dive deep
+into video BIOS calls or video register accesses.
+<P>
+<H3>video: </H3>
+
+<P>
+<P>
+<UL>
+<LI> %fs is set to the original %ds value</LI>
+<LI> %ds and %es are set to %cs</LI>
+<LI> %gs is set to zero</LI>
+<LI> Detect the video adapter type and supported modes. (call basic_detect)</LI>
+<LI> #ifdef CONFIG_VIDEO_SELECT</LI>
+<LI> If the user wants to see a list of the supported VGA adapter
+modes, list them. (call mode_menu)</LI>
+<LI> Set the selected video mode. (call mode_set)</LI>
+<LI> #ifdef CONFIG_VIDEO_RETAIN</LI>
+<LI> Restore the screen contents. (call restore_screen)</LI>
+<LI> #endif /* CONFIG_VIDEO_RETAIN */</LI>
+<LI> #endif /* CONFIG_VIDEO_SELECT */</LI>
+<LI> Store mode parameters for kernel. (call mode_params)</LI>
+<LI> Restore original DS register value.</LI>
+</UL>
+<P>
+<H3>basic_detect: </H3>
+
+<P>
+<P>
+<UL>
+<LI> Detect if we have CGA, MDA, HGA, EGA, or VGA and pass it to the kernel.</LI>
+<LI> Check for EGA/VGA using BIOS int. 0x10 calls.
+This also tells whether the video adapter is CGA/MDA/HGA.</LI>
+<LI> The "adapter" variable is returned as 0 for CGA/MDA/HGA, 1 for EGA,
+and 2 for VGA.</LI>
+</UL>
+<P>
+<H3>mode_params: </H3>
+
+<P>
+<P>
+<UL>
+<LI> Store the video mode parameters for later use by the kernel.
+This is done by asking the BIOS for mode parameters except for the
+rows/columns parameters in the default 80x25 mode -- these are set directly,
+because some very obscure BIOSes supply insane values.</LI>
+<LI> #ifdef CONFIG_VIDEO_SELECT</LI>
+<LI> For graphics mode with a linear frame buffer, goto mopar_gr.</LI>
+<LI> #endif /* CONFIG_VIDEO_SELECT */</LI>
+<LI> For MDA/CGA/HGA/EGA/VGA:</LI>
+<LI> Read and save cursor position.</LI>
+<LI> Read and save video page/mode/width.</LI>
+<LI> For MDA/HGA, change the video_segment to $0xb000.
+(Leave it at its initial value of $0xb800 for all other adapters.)</LI>
+<LI> Get the Font size (valid only on EGA/VGA).</LI>
+<LI> Save the number of video columns and lines.</LI>
+</UL>
+<P>#ifdef CONFIG_VIDEO_SELECT
+<P>
+<H3>mopar_gr: </H3>
+
+<P>
+<P>
+<UL>
+<LI> Get VESA frame buffer parameters.</LI>
+<LI> Get video mem size and protected mode interface information
+using BIOS int. 0x10 calls.</LI>
+</UL>
+<P>
+<H3>mode_menu: </H3>
+
+<P>
+<P>Build the mode list table and display the mode menu.
+<P>
+<H3>mode_set: </H3>
+
+<P>
+<P>For the selected video mode, use BIOS int. 0x10 calls or register
+writes as needed to set some or all of:
+<UL>
+<LI> Reset the video mode</LI>
+<LI> Number of scan lines</LI>
+<LI> Font pixel size</LI>
+<LI> Save the screen size in force_size.  "force_size" is used
+to override possibly broken video BIOS interfaces and is used
+instead of the BIOS variables.</LI>
+</UL>
+<P>Some video modes require register writes to set:
+<UL>
+<LI> Location of the cursor scan lines</LI>
+<LI> Vertical sync start</LI>
+<LI> Vertical sync end</LI>
+<LI> Vertical display end</LI>
+<LI> Vertical blank start</LI>
+<LI> Vertical blank end</LI>
+<LI> Vertical total</LI>
+<LI> (Vertical) overflow</LI>
+<LI> Correct sync polarity</LI>
+<LI> Preserve clock select bits and color bit</LI>
+</UL>
+<P>{end of mode_set}
+<P>#ifdef CONFIG_VIDEO_RETAIN   /* Normally _IS_ #defined */
+<P>
+<H3>store_screen: </H3>
+
+<P>
+<P>CONFIG_VIDEO_RETAIN is used to retain screen contents when
+switching modes.
+This option stores the screen contents to a temporary memory buffer
+(if there is enough memory) so that they can be restored later.
+<P>
+<UL>
+<LI> Save the current number of video lines and columns,
+cursor position, and video mode.</LI>
+<LI> Calculate the image size.</LI>
+<LI> Save the screen image.</LI>
+<LI> Set the "do_restore" flag so that the screen contents
+will be restored at the end of video mode detection/selection.</LI>
+</UL>
+<P>
+<H3>restore_screen: </H3>
+
+<P>
+<P>Restores screen contents from temporary buffer (if already saved).
+<P>
+<UL>
+<LI> Get parameters of current mode.</LI>
+<LI> Set cursor position.</LI>
+<LI> Restore the screen contents.</LI>
+</UL>
+<P>#endif /* CONFIG_VIDEO_RETAIN */
+<P>
+<H3>mode_table: </H3>
+
+<P>
+<P>Build the table of video modes at `modelist'.
+<P>
+<UL>
+<LI> Store standard modes.</LI>
+<LI> Add modes for standard VGA.</LI>
+<LI> #ifdef CONFIG_VIDEO_LOCAL</LI>
+<LI> Add locally-defined video modes. (call local_modes)</LI>
+<LI> #endif /* CONFIG_VIDEO_LOCAL */</LI>
+<LI> #ifdef CONFIG_VIDEO_VESA</LI>
+<LI> Auto-detect VESA VGA modes. (call vesa_modes)</LI>
+<LI> #endif /* CONFIG_VIDEO_VESA */</LI>
+<LI> #ifdef CONFIG_VIDEO_SVGA</LI>
+<LI> Detect SVGA cards &amp; modes. (call svga_modes)</LI>
+<LI> #endif /* CONFIG_VIDEO_SVGA */</LI>
+<LI> #ifdef CONFIG_VIDEO_COMPACT</LI>
+<LI> Compact the video modes list, removing duplicate entries.</LI>
+<LI> #endif /* CONFIG_VIDEO_COMPACT */</LI>
+</UL>
+<P>
+<H3>mode_scan: </H3>
+
+<P>
+<P>Scans for video modes.
+<P>
+<UL>
+<LI> Start with mode 0.</LI>
+<LI> Test the mode.</LI>
+<LI> Test if it's a text mode.</LI>
+<LI> OK, store the mode.</LI>
+<LI> Restore back to mode 3.</LI>
+</UL>
+<P>#ifdef CONFIG_VIDEO_SVGA
+<P>
+<H3>svga_modes: </H3>
+
+<P>
+<P>Try to detect the type of SVGA card and supply (usually approximate)
+video mode table for it.
+<P>
+<UL>
+<LI> Test all known SVGA adapters.</LI>
+<LI> Call the test routine for each adapter.</LI>
+<LI> If adapter is found, copy the video modes.</LI>
+<LI> Store pointer to card name.</LI>
+</UL>
+<P>#endif       /* CONFIG_VIDEO_SVGA */
+<P>#endif /* CONFIG_VIDEO_SELECT */
+<P>
+<HR>
+<A HREF="Linux-Init-HOWTO-4.html">Next</A>
+<A HREF="Linux-Init-HOWTO-2.html">Previous</A>
+<A HREF="Linux-Init-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,1260 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux IPCHAINS-HOWTO: IP Firewalling Chains</TITLE>
+ <LINK HREF="IPCHAINS-HOWTO-5.html" REL=next>
+ <LINK HREF="IPCHAINS-HOWTO-3.html" REL=previous>
+ <LINK HREF="IPCHAINS-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="IPCHAINS-HOWTO-5.html">Next</A>
+<A HREF="IPCHAINS-HOWTO-3.html">Previous</A>
+<A HREF="IPCHAINS-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="core"></A> <A NAME="s4">4. IP Firewalling Chains</A></H2>
+
+<P>This section describes all you really need to know to build a packet
+filter that meets your needs.
+<P>
+<H2><A NAME="ss4.1">4.1 How Packets Traverse The Filters</A>
+</H2>
+
+<P>The kernel starts with three lists of rules; these lists are called
+<B>firewall chains</B> or just <B>chains</B>.  The three chains are
+called <B>input</B>, <B>output</B> and <B>forward</B>.  When a packet comes
+in (say, through the Ethernet card) the kernel uses the <CODE>input</CODE>
+chain to decide its fate.  If it survives that step, then the kernel
+decides where to send the packet next (this is called <B>routing</B>).
+If it is destined for another machine, it consults the <CODE>forward</CODE>
+chain.  Finally, just before a packet is to go out, the kernel
+consults the <CODE>output</CODE> chain.
+<P>
+<P>A chain is a checklist of <B>rules</B>.  Each rule says `if the packet
+header looks like this, then here's what to do with the packet'.  If
+the rule doesn't match the packet, then the next rule in the chain is
+consulted.  Finally, if there are no more rules to consult, then the
+kernel looks at the chain <B>policy</B> to decide what to do.  In a
+security-conscious system, this policy usually tells the kernel to
+reject or deny the packet.
+<P>
+<P>For ASCII-art fans, this shown the complete path of a packet coming
+into a machine.
+<P>
+<PRE>
+        ----------------------------------------------------------------
+        |            ACCEPT/                              lo interface |
+        v           REDIRECT                  _______                  |
+--> C --> S --> ______ --> D --> ~~~~~~~~ -->|forward|----> _______ --> 
+    h     a    |input |    e    {Routing }   |Chain  |     |output |ACCEPT
+    e     n    |Chain |    m    {Decision}   |_______| --->|Chain  |
+    c     i    |______|    a     ~~~~~~~~        |     | ->|_______|
+    k     t       |        s       |             |     | |     |    
+    s     y       |        q       |             v     | |     |    
+    u     |       v        e       v            DENY/  | |     v    
+    m     |     DENY/      r   Local Process   REJECT  | |   DENY/
+    |     v    REJECT      a       |                   | |  REJECT
+    |   DENY               d       --------------------- | 
+    v                      e -----------------------------
+   DENY                              
+</PRE>
+
+Here is a blow-by-blow description of each stage:
+<P>
+<DL>
+<DT><B>Checksum:</B><DD><P>This is a test that the packet hasn't been corrupted
+in some way.  If it has, it is denied.
+<P>
+<DT><B>Sanity:</B><DD><P>There is actually one of these sanity checks before each
+firewall chain, but the input chain's is the most important.  Some
+malformed packets might confuse the rule-checking code, and these are
+denied here (a message is printed to the syslog if this happens).
+<P>
+<DT><B>input chain:</B><DD><P>This is the first firewall chain against which the
+packet will be tested.  If the verdict of the chain is not <CODE>DENY</CODE>
+or <CODE>REJECT</CODE>, the packet continues on.
+<P>
+<DT><B>Demasquerade:</B><DD><P>If the packet is a reply to a previously
+masqueraded packet, it is demasqueraded, and skips straight to the
+<CODE>output</CODE> chain.  If you don't use IP Masquerading, you can mentally
+erase this from the diagram.
+<P>
+<DT><B>Routing decision:</B><DD><P>The destination field is examined by the
+routing code, to decide if this packet should go to a local process
+(see Local process below) or forwarded to a remote machine (see forward
+chain below).
+<P>
+<DT><B>Local process:</B><DD><P>A process running on the machine can receive
+packets after the Routing Decision step, and can send packets (which
+go through the Routing Decision step, then traverse the output chain).
+<P>
+<DT><B>lo interface:</B><DD><P>If packets from a local process are destined for a
+local process, they will go through the output chain with interface
+set to `lo', then return through the input chain with interface also
+`lo'.  The lo interface is usually called the loopback interface.
+<P>
+<DT><B>local:</B><DD><P>If the packet was not created by a local process, then
+the forward chain is checked, otherwise the packet goes to the output
+chain.
+<P>
+<DT><B>forward chain:</B><DD><P>This chain is traversed for any packets which are
+attempting to pass through this machine to another.
+<P>
+<DT><B>output chain:</B><DD><P>This chain is traversed for all packets just
+before they are sent out.
+</DL>
+<P>
+<H3>Using ipchains</H3>
+
+<P>First, check that you have the version of ipchains that this document
+refers to: 
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+$ ipchains --version
+ipchains 1.3.9, 17-Mar-1999
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Note that I recommend 1.3.4 (which has no long options, like
+`--sport'), or 1.3.8 or above; these are very stable.
+<P>
+<P>ipchains has a fairly detailed manual page (<CODE>man ipchains</CODE>),
+and if you need more detail on particulars, you can check out the
+programming interface (<CODE>man 4 ipfw</CODE>), or the file
+<CODE>net/ipv4/ip_fw.c</CODE> in the 2.1.x kernel source, which is
+(obviously) authoritative.
+<P>
+<P>There is also an excellent quick reference card by Scott Bronson in
+the source package, in both A4 and US Letter PostScript(TM).
+<P>
+<P>There are several different things you can do with <CODE>ipchains</CODE>.
+First the operations to manage whole chains.  You start with three
+built-in chains <CODE>input</CODE>, <CODE>output</CODE> and <CODE>forward</CODE>
+which you can't delete.
+<P>
+<OL>
+<LI> Create a new chain (-N).</LI>
+<LI> Delete an empty chain (-X).</LI>
+<LI> Change the policy for a built-in chain. (-P).</LI>
+<LI> List the rules in a chain (-L).</LI>
+<LI> Flush the rules out of a chain (-F).</LI>
+<LI> Zero the packet and byte counters on all rules in a chain (-Z).</LI>
+</OL>
+<P>There are several ways to manipulate rules inside a chain:
+<P>
+<OL>
+<LI> Append a new rule to a chain (-A).</LI>
+<LI> Insert a new rule at some position in a chain (-I).</LI>
+<LI> Replace a rule at some position in a chain (-R).</LI>
+<LI> Delete a rule at some position in a chain (-D).</LI>
+<LI> Delete the first rule that matches in a chain (-D).</LI>
+</OL>
+<P>There are a few operations for masquerading, which are in
+<CODE>ipchains</CODE> for want of a good place to put them:
+<P>
+<OL>
+<LI> List the currently masqueraded connections (-M -L).</LI>
+<LI> Set masquerading timeout values (-M -S). (But see 
+<A HREF="IPCHAINS-HOWTO-6.html#no-timeout">I can't set masquerading timeouts!</A>).</LI>
+</OL>
+<P>The final (and perhaps the most useful) function allows you to check
+what would happen to a given packet if it were to traverse a given
+chain.
+<P>
+<H3>What You'll See When Your Computer Starts Up</H3>
+
+<P>Before any ipchains commands have been run (be careful: some
+distributions run ipchains in their initialization scripts), there
+will be no rules in any of the built-in chains (`input', `forward' and
+`output'), and each of the chains will have a policy of ACCEPT.  This
+is as wide-open as you can get.
+<P>
+<H3>Operations on a Single Rule</H3>
+
+<P>This is the bread-and-butter of ipchains; manipulating rules.  Most
+commonly, you will probably use the append (-A) and delete (-D)
+commands.  The others (-I for insert and -R for replace) are simple
+extensions of these concepts.
+<P>
+<P>Each rule specifies a set of conditions the packet must meet, and what
+to do if it meets them (a `target').  For example, you might want to
+deny all ICMP packets coming from the IP address 127.0.0.1.  So in
+this case our conditions are that the protocol must be ICMP and that
+the source address must be 127.0.0.1.  Our target is `DENY'.
+<P>
+<P>127.0.0.1 is the `loopback' interface, which you will have even if you
+have no real network connection.  You can use the `ping' program to
+generate such packets (it simply sends an ICMP type 8 (echo request)
+which all cooperative hosts should obligingly respond to with an ICMP
+type 0 (echo reply) packet).  This makes it useful for testing.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ping -c 1 127.0.0.1
+PING 127.0.0.1 (127.0.0.1): 56 data bytes
+64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.2 ms
+
+--- 127.0.0.1 ping statistics ---
+1 packets transmitted, 1 packets received, 0% packet loss
+round-trip min/avg/max = 0.2/0.2/0.2 ms
+# ipchains -A input -s 127.0.0.1 -p icmp -j DENY
+# ping -c 1 127.0.0.1
+PING 127.0.0.1 (127.0.0.1): 56 data bytes
+
+--- 127.0.0.1 ping statistics ---
+1 packets transmitted, 0 packets received, 100% packet loss
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You can see here that the first ping succeeds (the `-c 1' tells ping
+to only send a single packet).
+<P>
+<P>Then we append (-A) to the `input' chain, a rule specifying that for
+packets from 127.0.0.1 (`-s 127.0.0.1') with protocol ICMP (`-p ICMP')
+we should jump to DENY (`-j DENY').
+<P>
+<P>Then we test our rule, using the second ping.  There will be a pause
+before the program gives up waiting for a response that will never
+come.
+<P>
+<P>We can delete the rule in one of two ways.  Firstly, since we know
+that it is the only rule in the input chain, we can use a numbered
+delete, as in:
+<BLOCKQUOTE><CODE>
+<PRE>
+        # ipchains -D input 1
+        #
+</PRE>
+</CODE></BLOCKQUOTE>
+
+To delete rule number 1 in the input chain.
+<P>
+<P>The second way is to mirror the -A command, but replacing the -A with
+-D.  This is useful when you have a complex chain of rules and you
+don't want to have to count them to figure out that it's rule 37 that
+you want to get rid of.  In this case, we would use:
+<BLOCKQUOTE><CODE>
+<PRE>
+        # ipchains -D input -s 127.0.0.1 -p icmp -j DENY
+        #
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The syntax of -D must have exactly the same options as the -A (or -I
+or -R) command.  If there are multiple identical rules in the same
+chain, only the first will be deleted.
+<P>
+<H3>Filtering Specifications</H3>
+
+<P>We have seen the use of `-p' to specify protocol, and `-s' to specify
+source address, but there are other options we can use to specify
+packet characteristics.  What follows is an exhaustive compendium.
+<P>
+<H3>Specifying Source and Destination IP Addresses</H3>
+
+<P>Source (-s) and destination (-d) IP addresses can be specified in four
+ways.  The most common way is to use the full name, such as
+`localhost' or `www.linuxhq.com'.  The second way is to specify the IP
+address such as `127.0.0.1'.  
+<P>
+<P>The third and fourth ways allow specification of a group of IP
+addresses, such as `199.95.207.0/24' or `199.95.207.0/255.255.255.0'.
+These both specify any IP address from 199.95.207.0 to 199.95.207.255
+inclusive; the digits after the `/' tell which parts of the IP address
+are significant.  `/32' or `/255.255.255.255' is the default (match
+all of the IP address).  To specify any IP address at all `/0' can be
+used, like so:
+<BLOCKQUOTE><CODE>
+<PRE>
+        # ipchains -A input -s 0/0 -j DENY
+        #
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This is rarely used, as the effect above is the same as not specifying
+the `-s' option at all.
+<P>
+<H3>Specifying Inversion</H3>
+
+<P>Many flags, including the `-s' and `-d' flags can have their arguments
+preceded by `!' (pronounced `not') to match addresses NOT equal to the
+ones given.  For example. `-s ! localhost' matches any packet not
+coming from localhost.
+<P>
+<P>Don't forget the spaces around the `!': they really are needed.
+<P>
+<H3>Specifying Protocol</H3>
+
+<P>The protocol can be specified with the `-p' flag.  Protocol can be a
+number (if you know the numeric protocol values for IP) or a name for
+the special cases of `TCP', `UDP' or `ICMP'.  Case doesn't matter, so
+`tcp' works as well as `TCP'.
+<P>
+<P>The protocol name can be prefixed by a `!', to invert it, such as `-p
+! TCP'.
+<P>
+<H3>Specifying UDP and TCP Ports</H3>
+
+<P>For the special case where a protocol of TCP or UDP is specified,
+there can be an extra argument indicating the TCP or UDP port, or an
+(inclusive) range of ports (but see 
+<A HREF="#handling-fragments">Handling Fragments</A> below).  A range is represented using a `:'
+character, such as `6000:6010', which covers 11 port numbers, from
+6000 to 6010 inclusive.  If the lower bound is omitted, it defaults to
+0.  If the upper bound is omitted, it defaults to 65535.  So to
+specify TCP connections coming from ports under 1024, the syntax would
+be as `-p TCP -s 0.0.0.0/0 :1023'.  Port numbers can be specified by
+name, eg. `www'.
+<P>
+<P>Note that the port specification can be preceded by a `!', which
+inverts it.  So to specify every TCP packet BUT a WWW packet, you
+would specify
+<PRE>
+-p TCP -d 0.0.0.0/0 ! www
+</PRE>
+<P>It is important to realize that the specification 
+<P>
+<PRE>
+-p TCP -d ! 192.168.1.1 www
+</PRE>
+<P>is very different from 
+<PRE>
+-p TCP -d 192.168.1.1 ! www
+</PRE>
+<P>The first specifies any TCP packet to the WWW port on any machine but
+192.168.1.1.  The second specifies any TCP connection to any port on
+192.168.1.1 but the WWW port.
+<P>
+<P>Finally, this case means not the WWW port and not 192.168.1.1:
+<PRE>
+-p TCP -d ! 192.168.1.1 ! www
+</PRE>
+<P>
+<H3>Specifying ICMP Type and Code</H3>
+
+<P>ICMP also allows an optional argument, but as ICMP doesn't have ports,
+(ICMP has a <B>type</B> and a <B>code</B>) they have a different meaning.
+<P>
+<P>You can specify them as ICMP names (use <CODE>ipchains -h icmp</CODE> to list the
+names) after the `-s' option, or as a numeric ICMP type and code,
+where the type follows the `-s' option and the code follows the `-d'
+option.
+<P>
+<P>The ICMP names are fairly long: you only need use enough letters to
+make the name distinct from any other.
+<P>
+<P>Here is a small table of some of the most common ICMP packets:
+<BLOCKQUOTE><CODE>
+<PRE>
+Number  Name                     Required by
+
+0       echo-reply               ping
+3       destination-unreachable  Any TCP/UDP traffic.
+5       redirect                 routing if not running routing daemon
+8       echo-request             ping
+11      time-exceeded            traceroute
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Note that the ICMP names cannot be preceeded by `!' at the moment.
+<P>
+<P>DO NOT DO NOT DO NOT block all ICMP type 3 messages!  (See 
+<A HREF="IPCHAINS-HOWTO-5.html#ICMP">ICMP Packets</A> below).
+<P>
+<H3>Specifying an Interface </H3>
+
+<P>The `-i' option specifies the name of an <B>interface</B> to match.  An
+interface is the physical device the packet came in on, or is going
+out on.  You can use the <CODE>ifconfig</CODE> command to list the interfaces
+which are `up' (ie. working at the moment).
+<P>
+<P>The interface for incoming packets (ie. packets traversing the <CODE>input</CODE>
+chain) is considered to be the interface they came in on.  Logically,
+the interface for outgoing packets (packets traversing the <CODE>output</CODE>
+chain) is the interface they will go out on.  The interface for
+packets traversing the <CODE>forward</CODE> chain is also the interface they will
+go out on; a fairly arbitrary decision it seems to me.
+<P>
+<P>It is perfectly legal to specify an interface that currently does not
+exist; the rule will not match anything until the interface comes up.
+This is extremely useful for dial-up PPP links (usually interface
+<CODE>ppp0</CODE>) and the like.
+<P>
+<P>As a special case, an interface name ending with a `+' will match all
+interfaces (whether they currently exist or not) which begin with that
+string.  For example, to specify a rule which matches all PPP
+interfaces, the <CODE>-i ppp+</CODE> option would be used.
+<P>
+<P>The interface name can be preceded by a `!' to match a packet which
+does NOT match the specified interface(s).
+<P>
+<H3>Specifying TCP SYN Packets Only</H3>
+
+<P>It is sometimes useful to allow TCP connections in one direction, but
+not the other.  For example, you might want to allow connections to an
+external WWW server, but not connections from that server.
+<P>
+<P>The naive approach would be to block TCP packets coming from the
+server.  Unfortunately, TCP connections require packets going in both
+directions to work at all.
+<P>
+<P>The solution is to block only the packets used to request a
+connection.  These packets are called <B>SYN</B> packets (ok,
+technically they're packets with the SYN flag set, and the FIN and ACK
+flags cleared, but we call them SYN packets).  By disallowing only
+these packets, we can stop attempted connections in their tracks.
+<P>
+<P>The `-y' flag is used for this: it is only valid for rules which
+specify TCP as their protocol.  For example, to specify TCP connection
+attempts from 192.168.1.1:
+<PRE>
+-p TCP -s 192.168.1.1 -y
+</PRE>
+<P>
+<P>Once again, this flag can be inverted by preceding it with a `!',
+which means every packet other than the connection initiation.
+<P>
+<H3><A NAME="handling-fragments"></A> Handling Fragments</H3>
+
+<P>Sometimes a packet is too large to fit down a wire all at once.  When
+this happens, the packet is divided into <B>fragments</B>, and sent as
+multiple packets.  The other end reassembles the fragments to
+reconstruct the whole packet.
+<P>
+<P>The problem with fragments is that some of the specifications listed
+above (in particular, source port, destinations port, ICMP type, ICMP
+code, or TCP SYN flag) require the kernel to peek at the start of the
+packet, which is only contained in the first fragment.
+<P>
+<P>If your machine is the only connection to an external network, then
+you can tell the Linux kernel to reassemble all fragments which pass
+through it, by compiling the kernel with <CODE>IP: always defragment</CODE> set
+to `Y'.  This sidesteps the issue neatly.
+<P>
+<P>Otherwise, it is important to understand how fragments get treated by
+the filtering rules.  Any filtering rule that asks for information we
+don't have will <EM>not</EM> match.  This means that the first fragment is
+treated like any other packet.  Second and further fragments won't be.
+Thus a rule <CODE>-p TCP -s 192.168.1.1 www</CODE> (specifying a source port of
+`www') will never match a fragment (other than the first fragment).
+Neither will the opposite rule <CODE>-p TCP -s 192.168.1.1 ! www</CODE>.
+<P>
+<P>However, you can specify a rule specifically for second and further
+fragments, using the `-f' flag.  Obviously, it is illegal to specify a
+TCP or UDP port, ICMP type, ICMP code or TCP SYN flag in such a
+fragment rule.
+<P>
+<P>It is also legal to specify that a rule does <EM>not</EM> apply to second
+and further fragments, by preceding the `-f' with `!'.
+<P>
+<P>Usually it is regarded as safe to let second and further fragments
+through, since filtering will effect the first fragment, and thus
+prevent reassembly on the target host, however, bugs have been known
+to allow crashing of machines simply by sending fragments.  Your call.
+<P>
+<P>Note for network-heads: malformed packets (TCP, UDP and ICMP packets
+too short for the firewalling code to read the ports or ICMP code and
+type) are treated as fragments as well.  Only TCP fragments starting
+at position 8 are explicitly dropped by the firewall code (a message
+should appear in the syslog if this occurs).
+<P>
+<P>As an example, the following rule will drop any fragments going to
+192.168.1.1:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ 
+# ipchains -A output -f -d 192.168.1.1 -j DENY
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Filtering Side Effects</H3>
+
+<P>OK, so now we know all the ways we can match a packet using a rule.
+If a packet matches a rule, the following things happen:
+<P>
+<OL>
+<LI> The byte counter for that rule is increased by the size of the
+packet (header and all).
+</LI>
+<LI> The packet counter for that rule is incremented.
+</LI>
+<LI> If the rule requests it, the packet is logged.
+</LI>
+<LI> If the rule requests it, the packet's Type Of Service field is
+changed.
+</LI>
+<LI> If the rule requests it, the packet is marked (not in 2.0
+kernel series).
+</LI>
+<LI> The rule target is examined to decide what to do to the packet
+next.</LI>
+</OL>
+<P>
+<P>For variety, I'll address these in order of importance.
+<P>
+<H3><A NAME="target-spec"></A> Specifying a Target</H3>
+
+<P>A <B>target</B> tells the kernel what to do with a packet that
+matches a rule.  ipchains uses `-j' (think `jump-to') for the target
+specification.  The target name must be less than 8 letters, and case
+matters: "RETURN" and "return" are completely different.
+<P>
+<P>The simplest case is when there is no target specified.  This type of
+rule (often called an `accounting' rule) is useful for simply counting
+a certain type of packet.  Whether this rule matches or not, the
+kernel simply examines the next rule in the chain.  For example, to
+count the number of packets from 192.168.1.1, we could do this:
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -A input -s 192.168.1.1
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>(Using `ipchains -L -v' we can see the byte and packet counters
+associated with each rule).
+<P>
+<P>There are six special targets.  The first three, <CODE>ACCEPT</CODE>,
+<CODE>REJECT</CODE> and <CODE>DENY</CODE> are fairly simple.  <CODE>ACCEPT</CODE> allows the
+packet through.  <CODE>DENY</CODE> drops the packet as if it had never been
+received.  <CODE>REJECT</CODE> drops the packet, but (if it's not an ICMP
+packet) generates an ICMP reply to the source to tell it that the
+destination was unreachable.
+<P>
+<P>The next one, <CODE>MASQ</CODE> tells the kernel to masquerade the packet.  For
+this to work, your kernel needs to be compiled with IP Masquerading
+enabled.  For details on this, see the Masquerading-HOWTO and the
+Appendix 
+<A HREF="IPCHAINS-HOWTO-8.html#ipfwadm-diff">Differences between ipchains and ipfwadm</A>.  This target is only valid for packets traversing the
+<CODE>forward</CODE> chain.
+<P>
+<P>The other major special target is <CODE>REDIRECT</CODE> which tells the kernel
+to send a packet to a local port instead of wherever it was heading.
+This can only be specified for rules specifying TCP or UDP as their
+protocol.  Optionally, a port (name or number) can be specified
+following `-j REDIRECT' which will cause the packet to be redirected
+to that particular port, even if it was addressed to another port.
+This target is only valid for packets traversing the <CODE>input</CODE> chain.
+<P>
+<P>The final special target is <CODE>RETURN</CODE> which is identical to falling
+off the end of the chain immediately.  (See 
+<A HREF="#policy">Setting Policy</A> below).
+<P>
+<P>Any other target indicates a user-defined chain (as described in 
+<A HREF="#chain-ops">Operations on an Entire Chain</A> below).  The
+packet will begin traversing the rules in that chain.  If that chain
+doesn't decide the fate of the packet, then once traversal on that
+chain has finished, traversal resumes on the next rule in the current
+chain.
+<P>
+<P>Time for more ASCII art.  Consider two (silly) chains: <CODE>input</CODE> (the
+built-in chain) and <CODE>Test</CODE> (a user-defined chain).
+<P>
+<PRE>
+         `input'                         `Test'
+        ----------------------------    ----------------------------
+        | Rule1: -p ICMP -j REJECT |    | Rule1: -s 192.168.1.1    |
+        |--------------------------|    |--------------------------|
+        | Rule2: -p TCP -j Test    |    | Rule2: -d 192.168.1.1    |
+        |--------------------------|    ----------------------------
+        | Rule3: -p UDP -j DENY    |
+        ----------------------------
+</PRE>
+<P>
+<P>Consider a TCP packet coming from 192.168.1.1, going to 1.2.3.4.  It
+enters the <CODE>input</CODE> chain, and gets tested against Rule1 - no match.
+Rule2 matches, and its target is <CODE>Test</CODE>, so the next rule examined
+is the start of <CODE>Test</CODE>.  Rule1 in <CODE>Test</CODE> matches, but doesn't
+specify a target, so the next rule is examined, Rule2.  This doesn't
+match, so we have reached the end of the chain.  We return to the
+<CODE>input</CODE> chain, where we had just examined Rule2, so we now examine
+Rule3, which doesn't match either.
+<P>
+<P>So the packet path is:
+<PRE>
+                                v    __________________________
+         `input'                |   /    `Test'                v
+        ------------------------|--/    -----------------------|----
+        | Rule1                 | /|    | Rule1                |   |
+        |-----------------------|/-|    |----------------------|---|
+        | Rule2                 /  |    | Rule2                |   |
+        |--------------------------|    -----------------------v----
+        | Rule3                 /--+___________________________/
+        ------------------------|---
+                                v
+</PRE>
+<P>
+<P>See the section 
+<A HREF="IPCHAINS-HOWTO-5.html#organisation">How to Organise Your Firewall Rules</A> for ways to use user-defined chains effectively.
+<P>
+<H3>Logging Packets</H3>
+
+<P>This is a side effect that matching a rule can have; you can have the
+matching packet logged using the `-l' flag.  You will usually not want
+this for routine packets, but it is a useful feature if you want to
+look for exceptional events.
+<P>
+<P>The kernel logs this information looking like:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Packet log: input DENY eth0 PROTO=17 192.168.2.1:53 192.168.1.1:1025
+  L=34 S=0x00 I=18 F=0x0000 T=254
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This log message is designed to be terse, and contain technical
+information useful only to networking gurus, but it can be useful to
+the rest of us.  It breaks down like so:
+<P>
+<OL>
+<LI> `input' is the chain which contained the rule which matched the
+packet, causing the log message.
+</LI>
+<LI> `DENY' is what the rule said to do to the packet.  If this is
+`-' then the rule didn't effect the packet at all (an accounting rule).
+</LI>
+<LI> `eth0' is the interface name.  Because this was the input
+chain, it means that the packet came in `eth0'.
+</LI>
+<LI> `PROTO=17' means that the packet was protocol 17.  A list of
+protocol numbers is given in `/etc/protocols'.  The most common are 1
+(ICMP), 6 (TCP) and 17 (UDP).
+</LI>
+<LI> `192.168.2.1' means that the packet's source IP address was
+192.168.2.1.
+</LI>
+<LI> `:53' means that the source port was port 53.  Looking in
+`/etc/services' shows that this is the `domain' port (ie. this is
+probably an DNS reply).  For UDP and TCP, this number is the source
+port.  For ICMP, it's the ICMP type.  For others, it will be 65535.
+</LI>
+<LI> `192.168.1.1' is the destination IP address.
+</LI>
+<LI> `:1025' means that the destination port was 1025.  For UDP and
+TCP, this number is the destination port.  For ICMP, it's the ICMP
+code.  For others, it will be 65535.
+</LI>
+<LI> `L=34' means that packet was a total of 34 bytes long.
+</LI>
+<LI> `S=0x00' means the Type of Service field (divide by 4 to get
+the Type of Service as used by ipchains).
+</LI>
+<LI> `I=18' is the IP ID.
+</LI>
+<LI> `F=0x0000' is the 16-bit fragment offset plus flags.  A value
+starting with `0x4' or `0x5' means that the Don't Fragment bit is set.
+`0x2' or `0x3' means the `More Fragments' bit is set; expect more
+fragments after this.  The rest of the number is the offset of this
+fragment, divided by 8.
+</LI>
+<LI> `T=254' is the Time To Live of the packet.  One is subtracted
+from this value for every hop, and it usually starts at 15 or 255.
+</LI>
+<LI> `(#5)' there may be a final number in brackets on more recent
+kernels (perhaps after 2.2.9).  This is the rule number which caused
+the packet log.
+</LI>
+</OL>
+<P>
+<P>On standard Linux systems, this kernel output is captured by klogd
+(the kernel logging daemon) which hands it to syslogd (the system
+logging daemon).  The `/etc/syslog.conf' controls the behaviour of
+syslogd, by specifying a destination for each `facility' (in our case,
+the facility is "kernel") and `level' (for ipchains, the level used is
+"info").
+<P>
+<P>For example, my (Debian) /etc/syslog.conf contains two lines which
+match `kern.info':
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+kern.*                          -/var/log/kern.log
+*.=info;*.=notice;*.=warn;\
+        auth,authpriv.none;\
+        cron,daemon.none;\
+        mail,news.none          -/var/log/messages
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>These mean that the messags are duplicated in `/var/log/kern.log' and
+`/var/log/messages'.  For more details, see `man syslog.conf'.
+<P>
+<H3>Manipulating the Type Of Service</H3>
+
+<P>There are four seldom-used bits in the IP header, called the <B>Type of
+Service</B> (TOS) bits.  They effect the way packets are treated; the four
+bits are "Minimum Delay", "Maximum Throughput", "Maximum Reliability"
+and "Minimum Cost".  Only one of these bits is allowed to be set.  Rob
+van Nieuwkerk, the author of the TOS-mangling code, puts it as
+follows:
+<P>
+<BLOCKQUOTE>
+Especially the "Minimum Delay" is important for me.  I switch it on
+for "interactive" packets in my upstream (Linux) router.  I'm behind a
+33k6 modem link.  Linux prioritizes packets in 3 queues.  This way I
+get acceptable interactive performance while doing bulk downloads at
+the same time.  (It could even be better if there wasn't such a big
+queue in the serial driver, but latency is kept down 1.5 seconds now).
+</BLOCKQUOTE>
+<P>
+<P>Note: obviously, you have no control over incoming packets; you can
+only control the priority of packets leaving your box.  To negotiate
+priorities with the other end, a protocol like RSVP (which I know
+nothing about, so don't ask me) must be used.
+<P>
+<P>The most common use is to set telnet &amp; ftp control connections to
+"Minimum Delay" and FTP data to "Maximum Throughput".  This would be
+done as follows:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ipchains -A output -p tcp -d 0.0.0.0/0 telnet -t 0x01 0x10
+ipchains -A output -p tcp -d 0.0.0.0/0 ftp -t 0x01 0x10
+ipchains -A output -p tcp -s 0.0.0.0/0 ftp-data -t 0x01 0x08
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>The `-t' flag takes two extra parameters, both in hexadecimal.  These
+allow complex twiddling of the TOS bits: the first mask is ANDed with
+the packet's current TOS, and then the second mask is XORed with it.
+If this is too confusing, just use the following table:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+TOS Name                Value           Typical Uses
+
+Minimum Delay           0x01 0x10       ftp, telnet
+Maximum Throughput      0x01 0x08       ftp-data
+Maximum Reliability     0x01 0x04       snmp
+Minimum Cost            0x01 0x02       nntp
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Andi Kleen goes on to point out the following (mildly edited for
+posterity):
+<BLOCKQUOTE>
+Maybe it would be useful to add an reference to the txqueuelen
+parameter of ifconfig to the discussion of TOS bits. The default
+device queue length is tuned for ethernet cards, on modems it is too
+long and makes the 3 band scheduler (which queues based on TOS) work
+suboptimally. It is a good idea to set it to a value between 4-10 on
+modem or single b channel ISDN links: on bundled devices a longer
+queue is needed.  This is a 2.0 and 2.1 problem, but in 2.1 it is a
+ifconfig flag (with recent nettools), while in 2.0 it requires source
+patches in the device drivers to change.
+</BLOCKQUOTE>
+<P>So, to see maximal benifits of TOS manipulation for modem PPP links,
+do `ifconfig $1 txqueuelen' in your /etc/ppp/ip-up script.  The number
+to use depends on the modem speed and the amount of buffering in the
+modem; here's Andi setting me straight again:
+<P>
+<BLOCKQUOTE>
+The best value for a given configuration needs experiment.  If the
+queues are too short on a router then packets will get dropped.  Also
+of course one gets benefits even without TOS rewriting, just that TOS
+rewriting helps to give the benefits to non cooperating programs (but
+all standard linux programs are cooperating).  
+</BLOCKQUOTE>
+<P>
+<H3>Marking a Packet</H3>
+
+<P>This allows complex and powerful interactions with Alexey Kuznetsov's
+new Quality of Service implementation, as well as the mark-based
+forwarding in later 2.1 series kernels.  More news as it comes to
+hand.  This option is ignored altogether in the 2.0 kernel series.
+<P>
+<H3><A NAME="chain-ops"></A> Operations on an Entire Chain</H3>
+
+<P>A very useful feature of ipchains is the ability to group related
+rules into chains.  You can call the chains whatever you want, as long
+as the names don't clash with the built-in chains (<CODE>input</CODE>,
+<CODE>output</CODE> and <CODE>forward</CODE>) or the targets (<CODE>MASQ</CODE>,
+<CODE>REDIRECT</CODE>, <CODE>ACCEPT</CODE>, <CODE>DENY</CODE>, <CODE>REJECT</CODE> or <CODE>RETURN</CODE>).  I
+suggest avoiding upper-case labels entirely, since I may use these for
+future extensions.  The chain name can be up to 8 characters long.
+<P>
+<H3>Creating a New Chain</H3>
+
+<P>Let's create a new chain.  Because I am such an imaginative fellow,
+I'll call it <CODE>test</CODE>.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -N test
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>It's that simple.  Now you can put rules in it as detailed above.
+<P>
+<H3>Deleting a Chain</H3>
+
+<P>Deleting a chain is simple as well.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -X test
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Why `-X'?  Well, all the good letters were taken.
+<P>
+<P>There are a couple of restrictions to deleting chains: they must be
+empty (see 
+<A HREF="#flushing">Flushing a Chain</A> below) and they
+must not be the target of any rule.  You can't delete any of the three
+built-in chains.
+<P>
+<H3><A NAME="flushing"></A> Flushing a Chain</H3>
+
+<P>There is a simple way of emptying all rules out of a chain, using the
+`-F' command.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        # ipchains -F forward
+        # 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>If you don't specify a chain, then <EM>all</EM> chains will be flushed.
+<P>
+<H3>Listing a Chain</H3>
+
+<P>You can list all the rules in a chain by using the `-L' command.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -L input
+Chain input (refcnt = 1): (policy ACCEPT)
+target     prot opt    source                destination           ports
+ACCEPT     icmp -----  anywhere              anywhere              any
+# ipchains -L test
+Chain test (refcnt = 0):
+target     prot opt    source                destination           ports
+DENY       icmp -----  localnet/24           anywhere              any
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>The `refcnt' listed for <CODE>test</CODE> is the number of rules which have
+<CODE>test</CODE> as their target.  This must be zero (and the chain be empty)
+before this chain can be deleted.
+<P>
+<P>If the chain name is omitted, all chains are listed, even empty ones.
+<P>
+<P>There are three options which can accompany `-L'.  The `-n' (numeric)
+option is very useful as it prevents <CODE>ipchains</CODE> from trying to
+lookup the IP addresses, which (if you are using DNS like most people)
+will cause large delays if your DNS is not set up properly, or you
+have filtered out DNS requests.  It also causes ports to be printed
+out as numbers rather than names.
+<P>
+<P>The `-v' options shows you all the details of the rules, such as the
+the packet and byte counters, the TOS masks, the interface, and the
+packet mark.  Otherwise these values are omitted.  For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -v -L input
+Chain input (refcnt = 1): (policy ACCEPT)
+ pkts bytes target     prot opt   tosa tosx  ifname    mark        source                destination           ports
+   10   840 ACCEPT     icmp ----- 0xFF 0x00  lo                    anywhere              anywhere              any
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Note that the packet and byte counters are printed out using the
+suffixes `K', `M' or `G' for 1000, 1,000,000 and 1,000,000,000
+respectively.  Using the `-x' (expand numbers) flag as well prints the
+full numbers, no matter how large they are.
+<P>
+<H3>Resetting (Zeroing) Counters</H3>
+
+<P>It is useful to be able to reset the counters.  This can be done with
+the `-Z' (zero counters) option.  For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -v -L input
+Chain input (refcnt = 1): (policy ACCEPT)
+ pkts bytes target     prot opt   tosa tosx  ifname    mark        source                destination           ports
+   10   840 ACCEPT     icmp ----- 0xFF 0x00  lo                    anywhere              anywhere              any
+# ipchains -Z input
+# ipchains -v -L input
+Chain input (refcnt = 1): (policy ACCEPT)
+ pkts bytes target     prot opt   tosa tosx  ifname    mark        source                destination           ports
+    0     0 ACCEPT     icmp ----- 0xFF 0x00  lo                    anywhere              anywhere              any
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>The problem with this approach is that sometimes you need to know the
+counter values immediately before they are reset.  In the above
+example, some packets could pass through between the `-L' and `-Z'
+commands.  For this reason, you can use the `-L' and `-Z'
+<EM>together</EM>, to reset the counters while reading them.
+Unfortunately, if you do this, you can't operate on a single chain:
+you have to list and zero all the chains at once.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -L -v -Z
+Chain input (policy ACCEPT):
+ pkts bytes target     prot opt   tosa tosx  ifname    mark        source                destination           ports
+   10   840 ACCEPT     icmp ----- 0xFF 0x00  lo                    anywhere              anywhere              any
+
+Chain forward (refcnt = 1): (policy ACCEPT)
+Chain output (refcnt = 1): (policy ACCEPT)
+Chain test (refcnt = 0):
+    0     0 DENY       icmp ----- 0xFF 0x00  ppp0                  localnet/24           anywhere              any
+# ipchains -L -v
+Chain input (policy ACCEPT):
+ pkts bytes target     prot opt   tosa tosx  ifname    mark        source                destination           ports
+   10   840 ACCEPT     icmp ----- 0xFF 0x00  lo                    anywhere              anywhere              any
+
+Chain forward (refcnt = 1): (policy ACCEPT)
+Chain output (refcnt = 1): (policy ACCEPT)
+Chain test (refcnt = 0):
+    0     0 DENY       icmp ----- 0xFF 0x00  ppp0                  localnet/24           anywhere              any
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3><A NAME="policy"></A> Setting Policy</H3>
+
+<P>We glossed over what happens when a packet hits the end of a built-in
+chain when we discussed how a packet walks through chains in 
+<A HREF="#target-spec">Specifying a Target</A> above.  In this case,
+the <B>policy</B> of the chain determines the fate of the packet.  Only
+built-in chains (<CODE>input</CODE>, <CODE>output</CODE> and <CODE>forward</CODE>) have policies,
+because if a packet falls off the end of a user-defined chain,
+traversal resumes at the previous chain.
+<P>
+<P>The policy can be any of the first four special targets: <CODE>ACCEPT</CODE>,
+<CODE>DENY</CODE>, <CODE>REJECT</CODE> or <CODE>MASQ</CODE>.  <CODE>MASQ</CODE> is only valid for the
+`forward' chain.
+<P>
+<P>It is also important to note that a <CODE>RETURN</CODE> target in a rule in
+one of the built-in chains is useful to explicitly target the chain
+policy when a packet matches a rule.
+<P>
+<H3>Operations on Masquerading</H3>
+
+<P>There are several parameters you can tweak for IP Masquerading.  They
+are bundled with <CODE>ipchains</CODE> because it's not worth writing a
+separate tool for them (although this will change).
+<P>
+<P>The IP Masquerading command is `-M', and it can be combined with `-L'
+to list currently masqueraded connections, or `-S' to set the
+masquerading parameters.
+<P>
+<P>The `-L' command can be accompanied by `-n' (show numbers instead of
+hostnames and port names) or `-v' (show deltas in sequence numbers for
+masqueraded connection, just in case you care).
+<P>
+<P>The `-S' command should be followed by three timeout values, each in
+seconds: for TCP sessions, for TCP sessions after a FIN packet, and
+for UDP packets.  If you don't want to change one of these values,
+simply give a value of `0'.
+<P>
+<P>The default values are listed in `/usr/src/linux/include/net/ip_masq.h',
+currently 15 minutes, 2 minutes and 5 minutes respectively.
+<P>
+<P>The most common value to change is the first one, for FTP (see 
+<A HREF="IPCHAINS-HOWTO-5.html#ftp">FTP Nightmares</A> below).
+<P>
+<P>Note the problems with setting timeouts listed in 
+<A HREF="IPCHAINS-HOWTO-6.html#no-timeout">I can't set masquerading timeouts!</A>.
+<P>
+<H3>Checking a Packet</H3>
+
+<P>Sometimes you want to see what happens when a certain packet enters
+your machine, such as for debugging your firewall chains.
+<CODE>ipchains</CODE> has the `-C' command to allow this, using the exact same
+routines that the kernel uses to diagnose real packets.
+<P>
+<P>You specify which chain to test the packet on by following the `-C'
+argument with its name.  Whereas the kernel always starts traversing
+on the <CODE>input</CODE>, <CODE>output</CODE> or <CODE>forward</CODE> chains, you are allowed
+to begin traversing on any chain for testing purposes.
+<P>
+<P>The details of the `packet' are specified using the same syntax used
+to specify firewall rules.  In particular, a protocol (`-p'), source
+address (`-s'), destination address (`-d') and interface (`-i') are
+compulsory.  If the protocol is TCP or UDP, then a single source and a
+single destination port must be specified, and a ICMP type and code
+must be specified for the ICMP protocol (unless the `-f' flag is
+specified to indicate a fragment rule, in which case these options are
+illegal).
+<P>
+<P>If the protocol is TCP (and the `-f' flag is not specified), the `-y'
+flag may be specified, to indicate that the test packet should have
+the SYN bit set.
+<P>
+<P>Here is an example of testing a TCP SYN packet from 192.168.1.1 port
+60000 to 192.168.1.2 port www, coming in the eth0 interface, entering
+the `input' chain.  (This is a classic incoming WWW connection
+initiation):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -C input -p tcp -y -i eth0 -s 192.168.1.1 60000 -d 192.168.1.2 www
+packet accepted
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Multiple Rules at Once and Watching What Happens</H3>
+
+<P>Sometimes a single command line can result in multiple rules being
+effected.  This is done in two ways.  Firstly, if you specify a
+hostname which resolves (using DNS) to multiple IP addresses,
+<CODE>ipchains</CODE> will act as if you had typed multiple commands with each
+combination of addresses.
+<P>
+<P>So if the hostname `www.foo.com' resolves to three IP addresses, and
+the hostname `www.bar.com' resolves to two IP addresses, then the
+command `ipchains -A input -j reject -s www.bar.com -d www.foo.com'
+would append six rules to the <CODE>input</CODE> chain.
+<P>
+<P>The other way to have <CODE>ipchains</CODE> perform multiple actions is to use
+the bidirectional flag (`-b').  This flag makes <CODE>ipchains</CODE> behave
+as if you had typed the command twice, the second time with the `-s'
+and `-d' arguments reversed.  So, to avoid forwarding either to or
+from 192.168.1.1, you could do the following:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -b -A forward -j reject -s 192.168.1.1
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Personally, I don't like the `-b' option much; if you want
+convenience, see 
+<A HREF="#ipchains-save">Using ipchains-save</A>
+below.
+<P>
+<P>The -b option can be used with the insert (`-I'), delete (`-D') (but
+not the variation which takes a rule number), append (`-A') and check
+(`-C') commands.
+<P>
+<P>Another useful flag is `-v' (verbose) which prints out exactly what
+<CODE>ipchains</CODE> is doing with your commands.  This is useful if you are
+dealing with commands that may effect multiple rules.  For example,
+here we check the behaviour of fragments between 192.168.1.1 and
+192.168.1.2.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -v -b -C input -p tcp -f -s 192.168.1.1 -d 192.168.1.2 -i lo
+  tcp opt   ---f- tos 0xFF 0x00  via lo    192.168.1.1  -> 192.168.1.2    * ->   *
+packet accepted
+  tcp opt   ---f- tos 0xFF 0x00  via lo    192.168.1.2  -> 192.168.1.1    * ->   *
+packet accepted
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss4.2">4.2 Useful Examples</A>
+</H2>
+
+<P>I have a dialup PPP connection (<CODE>-i ppp0</CODE>).  I grab news (<CODE>-p
+TCP -s news.virtual.net.au nntp</CODE>) and mail (<CODE>-p TCP -s
+mail.virtual.net.au pop-3</CODE>) every time I dial up.  I use Debian's FTP
+method to update my machine regularly (<CODE>-p TCP -y -s
+ftp.debian.org.au ftp-data</CODE>).  I surf the web through my ISP's proxy
+while this is going on (<CODE>-p TCP -d proxy.virtual.net.au 8080</CODE>), but
+hate the ads from doubleclick.net on the Dilbert Archive (<CODE>-p TCP -y
+-d 199.95.207.0/24</CODE> and <CODE>-p TCP -y -d 199.95.208.0/24</CODE>).
+<P>
+<P>I don't mind people trying to ftp to my machine while I'm online
+(<CODE>-p TCP -d $LOCALIP ftp</CODE>), but don't want anyone outside
+pretending to have an IP address of my internal network (<CODE>-s
+192.168.1.0/24</CODE>).  This is commonly called IP spoofing, and there
+is a better way to protect yourself from it in the 2.1.x kernels and
+above: see 
+<A HREF="IPCHAINS-HOWTO-5.html#antispoof">How do I set up IP spoof protection?</A>.
+<P>
+<P>This setup is fairly simple, because there are currently no other
+boxes on my internal network.
+<P>
+<P>I don't want any local process (ie. Netscape, lynx etc.) to connect
+to doubleclick.net:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -A output -d 199.95.207.0/24 -j REJECT
+# ipchains -A output -d 199.95.208.0/24 -j REJECT
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Now I want to set priorities on various outgoing packets (there isn't
+much point in doing it on incoming packets).  Since I have a fair
+number of these rules, it makes sense to put them all in a single
+chain, called <CODE>ppp-out</CODE>.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -N ppp-out
+# ipchains -A output -i ppp0 -j ppp-out
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Minimum delay for web traffic &amp; telnet.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -A ppp-out -p TCP -d proxy.virtual.net.au 8080 -t 0x01 0x10
+# ipchains -A ppp-out -p TCP -d 0.0.0.0/0 telnet -t 0x01 0x10
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Low cost for ftp data, nntp, pop-3:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -A ppp-out -p TCP -d 0.0.0.0/0 ftp-data -t 0x01 0x02
+# ipchains -A ppp-out -p TCP -d 0.0.0.0/0 nntp -t 0x01 0x02
+# ipchains -A ppp-out -p TCP -d 0.0.0.0/0 pop-3 -t 0x01 0x02
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>There are a few restrictions on packets coming in the ppp0 interface:
+let's create a chain called `ppp-in':
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -N ppp-in
+# ipchains -A input -i ppp0 -j ppp-in
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Now, no packets coming in <CODE>ppp0</CODE> should be claiming a source
+address of 192.168.1.*, so we log and deny them:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -A ppp-in -s 192.168.1.0/24 -l -j DENY
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>I allow UDP packets in for DNS (I run a caching nameserver which
+forwards all requests to 203.29.16.1, so I expect DNS replies from
+them only), incoming ftp, and return ftp-data only (which should only
+be going to a port above 1023, and not the X11 ports around 6000).
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -A ppp-in -p UDP -s 203.29.16.1 -d $LOCALIP dns -j ACCEPT
+# ipchains -A ppp-in -p TCP -s 0.0.0.0/0 ftp-data -d $LOCALIP 1024:5999 -j ACCEPT
+# ipchains -A ppp-in -p TCP -s 0.0.0.0/0 ftp-data -d $LOCALIP 6010: -j ACCEPT
+# ipchains -A ppp-in -p TCP -d $LOCALIP ftp -j ACCEPT
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>I allow TCP reply packets back in
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -A ppp-in -p TCP ! -y -j ACCEPT
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Finally, local-to-local packets are OK:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -A input -i lo -j ACCEPT
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>Now, my default policy on the <CODE>input</CODE> chain is <CODE>DENY</CODE>, so
+everything else gets dropped:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains -P input DENY
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>NOTE: I wouldn't set up my chains in this order, as packets might get
+through while I'm setting up.  Safest is usually to set the policy to
+DENY first, then insert the rules.  Of course, if your rules require
+DNS lookups to resolve hostnames, you could be in trouble.
+<P>
+<H3><A NAME="ipchains-save"></A> Using ipchains-save</H3>
+
+<P>Setting up firewall chains just the way you want them, and then trying
+to remember the commands you used so you can do them next time is a
+pain.
+<P>
+<P>So, <CODE>ipchains-save</CODE> is a script which reads your current chains
+setup and saves it to a file.  For the moment I'll keep you in
+suspense with regards to what <CODE>ipchains-restore</CODE> does.
+<P>
+<P><CODE>ipchains-save</CODE> can save a single chain, or all chains (if no chain
+name is specified).  The only option currently permitted is `-v' which
+prints the rules (to stderr) as they are saved.  The policy of the
+chain is also saved for <CODE>input</CODE>, <CODE>output</CODE> and <CODE>forward</CODE>
+chains.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains-save > my_firewall
+Saving `input'.
+Saving `output'.
+Saving `forward'.
+Saving `ppp-in'.
+Saving `ppp-out'.
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Using ipchains-restore</H3>
+
+<P><CODE>ipchains-restore</CODE> restores chains as saved with
+<CODE>ipchains-save</CODE>.  It can take two options: `-v' which describes
+each rule as it is added, and `-f' which forces flushing of
+user-defined chains if they exist, as described below.
+<P>
+<P>If a user-defined chain is found in the input, <CODE>ipchains-restore</CODE>
+checks if that chain already exists.  If it does, then you will be
+prompted whether the chains should be flushed (cleared of all rules)
+or whether restoring this chain should be skipped.  If you specified
+`-f' on the command line, you will not be prompted; the chain will be
+flushed.
+<P>
+<P>For example:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipchains-restore &lt; my_firewall
+Restoring `input'.
+Restoring `output'.
+Restoring `forward'.
+Restoring `ppp-in'.
+Chain `ppp-in' already exists. Skip or flush? [S/f]? s
+Skipping `ppp-in'.
+Restoring `ppp-out'.
+Chain `ppp-out' already exists. Skip or flush? [S/f]? f
+Flushing `ppp-out'.
+# 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<HR>
+<A HREF="IPCHAINS-HOWTO-5.html">Next</A>
+<A HREF="IPCHAINS-HOWTO-3.html">Previous</A>
+<A HREF="IPCHAINS-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Oracle Database HOWTO: Configuring SQL*Net on the Server</TITLE>
+ <LINK HREF="Oracle-7-HOWTO-5.html" REL=next>
+ <LINK HREF="Oracle-7-HOWTO-3.html" REL=previous>
+ <LINK HREF="Oracle-7-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Oracle-7-HOWTO-5.html">Next</A>
+<A HREF="Oracle-7-HOWTO-3.html">Previous</A>
+<A HREF="Oracle-7-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Configuring SQL*Net on the Server</A></H2>
+
+<P>All of these files configure the Oracle networking software (SQL*Net, aka Net8 for Oracle8).  These files should all be created on the server in the <CODE>$ORACLE_HOME/network/admin</CODE> directory.
+<H2><A NAME="ss4.1">4.1 <CODE>tnsnames.ora</CODE></A>
+</H2>
+
+<P>The <CODE>TNSNAMES.ORA</CODE> file identifies services available from the machine.  On our instance here we will describe all databases that the server has mounted.  For each database instance on your server add a section like below:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+orcl.world =
+  (DESCRIPTION =
+    (ADDRESS_LIST =
+        (ADDRESS =
+          (COMMUNITY = tcp.world)
+          (PROTOCOL = TCP)
+          (Host = &lt;INSERT HOST NAME OF SERVER HERE> )
+          (Port = 1521)
+        )
+        (ADDRESS =
+          (COMMUNITY = tcp.world)
+          (PROTOCOL = TCP)
+          (Host = &lt;INSERT HOST NAME OF SERVER HERE> )
+          (Port = 1526)
+        )
+    )
+    (CONNECT_DATA = (SID = ORCL)
+    )
+  )
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<H2><A NAME="ss4.2">4.2 <CODE>listener.ora</CODE></A>
+</H2>
+
+<P>The <CODE>listener.ora</CODE> file contains the descriptions of the services that other machines are allowed to connect to and any configuration that is required for the server listener.
+<P>It contains sections for the listener name, listener address, databases served by the listener and configuration parameters. 
+<P>Here is an example:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+# Name of listener and addresses to listen on
+LISTENER =
+        ( ADDRESS_LIST =
+                (ADDRESS =
+                        (PROTOCOL=tcp)
+                        (HOST=&lt;INSERT HOST>)
+                        (PORT=1521)
+                        (COMMUNITY=UK_SUP_TCPIP)
+                )
+                (ADDRESS =
+                        (PROTOCOL=ipc)
+                        (KEY=700)
+                        (COMMUNITY=UK_SUP_TCPIP)
+                )
+        )
+
+# List of services served by this listener
+SID_LIST_LISTENER=
+        (SID_LIST=
+                (SID_DESC=
+                        (SID_NAME=orcl)
+                        (ORACLE_HOME=/home/oracle/7.3.3.0.0)
+                )
+        )
+
+# Start of configuration parameters.
+TRACE_LEVEL_LISTENER=OFF
+TRACE_FILE_LISTENER = "listener"
+LOG_FILE_LISTENER = "listener"
+CONNECT_TIMEOUT_LISTENER = 10
+STOP_LISTENER = YES
+DBA_GROUP = dba
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<H2><A NAME="ss4.3">4.3 <CODE>sqlnet.ora</CODE></A>
+</H2>
+
+<P>The <CODE>sqlnet.ora</CODE> file contains configuration for the particular node of the network.  This is independent of the number of databases or the number of listeners.  The most important thing in this file is the <CODE>Dead Connection Timeout</CODE> configuration variable.
+<P>Dead connection timeout checks every incoming process to a database instance and ensures that the client end of it is still responding.  If the client (of whatever type) is not responding then the Oracle server shadow process is killed.
+<P>This is very useful if you have many clients accessing a database, especially during a developmental phase when those clients are more likely to be failing to exit cleanly from the Oracle database.
+<P>Below is a copy of my own <CODE>sqlnet.ora</CODE> file for you to puruse:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+TRACE_LEVEL_CLIENT = OFF
+sqlnet.expire_time = 30         # The number of seconds between client checks.
+names.default_domain = world
+name.default_zone = world
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss4.4">4.4 Starting and Stopping the Listeners </A>
+</H2>
+
+<P>Now that the configuration of the listeners and SQL*Net is complete we can attempt to connect to the database using the networking software.  (Before we were using direct links to the database, whereas here we are simulating a connection from a remote client machine).
+<P>To start the listener using the above configuration:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+$ lsnrctl
+
+LSNRCTL for SCO System V/386: Version 2.3.3.0.0 - Production on 23-FEB-98 20:38:25
+
+Copyright (c) Oracle Corporation 1994.  All rights reserved.
+
+Welcome to LSNRCTL, type "help" for information.
+
+LSNRCTL> start
+Starting /home/oracle/7.3.3.0.0/bin/tnslsnr: please wait...
+
+TNSLSNR for SCO System V/386: Version 2.3.3.0.0 - Production
+System parameter file is /home/oracle/7.3.3.0.0/network/admin/listener.ora
+Log messages written to /home/oracle/7.3.3.0.0/network/log/listener.log
+Listening on: (ADDRESS=(PROTOCOL=tcp)(DEV=6)(HOST=192.168.1.1)(PORT=1521))
+Listening on: (ADDRESS=(PROTOCOL=ipc)(DEV=10)(KEY=700))
+
+Connecting to (ADDRESS=(PROTOCOL=tcp)(HOST=magic.com)(PORT=1521)(COMMUNITY=UK_SUP_TCPIP))
+STATUS of the LISTENER
+------------------------
+Alias                     LISTENER
+Version                   TNSLSNR for SCO System V/386: Version 2.3.3.0.0 - Production
+Start Date                23-FEB-98 20:38:50
+Uptime                    0 days 0 hr. 0 min. 0 sec
+Trace Level               off
+Security                  OFF
+SNMP                      ON
+Listener Parameter File   /home/oracle/7.3.3.0.0/network/admin/listener.ora
+Listener Log File         /home/oracle/7.3.3.0.0/network/log/listener.log
+Services Summary...
+  orcl          has 1 service handler(s)
+The command completed successfully
+LSNRCTL> exit
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>To stop the listeners:
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+$ lsnrctl
+
+LSNRCTL for SCO System V/386: Version 2.3.3.0.0 - Production on 23-FEB-98 20:43:20
+
+Copyright (c) Oracle Corporation 1994.  All rights reserved.
+
+Welcome to LSNRCTL, type "help" for information.
+
+LSNRCTL> stop
+Connecting to (ADDRESS=(PROTOCOL=tcp)(HOST=magic.com)(PORT=1521)(COMMUNITY=UK_SUP_TCPIP))
+The command completed successfully
+LSNRCTL> exit
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>If you have a DNS setup which doesn't return the IP address for the hostname specified then starting and stopping the listener can take some time (2-3 mins. dependant on the DNS timeout variable).  If this is the case, don't worry, be patient.
+<P>
+<P>
+<HR>
+<A HREF="Oracle-7-HOWTO-5.html">Next</A>
+<A HREF="Oracle-7-HOWTO-3.html">Previous</A>
+<A HREF="Oracle-7-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

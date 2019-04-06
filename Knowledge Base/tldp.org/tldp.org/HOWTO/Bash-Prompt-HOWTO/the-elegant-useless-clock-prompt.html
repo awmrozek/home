@@ -1,0 +1,262 @@
+<HTML
+><HEAD
+><TITLE
+>The Elegant Useless Clock Prompt</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Bash Prompt HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Example Prompts"
+HREF="c816.html"><LINK
+REL="PREVIOUS"
+TITLE="The Floating Clock Prompt"
+HREF="clockt.html"><LINK
+REL="NEXT"
+TITLE="GNU Free Documentation License"
+HREF="gfdl.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Bash Prompt HOWTO: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="clockt.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 12. Example Prompts</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="gfdl.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="THE-ELEGANT-USELESS-CLOCK-PROMPT"
+></A
+>12.9. The Elegant Useless Clock Prompt</H1
+><P
+>This is one of the more attractive (and useless) prompts I've made.
+Because many X terminal emulators don't implement cursor position save and
+restore, the alternative when putting a clock in the upper right corner is
+to anchor the cursor at the bottom of the terminal.  This builds on the
+idea of the "termwide" prompt above, drawing a line up the right side of
+the screen from the prompt to the clock.  A VGA font is required.</P
+><P
+>Note: There is an odd substitution in here, that may not print properly
+being translated from SGML to other formats: I had to substitute the screen
+character for \304 - I would normally have just included the sequence
+"\304", but it was necessary to make this substitution in this case.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>&#13;#!/bin/bash
+
+#   This prompt requires a VGA font.  The prompt is anchored at the bottom
+#   of the terminal, fills the width of the terminal, and draws a line up
+#   the right side of the terminal to attach itself to a clock in the upper
+#   right corner of the terminal.
+
+function prompt_command {
+#   Calculate the width of the prompt:
+hostnam=$(echo -n $HOSTNAME | sed -e "s/[\.].*//")
+#   "whoami" and "pwd" include a trailing newline
+usernam=$(whoami)
+newPWD="${PWD}"
+#   Add all the accessories below ...
+let promptsize=$(echo -n "--(${usernam}@${hostnam})---(${PWD})-----" \
+                 | wc -c | tr -d " ")
+#   Figure out how much to add between user@host and PWD (or how much to
+#   remove from PWD)
+let fillsize=${COLUMNS}-${promptsize}
+fill=""
+#   Make the filler if prompt isn't as wide as the terminal:
+while [ "$fillsize" -gt "0" ] 
+do 
+   fill="${fill}Ä"
+   # The A with the umlaut over it (it will appear as a long dash if
+   # you're using a VGA font) is \304, but I cut and pasted it in
+   # because Bash will only do one substitution - which in this case is
+   # putting $fill in the prompt.
+   let fillsize=${fillsize}-1
+done
+#   Right-truncate PWD if the prompt is going to be wider than the terminal:
+if [ "$fillsize" -lt "0" ]
+then
+   let cutt=3-${fillsize}
+   newPWD="...$(echo -n $PWD | sed -e "s/\(^.\{$cutt\}\)\(.*\)/\2/")"
+fi
+#
+#   Create the clock and the bar that runs up the right side of the term
+#
+local LIGHT_BLUE="\033[1;34m"
+local     YELLOW="\033[1;33m"
+#   Position the cursor to print the clock:
+echo -en "\033[2;$((${COLUMNS}-9))H"
+echo -en "$LIGHT_BLUE($YELLOW$(date +%H%M)$LIGHT_BLUE)\304$YELLOW\304\304\277"
+local i=${LINES}
+echo -en "\033[2;${COLUMNS}H"
+#   Print vertical dashes down the side of the terminal:
+while [ $i -ge 4 ]
+do
+   echo -en "\033[$(($i-1));${COLUMNS}H\263"
+   let i=$i-1
+done
+
+let prompt_line=${LINES}-1
+#   This is needed because doing \${LINES} inside a Bash mathematical
+#   expression (ie. $(())) doesn't seem to work.
+}
+
+PROMPT_COMMAND=prompt_command
+
+function clock3 {
+local LIGHT_BLUE="\[\033[1;34m\]"
+local     YELLOW="\[\033[1;33m\]"
+local      WHITE="\[\033[1;37m\]"
+local LIGHT_GRAY="\[\033[0;37m\]"
+local  NO_COLOUR="\[\033[0m\]"
+
+case $TERM in
+    xterm*)
+        TITLEBAR='\[\033]0;\u@\h:\w\007\]'
+        ;;
+    *)
+        TITLEBAR=""
+        ;;
+esac
+
+PS1="$TITLEBAR\
+\[\033[\${prompt_line};0H\]
+$YELLOW\332$LIGHT_BLUE\304(\
+$YELLOW\${usernam}$LIGHT_BLUE@$YELLOW\${hostnam}\
+${LIGHT_BLUE})\304${YELLOW}\304\${fill}${LIGHT_BLUE}\304(\
+$YELLOW\${newPWD}\
+$LIGHT_BLUE)\304$YELLOW\304\304\304\331\
+\n\
+$YELLOW\300$LIGHT_BLUE\304(\
+$YELLOW\$(date \"+%a,%d %b %y\")\
+$LIGHT_BLUE:$WHITE\$$LIGHT_BLUE)\304\
+$YELLOW\304\
+$LIGHT_GRAY " 
+
+PS2="$LIGHT_BLUE\304$YELLOW\304$YELLOW\304$NO_COLOUR "
+
+}&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="clockt.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="gfdl.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>The Floating Clock Prompt</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c816.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>GNU Free Documentation License</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,110 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root over NFS - Another Approach: Introduction</TITLE>
+ <LINK HREF="Diskless-root-NFS-other-HOWTO-2.html" REL=next>
+
+ <LINK HREF="Diskless-root-NFS-other-HOWTO.html#toc1" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Diskless-root-NFS-other-HOWTO-2.html">Next</A>
+Previous
+<A HREF="Diskless-root-NFS-other-HOWTO.html#toc1">Contents</A>
+<HR>
+<H2><A NAME="s1">1. Introduction</A></H2>
+
+<P>This document does not resemble a common HOWTO, meaning referencing to general principles,
+but it is rather an on-hand approach to a by nature complex matter.
+It borrows the structure of the current Root over NFS , but differs from it in the following points:
+<P>
+<UL>
+<LI> It provides a working solution fom the distribution used. The distribution specific points should be applicable to all major distributions (RedHat,SuSE,Debian).</LI>
+<LI> It uses more up to date tools, ex NFS v3.0, kernel 2.4.0, dhcp instead of bootparamd.</LI>
+<LI> All steps are described in detail, letting the reader to adapt them to his own system. No scripts!</LI>
+</UL>
+<P>This HOWTO expects that you have a general knowledge of what you are up to, so first read the Diskless Nodes HOW-TO.
+<H2><A NAME="ss1.1">1.1 The setting</A>
+</H2>
+
+<P>It is a common case a University computer lab to have a lot PC's running Windows 98 or/and NT and a powerful UNIX server to satisfy the need of an alternative operating environment.
+This UNIX server is most of times idle or meerly accessed by telnet and running stupid tasks.
+On the other hand, students, especially those attending a computer science department,
+feel like taking full advantage of it, just for fun or for "educational purposes" (breaking in, hacking it...).
+The restrictive environment of telnet does not allow us to enjoy the use of a power server.There are 2 alternatives to that:
+<UL>
+<LI>Try to persuade the department' s headmaster to approve of the purchase of a bunch of new Unix workstations.</LI>
+<LI>Try to persuade the same guy to approve of transforming the server to a diskless node server.</LI>
+</UL>
+<P>The network at the computer lab consists of the following.
+<P>
+<UL>
+<LI>UNIX server: SUN Enterprise 3500 with 2 64 bit SPARC@366 Mhz processors and 512 MB of memory. A real monster, isn't it?</LI>
+<LI>"Dumb" target workstations: 60-70 PC's with variable configurations, ranging from PII 266 to PIII 450 with 64-128 MB RAM.</LI>
+</UL>
+<P>The task I had to accomplish was the following:
+Provide a complete working solution without new expenses and without modifying anything but the necessary on the server.
+<P>
+<H2><A NAME="ss1.2">1.2 The alternatives</A>
+</H2>
+
+<P>Being the responsible for the project, I had to choose between a variety of solutions about it.
+I choose the following, for the reasons illustrated:
+<UL>
+<LI>The new 2.4 kernel: It provides a robust and fast solution, using less memory than the old 2.2 series.
+If it is important for your users to attach devices to their PC's then it is the only solution.
+Also provides NFS v3, and more efficient memory management.</LI>
+<LI>The KDE 2.1.1 desktop environment: VERY stable, easy to use, Internet enabled, makes the transition from Windows
+to Linux desktop almost effortless. GNOME + Afterstep is another option, but not as mature as a solution as KDE.</LI>
+<LI>SuSE 7.0 distribution: My favorite one, IMHO the most balanced
+between ease of use and understanding of a Linux system structure.</LI>
+</UL>
+<P>
+<H2><A NAME="ss1.3">1.3 General Principles</A>
+</H2>
+
+<P>To be able to boot a Linux system, you have to provide it with the following:
+<UL>
+<LI>The <CODE> /sbin</CODE> directory. There exists the <CODE> init</CODE> programm,
+which is responsible for starting other programms and start up scripts during
+the boot process. Also, the <CODE> /sbin</CODE> directory contains the startup scripts in the case of SuSE,
+some useful programms like the <CODE>portmap</CODE> programm and many other programms that are needed before you mount the <CODE>/usr</CODE> directory.</LI>
+<LI>The <CODE>/lib</CODE> directory. It contains the libc libraries that are absolutely necessary if your <CODE>init</CODE> is dynamically linked.</LI>
+<LI>The <CODE>/bin</CODE> directory. It contains file commands and shells for running startup scripts.</LI>
+<LI> The <CODE> /etc</CODE> directory. It contains configuration files for most programms and the <CODE>rc.d</CODE> directories that is the default for startup scripts.</LI>
+<LI> The <CODE>/var</CODE> directory. It is a spool area for programms that want to write somewhere. It is divided into many subdirectories with alternate usability.</LI>
+<LI>  The <CODE>/dev</CODE> directory. It contains character and block special devices that allow programms to communicate with the computers devices via the kernel.</LI>
+</UL>
+
+You should notice that after a clean install, the total size of these directories is not that big,
+ranging from 30 to 40 MB. The main load of files exists in the <CODE>/usr</CODE> and <CODE>/opt</CODE> directories.
+So, it is possible to create a directory for every diskless client containing the above listed directories
+and mount points for directories like <CODE>/usr</CODE> that will be exported by the server.
+The boot process, as assumed by this document, is the following:
+<OL>
+<LI> The user reboots the computer, and using a diskette boots the Linux kernel.</LI>
+<LI> The kernel takes control of the system, identifies the system devices, and uses
+BOOTP to obtain the IP address matching the NIC 's hardware address.</LI>
+<LI> The <CODE>init</CODE> programm is started. Before switching to a run level, it calls a script described in the <CODE>/etc/inittab</CODE> file.
+This script is responsible for building the library cache, initialise and mount a swap file,
+load some system specific kernel modules and set the hostname.</LI>
+<LI> The boot script finishes and the init programm switches to the specified runlevel.
+It starts to execute the scripts located into the  <CODE>/etc/rc.d/rcX</CODE> directory where 'X' is the name of the runlevel.
+These scripts are responsible for starting the portmapper and mounting the NFS exported <CODE>/usr, /home </CODE> and <CODE>/opt</CODE> directories.</LI>
+<LI> The user is able to login.</LI>
+</OL>
+
+To sum up, the system administrator has to do the following tasks:
+<UL>
+<LI> Prepare a clean install of the system to be exported to the diskless hosts.</LI>
+<LI> Create the host specific directories</LI>
+<LI> Control what is going to be started during the diskless clients' boot proces</LI>
+<LI> Prepare the server to export some directories and start a bootp service.</LI>
+</UL>
+<P>
+<HR>
+<A HREF="Diskless-root-NFS-other-HOWTO-2.html">Next</A>
+Previous
+<A HREF="Diskless-root-NFS-other-HOWTO.html#toc1">Contents</A>
+</BODY>
+</HTML>

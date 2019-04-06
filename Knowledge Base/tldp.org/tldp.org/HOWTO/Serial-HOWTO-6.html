@@ -1,0 +1,486 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Serial HOWTO: Multiport Serial Boards/Cards/Adapters</TITLE>
+ <LINK HREF="Serial-HOWTO-7.html" REL=next>
+ <LINK HREF="Serial-HOWTO-5.html" REL=previous>
+ <LINK HREF="Serial-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Serial-HOWTO-7.html">Next</A>
+<A HREF="Serial-HOWTO-5.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6.</A> <A HREF="Serial-HOWTO.html#toc6">Multiport Serial Boards/Cards/Adapters</A></H2>
+
+<H2><A NAME="ss6.1">6.1</A> <A HREF="Serial-HOWTO.html#toc6.1">Intro to Multiport Serial</A>
+</H2>
+
+<P> Multiport serial cards install in slots in a PC on the ISA or PCI
+bus.  They are also called "...  adapters" or "... boards".  Each such
+card provides you with many serial ports.  Today they are commonly
+used for the control of external devices (including automation for
+both industry and the home).  They can connect to computer servers for
+the purpose of monitoring/controlling the server from a remote
+location.  They were once mainly used for connecting up many dumb
+terminals and/or modems to serial ports.  Today, use of dumb terminals
+is rare and several modems (or digital modems) can now be built
+into an internal card.  So multiport serial cards are not very
+significant anymore.</P>
+<P>Each multiport card has a number of external connecters (DB-25 or
+RJ45) so that one may connect up a number of devices (modems,
+terminals, etc.).  Each such physical device would then be connected
+to its own serial port.  Since the space on the external-facing part
+of the card is limited there is often not enough room for all the
+serial port connectors.  To solve this problem, the connectors may be
+on the ends of cables which come out (externally) from the card
+(octopus cable).  Or they may be on an external box (possibly rack
+mountable) which is connected by a cable to a multiport card.</P>
+
+<H2><A NAME="ss6.2">6.2</A> <A HREF="Serial-HOWTO.html#toc6.2">Dumb vs. Smart Cards</A>
+</H2>
+
+<P>Dumb multiport cards are not too much different than ordinary serial
+ports.  They are interrupt driven and the CPU of the computer does
+most all the work servicing them.  They usually have a system of
+sharing a single interrupt for all the ports.  This doesn't decrease
+the load on the CPU since the single interrupt will be sent to the CPU
+each time any one port needs servicing.  Such devices usually require
+special drivers that you must either compile into the kernel or use as
+a module.</P>
+<P>Smart boards may use ordinary UARTs but handle most interrupts from
+the UARTs internally within the board.  This frees the CPU from the
+burden of handling  all these interrupts.  The board may save up bytes
+in its large internal FIFOs and transfer perhaps 1k bytes at a time to
+the serial buffer in main memory.  It may use the full bus width of 32
+bits for making data transfers to main memory (instead of transferring
+only 8-bit bytes like dumb serial cards do).  Not all "smart" boards
+are equally efficient.  Many boards today are Plug-and-Play.</P>
+
+<H2><A NAME="ss6.3">6.3</A> <A HREF="Serial-HOWTO.html#toc6.3">Getting/Enabling a Driver</A>
+</H2>
+
+<H3>Introduction</H3>
+
+<P>For a multiport board to work, a special driver for it must be used.
+This driver may either be built into the kernel source code or
+supplied as a module.  For the 2.6 kernels on, most drivers are
+supplied both ways: as a module or it can be built into the kernel.
+Take care not to both build support into the kernel and force the
+module to load for a certain serial card.  For older kernels, there
+were often no modules for dumb serial multiport boards.</P>
+
+<H3>Build support into the kernel?</H3>
+
+<P>A pre-compiled kernel may not have a driver for your multiport card
+built in.  So then you must either compile the kernel yourself and
+build in the right driver, or insure that the module is available and
+loads.  Of course if the driver doesn't come both ways (as a
+compile-time option and as a module) you have no such choice.</P>
+<P>In the 2.6 kernel there are many options to select from in the
+configuration file for compiling.  Adding support for certain
+multiport cards is listed under the headings "Character devices" or
+"Serial drivers".   Old multiport cards had support as part of the
+serial driver and are found under "Serial Drivers".  More advanced
+cards have their own driver found under "Character devices"</P>
+<P>For kernel 2.6 you should select "CONFIG_SERIAL_8250_EXTENDED".  (or
+just "CONFIG_SERIAL_EXTENDED" for 2.4).  Then you will be asked more
+questions about your serial ports with more options to select.  If the
+resulting configuration is not quite right, then you may need to edit
+the kernel configuration file manually.</P>
+
+<H3><A NAME="modules_"></A> Using module support </H3>
+
+<P>A pre-compiled kernel may come with a pre-compiled module for the
+board so that you don't need to recompile the kernel.  This module
+must be loaded in order to use it, but the kernel may automatically do
+this for you if a program is trying to use a device on the smart board
+(provided there exists a table showing which module to load for the
+device).  This table may be in /etc/modules.conf and/or be internal to
+the kernel.  Also certain parameters may need to be passed to the
+driver (via lilo's "append" command, via grub's "kernel" command, or
+via /etc/modules.conf).  For kernel 2.6 (and 2.4) the modules should
+be found in <CODE>/lib/modules/.../kernel/drivers/char.</CODE></P>
+
+<H3>Getting info on multiport boards</H3>
+
+<P> The board's manufacturer should have info on their website.
+Unfortunately, info for old boards is sometimes not there but might be
+found somewhere else on the Internet (including discussion groups).
+You might also want to look at the kernel documentation in
+/usr/share/doc/linux-doc... (formerly kernel-doc in pre 2.6 kernels).
+For configuring the kernel or modules prior to compiling see:
+Configure.help and search for "serial", etc.  There are also kernel
+documentation files for certain boards including computone, hayes-esp,
+moxa-smartio, riscom8, specialix, stallion, and sx (specialix).</P>
+
+<H2><A NAME="ss6.4">6.4</A> <A HREF="Serial-HOWTO.html#toc6.4">Multiport Devices in the /dev Directory,</A>
+</H2>
+
+<P>The serial ports your multiport board uses depends on what kind of
+board you have.  Some have their own device names like /dev/ttyE27
+(Stallion) or /dev/ttyD2 (Digiboard), etc.  For various other brands,
+see see devices.txt in the kernel documentation.  Some use the
+standard names like /dev/ttyS14 (/dev/tts/14) and may be found in
+configuration files that used as arguments to <CODE>setserial</CODE>.
+Such files may be included in a setserial or serial package.</P>
+
+<H2><A NAME="make_multi"></A> <A NAME="ss6.5">6.5</A> <A HREF="Serial-HOWTO.html#toc6.5">Making Legacy Multiport Devices in the /dev Directory</A>
+</H2>
+
+<P> An installation script may do this for you.  But if not, here's
+some examples of how to create a device name in the /dev directory.
+If you use udev, MAKEDEV will <EM>not create devices in the device
+directory since this directory is only in memory and will be lost when
+you turn off the computer.  Instead it will create the device in</EM>dev/.static/dev directory.</P>
+<P>For the names and numbers of other types of serial ports other
+than ttyS.. See devices.txt in the kernel documentation.  Either use
+the <CODE>mknod</CODE> command, or the <CODE>MAKEDEV</CODE> script.  Typing "man
+makedev" may show instructions on using it.</P>
+<P>Using the <CODE>MAKEDEV</CODE> script, you would first become the superuser
+(root) and type (for example) either:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+linux# MAKEDEV ttyS17
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>Or if the above doesn't work cd to /dev before giving the above
+command>.  Substitute whatever your port is for ttyS17.</P>
+<P>Using <CODE>mknod</CODE> is a more complicated option since you need to know
+the major and minor device numbers.  These numbers are in the
+"devices" file in the kernel documentation.  For ttyS serial ports the
+minor number is: 64 + port number (=81 for the example below).  Note
+the "major" number is always 4 for ttyS devices (and 5 for the
+obsolete cua devices).  So, if you wanted to create a device for
+<CODE>ttyS17</CODE> using <CODE>mknod</CODE>, you would type:</P>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+linux# mknod -m 666 /dev/ttyS17 c 4 81
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+
+<H2><A NAME="ss6.6">6.6</A> <A HREF="Serial-HOWTO.html#toc6.6">Standard PC Serial Cards</A>
+</H2>
+
+<P> In olden days, PCs came with a serial card installed.  Later on,
+the serial function was put on the hard-drive interface card.  Today,
+one or two serial ports are usually built into the motherboard
+(on-board). Most of them (as of 2002) use a 16550 but some use 16650
+(32-byte FIFOs).  But one may still buy the individual PC serial cards
+if they need more serial ports.  They can be used to connect external
+serial devices (modems, serial mice, etc...).  Only a tiny percentage
+of retail computer stores carry such cards.  But one can purchase them
+on the Internet.  Before getting one for the PCI bus, make sure Linux
+supports it.</P>
+<P>Here's a list of a few popular brands:
+<UL>
+<LI>Byte Runner (may order directly, shows prices) 
+<A HREF="http://www.byterunner.com">http://www.byterunner.com</A></LI>
+<LI> SIIG 
+<A HREF="http://www.siig.com/products/io/">http://www.siig.com/products/io/</A></LI>
+<LI> Dolphin 
+<A HREF="http://www.dolphinfast.com/sersol.html">http://www.dolphinfast.com/sersol.html</A></LI>
+</UL>
+</P>
+<P>Note: due to address conflicts, you may not be able to use /dev/ttyS3
+(tts/3) with a IBM8514 video card (and some others) simultaneously.
+See 
+<A HREF="Serial-HOWTO-16.html#video_8514">Avoiding IO Address Conflicts with Certain Video Boards</A></P>
+
+<H2><A NAME="ss6.7">6.7</A> <A HREF="Serial-HOWTO.html#toc6.7">Dumb Multiport Serial Boards (with standard UART chips)</A>
+</H2>
+
+<P> They are also called "serial adapters".  Each port has its own
+address.  They often have a special method of sharing interrupts which
+requires that you compile support for them into the kernel.<BR></P>
+<P>* =>  The file that ran setserial in Debian shows some details of
+configuring<BR>
+# => See note below for this board
+<UL>
+<LI>AST FourPort and clones (4 ports) * #</LI>
+<LI>Accent Async-4 (4 ports) *</LI>
+<LI>Arnet Multiport-8 (8 ports)</LI>
+<LI>Bell Technologies HUB6 (6 ports)</LI>
+<LI>Boca BB-1004 (4 ports), BB-1008 (8 ports), BB-2016 (16 ports;
+See the Boca mini-howto revised in 2001) * #</LI>
+<LI>Boca IOAT66 or? ATIO66 (6 ports, Linux doesn't support its IRQ
+sharing ??  Uses odd-ball 10-cond RJ45-like connectors)</LI>
+<LI>Boca 2by4 (4 serial ports, 2 parallel ports)</LI>
+<LI>Byte Runner 
+<A HREF="http://www.byterunner.com">http://www.byterunner.com</A></LI>
+<LI>Computone ValuePort V4-ISA (AST FourPort compatible) *</LI>
+<LI>Digi PC/8 (8 ports) #</LI>
+<LI>Dolphin 
+<A HREF="http://www.dolphinfast.com/sersol/">http://www.dolphinfast.com/sersol/</A></LI>
+<LI>Globetek 
+<A HREF="http://www.globetek.com/">http://www.globetek.com/</A></LI>
+<LI>GTEK BBS-550 (8 ports; See the mini-howto)</LI>
+<LI>Hayes ESP (after kernel 2.1.15)</LI>
+<LI>HUB-6 See Bell Technologies.</LI>
+<LI>Longshine LCS-8880, Longshine LCS-8880+ (AST FourPort compatible) *</LI>
+<LI>Moxa C104, Moxa C104+ (AST FourPort compatible) *</LI>
+<LI>
+<A HREF="http://digital.natinst.com/manuals.nsf/web%2Fbyproductcurrent?OpenView&amp;Start=1&amp;Count=500&amp;Expand=15.1#15.1">NI-SERIAL</A> by National Instruments</LI>
+<LI>NetBus (2 ports)
+<A HREF="http://www.netbus.com">http://www.netbus.com</A> using patch from 
+<A HREF="http://lists.insecure.org/linux-kernel/2001/Feb/2809.html">http://lists.insecure.org/linux-kernel/2001/Feb/2809.html</A></LI>
+<LI>PC-COMM (4 ports) </LI>
+<LI>
+<A HREF="http://www.sealevel.com">Sealevel Systems</A>
+COMM-2 (2 ports), COMM-4 (4 ports) and COMM-8 (8 ports)</LI>
+<LI>SIIG I/O Expander 2S IO1812 (4 ports) #</LI>
+<LI>STB-4COM (4 ports)</LI>
+<LI>Twincom ACI/550</LI>
+<LI>Usenet Serial Board II (4 ports) *</LI>
+<LI>VScom (uses same driver as ByteRunner)</LI>
+</UL>
+</P>
+<P>In general, Linux will support any serial board which uses a 8250,
+16450, 16550, 16550A, 16650, 16650V2, 16654, 16750, 16850, 16950, and
+16954.  UART.  See the latest man page for "setserial" for a more
+complete list.</P>
+<P>Notes:</P>
+<P>AST Fourport: You might need to specify <CODE>skip_test</CODE> in <CODE>rc.serial</CODE>.</P>
+<P>BB-1004 and BB-1008 do not support DCD and RI lines, and thus are not
+usable for dialin modems.  They will work fine for all other purposes.</P>
+<P>Digi PC/8 Interrupt Status Register is at 0x140.</P>
+<P>SIIG IO1812 manual for the listing for COM5-COM8 is
+wrong.  They should be COM5=0x250, COM6=0x258, COM7=0x260, and
+COM8=0x268.</P>
+
+<H2><A NAME="ss6.8">6.8</A> <A HREF="Serial-HOWTO.html#toc6.8">Intelligent Multiport Serial Boards</A>
+</H2>
+
+<P>Make sure that a Linux-compatible driver is available and read the
+information that comes with it.  These boards use special devices (in
+the /dev directory), and not the standard tts ones.  This information
+varies depending on your hardware.  If you have updated info which
+should be shown here please email it to me.</P>
+<P>Names of Linux driver modules are *.ko (*.o prior to kernel 2.6) but
+these may not work for all models shown.  See 
+<A HREF="#modules_">Modules (mostly for smart boards)</A> The needed module may have
+been supplied with your Linux distribution.  Also, parameters (such as
+the io and irq often need to be given to the module so you need to
+find instructions on this (possibly in the source code tree).</P>
+<P>There are many different brands, each of which often offers many
+different cards.  No attempt is currently being made to list all the
+cards here (and many listed are obsolete).  But all major brands and
+websites should be shown here so it something is missing let me know.
+Go to the webpage shown for more information.  These websites often
+also have info (ads) on related hardware such as modem pools, remote
+access servers (RASs), and terminal servers.  Where there is no
+webpage, the cards are likely obsolete.  If you would like to put
+together a better list, let me know.</P>
+<P>
+<UL>
+<LI>Chase Research, now Perle Systems Ltd (UK based, ISA/PCI cards)<BR>
+webpage: <CODE>
+<A HREF="http://www.perle.com">http://www.perle.com</A></CODE><BR>
+driver status: included in kernel 2.4+ for PCI only; otherwise supported by
+Perle<BR>
+driver location: 
+<A HREF="http://www.perle.com/downloads/multi_port.html">http://www.perle.com/downloads/multi_port.html</A> <BR>
+</LI>
+<LI>Comtrol RocketPort (36MHz ASIC; 4, 8, 16, 32, up to 128 ports)<BR>
+webpage: <CODE>
+<A HREF="http://www.comtrol.com">http://www.comtrol.com</A></CODE><BR>
+driver status: supported by Comtrol.  rocket.o<BR>
+driver location: <CODE>
+<A HREF="ftp://tsx-11.mit.edu/pub/linux/packages/comtrol">ftp://tsx-11.mit.edu/pub/linux/packages/comtrol</A></CODE>
+</LI>
+<LI>Computone IntelliPort II (ISA, PCI and EISA busses up to 64
+ports)<BR>
+webpage: 
+<A HREF="http://www.computone.com">http://www.computone.com</A><BR>
+driver location: old patch at 
+<A HREF="http://www.wittsend.com/computone/linux-2.2.10-ctone.patch.gz">http://www.wittsend.com/computone/linux-2.2.10-ctone.patch.gz</A><BR>
+mailing list: 
+<A HREF="mailto:majordomo@lazuli.wittsend.com">mailto:majordomo@lazuli.wittsend.com</A> with
+"subscribe linux-computone" in body<BR>
+note: Old ATvantage and Intelliport cards are not supported by Computone
+</LI>
+<LI> Connecttech<BR>
+website: <CODE>
+<A HREF="http://www.connecttech.com/">http://www.connecttech.com/</A></CODE><BR>
+driver location: 
+<A HREF="ftp://ftp.connecttech.com/pub/linux/">ftp://ftp.connecttech.com/pub/linux/</A>
+</LI>
+<LI>Cyclades<BR>
+Cyclom-Y (Cirrus Logic CD1400 UARTs; 8 - 32 ports),<BR>
+Cyclom-Z (MIPS R3000; 8 - 64 ports)<BR>
+website: <CODE>
+<A HREF="http://www.cyclades.com/products/svrbas/zseries.php">http://www.cyclades.com/products/svrbas/zseries.php</A></CODE><BR>
+driver status: supported by Cyclades<BR>
+driver location: <CODE>
+<A HREF="ftp://ftp.cyclades.com/pub/cyclades">ftp://ftp.cyclades.com/pub/cyclades</A></CODE> and included in Linux
+kernel since version 1.1.75: cyclades.o
+</LI>
+<LI>Decision PCCOM (2-8 ports; ISA and PCI; aka PC COM)<BR>
+ISA:<BR>
+contact: <CODE>
+<A HREF="mailto:info@cendio.se">mailto:info@cendio.se</A></CODE><BR>
+driver location: (dead link) <CODE>
+<A HREF="ftp://ftp.cendio.se/pub/pccom8">ftp://ftp.cendio.se/pub/pccom8</A></CODE><BR>
+PCI:<BR>
+drivers: 
+<A HREF="http://www.decision.com.tw">http://www.decision.com.tw</A><BR>
+driver status: Support in serial driver 5.03.  For an earlier driver,
+there exists a patch for kernel 2.2.16 at 
+<A HREF="http://www.qualica.com/serial/">http://www.qualica.com/serial/</A> and for kernels 2.2.14-2.2.17
+at
+<A HREF="http://www.pccompci.com/mains/installing_pci_linux1.html">http://www.pccompci.com/mains/installing_pci_linux1.html</A>
+</LI>
+<LI>Digi PC/Xi (12.5MHz 80186; 4, 8, or 16 ports),<BR>
+PC/Xe (12.5/16MHz 80186; 2, 4, or 8 ports),<BR>
+PC/Xr (16MHz IDT3041; 4 or 8 ports),<BR>
+PC/Xem (20MHz IDT3051; 8 - 64 ports)<BR>
+website: <CODE>
+<A HREF="http://www.dgii.com">http://www.dgii.com</A></CODE><BR>
+driver status: supported by Digi<BR>
+driver location: <CODE>
+<A HREF="ftp://ftp.dgii.com/drivers/linux">ftp://ftp.dgii.com/drivers/linux</A></CODE> and
+included in Linux kernel since version 2.0. epca.o
+</LI>
+<LI>Digi COM/Xi (10MHz 80188; 4 or 8 ports)<BR>
+contact: Simon Park, <CODE>
+<A HREF="mailto:si@wimpol.demon.co.uk">si@wimpol.demon.co.uk</A></CODE><BR>
+driver status: ?<BR>
+note: Simon is often away from email for months at a time due to
+his job.  Mark Hatle, 
+<A HREF="mailto:fray@krypton.mankato.msus.edu">mailto:fray@krypton.mankato.msus.edu</A>
+has graciously volunteered to make the driver available if you need
+it.  Mark is not maintaining or supporting the driver.
+</LI>
+<LI>Equinox SuperSerial Technology (30MHz ASIC; 2 - 128 ports)<BR>
+website: <CODE>
+<A HREF="http://www.equinox.com">http://www.equinox.com</A></CODE><BR>
+driver status: supported by Equinox<BR>
+driver location: <CODE>
+<A HREF="ftp://ftp.equinox.com/library/sst">ftp://ftp.equinox.com/library/sst</A></CODE>
+</LI>
+<LI>Globetek<BR>
+website: 
+<A HREF="http://www.globetek.com/products.shtml">http://www.globetek.com/products.shtml</A><BR>
+driver location: 
+<A HREF="http://www.globetek.com/media/files/linux.tar.gz">http://www.globetek.com/media/files/linux.tar.gz</A>
+</LI>
+<LI>GTEK Cyclone (16C654 UARTs; 6, 16 and 32 ports),<BR>
+SmartCard (24MHz Dallas DS80C320; 8 ports),<BR>
+BlackBoard-8A (16C654 UARTs; 8 ports),<BR>
+PCSS (15/24MHz 8032; 8 ports)<BR>
+website: <CODE>
+<A HREF="http://www.gtek.com">http://www.gtek.com</A></CODE><BR>
+driver status: supported by GTEK<BR>
+driver location: <CODE>
+<A HREF="ftp://ftp.gtek.com/pub">ftp://ftp.gtek.com/pub</A></CODE>
+</LI>
+<LI>Hayes ESP (COM-bic; 1 - 8 ports)<BR>
+website: <CODE>
+<A HREF="http://www.nyx.net/~arobinso">http://www.nyx.net/~arobinso</A></CODE><BR>
+driver status: Supported by Linux kernel (1998) since v. 2.1.15.
+esp.o.  Setserial 2.15+ supports. Also supported by author<BR>
+driver location: <CODE>
+<A HREF="http://www.nyx.net/~arobinso">http://www.nyx.net/~arobinso</A></CODE>
+</LI>
+<LI>Intelligent Serial Interface by Multi-Tech Systems<BR>
+PCI: 4 or 8 port.  ISA 8 port. DTE speed 460.8k<BR>
+webpage: 
+<A HREF="http://www.multitech.com/products/">http://www.multitech.com/products/</A>
+</LI>
+<LI>Maxpeed SS (Toshiba; 4, 8 and 16 ports)<BR>
+website: <CODE>
+<A HREF="http://www.maxpeed.com">http://www.maxpeed.com</A></CODE><BR>
+driver status: supported by Maxpeed<BR>
+driver location: <CODE>
+<A HREF="ftp://maxpeed.com/pub/ss">ftp://maxpeed.com/pub/ss</A></CODE>
+</LI>
+<LI> Microgate SyncLink ISA and PCI high speed multiprotocol
+serial.  Intended for synchronous HDLC.<BR>
+website: 
+<A HREF="http://ww/microgate.com/products/sllinux/hdlcapi.htm">http://ww/microgate.com/products/sllinux/hdlcapi.htm</A><BR>
+driver status: supported by Microgate: synclink.o
+</LI>
+<LI>Moxa C218 (12MHz 80286; 8 ports),<BR>
+Moxa C320 (40MHz TMS320; 8 - 32 ports)<BR>
+website: <CODE>
+<A HREF="http://www.moxa.com">http://www.moxa.com</A></CODE><BR>
+driver status: supported by Moxa<BR>
+driver locations: <CODE>
+<A HREF="http://www.moxa.com/support/download/download.php3>">http://www.moxa.com/support/download/download.php3></A></CODE>
+<CODE>
+<A HREF="ftp://ftp.moxa.com/drivers/linux">ftp://ftp.moxa.com/drivers/linux</A></CODE>
+(also from Taiwan at www.moxa.com.tw/...) where ... is the same as
+above)
+</LI>
+<LI>SDL RISCom/8 (Cirrus Logic CD180; 8 ports)<BR>
+website: <CODE>
+<A HREF="http://www.sdlcomm.com">http://www.sdlcomm.com</A></CODE><BR>
+driver status: supported by SDL<BR>
+driver location: <CODE>
+<A HREF="ftp://ftp.sdlcomm.com/pub/drivers">ftp://ftp.sdlcomm.com/pub/drivers</A></CODE>
+</LI>
+<LI> Specialix SX (25MHz T225; 8? - 32 ports),<BR>
+SIO/XIO (20 MHz Zilog Z280; 4 - 32 ports)<BR>
+webpage: Old link is broken.  Out of business?<BR>
+driver status: Was supported by Specialix<BR>
+driver location: 
+<A HREF="http://www.BitWizard.nl/specialix/">http://www.BitWizard.nl/specialix/</A><BR>
+old driver location: 
+<A HREF="ftp://metalab.unc.edu/pub/Linux/kernel/patches/serial">ftp://metalab.unc.edu/pub/Linux/kernel/patches/serial</A>
+</LI>
+<LI>Stallion EasyIO-4 (4 ports), EasyIO-8 (8 ports), and<BR>
+EasyConnection (8 - 32 ports) - each with
+Cirrus Logic CD1400 UARTs,<BR>
+Stallion (8MHz 80186 CPU; 8 or 16 ports),<BR>
+Brumby (10/12 MHz 80186 CPU; 4, 8 or 16 ports),<BR>
+ONboard (16MHz 80186 CPU; 4, 8, 12, 16 or 32 ports),<BR>
+EasyConnection 8/64 (25MHz 80186 CPU; 8 - 64 ports)<BR>
+contact: <CODE>
+<A HREF="mailto:sales@stallion.com">sales@stallion.com</A></CODE> or
+<CODE>
+<A HREF="http://www.stallion.com">http://www.stallion.com</A></CODE><BR>
+driver status: supported by Stallion<BR>
+driver location: <CODE>
+<A HREF="ftp://ftp.stallion.com/drivers/ata5/Linux">ftp://ftp.stallion.com/drivers/ata5/Linux</A></CODE> and
+included in linux kernel since 1.3.27
+
+moved; it's now at
+</LI>
+<LI>System Base
+website: 
+<A HREF="http://www.sysbas.com/">http://www.sysbas.com/</A></LI>
+</UL>
+                </P>
+
+<P>A review of Comtrol, Cyclades, Digi, and Stallion products was
+printed in the June 1995 issue of the <EM>Linux Journal</EM>.  The article
+is available at <CODE>
+<A HREF=" http://www.linuxjournal.com/article.php?sid=1097"> http://www.linuxjournal.com/article.php?sid=1097</A>
+name="http://www.ssc.com/lj/issue14"></CODE>.</P>
+<P>Besides the listing of various brands of multiports found above in
+this HOWTO there is 
+<A HREF="http://eupedia.org/serialcards.html">Gary's Encyclopedia - Serial Cards</A>.  It's not as complete, but
+may have some different links.</P>
+
+<H2><A NAME="ss6.9">6.9</A> <A HREF="Serial-HOWTO.html#toc6.9">Unsupported Multiport Boards</A>
+</H2>
+
+<P> The following boards don't mention any Linux support as of 1 Jan.
+2000.  Let me know if this changes.
+<UL>
+<LI> Aurora (PCI only) 
+<A HREF="www.auroratech.com">www.auroratech.com</A></LI>
+</UL>
+</P>
+
+<HR>
+<A HREF="Serial-HOWTO-7.html">Next</A>
+<A HREF="Serial-HOWTO-5.html">Previous</A>
+<A HREF="Serial-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

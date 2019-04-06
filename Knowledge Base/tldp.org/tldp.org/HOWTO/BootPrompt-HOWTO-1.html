@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux BootPrompt-HowTo: Introduction</TITLE>
+ <LINK HREF="BootPrompt-HOWTO-2.html" REL=next>
+
+ <LINK HREF="BootPrompt-HOWTO.html#toc1" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="BootPrompt-HOWTO-2.html">Next</A>
+Previous
+<A HREF="BootPrompt-HOWTO.html#toc1">Contents</A>
+<HR>
+<H2><A NAME="main-intro"></A> <A NAME="s1">1. Introduction</A></H2>
+
+<P>
+<P>The kernel has the capability to accept information at
+boot in the form of a `command line', similar to an argument
+list you would give to a program. In general this is used to
+supply the kernel with information about hardware parameters
+that the kernel would not be able to determine on its own, or
+to avoid/override the values that the kernel would otherwise
+detect.
+<P>It is the job of the boot loader (e.g. LILO, loadlin or Grub) to 
+take this information from the user and put it in a previously
+agreed upon place where the kernel can find it once it starts.
+<P>This present revision covers kernels up to and including v2.4.20.
+and v2.5.63
+<P>The BootPrompt-Howto is by:
+<BLOCKQUOTE>
+Paul Gortmaker, <CODE>p_gortmaker @ yahoo.com</CODE>
+</BLOCKQUOTE>
+<P>This document is Copyright (c) 1995-2003 by Paul Gortmaker.
+Please see the Disclaimer and Copying information at the end
+of this document (
+<A HREF="BootPrompt-HOWTO-12.html#copyright">copyright</A>)
+for information about redistribution of
+this document and the usual `we are not responsible for what
+you manage to break...' type legal stuff.
+<P>
+<H2><A NAME="ss1.1">1.1 Intended Audience and Applicability</A>
+</H2>
+
+<P>Most Linux users should never have to even look at this document.
+Linux does an exceptionally good job at detecting most hardware and
+picking reasonable default settings for most parameters.
+The information in this document is aimed at users who might want
+to change some of the default settings to optimize the kernel to
+their particular machine, or to a user who has `rolled their own' 
+kernel to support a not so common piece of hardware for which 
+the automatic defaults are not optimal.
+<P>For the sake of this document it is best to break the 
+boot arguments into two general categories; (a)ones
+handled by the kernel and (b)those being handled by a device driver.
+Examples would be <CODE>init=</CODE> which tells the kernel what the
+first program to run should be, versus <CODE>aha154x=</CODE> which
+tells a device driver for a SCSI card what hardware resources it
+should use are.  This document concentrates on giving detailed
+information on those in  (a) for reasons outlined below.
+<P><EM>IMPORTANT NOTE:</EM> Driver related boot prompt arguments 
+only apply to hardware drivers that are compiled directly into the
+kernel. They have <EM>no effect</EM> on drivers that are loaded
+as modules. Most Linux distributions come with a basic `bare-bones'
+kernel, and the drivers are small modules that are loaded after
+the kernel has initialized. 
+If you are unsure if you are using modules then try <CODE>lsmod</CODE>,
+look at <CODE>man depmod</CODE> and <CODE>man modprobe</CODE> along with the
+contents of your <CODE>/etc/modules.conf</CODE>.  
+<P>In light of this, device driver boot prompt arguments are
+only really used by a few people who are building their own 
+kernels, and thus have the kernel source at hand.  These people 
+are usually going to check the source for the options and
+syntax required by that driver to get the most up to date info.
+<P>For example, if you were looking for what arguments could be
+passed to the AHA1542 SCSI driver, then you would go to the
+<CODE>linux/drivers/scsi</CODE> directory, and look in the
+file <CODE>aha1542.c</CODE> for <CODE>__setup(... , ...)</CODE>.  The
+first thing in brackets is the argument you provide at boot,
+and the second thing is the name of the function that processes your
+argument.  Usually near the top of this function or at the
+top of the source file you will find a description of the boot 
+time arguments that the driver accepts.
+<P>
+<P>
+<H2><A NAME="ss1.2">1.2 Related Documentation</A>
+</H2>
+
+<P>
+<P>For a while now, the kernel source has come with the file
+<CODE>linux/Documentation/kernel-parameters.txt</CODE>.  This
+file contains a brief listing of all the boot time arguments
+that you can provide, along with quick pointers to where in 
+the source you can find where the arguments are parsed.
+The idea is that this file gives developers a quick and
+easy place to add in a brief description of any new arguments
+that they add while working on the source.  As such, it 
+will probably always be more up to date than this document.
+Actually, I'm considering discontinuing this document in light 
+of the existence of <CODE>kernel-parameters.txt</CODE>.  (Opinions?)
+<P>The <CODE>linux</CODE> directory is usually found in <CODE>/usr/src/</CODE>
+for most distributions.  All references in this document
+to files that come with the kernel will have their pathname
+abbreviated to start with <CODE>linux</CODE> - you will have to add the 
+<CODE>/usr/src/</CODE> or whatever is appropriate for your system.
+Some distributions may not install the full kernel source by
+default, and only put in the <CODE>linux/include</CODE> directory.
+If you can't find the file in question, then install the kernel
+source and/or make use of the <CODE>find</CODE> and <CODE>locate</CODE> commands.
+If you can't find the kernel source package in your distribution
+then the kernel source is available at:
+<P>
+<A HREF="http://www.kernel.org">Kernel Source Home</A><P>The next best thing to reading the kernel C source itself, will 
+be any of the other documentation files that are
+distributed with the kernel itself. There are now quite a
+few of these, and most of them can be found in the directory
+<CODE>linux/Documentation</CODE> and subdirectories from there.
+Sometimes there will be <CODE>README.foo</CODE> files that can be found
+in the related driver directory (e.g. <CODE>linux/drivers/???/</CODE>,
+where examples of <CODE>???</CODE> could be <CODE>scsi</CODE>, <CODE>char</CODE>, or <CODE>net</CODE>).
+The general trend is to move these files into the Documentation
+directory, so if a file mentioned in this document is no longer
+there, chances are it has been moved.
+<P>If you have figured out what boot-args you intend to use, and
+now want to know how to get that information to the kernel, then
+look at the documentation that comes with the software that you
+use to boot the kernel (e.g. LILO or loadlin). A brief overview
+is given below, but it is no substitute for the documentation
+that comes with the booting software.
+<P>
+<H2><A NAME="new-doc"></A> <A NAME="ss1.3">1.3 New Versions of this Document</A>
+</H2>
+
+<P>New versions of this document can be retrieved via anonymous
+FTP from most Linux FTP sites in the directory
+<CODE>/pub/Linux/docs/HOWTO/</CODE>. Updates will be made as new 
+information and/or drivers becomes available. If this copy that
+you are presently reading is more than six months old, then
+you should probably check to see if a newer copy exists.
+I would recommend viewing this via a WWW browser or in the
+Postscript/dvi format. Both of these contain cross-references
+that are lost in a simple plain text version.
+<P>If you want to get the official copy, here is URL.
+<P>
+<A HREF="http://metalab.unc.edu/mdw/HOWTO/BootPrompt-HOWTO.html">BootPrompt-HOWTO</A><P>
+<HR>
+<A HREF="BootPrompt-HOWTO-2.html">Next</A>
+Previous
+<A HREF="BootPrompt-HOWTO.html#toc1">Contents</A>
+</BODY>
+</HTML>

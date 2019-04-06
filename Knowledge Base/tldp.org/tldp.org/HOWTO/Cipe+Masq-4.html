@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux Cipe+Masquerading mini-HOWTO: Machine B Specific Configuration</TITLE>
+ <LINK HREF="Cipe+Masq-5.html" REL=next>
+ <LINK HREF="Cipe+Masq-3.html" REL=previous>
+ <LINK HREF="Cipe+Masq.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Cipe+Masq-5.html">Next</A>
+<A HREF="Cipe+Masq-3.html">Previous</A>
+<A HREF="Cipe+Masq.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Machine B Specific Configuration</A></H2>
+
+<H2><A NAME="ss4.1">4.1 /etc/cipe/options.machineA</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+
+#uncomment 1 below 
+#name for cipe 1.0.x 
+#device          cip3b0 
+#name for cipe 1.2.x 
+device          cipcb0 
+
+#remote internal (fake) ip address 
+ptpaddr         192.168.1.1 
+# my cipe (fake) ip address 
+ipaddr          192.168.2.1 
+# my real ip address and cipe port 
+me              (real ip 1):(port A) 
+# remote real ip address and cipe port 
+peer            (real ip 2):(port A) 
+#unique 128 bit key 
+key             (Key A) 
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss4.2">4.2 /etc/rc.d/rc.cipe</A>
+</H2>
+
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+
+
+
+!#/bin/bash 
+#rc.cipe  3/29/1999 
+#Send questions or comments to acj@home.com. 
+
+#Setup script path 
+PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin" 
+
+#Options filenames in cipe directory for cipe interfaces 
+options="options.machineA" 
+
+#Automatically obtain options filenames from cipe directory 
+#options=`/bin/ls /etc/cipe/options.*` 
+
+#Uncomment 1 below for the cipe module name 
+#cipemod="cip3b"        #for cipe 1.0 
+cipemod="cipcb"        #for cipe 1.2 
+
+#Check for cipe module and load if not already loaded 
+grep $cipemod /proc/modules >/dev/null 
+if [ "$?" = "1" ]; then 
+        echo Loading cipe module. 
+        modprobe $cipemod 
+        if [ "$?" = "1" ]; then 
+                echo Error loading cipe module...exiting. 
+                exit 
+        fi 
+else 
+        echo Cipe module already loaded. 
+fi 
+
+#Remove any existing cipe interfaces 
+cipeif=`cat /proc/net/dev | cut -f1 -d: | grep $cipemod` 
+
+if [ "$cipeif" != "" ]; then 
+        echo Removing existing cipe interface(s). 
+        for i in $cipeif; do 
+                ifconfig $i down 
+        done 
+fi 
+
+#Setup cipe interfaces 
+echo -n "Setting up cipe interface(s): " 
+for config in $options; do 
+        echo -n $config" " 
+        ciped -o $config 
+done 
+echo 
+echo 
+
+#Add routes for other remote networks via cipe interface(s) 
+#route add -net x.x.x.x netmask x.x.x.x gw x.x.x.x 
+#route to machine C network 
+#route add -net 192.168.3.0 netmask 255.255.255.0 gw 192.168.3.1 
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>
+<H2><A NAME="ss4.3">4.3 Gateway</A>
+</H2>
+
+<P>All machines on network 192.168.2.0 must have 192.168.2.1 as gateway.  If you 
+don't it will not work.
+<P>
+<P>
+<HR>
+<A HREF="Cipe+Masq-5.html">Next</A>
+<A HREF="Cipe+Masq-3.html">Previous</A>
+<A HREF="Cipe+Masq.html#toc4">Contents</A>
+</BODY>
+</HTML>

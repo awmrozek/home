@@ -1,0 +1,391 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux Intranet Server HOWTO: Connecting to the Linux Server</TITLE>
+ <LINK HREF="Intranet-Server-HOWTO-5.html" REL=next>
+ <LINK HREF="Intranet-Server-HOWTO-3.html" REL=previous>
+ <LINK HREF="Intranet-Server-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Intranet-Server-HOWTO-5.html">Next</A>
+<A HREF="Intranet-Server-HOWTO-3.html">Previous</A>
+<A HREF="Intranet-Server-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Connecting to the Linux Server</A></H2>
+
+<P>Please refer to the diagram shown in the chapter 
+<A HREF="Intranet-Server-HOWTO-1.html#Intro">Introduction</A> for the addressing scheme used. Workstation 1 (W/S1) is on network 172.16.0.0 and can access the Linux server directly whereas Workstation 2 (W/S2) is on network 172.17.0.0 and needs to use the gateway (router) 172.17.0.254 to access the Linux box. This gateway information needs to be provided while configuring the clients only on W/S2. Netware refers to the gateway as 'ip_router'.
+<P>I am using W/S2 to illustrate the client setup. To setup W/S1 just change the address 172.17.0.5 to 172.16.0.5 and ignore all references to the gateway/router.
+<P>If you do not have a router you can skip the next section and proceed to
+<UL>
+<LI>
+<A HREF="#SetupNW">Setup Netware Server</A> if you use a Netware server.</LI>
+<LI>
+<A HREF="#MSClient">Setup MS Windows Client</A> if you use the Microsoft Client.</LI>
+</UL>
+<P>
+<H2><A NAME="ss4.1">4.1 Setup the Linux server</A>
+</H2>
+
+<P><B>You may skip this section if you do not have a router.</B>
+<P>You have to configure the Linux server to recognise the router thus allowing
+Workstation 2 to connect to the Web server. In order to setup the Linux server you should login as root. At the server prompt type
+<BLOCKQUOTE><CODE>
+<PRE>
+   route add gw default 172.16.0.254
+</PRE>
+</CODE></BLOCKQUOTE>
+
+To use this gateway everytime you boot the Linux server edit the file <CODE>/etc/rc.d/rc.inet1</CODE> and change the line containing the gateway definition to <CODE>GATEWAY = "172.16.0.254"</CODE>. Make sure the line for adding the gateway is not commented out.
+<P>ALT: You can add routes to the networks on the other side of the router. This would be done as
+<BLOCKQUOTE><CODE>
+<PRE>
+   route add -net 172.17.0.0 gw 172.16.0.254
+</PRE>
+</CODE></BLOCKQUOTE>
+
+To add this route everytime you boot Linux add the command to your <CODE>/etc/rc.d/rc.local</CODE> file.
+<P>
+<P>
+<H2><A NAME="SetupNW"></A> <A NAME="ss4.2">4.2 Setup the Netware server</A>
+</H2>
+
+<P>In order to setup the Netware server you should have Supervisor permissions or atleast Console operator permissions. If these cannot be got, try asking your Network Administrator to help you with the setup.
+At the Server enable the Ethernet_II frame type on the LAN by typing these commands or include them in the AUTOEXEC.ncf file.
+<BLOCKQUOTE><CODE>
+<PRE>
+   load NE2000 frame=Ethernet_II name=IPNET
+   load TCPIP
+   bind IP to IPNET addr=172.16.0.2 mask=FF.FF.FF.0
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You might have to specify the slot or board number while loading the NE2000 driver depending on your machine configuration. (eg: load NE2000 slot=3 frame=.....)
+<P>
+<H2><A NAME="NWClient"></A> <A NAME="ss4.3">4.3 Setup the Netware Client</A>
+</H2>
+
+<P>On the PC you have the choice of Win3.1,WFWG or Win95. The installation procedure differs between Win95 and the older windows if you are using the 32bit client from Microsoft or Novell. If you are going to use the 16bit client, the procedure is the same and you can refer to the Windows 3.x installation instructions. For installing the 32bit client for Win95 skip to 
+<A HREF="#NWWin95">Windows 95 installation</A>.
+<P>
+<H3><A NAME="NWWin"></A> Windows 3.x</H3>
+
+<P>If you are using Win3.1 or WFWG you can install the Netware Client (VLMs) and some additional files which are provided with the TCP/IP diskette, namely
+<P>TCPIP.exe, VTCPIP.386, WINSOCK.dll and WLIBSOCK.dll
+<P>Note that the WINSOCK.dll file is different from the ones provided with Win95 and Trumpet. Install the Netware Client with the support for windows. Copy VTCPIP.386, WINSOCK.dll and WLIBSOCK.dll to the SYSTEM directory and TCPIP.exe to the NWCLIENT directory. Now modify the STARTNET.bat in the NWCLIENT directory to
+<BLOCKQUOTE><CODE>
+<PRE>
+   lsl
+   ne2000     ---> your network card driver
+   c:\windows\odihlp.exe     ---->if you are using WFWG
+   ipxodi
+   tcpip        ---> add this line
+   nwip         ---> if you use Netware/IP
+   vlm
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Create a subdirectory (say) <CODE>\NET\TCP</CODE> and copy the files HOSTS, NETWORKS, PROTOCOLS and SERVICES from <CODE>/etc</CODE> on your Linux server or the directory <CODE>SYS:ETC</CODE> on your Netware server. Edit the copied HOSTS file to add the line for your new Linux server. This will enable you to refer to the Linux server as <CODE>http://linux.mydomain/</CODE> instead of <CODE>http://172.16.0.1/</CODE>in your WWW browser
+<BLOCKQUOTE><CODE>
+<PRE>
+   127.0.0.1      localhost
+   172.16.0.1      linux.mydomain
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Edit the NET.cfg file in NWCLIENT directory
+<BLOCKQUOTE><CODE>
+<PRE>
+   Link Driver NE2000
+       port 300
+       int 3
+       MEM D0000
+       FRAME Ethernet_802.2
+
+; ---- add these lines ----
+
+      FRAME Ethernet_II
+
+   Protocol TCPIP
+      PATH TCP_CFG C:\NET\TCP
+      ip_address  172.17.0.5
+      ip_netmask  255.255.255.0
+      ip_router   172.17.0.254     ---> add the address of your gateway only
+                                  ---> if you have to use this
+                                  ---> gateway to reach your HTTP server
+
+   Link Support
+      MemPool 6192       ---> the minimum is 1024. Try with different values
+      Buffers 10 1580    ---> this again can be fine tuned
+
+;---------------------------------
+; You may need to add lines like these if you are using Netware/IP
+;
+   NWIP
+      NWIP_DOMAIN_NAME  mydomain
+      NSQ_BROADCAST   ON
+      NWIP1_1 COMPATIBILITY   OFF
+      AUTORETRIES     1
+      AUTORETRY SECS  10
+
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Edit the SYSTEM.ini file in the WINDOWS directory and add this entry for VTCPIP.386
+<BLOCKQUOTE><CODE>
+<PRE>
+   [386Enh]
+   .....
+   network=*vnetbios, vipx.386, vnetware.386, VTCPIP.386
+   .....
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Reboot your PC, run STARTNET.bat and you can now use your favorite WWW browser to access your Web pages. You need not login to Netware and you don't have to run TCPMAN (if you use Trumpet Winsock).
+<P>
+<H3><A NAME="NWWin95"></A> Windows 95</H3>
+
+<P>This section explains how to install the 32bit client on Win95. Firstly you must install the following
+<BLOCKQUOTE><CODE>
+<PRE>
+   Client for Netware Networks (from Microsoft or Novell)
+   Microsoft TCP/IP Protocol
+   Network Adapter
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To install these items, click on My Computer, Control Panel, Networks. Click Add. You will now be in a window that displays Client, Adapter, Protocol and Service.
+To install the Client for Netware Networks:
+<BLOCKQUOTE><CODE>
+<PRE>
+  1. DoubleClick on Client
+  2. Click on Microsoft or Novell
+  3. DoubleClick on Client for Netware Networks
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To install the TCP/IP Protocol:
+<BLOCKQUOTE><CODE>
+<PRE>
+  1. DoubleClick on Protocol
+  2. Click on Microsoft
+  3. DoubleClick on TCP/IP
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Windows 95 by default installs several other protocols automatically. Remove
+them by clicking on them and clicking the Remove button. Typically Win95 installs the Microsoft NetBeui protocol, and IPX/SPX compatible protocol. You can delete the NetBEUI protocol, but you will need the IPX/SPX protocol if you wish to login to the Netware Server.
+<P>To setup TCP/IP click on TCP/IP, click on Properties, click on the tab IP address
+<BLOCKQUOTE><CODE>
+<PRE>
+  Enter your IP address in the &quot;Specify an IP address &quot;
+                        box as 172.17.0.5
+  In the Subnet Mask box enter 255.255.255.0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+select the tab Gateway
+<BLOCKQUOTE><CODE>
+<PRE>
+  Enter your gateway (router) address in the box New gateway
+     as 172.17.0.254
+  Click the Add button
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The gateway address should now appear under the installed gateways box. Now Click OK.
+<P>You should get a message to reboot. Do so. You should now be able to use the Browser to connect to your HTTP Server.
+<P>
+<H2><A NAME="MSClient"></A> <A NAME="ss4.4">4.4 Setup Microsoft Client</A>
+</H2>
+
+<P>If you are using the Microsoft Client for accessing your network, then this section details how to install TCP/IP for
+<UL>
+<LI>
+<A HREF="#MSWFWG">Windows for Workgroups (WFWG)</A></LI>
+<LI>
+<A HREF="#MSWin95">Windows 95</A></LI>
+<LI>
+<A HREF="#MSWinNT">Windows NT 4.0</A></LI>
+</UL>
+
+<B>Note: </B>To enable you to refer to the Linux server as <CODE>http://linux.mydomain/</CODE> instead of <CODE>http://172.16.0.1/</CODE> in the WWW browser and all your intranet commands you need to edit the <CODE>hosts</CODE> file. You can add more entries for each of your other hosts (Netware, Unix, WinNT) as well. The Windows family keeps its HOSTS file in <CODE>\WINDOWS</CODE> or in <CODE>\WINDOWS\SYSTEM</CODE> depending on the version. Edit this file and add a line for your Linux server as:
+<BLOCKQUOTE><CODE>
+<PRE>
+   127.0.0.1      localhost
+   172.16.0.1     linux.mydomain
+
+   172.16.0.2     netware.mydomain
+   172.16.0.3     winNT.mydomain
+   172.16.0.5     ws_1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3><A NAME="MSWFWG"></A> Windows for Workgroups</H3>
+
+<P>This section explains how to install the 32bit client on WFWG. Firstly you must
+download the TCP/IP drivers for Windows from Microsoft. The current version is 3.11b and is available at 
+<A HREF="ftp://ftp.microsoft.com">ftp://ftp.microsoft.com</A> or other sites as <CODE>tcp32b.exe</CODE>. Make sure that you have load Win32s before trying to load the TCP/IP-32bit driver.
+<P>Having expanded the TCP/IP files into a temporary directory (say <CODE>C:\TEMP</CODE>), check your <CODE>\WINDOWS\SYSTEM</CODE> directory for copies of <CODE>OEMSETUP.INF</CODE>. If there are any, rename them. Now copy the <CODE>OEMSETUP.INF</CODE> file from the TEMP directory to the <CODE>\WINDOWS\SYSTEM</CODE> directory. If you have loaded any other TCP/IP stacks on your system, please remove them before you proceed.
+<P>Start Network Setup or Windows Setup/Change Network settings
+<BLOCKQUOTE><CODE>
+<PRE>
+    Click the Networks button
+    Click Install Microsoft Windows Network.
+      Choose support for additional networks (if required)
+    Click OK
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You should be prompted for your network adapter - select the appropriate one. If you are not prompted, then
+<BLOCKQUOTE><CODE>
+<PRE>
+     Click the Adapter button
+         select an adapter (say NE2000)
+         Click OK
+     Click the Protocol button
+         select the MS TCP/IP-32 protocol
+         click OK
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You will now be prompted to configure the TCP/IP protocol stack. You can always reconfigure this by highlighting the TCP/IP protocol shown in the box Adapters
+and clicking the Setup button.
+<BLOCKQUOTE><CODE>
+<PRE>
+   In the IP address box enter 172.17.0.5
+   In the Subnet Mask box enter 255.255.255.0
+   Enter your gateway (router) address in the box default gateway
+     as 172.17.0.254
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Click OK. The computer will ask you to restart. Do so. You should now be able to use the Browser to connect to your HTTP Server.
+<P>
+<H3><A NAME="MSWin95"></A> Windows 95</H3>
+
+<P>This section explains how to install the 32bit client for Microsoft on Win95. Firstly you must install the following
+<BLOCKQUOTE><CODE>
+<PRE>
+   Client for Microsoft Networks
+   Microsoft TCP/IP Protocol
+   Network Adapter
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To install these items, click on My Computer, Control Panel, Networks. Click Add. You will now be in a window that displays Client, Adapter, Protocol and Service.
+To install the Client for Microsoft Networks:
+<BLOCKQUOTE><CODE>
+<PRE>
+  1. DoubleClick on Client
+  2. Click on Microsoft
+  3. DoubleClick on Client for Microsoft Networks
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To install the TCP/IP Protocol:
+<BLOCKQUOTE><CODE>
+<PRE>
+  1. DoubleClick on Protocol
+  2. Click on Microsoft
+  3. DoubleClick on TCP/IP
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Windows 95 by default installs several protocols automatically. Remove
+them by clicking on them and clicking the Remove button. Typically Win95 installs the Microsoft NetBeui protocol.
+<P>To setup TCP/IP click on TCP/IP, click on Properties, click on the tab IP address
+<BLOCKQUOTE><CODE>
+<PRE>
+  Enter your IP address in the &quot;Specify an IP address &quot;
+                        box as 172.17.0.5
+  In the Subnet Mask box enter 255.255.255.0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+select the tab Gateway
+<BLOCKQUOTE><CODE>
+<PRE>
+  Enter your gateway (router) address in the box New gateway
+     as 172.17.0.254
+  Click the Add button
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The gateway address should now appear under the installed gateways box. Now Click OK.
+<P>You should get a message to reboot. Do so. You should now be able to use the Browser to connect to your HTTP Server.
+<P>
+<H3><A NAME="MSWinNT"></A> Windows NT</H3>
+
+<P>This section details how to Install the TCP/IP client for WinNT 4.0.
+Start Control Panel/ Network
+<BLOCKQUOTE><CODE>
+<PRE>
+    Select the Adapter tab.
+        Click Add to add a new adapter (if you don't have one)
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You should be prompted for your network adapter - select the appropriate one. To add the protocols.
+<BLOCKQUOTE><CODE>
+<PRE>
+    Select the Protocols tab
+        Click Add
+        Select the TCP/IP protocol
+        Click OK
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You will now be prompted to configure the TCP/IP protocol stack. You can always reconfigure this by highlighting the TCP/IP protocol and clicking the Properties button.
+<BLOCKQUOTE><CODE>
+<PRE>
+   Select the tab IP Address
+      Mark the checkbox 'Specify an IP address'
+      In the IP address box enter 172.17.0.5
+      In the Subnet Mask box enter 255.255.255.0
+      Enter your gateway (router) address in the box Default Gateway
+          as 172.17.0.254
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Click OK. The computer will ask you to restart. You can now use any Browser to connect to your HTTP Server.
+<P>
+<H2><A NAME="MacClient"></A> <A NAME="ss4.5">4.5 Setup TCP/IP on Macintosh</A>
+</H2>
+
+<P>If you are using the Macintosh for accessing your network, then
+this section details how to install MacTCP for the PowerMacs.
+<P><B>Note: </B>To enable you to refer to the Linux
+server as <CODE>http://linux.mydomain/</CODE> instead of
+<CODE>http://172.16.0.1/</CODE> in the WWW browser and all your intranet
+commands you need to edit the <CODE>hosts</CODE> file. The format of the
+hosts file is different from the one used in Unix. The Mac hosts file is
+based on RFC-1035. You can add more entries for each of your other hosts
+(Netware, Unix, WinNT) as well. The MacOS  keeps its HOSTS file in the
+<CODE>Preferences folder</CODE> under the <CODE>System folder</CODE>. Edit this file and add a line
+for your Linux server as:
+<BLOCKQUOTE><CODE>
+<PRE>
+  linux.mydomain    A  172.16.0.1
+
+  netware.mydomain  A  172.16.0.2
+  winNT.mydomain    A  172.16.0.3
+  ws_1              A  172.16.0.5
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3><A NAME="MacTCP"></A> MacTCP</H3>
+
+<P>This section explains how to install MacTCP. Firstly
+you must download the MacTCP files from Apple or install it from the Internet Connection CD.
+To configure MacTCP, click the Apple Menu/ Control Panels/ TCP/IP. In the screen change the setting for 'Connect via:' to 'Ethernet'
+<P>Change the 'Configure' setting to 'Manually'
+<BLOCKQUOTE><CODE>
+<PRE>
+  In the IP address box enter 172.17.0.5
+  In the Subnet Mask box enter 255.255.255.0
+  Enter your gateway (router) address in the box
+    Router address as 172.17.0.254
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Click OK. You should now be able to use the Browser to connect to your HTTP Server.
+<P>
+<P>
+<HR>
+<A HREF="Intranet-Server-HOWTO-5.html">Next</A>
+<A HREF="Intranet-Server-HOWTO-3.html">Previous</A>
+<A HREF="Intranet-Server-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

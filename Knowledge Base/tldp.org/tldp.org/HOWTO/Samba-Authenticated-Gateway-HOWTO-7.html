@@ -1,0 +1,95 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Samba Authenticated Gateway HOWTO: User management</TITLE>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO-8.html" REL=next>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO-6.html" REL=previous>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO.html#toc7" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-8.html">Next</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-6.html">Previous</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc7">Contents</A>
+<HR>
+<H2><A NAME="s7">7.</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc7">User management</A></H2>
+
+<H2><A NAME="ss7.1">7.1</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc7.1">Adding users</A>
+</H2>
+
+<P>Adding a Linux user by usual means and setting a samba password
+using smbpasswd will work. If you have any doubt, just refer to the
+SAMBA documentation. This is not a difficult issue.</P>
+
+<H2><A NAME="ss7.2">7.2</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc7.2">Password management</A>
+</H2>
+
+<P>I am issuing this a major topic because I couldn't learn yet
+how to manage users and users' passwords from a Windows workstation
+without using a web interface. I couldn't find and didn't know how
+to build integrated tools to solve this problem. So, I am using a
+CGI program to get it done.</P>
+
+<P>Try the package at 
+<A HREF="http://changepassword.sourceforge.net">http://changepassword.sourceforge.net</A>, it seems to be a good choice.</P>
+
+<H2><A NAME="ss7.3">7.3</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc7.3">Granting or denying access to users</A>
+</H2>
+
+<P>As you could see in a previous section of this howto, the SAMBA
+daemon will call a netlogon.sh script every time the tracking share
+is mounted. This netlogon.sh script will call a script with the user's
+name giving this script the ip address of the refered workstation
+as a parameter. This user script will apply the desired rules.</P>
+
+<P>For example if you want to give the user full access to internet:</P>
+
+<P>
+<PRE>
+#!/bin/sh
+#
+COMMAND=$1
+ADDRESS=$2
+EXTIF=$3
+IPTABLES='/usr/sbin/iptables'
+$IPTABLES $COMMAND POSTROUTING -t nat -s $ADDRESS -o $EXTIF -j MASQUERADE
+</PRE>
+</P>
+<P>If you don't want to change anything to a particular user, just
+give him an empty script:</P>
+
+<P>
+<PRE>
+#/bin/sh
+#
+exit 0
+</PRE>
+</P>
+<P>Or just don't create any script for the less privileged users,
+letting them have the default.sh script, which would be empty as
+the previous or just give limited access as follows:</P>
+
+<P>
+<PRE>
+#!/bin/sh
+#
+COMMAND=$1
+ADDRESS=$2
+EXTIF=$3
+EXTIFADDRESS=$4
+IPTABLES='/usr/sbin/iptables'
+$IPTABLES $COMMAND POSTROUTING -t nat -s $ADDRESS -o $EXTIF --dport 25 -j SNAT --to-source $EXTIFADDRESS
+$IPTABLES $COMMAND POSTROUTING -t nat -s $ADDRESS -o $EXTIF --dport 110 -j SNAT --to-source $EXTIFADDRESS
+</PRE>
+</P>
+<P>Remember that this script requires you to modify all the previous
+scripts to include the extra parameter ou just modify the script
+script. And remember that you will go nowhere whis this howto if
+you don't understand iptables.</P>
+
+<HR>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-8.html">Next</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-6.html">Previous</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc7">Contents</A>
+</BODY>
+</HTML>

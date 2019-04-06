@@ -1,0 +1,576 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Setting up the boot device</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Encrypted Root Filesystem HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Creating the encrypted root filesystem"
+HREF="encrypt-root-filesystem.html"><LINK
+REL="NEXT"
+TITLE="Final steps"
+HREF="final-steps.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Encrypted Root Filesystem HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="encrypt-root-filesystem.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="final-steps.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="setup-boot-device"
+></A
+>3. Setting up the boot device</H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="initial-ramdisk"
+></A
+>3.1. Creating the ramdisk</H2
+><P
+>&#13;To begin with, chroot inside the encrypted partition and create
+the boot device mount point:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>chroot /mnt/efs
+mkdir /loader</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Then, create the initial ramdisk (initrd), which will be needed
+afterwards:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cd
+dd if=/dev/zero of=initrd bs=1k count=4096
+mke2fs -F initrd
+mkdir ramdisk
+mount -o loop initrd ramdisk</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;If you're using grsecurity, you may get a "Permission denied" error
+message; in this case you'll have to run the mount command outside chroot.
+        </P
+><P
+>&#13;Create the filesystem hierarchy and copy the required files in it:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mkdir ramdisk/{bin,dev,lib,mnt,sbin}
+cp /bin/{bash,mount} ramdisk/bin/
+ln -s bash ramdisk/bin/sh
+mknod -m 600 ramdisk/dev/console c 5 1
+mknod -m 600 ramdisk/dev/hda2    b 3 2
+mknod -m 600 ramdisk/dev/loop0   b 7 0
+cp /lib/{ld-linux.so.2,libc.so.6,libdl.so.2} ramdisk/lib/
+cp /lib/{libncurses.so.5,libtermcap.so.2}    ramdisk/lib/
+cp /sbin/{losetup,pivot_root} ramdisk/sbin/</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;It's ok if you see a message like "/lib/libncurses.so.5: No such file
+or directory", or "/lib/libtermcap.so.2: No such file or directory";
+bash only requires one of these two libraries. You can check which one
+is actually required with:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>ldd /bin/bash</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;Compile the sleep program, which will prevent the password prompt
+being flooded by kernel messages (such as usb devices being registered).
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cat &#62; sleep.c &#60;&#60; "EOF"
+#include &#60;unistd.h&#62;
+#include &#60;stdlib.h&#62;
+
+int main( int argc, char *argv[] )
+{
+    if( argc == 2 )
+        sleep( atoi( argv[1] ) );
+
+    return( 0 );
+}
+EOF
+
+gcc -s sleep.c -o ramdisk/bin/sleep
+rm sleep.c</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;Create the init script:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cat &#62; ramdisk/sbin/init &#60;&#60; "EOF"
+#!/bin/sh
+
+/bin/sleep 3
+
+echo -n "Enter seed value: "
+read SEED
+
+/sbin/losetup -e aes256 -S $SEED /dev/loop0 /dev/hda2
+/bin/mount -r -n -t ext3 /dev/loop0 /mnt
+
+while [ $? -ne 0 ]
+do
+    /sbin/losetup -d /dev/loop0
+    /sbin/losetup -e aes256 -S $SEED /dev/loop0 /dev/hda2
+    /bin/mount -r -n -t ext3 /dev/loop0 /mnt
+done
+
+cd /mnt
+/sbin/pivot_root . loader
+exec /usr/sbin/chroot . /sbin/init
+EOF
+
+chmod 755 ramdisk/sbin/init</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;Umount the loopback device and compress the initrd:
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>umount -d ramdisk
+rmdir ramdisk
+gzip initrd
+mv initrd.gz /boot/</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="bootable-cd"
+></A
+>3.2. Booting from a CD-ROM</H2
+><P
+>&#13;I strongly advise you to start your system with a read-only
+media, such as a bootable CD-ROM.
+        </P
+><P
+>&#13;Download and unpack syslinux:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>wget http://ftp.kernel.org/pub/linux/utils/boot/syslinux/syslinux-3.07.tar.bz2
+tar -xvjf syslinux-3.07.tar.bz2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Configure isolinux:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mkdir bootcd
+cp /boot/{vmlinuz,initrd.gz} syslinux-3.07/isolinux.bin bootcd
+echo "DEFAULT /vmlinuz initrd=initrd.gz ro root=/dev/ram0" \
+    &#62; bootcd/isolinux.cfg</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Create and burn the bootable cd-rom iso image:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mkisofs -o bootcd.iso -b isolinux.bin -c boot.cat \
+        -no-emul-boot -boot-load-size 4 -boot-info-table \
+        -J -hide-rr-moved -R bootcd/
+
+cdrecord -dev 0,0,0 -speed 4 -v bootcd.iso
+
+rm -rf bootcd{,.iso}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="boot-partition"
+></A
+>3.3. Booting from a HD partition</H2
+><P
+>&#13;The boot partition can come in handy if you happen to lose your bootable
+CD. <EM
+>Remember that hda1 is a writable media and is thus insecure;
+use it only in case of emergency!</EM
+>
+        </P
+><P
+>&#13;Create and mount the ext2 filesystem:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>dd if=/dev/zero of=/dev/hda1 bs=8192
+mke2fs /dev/hda1
+mount /dev/hda1 /loader</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;Copy the kernel and the initial ramdisk:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>cp /boot/{vmlinuz,initrd.gz} /loader</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;If you use grub:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mkdir /loader/boot
+cp -av /boot/grub /loader/boot/
+cat &#62; /loader/boot/grub/menu.lst &#60;&#60; EOF
+default 0
+timeout 10
+color green/black light-green/black
+title Linux
+    root (hd0,0)
+    kernel /vmlinuz ro root=/dev/ram0
+    initrd /initrd.gz
+EOF
+grub-install --root-directory=/loader /dev/hda
+umount /loader</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>&#13;If you use lilo:
+        </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>mkdir /loader/{boot,dev,etc}
+cp /boot/boot.b /loader/boot/
+mknod -m 600 /loader/dev/hda  b 3 0
+mknod -m 600 /loader/dev/hda1 b 3 1
+mknod -m 600 /loader/dev/hda2 b 3 2
+mknod -m 600 /loader/dev/hda3 b 3 3
+mknod -m 600 /loader/dev/hda4 b 3 4
+mknod -m 600 /loader/dev/ram0 b 1 0
+cat &#62; /loader/etc/lilo.conf &#60;&#60; EOF
+lba32
+boot=/dev/hda
+prompt
+timeout=60
+image=/vmlinuz
+    label=Linux
+    initrd=/initrd.gz
+    read-only
+    root=/dev/ram0
+EOF
+lilo -r /loader
+umount /loader</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="encrypt-root-filesystem.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="final-steps.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Creating the encrypted root filesystem</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Final steps</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

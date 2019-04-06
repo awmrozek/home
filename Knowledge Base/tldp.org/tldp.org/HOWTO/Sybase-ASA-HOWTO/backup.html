@@ -1,0 +1,375 @@
+<HTML
+><HEAD
+><TITLE
+>Backing up and Restoring a Database</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.63
+"><LINK
+REL="HOME"
+TITLE="Sybase Adaptive Server Anywhere for Linux HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Creating, Running and Connecting to Databases"
+HREF="x428.html"><LINK
+REL="NEXT"
+TITLE="Managing a Database"
+HREF="manage.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Sybase Adaptive Server Anywhere for Linux HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x428.html"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="manage.html"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="BACKUP"
+>5. Backing up and Restoring a Database</A
+></H1
+><P
+>Creating a backup of your data is a simple, essential component
+of any serious installation. Adaptive Server Anywhere includes utilities
+to help minimize data loss in case your data becomes corrupt as
+a result of media failure, power outage, or other failure. </P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN680"
+>5.1. Creating a Backup of the Database</A
+></H2
+><P
+>Backups of Adaptive Server Anywhere databases can be performed
+through the dbbackup command line utility, SQL, or Sybase Central.
+Both full backups and incremental backups can be performed, and
+they can be performed either online or offline (that is, whether
+the server is running or not, respectively). In addition, backups
+can be performed both from the server side and from the client side.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN683"
+>5.1.1. Full vs. Incremental Backups</A
+></H3
+><P
+>A full backup makes copies of the main database file and the
+transaction log file. While it's the most basic and essential type
+of backup, it usually isn't practical to regularly perform full backups
+of large databases. As a result, incremental backups are commonly
+used. </P
+><P
+>An incremental backup makes a copy of the transaction log
+alone. It takes place as part of a cycle that begins with a full
+backup, which is then followed by a given number of incremental backups.
+Since only the transaction log is copied, an incremental backup
+uses less time and resources, making it particularly suited for
+large databases. Keep in mind, though, that the more time you leave
+between full backups, the greater the risk of losing data in the
+event that one of the transaction logs becomes unusable. </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN687"
+>5.1.2. Online vs. Offline Backups</A
+></H3
+><P
+>An online backup is performed without stopping the database
+server. It provides a consistent snapshot of the database, even
+as the database is modified. Online backups are useful for databases
+with high availability requirements, but they won't complete until
+all active transactions are complete. </P
+><P
+>In contrast, offline backups are performed once the database
+server has been shut down. They're useful for when the database
+can be taken down on a regular basis. You make offline backups simply
+by copying the pertinent files to another location using the cp
+command in a terminal window. </P
+><P
+>In either case, both full and incremental backups can be performed. </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN692"
+>5.1.3. Server-side vs. Client-side Backups</A
+></H3
+><P
+>An online backup can be performed from a client using the <EM
+>dbbackup</EM
+> command
+line utility. This is known as a client-side backup, and it puts
+a backup of the database on the client machine. </P
+><P
+>An online backup can also be performed on the server by issuing
+the BACKUP statement in SQL. Server-side backups are generally faster,
+owing to the fact that client-side backups usually depend upon transport
+across networks. </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN697"
+>5.1.4. How to make a backup</A
+></H3
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN699"
+>5.1.4.1. From the command line</A
+></H4
+><P
+>The command line utility for making a backup of your database
+is <EM
+>dbbackup</EM
+>. Its syntax is as follows: </P
+><P
+><B
+CLASS="COMMAND"
+>dbbackup [ switches ] directory</B
+></P
+><P
+>directory specifies a destination directory for the backup
+files. Some useful switches include the following: </P
+><P
+></P
+><UL
+><LI
+><P
+>-c is used to specify a connection
+string to the database to be backed up </P
+></LI
+><LI
+><P
+>-d creates a backup of the main database file only </P
+></LI
+><LI
+><P
+>-t creates a backup of the transaction log only </P
+></LI
+><LI
+><P
+>-r renames any previous transaction log backups
+and creates a new one. It is necessary for replication systems. </P
+></LI
+><LI
+><P
+>-x deletes any previous transaction log backups
+and creates a new one. It should not be used in replication systems. </P
+></LI
+></UL
+><P
+>For example, if you were creating your first backup, you would
+want to create a full backup of MyDatabase. To put it in ./backups,
+use the following command: </P
+><P
+><B
+CLASS="COMMAND"
+>dbbackup -c "uid=DBA;pwd=SQL;dbn=MyDatabase" ./backups</B
+></P
+><P
+>The next few backups could be incremental backups, so use
+the following: </P
+><P
+><B
+CLASS="COMMAND"
+>dbbackup -t -r -c "uid=DBA;pwd=SQL;dbn=MyDatabase" ./backups</B
+> </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN723"
+>5.1.4.2. From SQL</A
+></H4
+><P
+>If you prefer to back up your database from Interactive SQL,
+the SQL statement is BACKUP DATABASE. You must have DBA authority
+to use BACKUP DATABASE, whose syntax is as follows: </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+><B
+CLASS="COMMAND"
+>BACKUP DATABASE DIRECTORY backup-directory
+  [ WAIT BEFORE START ]
+  [ DBFILE ONLY ]
+  [ TRANSACTION LOG ONLY ]
+  [ TRANSACTION LOG RENAME [ MATCH ] ]
+  [ TRANSACTION LOG TRUNCATE ]</B
+></PRE
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN728"
+>5.1.4.3. From Sybase Central</A
+></H4
+><P
+>To make a backup from Sybase Central, open the Utilities folder
+under "Adaptive Server Anywhere 7" and double-click "Backup Database"
+to open a dialog box which will guide you through the backup process. </P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN731"
+>5.2. Validating the database and its backup</A
+></H2
+><P
+>You should regularly use either Sybase Central, SQL, or the
+dbvalid command line utility to validate a backup of your database
+in read-only mode, and, if errors are found, make repairs against
+the original database. <EM
+>Never</EM
+> make changes to
+a backup database! To read more about validation, see "Validating
+a database" and "Validating a transaction log" under the Backup
+and Data Recovery chapter of the Adaptive Server Anywhere User's
+Guide. </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN735"
+>5.3. Recovering the database</A
+></H2
+><P
+>Depending on the way your database and its backups are set
+up, and the status of your files after a media failure, there are
+several possible processes involved in how you go about recovering
+data. For information on how to recover data in various situations,
+see the Backup and Data Recovery chapter of the Adaptive Server
+Anywhere User's Guide. </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x428.html"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="manage.html"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Creating, Running and Connecting to Databases</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Managing a Database</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

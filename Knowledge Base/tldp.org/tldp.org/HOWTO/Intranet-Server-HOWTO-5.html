@@ -1,0 +1,193 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux Intranet Server HOWTO: Setting up the Intranet</TITLE>
+ <LINK HREF="Intranet-Server-HOWTO-6.html" REL=next>
+ <LINK HREF="Intranet-Server-HOWTO-4.html" REL=previous>
+ <LINK HREF="Intranet-Server-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Intranet-Server-HOWTO-6.html">Next</A>
+<A HREF="Intranet-Server-HOWTO-4.html">Previous</A>
+<A HREF="Intranet-Server-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Setting up the Intranet</A></H2>
+
+<P>An Intranet cannot be complete without sharing the resources on the different platforms. You will need support for other filesystems, so that you can access the data available on them. This document provides instructions to connect Linux to the following popular filesystems.
+<UL>
+<LI>
+<A HREF="#NCPFS">NCP filesystem for Netware</A></LI>
+<LI>
+<A HREF="#SMBFS">SMB filesystem for Windows</A></LI>
+<LI>
+<A HREF="#NFS">NFS filesystem for Unix</A></LI>
+</UL>
+<P>These filesystems can be compiled into the Linux kernel or added as modules, depending on the version of Linux. If you are not familiar with compiling the kernel you can refer to the Kernel HOWTO 
+<A HREF="http://sunsite.unc.edu/mdw/HOWTO/Kernel-HOWTO.html">http://sunsite.unc.edu/mdw/HOWTO/Kernel-HOWTO.html</A> and the Module HOWTO 
+<A HREF="http://sunsite.unc.edu/mdw/HOWTO/Module-HOWTO.html">http://sunsite.unc.edu/mdw/HOWTO/Module-HOWTO.html</A> for compiling the kernel with modules.
+<P>
+<P>
+<H2><A NAME="NCPFS"></A> <A NAME="ss5.1">5.1 NCPFS</A>
+</H2>
+
+<P>To share the files on the Netware server you will need support for NCP (ncpfs). NCPFS works with kernel version 1.2.x and 1.3.71 upwards. It does not work with any earlier 1.3.x kernel. It cannot access the NDS database in Netware 4.x, but can make use of the bindery. If you are using Netware 4.x you can enable bindery support for specific containers using the command <CODE>Set Bindery Context</CODE> at the console as:
+<BLOCKQUOTE><CODE>
+<PRE>
+
+  set Bindery Context = CORP.MYDOM;WEBUSER.MYDOM
+</PRE>
+</CODE></BLOCKQUOTE>
+
+In the above example two containers have bindery support enabled.
+<P>You will need to download the NCP filesystem utilities using the URL 
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/system/filesystems/ncpfs/ncpfs.tgz">ftp://sunsite.unc.edu/pub/Linux/system/filesystems/ncpfs/ncpfs.tgz</A> (currently ncpfs-2.0.10) from Sunsite.
+<P>
+<H3>Installation</H3>
+
+<P>To install the ncpfs utilities, type
+<BLOCKQUOTE><CODE>
+<PRE>
+   zcat ncpfs.tgz | tar xvf -
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to expand the files into its own directory. In this case you will get a directory <CODE>ncpfs-2.0.10</CODE> Change your directory to this ncpfs directory before proceeding with the installation. Read the README and edit the Makefile if necessary.
+<P>The installation of ncpfs depends on the kernel version you are
+using. For kernel 1.2, you should simply type 'make'. Subsequently typing 'make install' will install the executables and man pages.
+<P>If you use Kernel 1.3.71 or later, you might have to recompile your
+kernel. With these kernels, the kernel part of ncpfs is already
+included in the main source tree. To check if the kernel needs to be recompiled type
+<BLOCKQUOTE><CODE>
+<PRE>
+   cat /proc/filesystems
+</PRE>
+</CODE></BLOCKQUOTE>
+
+It should show you a line saying that the kernel knows ncpfs.
+<P>If ncpfs is not there, you can either recompile the kernel or add ncpfs as a module. For recompiling the kernel you should type 'make config' and when it asks you for
+<P><CODE>The IPX protocol (CONFIG_IPX) [N/y/?]</CODE>
+<P>simply answer 'y'. Probably you do not need the full internal net that
+you are asked for next. Once the kernel is successfully installed, reboot, check <CODE>/proc/filesystems</CODE> and if everything is OK proceed with the installation of the ncpfs utilities. Change directory to the location holding your downloaded ncpfs files, and type 'make'. After the compilation is finished type 'make install' to install the various utilities and man pages.
+<P>
+<H3>Mounting NCPFS</H3>
+
+<P>To check the installation type
+<BLOCKQUOTE><CODE>
+<PRE>
+   ipx_configure --auto_interface=on --auto_primary=on
+
+....wait for 10 seconds and type
+
+   slist
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You should be able to see a list of your Netware servers. Now we are ready to share files from the Netware server.
+<P>Suppose we need to access HTML files from directory <CODE>\home\htmldocs</CODE> on volume VOL1: on the server MYDOM_NW, I recommend that you create a new user (say) 'EXPORT' with password 'EXP123' on this server to whom you grant appropriate access rights to this directory using SYSCON or NWADMIN.
+<P>On the Linux machine create a new directory <CODE>/mnt/MYDOM_NW</CODE>. Now type the command
+<BLOCKQUOTE><CODE>
+<PRE>
+   ncpmount -S MYDOM_NW -U EXPORT -P EXP123 /mnt/MYDOM_NW
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to mount the netware file system. Typing the command
+<BLOCKQUOTE><CODE>
+<PRE>
+   ls /mnt/MYDOM_NW/vol1/home/htmldocs
+</PRE>
+</CODE></BLOCKQUOTE>
+
+will show you a list of all the files in <CODE>MYDOM_NW/VOL1:\HOME\HTMLDOCS</CODE> (using Netware file notation). If you have any problems please read the IPX HOWTO at 
+<A HREF="http://sunsite.unc.edu/mdw/HOWTO/IPX-HOWTO.html">http://sunsite.unc.edu/mdw/HOWTO/IPX-HOWTO.html</A> for more insights into the IPX system.
+<P>
+<P>
+<H2><A NAME="SMBFS"></A> <A NAME="ss5.2">5.2 SMBFS</A>
+</H2>
+
+<P>To share the files on the Windows server you will need support for SMB (smbfs).
+<P>You will need to download the SMB filesystem utilities from 
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/system/filesystems/smbfs/smbfs.tgz">ftp://sunsite.unc.edu/pub/Linux/system/filesystems/smbfs/smbfs.tgz</A> (currently smbfs-2.0.1) from Sunsite.
+<P>
+<H3>Installation</H3>
+
+<P>To install the smbfs utilities, type
+<BLOCKQUOTE><CODE>
+<PRE>
+   zcat smbfs.tgz | tar xvf -
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to expand the files into its own directory. In this case you will get a directory <CODE>smbfs-2.0.1</CODE> Change your directory to this smbfs directory before proceeding with the installation. Read the README and edit the Makefile if necessary.
+<P>The installation of smbfs depends on the kernel version you are
+using. For kernel 1.2, you should simply type 'make'. Subsequently typing 'make install' will install the executables and man pages.
+<P>If you use Kernel 2.0 or later, you might have to recompile your
+kernel. With these kernels, the kernel part of smbfs is already
+included in the main source tree. To check if the kernel needs to be recompiled type
+<BLOCKQUOTE><CODE>
+<PRE>
+   cat /proc/filesystems
+</PRE>
+</CODE></BLOCKQUOTE>
+
+It should show you a line saying that the kernel knows smbfs.
+<P>If smbfs is not there, you can either recompile the kernel or add smbfs as a module. For recompiling the kernel you should type 'make config' and when it asks you for
+adding SMB filesystem support
+simply answer yes. Once the kernel is successfully installed, reboot, check <CODE>/proc/filesystems</CODE> and if everything is OK proceed with the installation of the smbfs utilities. Change directory to the location holding your downloaded smbfs files, and type 'make'. After the compilation is finished type 'make install' to install the various utilities and man pages.
+<P>
+<H3>Mounting SMBFS</H3>
+
+<P>In our example let us assume that the WinNT server is called 'MYDOM_NT' and is sharing its directory <CODE>C:\PUB\HTMLDOCS</CODE> with a share name of 'HTMLDOCS' without a password. On the Linux machine create a new directory <CODE>/mnt/MYDOM_NT</CODE>. Now type the command
+<BLOCKQUOTE><CODE>
+<PRE>
+   smbmount //MYDOM_NT/HTMLDOCS /mnt/MYDOM_NT -n
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>to mount the SMB (windows share) file system. If this does not work try
+<BLOCKQUOTE><CODE>
+<PRE>
+   smbmount //MYDOM_NT/COMMON /mnt/MYDOM_NT -n -I 172.16.0.3
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Typing the command
+<BLOCKQUOTE><CODE>
+<PRE>
+   ls /mnt/MYDOM_NT
+</PRE>
+</CODE></BLOCKQUOTE>
+
+will show you a list of all the files in <CODE>bsol;bsol;MYDOM_NT\PUB\HTMLDOCS</CODE> (using Windows file notation).
+<P>
+<P>
+<H2><A NAME="NFS"></A> <A NAME="ss5.3">5.3 NFS</A>
+</H2>
+
+<P>First you will need a kernel with the NFS file system either compiled in or available as a module.
+<P>Suppose you have a Unix host running NFS with the name MYDOM_UNIX and an IP address of 172.16.0.4. You can check the directories that are being exported (shared) by this host by typing the command
+<BLOCKQUOTE><CODE>
+<PRE>
+
+   showmount -e 172.16.0.4
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Once we know the exported directories you can mount them by entering a appropriate mount command. I recommend that you create a subdirectory under '/mnt' (say) 'MYDOM_UNIX' and use that as your mount point.
+<BLOCKQUOTE><CODE>
+<PRE>
+
+   mount -o rsize=1024,wsize=1024 172.16.0.4:/pub/htmldocs /mnt/MYDOM_UNIX
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The rsize and wsize may have to be changed depending on your environment.
+<P>If you have any problems please read the NFS HOWTO at 
+<A HREF="http://sunsite.unc.edu/mdw/HOWTO/NFS-HOWTO.html">http://sunsite.unc.edu/mdw/HOWTO/NFS-HOWTO.html</A> for more insights into the NFS system.
+<P>
+<P>
+<HR>
+<A HREF="Intranet-Server-HOWTO-6.html">Next</A>
+<A HREF="Intranet-Server-HOWTO-4.html">Previous</A>
+<A HREF="Intranet-Server-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

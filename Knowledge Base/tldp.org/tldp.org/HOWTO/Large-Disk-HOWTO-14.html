@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Large Disk HOWTO: Problem solving</TITLE>
+ <LINK HREF="Large-Disk-HOWTO-13.html" REL=previous>
+ <LINK HREF="Large-Disk-HOWTO.html#toc14" REL=contents>
+</HEAD>
+<BODY>
+Next
+<A HREF="Large-Disk-HOWTO-13.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc14">Contents</A>
+<HR>
+<H2><A NAME="s14">14. Problem solving</A></H2>
+
+<P>Many people think they have problems, while in fact nothing is wrong.
+Or, they think that the problems they have are due to disk geometry,
+while in fact disk geometry has nothing to do with the matter.
+All of the above may have sounded complicated, but disk geometry
+handling is extremely easy: do nothing at all, and all is fine;
+or perhaps give LILO the keyword <CODE>lba32</CODE> if it doesn't get past
+`LI' when booting. Watch the kernel boot messages, and
+remember: the more you fiddle with geometries (specifying heads
+and cylinders to LILO and fdisk and on the kernel command line)
+the less likely it is that things will work.
+Roughly speaking, all is fine by default.
+<P>And remember: nowhere in Linux is disk geometry used, so no problem
+you have while running Linux can be caused by disk geometry.
+Indeed, disk geometry is used only by LILO and by fdisk.
+So, if LILO fails to boot the kernel, that may be a geometry problem.
+If different operating systems do not understand the partition table,
+that may be a geometry problem. Nothing else. In particular, if
+mount doesnt seem to work, never worry about disk geometry -
+the problem is elsewhere.
+<P>
+<H2><A NAME="ss14.1">14.1 Problem: My IDE disk gets a bad geometry when I boot from SCSI.</A>
+</H2>
+
+<P>It is quite possible that a disk gets the wrong geometry.
+The Linux kernel asks the BIOS about hd0 and hd1 (the BIOS drives
+numbered 80H and 81H) and assumes that this data is for hda and hdb.
+But on a system that boots from SCSI, the first two disks may well
+be SCSI disks, and thus it may happen that the fifth disk, which is
+the first IDE disk hda, gets assigned a geometry belonging to sda.
+Such things are easily solved by giving boot parameters
+`hda=C,H,S' for the appropriate numbers C, H and S, either at boot time
+or in /etc/lilo.conf.
+<P>Since Linux 2.5.51 this BIOS information is not used anymore,
+and the same problem occurs for all disks. See below.
+<P>
+<H2><A NAME="ss14.2">14.2 Nonproblem: Identical disks have different geometry?</A>
+</H2>
+
+<P>`I have two identical 10 GB IBM disks. However, fdisk
+gives different sizes for them. Look:
+<BLOCKQUOTE><CODE>
+<PRE>
+# fdisk -l /dev/hdb
+Disk /dev/hdb: 255 heads, 63 sectors, 1232 cylinders
+Units = cylinders of 16065 * 512 bytes
+
+   Device Boot  Start      End   Blocks   Id  System
+/dev/hdb1           1     1232  9896008+  83  Linux native
+# fdisk -l /dev/hdd
+Disk /dev/hdd: 16 heads, 63 sectors, 19650 cylinders
+Units = cylinders of 1008 * 512 bytes
+
+   Device Boot  Start      End   Blocks   Id  System
+/dev/hdd1           1    19650  9903568+  83  Linux native
+</PRE>
+</CODE></BLOCKQUOTE>
+
+How come?'
+<P>What is happening here? Well, first of all these drives
+really are 10gig: hdb has size 255<CODE>*</CODE>63<CODE>*</CODE>1232<CODE>*</CODE>512 = 10133544960,
+and hdd has size 16<CODE>*</CODE>63<CODE>*</CODE>19650<CODE>*</CODE>512 = 10141286400, so, nothing
+is wrong and the kernel sees both as 10.1 GB.
+Why the difference in size? That is because the kernel gets
+data for the first two IDE disks from the BIOS, and the BIOS
+has remapped hdb to have 255 heads (and 16<CODE>*</CODE>19650/255=1232 cylinders).
+The rounding down here costs almost 8 MB.
+<P>If you would like to remap hdd in the same way, give the kernel
+boot parameters `hdd=1232,255,63'.
+<P>On the other hand, if the disk is not shared with DOS or so,
+it may be better to set hdb to Normal in the BIOS setup,
+instead of asking for some translation like LBA.
+<P>Since Linux 2.5.51, the IDE driver no longer uses BIOS info on the first
+two disks, and the different treatment of the first two disks has disappeared.
+<P>
+<H2><A NAME="ss14.3">14.3 Problem: 2.4 and 2.6 report different geometries?</A>
+2.6 reports the wrong geometry? 2.6 reports no geometry at all?</H2>
+
+<P>Since geometry does not exist, it is not surprising that each of
+2.0/2.2/2.4/2.6 reports a somewhat different disk geometry.
+<P>Some people will maintain that geometry *does* exist, and in that
+case do not mean a property of the disk, but mean the values
+reported by the BIOS. That is what several other operating systems
+will use. Since Linux 2.5.51, the kernel no longer uses the values
+reported by the BIOS - it is difficult to match BIOS device numbers
+with Linux disk names, maybe data is only available for two disks,
+maybe some disks are not present in the BIOS setup, etc.
+However, if one needs these values, since Linux 2.6.5 one can set
+CONFIG_EDD and mount sysfs, and then find the BIOS data for the
+various disks under <CODE>/sys/firmware/edd/int13_dev*</CODE>.
+Now the matching of BIOS numbers, represented in directory names
+like <CODE>int13_dev82</CODE>, with Linux names like <CODE>sda</CODE> can
+be done by user space software, possibly with help from the user.
+<P>This 2.5.51 change caused problems when many people using both Linux
+and Windows on the same disk upgraded from 2.4 to 2.6 and used as
+partitioning tool the program <CODE>parted</CODE> that had not yet
+been updated. I have not checked whether current parted is OK.
+<P>
+<H2><A NAME="ss14.4">14.4 Nonproblem: fdisk sees much more room than df?</A>
+</H2>
+
+<P>fdisk will tell you how many blocks there are on the disk.
+If you make a filesystem on the disk, say with mke2fs, then
+this filesystem needs some space for bookkeeping - typically
+something like 4% of the filesystem size, more if you ask for
+a lot of inodes during mke2fs. For example:
+<BLOCKQUOTE><CODE>
+<PRE>
+# sfdisk -s /dev/hda9
+4095976
+# mke2fs -i 1024 /dev/hda9
+mke2fs 1.12, 9-Jul-98 for EXT2 FS 0.5b, 95/08/09
+...
+204798 blocks (5.00%) reserved for the super user
+...
+# mount /dev/hda9 /somewhere
+# df /somewhere
+Filesystem         1024-blocks  Used Available Capacity Mounted on
+/dev/hda9            3574475      13  3369664      0%   /mnt
+# df -i /somewhere
+Filesystem           Inodes   IUsed   IFree  %IUsed Mounted on
+/dev/hda9            4096000      11 4095989     0%  /mnt
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+
+We have a partition with 4095976 blocks, make an ext2 filesystem
+on it, mount it somewhere and find that it only has 3574475 blocks -
+521501 blocks (12%) was lost to inodes and other bookkeeping.
+Note that the difference between the total 3574475 and the 3369664
+available to the user are the 13 blocks in use plus the 204798
+blocks reserved for root. This latter number can be changed by tune2fs.
+This `-i 1024' is only reasonable for news spools and the like,
+with lots and lots of small files. The default would be:
+<BLOCKQUOTE><CODE>
+<PRE>
+# mke2fs /dev/hda9
+# mount /dev/hda9 /somewhere
+# df /somewhere
+Filesystem         1024-blocks  Used Available Capacity Mounted on
+/dev/hda9            3958475      13  3753664      0%   /mnt
+# df -i /somewhere
+Filesystem           Inodes   IUsed   IFree  %IUsed Mounted on
+/dev/hda9            1024000      11 1023989     0%  /mnt
+#
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Now only 137501 blocks (3.3%) are used for inodes, so that we have
+384 MB more than before. (Apparently, each inode takes 128 bytes.)
+On the other hand, this filesystem can have at most 1024000 files
+(more than enough), against 4096000 (too much) earlier. 
+<P>
+<HR>
+Next
+<A HREF="Large-Disk-HOWTO-13.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc14">Contents</A>
+</BODY>
+</HTML>

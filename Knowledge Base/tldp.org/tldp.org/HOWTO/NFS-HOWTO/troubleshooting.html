@@ -1,0 +1,1070 @@
+<HTML
+><HEAD
+><TITLE
+>Troubleshooting</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Linux NFS-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Security and NFS"
+HREF="security.html"><LINK
+REL="NEXT"
+TITLE="Using Linux NFS with Other OSes"
+HREF="interop.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux NFS-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="security.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="interop.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="TROUBLESHOOTING">7. Troubleshooting</H1
+><BLOCKQUOTE
+CLASS="ABSTRACT"
+><DIV
+CLASS="ABSTRACT"
+><A
+NAME="AEN951"><P
+></P
+><P
+>   This is intended as a step-by-step guide to what to do when
+   things go wrong using NFS.  Usually trouble first rears its
+   head on the client end, so this diagnostic will begin there.
+ </P
+><P
+></P
+></DIV
+></BLOCKQUOTE
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM1">7.1. Unable to See Files on a Mounted File System</H2
+><P
+>       First, check to see if the file system is actually mounted.
+       There are several ways of doing this.  The most reliable
+       way is to look at the file <TT
+CLASS="FILENAME"
+>/proc/mounts</TT
+>, 
+       which will list all mounted filesystems and give details about them.  If
+       this doesn't work (for example if you don't 
+       have the <TT
+CLASS="FILENAME"
+>/proc</TT
+>
+       filesystem compiled into your kernel), you can type 
+       <TT
+CLASS="USERINPUT"
+><B
+>mount -f</B
+></TT
+> although you get less information.  
+     </P
+><P
+>       If the file system appears to be mounted, then you may
+       have mounted another file system on top of it (in which
+       case you should unmount and remount both volumes), or you 
+       may have exported the file system on the server before you 
+       mounted it there, in which case NFS is exporting the underlying 
+       mount point (if so then you need to restart NFS on the 
+       server).
+     </P
+><P
+>       If the file system is not mounted, then attempt to mount it.
+       If this does not work, see <A
+HREF="troubleshooting.html#SYMPTOM3"
+><I
+>Symptom 3</I
+></A
+>.
+     </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM2">7.2. File requests hang or timeout waiting for access to the file.</H2
+><P
+>      This usually means that the client is unable to communicate with
+      the server.  See <A
+HREF="troubleshooting.html#SYMPTOM3"
+><I
+>Symptom 3</I
+></A
+> letter b.
+     </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM3">7.3. Unable to mount a file system</H2
+><P
+>       There are two common errors that mount produces when
+       it is unable to mount a volume.  These are:
+      <P
+></P
+><OL
+TYPE="a"
+><LI
+><P
+>          failed, reason given by server: 
+          <TT
+CLASS="COMPUTEROUTPUT"
+>Permission denied</TT
+>
+        </P
+><P
+>   
+          This means that the server does not recognize that you
+          have access to the volume.  
+        </P
+><P
+></P
+><OL
+TYPE="i"
+><LI
+><P
+>              Check your <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> file and make sure that the
+              volume is exported and that your client has the right
+              kind of access to it.  For example, if a client only
+              has read access then you have to mount the volume
+              with the <TT
+CLASS="USERINPUT"
+><B
+>ro</B
+></TT
+> option rather 
+              than the <TT
+CLASS="USERINPUT"
+><B
+>rw</B
+></TT
+> option.
+            </P
+></LI
+><LI
+><P
+>             Make sure that you have told NFS to register any
+             changes you made to <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> since starting nfsd
+             by running the exportfs command.  Be sure to type
+             <B
+CLASS="COMMAND"
+>exportfs -ra</B
+> to be extra certain that the exports are
+             being re-read.
+           </P
+></LI
+><LI
+><P
+>             Check the file <TT
+CLASS="FILENAME"
+>/proc/fs/nfs/exports</TT
+> and make sure the 
+             volume and client are listed correctly.  (You can also
+             look at the file <TT
+CLASS="FILENAME"
+>/var/lib/nfs/xtab</TT
+> for an unabridged
+             list of how all the active export options are set.)  If they 
+             are not, then you have not re-exported properly.  If they
+             are listed, make sure the server recognizes your
+             client as being the machine you think it is.  For
+             example, you may have an old listing for the client
+             in <TT
+CLASS="FILENAME"
+>/etc/hosts</TT
+> that is throwing off the server, or
+             you may not have listed the client's complete address
+             and it may be resolving to a machine in a different 
+             domain.  One trick is login to the server from the
+             client via <B
+CLASS="COMMAND"
+>ssh</B
+> or <B
+CLASS="COMMAND"
+>telnet</B
+>;
+             if you then type <B
+CLASS="COMMAND"
+>who</B
+>, one of the listings
+             should be your login session and the name of your client
+             machine as the server sees it.  Try using this machine name
+             in your <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> entry.
+             Finally, try to ping the client from the server, and try
+             to <B
+CLASS="COMMAND"
+>ping</B
+> the server from the client.  If this doesn't work,
+             or if there is packet loss, you may have lower-level network 
+             problems.
+           </P
+></LI
+><LI
+><P
+>             It is not possible to export both a directory and its child
+             (for example both 
+             <TT
+CLASS="FILENAME"
+>/usr</TT
+> and <TT
+CLASS="FILENAME"
+>/usr/local</TT
+>).
+             You should export the parent directory with the necessary
+             permissions, and all of its subdirectories can then be
+             mounted with those same permissions.
+           </P
+></LI
+></OL
+></LI
+><LI
+><P
+><TT
+CLASS="COMPUTEROUTPUT"
+>          RPC: Program Not Registered</TT
+>: (or another "RPC" error):</P
+><P
+>          This means that the client does not detect NFS running
+          on the server.  This could be for several reasons.
+        </P
+><P
+></P
+><OL
+TYPE="i"
+><LI
+><P
+>            First, check that NFS actually is running on the
+            server by typing <B
+CLASS="COMMAND"
+>rpcinfo -p</B
+> on the server.
+            You should see something like this:
+         <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>   program vers proto   port
+    100000    2   tcp    111  portmapper
+    100000    2   udp    111  portmapper
+    100011    1   udp    749  rquotad
+    100011    2   udp    749  rquotad
+    100005    1   udp    759  mountd
+    100005    1   tcp    761  mountd
+    100005    2   udp    764  mountd
+    100005    2   tcp    766  mountd
+    100005    3   udp    769  mountd
+    100005    3   tcp    771  mountd
+    100003    2   udp   2049  nfs
+    100003    3   udp   2049  nfs
+    300019    1   tcp    830  amd
+    300019    1   udp    831  amd
+    100024    1   udp    944  status
+    100024    1   tcp    946  status
+    100021    1   udp   1042  nlockmgr
+    100021    3   udp   1042  nlockmgr
+    100021    4   udp   1042  nlockmgr
+    100021    1   tcp   1629  nlockmgr
+    100021    3   tcp   1629  nlockmgr
+    100021    4   tcp   1629  nlockmgr
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+            This says that we have NFS versions 2 and 3, rpc.statd 
+            version 1, network lock manager (the service name for 
+            <B
+CLASS="COMMAND"
+>rpc.lockd</B
+>) versions 1, 3, and 4.
+            There are also different
+            service listings depending on whether NFS is travelling over 
+            TCP or UDP.  UDP is usually (but not always) the default 
+            unless TCP is explicitly requested.
+          </P
+><P
+>            If you do not see at least <TT
+CLASS="COMPUTEROUTPUT"
+>portmapper</TT
+>,            <TT
+CLASS="COMPUTEROUTPUT"
+>nfs</TT
+>, and
+            <TT
+CLASS="COMPUTEROUTPUT"
+>mountd</TT
+>, then 
+            you need to restart NFS.  If you are not able to restart 
+            successfully, proceed to <A
+HREF="troubleshooting.html#SYMPTOM9"
+><I
+>Symptom 9</I
+></A
+>.
+          </P
+></LI
+><LI
+><P
+>            Now check to make sure you can see it from the client.
+            On the client, type <B
+CLASS="COMMAND"
+>rpcinfo -p </B
+> 
+            <EM
+>server</EM
+> where <EM
+>server</EM
+>
+            is the DNS name or IP address of your server.  
+          </P
+><P
+>            If you get a listing, then make sure that the type
+            of mount you are trying to perform is supported. For
+            example, if you are trying to mount using Version 3
+            NFS, make sure Version 3 is listed; if you are trying
+            to mount using NFS over TCP, make sure that is
+            registered.  (Some non-Linux clients default to TCP).
+            Type <TT
+CLASS="USERINPUT"
+><B
+>man rpcinfo</B
+></TT
+> for more details on how
+            to read the output.  If the type of mount you are
+            trying to perform is not listed, try a different
+            type of mount.
+          </P
+><P
+>            If you get the error 
+            <TT
+CLASS="COMPUTEROUTPUT"
+>No Remote Programs Registered</TT
+>,
+            then you need to check your <TT
+CLASS="FILENAME"
+>/etc/hosts.allow</TT
+> and
+            <TT
+CLASS="FILENAME"
+>/etc/hosts.deny</TT
+> files on the server and make sure
+            your client actually is allowed access.  Again, if the
+            entries appear correct, check <TT
+CLASS="FILENAME"
+>/etc/hosts</TT
+> (or your
+            DNS server) and make sure that the machine is listed
+            correctly, and make sure you can ping the server from
+            the client.  Also check the error logs on the system
+            for helpful messages: Authentication errors from bad
+            <TT
+CLASS="FILENAME"
+>/etc/hosts.allow</TT
+> entries will usually appear in 
+            <TT
+CLASS="FILENAME"
+>/var/log/messages</TT
+>, 
+            but may appear somewhere else depending
+            on how your system logs are set up.  The man pages
+            for <TT
+CLASS="COMPUTEROUTPUT"
+>syslog</TT
+> can 
+            help you figure out how your logs are
+            set up.  Finally, some older operating systems may
+            behave badly when routes between the two machines
+            are asymmetric.  Try typing <B
+CLASS="COMMAND"
+>tracepath [server]</B
+> from
+            the client and see if the word "asymmetric" shows up
+            anywhere in the output.  If it does then this may
+            be causing packet loss.  However asymmetric routes are
+            not usually a problem on recent linux distributions.
+          </P
+><P
+>            If you get the error 
+            <TT
+CLASS="COMPUTEROUTPUT"
+>Remote system error - No route to host</TT
+>,
+            but you can ping the server correctly,
+            then you are the victim of an overzealous
+            firewall.  Check any firewalls that may be set up,
+            either on the server or on any routers in between
+            the client and the server.  Look at the man pages
+            for <B
+CLASS="COMMAND"
+>ipchains</B
+>, <B
+CLASS="COMMAND"
+>netfilter</B
+>, 
+            and <B
+CLASS="COMMAND"
+>ipfwadm</B
+>, as well as the 
+            <A
+HREF="http://www.linuxdoc.org/HOWTO/IPCHAINS-HOWTO.html"
+TARGET="_top"
+>IPChains-HOWTO</A
+>
+            and the <A
+HREF="http://www.linuxdoc.org/HOWTO/Firewall-HOWTO.html"
+TARGET="_top"
+>Firewall-HOWTO</A
+> for help.
+          </P
+></LI
+></OL
+></LI
+></OL
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM4">7.4. I do not have permission to access files on the mounted volume.</H2
+><P
+>     This could be one of two problems.  
+   </P
+><P
+>     If it is a write permission problem, check the export 
+     options on the server by looking at <TT
+CLASS="FILENAME"
+>/proc/fs/nfs/exports</TT
+>
+     and make sure the filesystem is not exported read-only.  
+     If it is you will need to re-export it read/write 
+     (don't forget to run <B
+CLASS="COMMAND"
+>exportfs -ra</B
+> after editing
+     <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+>).  Also, check
+     <TT
+CLASS="FILENAME"
+>/proc/mounts</TT
+> and make sure the volume 
+     is mounted read/write (although if it is mounted read-only 
+     you ought to get a more specific error message).  If not then 
+     you need to re-mount with the <TT
+CLASS="USERINPUT"
+><B
+>rw</B
+></TT
+> option.
+   </P
+><P
+>     The second problem has to do with username mappings, and is
+     different depending on whether you are trying to do this
+     as root or as a non-root user.
+   </P
+><P
+>     If you are not root, then usernames may not be in sync on 
+     the client and the server. Type <B
+CLASS="COMMAND"
+>id [user]</B
+>
+     on both the client and the server and make sure they give the 
+     same <EM
+>UID</EM
+> number. If they don't then 
+     you are having problems with NIS, NIS+, rsync, or whatever 
+     system you use to sync usernames.  Check group names to make 
+     sure that they match as well. Also, make sure you are not 
+     exporting with the <TT
+CLASS="USERINPUT"
+><B
+>all_squash</B
+></TT
+> option.  
+     If the user names match then the user has a more general
+     permissions problem unrelated to NFS.
+   </P
+><P
+>     If you are root, then you are probably not exporting with
+     the <TT
+CLASS="USERINPUT"
+><B
+>no_root_squash</B
+></TT
+> option; check <TT
+CLASS="FILENAME"
+>/proc/fs/nfs/exports</TT
+>
+     or <TT
+CLASS="FILENAME"
+>/var/lib/nfs/xtab</TT
+> on the server and make sure the option 
+     is listed.  In general, being able to write to the NFS
+     server as root is a bad idea unless you have an urgent need --
+     which is why Linux NFS prevents it by default.  See
+     <A
+HREF="security.html"
+>Section 6</A
+> for details.  
+   </P
+><P
+>     If you have root squashing, you want to keep it, and you're only 
+     trying to get root to have the same permissions on the file that
+     the user <EM
+>nobody</EM
+> should have, then remember that it is the server
+     that determines which uid root gets mapped to.  By default, the
+     server uses the <EM
+>UID</EM
+> and <EM
+>GID</EM
+> of 
+     <EM
+>nobody</EM
+> in the <TT
+CLASS="FILENAME"
+>/etc/passwd</TT
+> file,
+     but this can also be overridden with the <TT
+CLASS="USERINPUT"
+><B
+>anonuid</B
+></TT
+> and 
+     <TT
+CLASS="USERINPUT"
+><B
+>anongid</B
+></TT
+> options in the <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> 
+     file.  Make sure that the client and the server agree about which 
+     <EM
+>UID</EM
+> <EM
+>nobody</EM
+> gets mapped to.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM5">7.5. When I transfer really big files, NFS takes over
+   all the CPU cycles on the server and it screeches to a halt.</H2
+><P
+>   This is a problem with the <TT
+CLASS="FUNCTION"
+>fsync()</TT
+> function in 2.2 kernels that
+   causes all sync-to-disk requests to be cumulative, resulting
+   in a write time that is quadratic in the file size.  If you
+   can, upgrading to a 2.4 kernel should solve the problem.
+   Also, exporting with the <TT
+CLASS="USERINPUT"
+><B
+>no_wdelay</B
+></TT
+> option 
+   forces the program to use <TT
+CLASS="FUNCTION"
+>o_sync()</TT
+> instead, which may prove faster.
+  </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM6">7.6. Strange error or log messages</H2
+><P
+>  <P
+></P
+><OL
+TYPE="a"
+><LI
+><P
+>  Messages of the following format:
+  </P
+><P
+>  <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> Jan 7 09:15:29 server kernel: fh_verify: mail/guest permission failure, acc=4, error=13
+ Jan 7 09:23:51 server kernel: fh_verify: ekonomi/test permission failure, acc=4, error=13
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>   These happen when a NFS <TT
+CLASS="COMPUTEROUTPUT"
+>setattr</TT
+>
+   operation is attempted on a 
+   file you don't have write access to. The messages are 
+   harmless.
+  </P
+></LI
+><LI
+><P
+> The following messages frequently appear in the logs:
+ </P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> kernel: nfs: server server.domain.name not responding, still trying
+ kernel: nfs: task 10754 can't get a request slot
+ kernel: nfs: server server.domain.name OK
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+ </P
+><P
+>   The "can't get a request slot" message means that the client-side
+   RPC code has detected a lot of timeouts (perhaps due to 
+   network congestion, perhaps due to an overloaded server), and
+   is throttling back the number of concurrent outstanding 
+   requests in an attempt to lighten the load.  The cause of
+   these messages is basically sluggish performance.  See
+   <A
+HREF="performance.html"
+>Section 5</A
+> for details.
+ </P
+></LI
+><LI
+><P
+> After mounting, the following message appears on the client:
+  </P
+><P
+>  <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>nfs warning: mount version older than kernel
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>    It means what it says: You should upgrade your mount package and/or 
+    am-utils. (If for some reason upgrading is a problem, you may be able
+    to get away with just recompiling them so that the newer kernel features
+    are recognized at compile time).
+  </P
+></LI
+><LI
+><P
+>    Errors in startup/shutdown log for <B
+CLASS="COMMAND"
+>lockd</B
+>
+  </P
+><P
+>  You may see a message of the following kind in your boot log:
+ <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>nfslock: rpc.lockd startup failed
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+ </P
+><P
+>   They are harmless.  Older versions of <B
+CLASS="COMMAND"
+>rpc.lockd</B
+> needed to be
+    started up manually, but newer versions are started automatically
+    by <B
+CLASS="COMMAND"
+>nfsd</B
+>.  Many of the 
+    default startup scripts still try to start
+    up <B
+CLASS="COMMAND"
+>lockd</B
+> by hand, in case 
+    it is necessary.  You can alter your
+    startup scripts if you want the messages to go away.
+ </P
+></LI
+><LI
+><P
+>   The following message appears in the logs:
+   </P
+><P
+>   <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>kmem_create: forcing size word alignment - nfs_fh
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+   </P
+><P
+>     This results from the file handle being 16 bits instead of a
+     mulitple of 32 bits, which makes the kernel grimace.  It is 
+     harmless.
+   </P
+></LI
+></OL
+>
+ </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM7">7.7. Real permissions don't match what's in <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+>.</H2
+><P
+>  <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> is <EM
+>very</EM
+> sensitive to whitespace - so the 
+  following statements are not the same:
+ <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>/export/dir hostname(rw,no_root_squash) 
+/export/dir hostname (rw,no_root_squash) 
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  The first will grant <TT
+CLASS="USERINPUT"
+><B
+>hostname rw</B
+></TT
+>
+  access to <TT
+CLASS="FILENAME"
+>/export/dir</TT
+>
+  without squashing root privileges. The second will grant 
+  <TT
+CLASS="USERINPUT"
+><B
+>hostname rw</B
+></TT
+> privileges with 
+  <TT
+CLASS="USERINPUT"
+><B
+>root squash</B
+></TT
+> and it will grant 
+  <EM
+>everyone</EM
+> else read/write access, without 
+  squashing root privileges. Nice huh? 
+ </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM8">7.8. Flaky and unreliable behavior</H2
+><P
+>    Simple commands such as <B
+CLASS="COMMAND"
+>ls</B
+> work, but anything that transfers
+    a large amount of information causes the mount point to lock.
+  </P
+><P
+>    This could be one of two problems:
+  </P
+><P
+></P
+><OL
+TYPE="i"
+><LI
+><P
+>  
+      It will happen if you have ipchains on at the server and/or the 
+      client and you are not allowing fragmented packets through the
+      chains.  Allow fragments from the remote host and you'll be able 
+      to function again. See <A
+HREF="security.html#FIREWALLS"
+>Section 6.4</A
+> for details on how to do this.
+    </P
+></LI
+><LI
+><P
+>      You may be using a larger <TT
+CLASS="USERINPUT"
+><B
+>rsize</B
+></TT
+> 
+      and <TT
+CLASS="USERINPUT"
+><B
+>wsize</B
+></TT
+> in your mount options
+      than the server supports.  Try reducing <TT
+CLASS="USERINPUT"
+><B
+>rsize</B
+></TT
+>
+      and <TT
+CLASS="USERINPUT"
+><B
+>wsize</B
+></TT
+> to 1024 and 
+      seeing if the problem goes away.  If it does, then increase them 
+      slowly to a more reasonable value.
+    </P
+></LI
+></OL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM9">7.9. nfsd won't start</H2
+><P
+>     Check the file <TT
+CLASS="FILENAME"
+>/etc/exports</TT
+> and make sure root has read permission.
+     Check the binaries and make sure they are executable.  Make sure
+     your kernel was compiled with NFS server support.  You may need
+     to reinstall your binaries if none of these ideas helps.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="SYMPTOM10">7.10. File Corruption When Using Multiple Clients</H2
+><P
+>     If a file has been modified within one second of its 
+     previous modification and left the same size, it will 
+     continue to generate the same inode number.  Because
+     of this, constant reads and writes to a file by
+     multiple clients may cause file corruption.  Fixing
+     this bug requires changes deep within the filesystem
+     layer, and therefore it is a 2.5 item.
+   </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="security.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="interop.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Security and NFS</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Using Linux NFS with Other OSes</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>KernelAnalysis-HOWTO: Static variables</TITLE>
+ <LINK HREF="KernelAnalysis-HOWTO-15.html" REL=next>
+ <LINK HREF="KernelAnalysis-HOWTO-13.html" REL=previous>
+ <LINK HREF="KernelAnalysis-HOWTO.html#toc14" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="KernelAnalysis-HOWTO-15.html">Next</A>
+<A HREF="KernelAnalysis-HOWTO-13.html">Previous</A>
+<A HREF="KernelAnalysis-HOWTO.html#toc14">Contents</A>
+<HR>
+<H2><A NAME="s14">14. Static variables</A></H2>
+
+<H2><A NAME="ss14.1">14.1 Overview</A>
+</H2>
+
+<P>Linux is written in ''C'' language, and as every application
+has:
+<P>
+<P>
+<OL>
+<LI>Local variables</LI>
+<LI>Module variables (inside the source file and relative only to
+that module)</LI>
+<LI>Global/Static variables present in only 1 copy (the same for
+all modules)
+</LI>
+</OL>
+<P>When a Static variable is modified by a module, all other modules
+will see the new value.
+<P>
+<P>Static variables under Linux are very important, cause they are
+the only kind to add new support to kernel: they typically are pointers
+to the head of a list of registered elements, which can be:
+<P>
+<P>
+<UL>
+<LI>added</LI>
+<LI>deleted</LI>
+<LI>maybe modified
+</LI>
+</UL>
+<P>
+<PRE>
+                           _______      _______      _______
+Global variable  -------&gt; |Item(1)| -&gt; |Item(2)| -&gt; |Item(3)|  ..
+                          |_______|    |_______|    |_______|
+</PRE>
+<H2><A NAME="ss14.2">14.2 Main variables</A>
+</H2>
+
+<H3>Current</H3>
+
+<P>
+<PRE>
+                           ________________
+Current ----------------&gt; | Actual process |
+                          |________________|
+</PRE>
+<P>Current points to ''task_struct'' structure, which contains all
+data about a process like:
+<P>
+<P>
+<UL>
+<LI>pid, name, state, counter, policy of scheduling</LI>
+<LI>pointers to many data structures like: files, vfs, other processes,
+signals...
+</LI>
+</UL>
+<P>Current is not a real variable, it is 
+<P>
+<P>
+<PRE>
+static inline struct task_struct * get_current(void) { 
+   struct task_struct *current; 
+   __asm__(&quot;andl %%esp,%0; &quot;:&quot;=r&quot; (current) : &quot;0&quot; (~8191UL)); 
+   return current; 
+}
+#define current get_current()
+</PRE>
+<P>Above lines just takes value of ''esp'' register (stack pointer)
+and get it available like a variable, from which we can point to
+our task_struct structure.
+<P>
+<P>From ''current'' element we can access directly to any other
+process (ready, stopped or in any other state) kernel data structure,
+for example changing STATE (like a I/O driver does), PID, presence
+in ready list or blocked list, etc.
+<P>
+<H3>Registered filesystems</H3>
+
+<P>
+<PRE>
+                       ______      _______      ______
+file_systems  ------&gt; | ext2 | -&gt; | msdos | -&gt; | ntfs |
+ [fs/super.c]         |______|    |_______|    |______|
+</PRE>
+<P>When you use command like ''modprobe some_fs'' you will add a
+new entry to file systems list, while removing it (by using ''rmmod'')
+will delete it.
+<P>
+<H3>Mounted filesystems</H3>
+
+<P>
+<PRE>
+                        ______      _______      ______
+mount_hash_table  ----&gt;|   /  | -&gt; | /usr  | -&gt; | /var |
+[fs/namespace.c]       |______|    |_______|    |______|
+</PRE>
+<P>When you use ''mount'' command to add a fs, the new entry will
+be inserted in the list, while an ''umount'' command will delete
+the entry.
+<P>
+<H3>Registered Network Packet Type</H3>
+
+<P>
+<PRE>
+                        ______      _______      ______ 
+     ptype_all  ------&gt;|  ip  | -&gt; |  x25  | -&gt; | ipv6 |
+[net/core/dev.c]       |______|    |_______|    |______|
+</PRE>
+<P>For example, if you add support for IPv6 (loading relative module)
+a new entry will be added in the list.
+<P>
+<H3>Registered Network Internet Protocol</H3>
+
+<P>
+<PRE>
+                          ______      _______      _______ 
+inet_protocol_base -----&gt;| icmp | -&gt; |  tcp  | -&gt; |  udp  |
+[net/ipv4/protocol.c]    |______|    |_______|    |_______|
+</PRE>
+<P>Also others packet type have many internal protocols in each
+list (like IPv6).
+<P>
+<P>
+<PRE>
+                          ______      _______      _______ 
+inet6_protos -----------&gt;|icmpv6| -&gt; | tcpv6 | -&gt; | udpv6 |
+[net/ipv6/protocol.c]    |______|    |_______|    |_______|
+</PRE>
+<H3>Registered Network Device</H3>
+
+<P>
+<PRE>
+                          ______      _______      _______ 
+dev_base ---------------&gt;|  lo  | -&gt; |  eth0 | -&gt; |  ppp0 |
+[drivers/core/Space.c]   |______|    |_______|    |_______|
+</PRE>
+<H3>Registered Char Device</H3>
+
+<P>
+<PRE>
+                          ______      _______      ________ 
+chrdevs ----------------&gt;|  lp  | -&gt; | keyb  | -&gt; | serial |
+[fs/devices.c]           |______|    |_______|    |________|
+</PRE>
+<P>''chrdevs'' is not a pointer to a real list, but it is a standard
+vector.
+<P>
+<H3>Registered Block Device</H3>
+
+<P>
+<PRE>
+                          ______      ______      ________ 
+bdev_hashtable ---------&gt;|  fd  | -&gt; |  hd  | -&gt; |  scsi  |
+[fs/block_dev.c]         |______|    |______|    |________|
+</PRE>
+<P>''bdev_hashtable'' is an hash vector.
+<P>
+<HR>
+<A HREF="KernelAnalysis-HOWTO-15.html">Next</A>
+<A HREF="KernelAnalysis-HOWTO-13.html">Previous</A>
+<A HREF="KernelAnalysis-HOWTO.html#toc14">Contents</A>
+</BODY>
+</HTML>

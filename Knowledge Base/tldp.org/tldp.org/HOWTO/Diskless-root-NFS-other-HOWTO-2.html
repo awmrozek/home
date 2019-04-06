@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Root over NFS - Another Approach: Setting up the server</TITLE>
+ <LINK HREF="Diskless-root-NFS-other-HOWTO-3.html" REL=next>
+ <LINK HREF="Diskless-root-NFS-other-HOWTO-1.html" REL=previous>
+ <LINK HREF="Diskless-root-NFS-other-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Diskless-root-NFS-other-HOWTO-3.html">Next</A>
+<A HREF="Diskless-root-NFS-other-HOWTO-1.html">Previous</A>
+<A HREF="Diskless-root-NFS-other-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Setting up the server</A></H2>
+
+<P>The first, and less tricky, thing to do is to setup the server. The server must be prepared to run these services:
+<UL>
+<LI> NFS, preferably version 3, for exporting the following directories:
+<CODE>/usr, /lib/modules, /opt</CODE> (at least at SuSE) and <CODE>/home</CODE> (unless you have a dedicated file server).</LI>
+<LI> DHCP server (in bootp mode), for matching the clients' MAC addresses to IP addresses.</LI>
+</UL>
+
+Also, the administrator has to create directories for each client,
+containing nessesary startup files and programs.
+The directory scheme created for the installation described was like this one:
+<P>
+<BLOCKQUOTE><CODE>
+<HR>
+<PRE>
+/usr/local/linux-
+                  |-/base-
+                  |       |-/bin
+                  |       |-/sbin
+                  |       |-/etc
+                  |
+                  |-/workstations-
+                  |               |
+                  |               |-195.251.160.100
+                  |               |               |-/bin
+                  |               |               |-/sbin
+                  |               |               |-/etc
+                  |               |
+                  |               |-195.251.160.101
+                  |               |-195.251.160.102
+                  |               |-base(symbolic link to ../base)
+</PRE>
+<HR>
+</CODE></BLOCKQUOTE>
+<P>The <CODE>/base</CODE> directory contains the whole file system you want to export to your clients.
+The per IP directories contain files that are needed before mounting the <CODE>/usr</CODE> or <CODE>/lib/modules</CODE> directories,
+like the <CODE>/etc</CODE> folder. This is a confortable directory structure for 2 purposes:
+i) You can easily create a basic system at the base directory and copy the per workstation files at the workstation directories easily,
+with an entry level bash script ii) You can easily add or delete or update workstations by modifying the directories under <CODE>/workstations</CODE>.
+A script for copying the appropriate files (which will be discused later) can be found in Appendix A.
+<P>
+<H2><A NAME="ss2.1">2.1 Setting up the NFS server</A>
+</H2>
+
+<P>An NFS server can be set up in two ways:
+<UL>
+<LI> Using the <CODE>/etc/exports</CODE> file at BSD-compliant Unices like Linux of FreeBSD.</LI>
+<LI> Using the <CODE>/etc/dfs/dfstab</CODE> at SysV Unices like Solaris.</LI>
+</UL>
+
+<B> /etc/exports:</B> The <CODE>/etc/exports</CODE> file controls the directories to be exported and the export options per workstation.
+It has a structure like the following (Linux):
+<P>
+<HR>
+<PRE>
+/path/to/dir1   ws1(options) ws2(options)....
+/path/to/dir2   ws3(options) ws1(options)....
+</PRE>
+<HR>
+<P>Options include ro or rw, root_squash, wsize, tcp, version.
+<P>Have a look at the <CODE>nfs</CODE> or the <CODE>exports</CODE> man page and the NFS Howto for a more detailed description of what these options mean.
+<P><B>/etc/dfs/dfstab:</B>A typical dfstab file on Solaris should look like the following:
+<P>
+<HR>
+<PRE>
+share -F nfs -o rw=193.250.160@,ro=193.250.161@ /export/home
+share -F nfs -o ro=193.250.160@,root=193.250.161.132 /export/engineering
+</PRE>
+<HR>
+<P>Of course, these options are discused in detail at the <CODE>dfstab</CODE> man page.
+<P>The directories we want to export are <CODE>/usr/local/linux/base/usr, /usr/local/linux/base/opt,
+/usr/local/linux/base/lib/modules</CODE> and <CODE>/home</CODE>, assuming that you 've followed the suggested structure.
+<P><B>Optimising NFS</B>
+<P>Of course, this is none of our business but here are some general principles:
+<UL>
+<LI> Reduce the TCP window size (parameter wsize for Linux) to whatever is closest to the MTU of your network type.
+For Ethernet, a good value of wsize is 2048 bytes as long as the MTU is 1536 bytes.
+This is generally a good idea because the main traffic load between the clients and the server
+consists of little packets and only in the case of starting large programms like X or
+StarOffice there is a big number of fragmented packets. Of course this may vary in your case, according to the needs of your users.</LI>
+<LI> If you plan to have a large installation, break the space for your workstations into 2 or more SCSI disks. This will allow consequent
+writes and reads on both disks, increasing responce and reducing latency before a request completes</LI>
+<LI> Always use NFS v3 over TCP. The main reason for migrating from v2 to v3 is the writeback case it offers on both the workstation and
+the server. Also, mounting NFS over TCP lets you use the first recomentation.
+\end{itemize}
+For further optimising use a packet analyzer like Ethereal or tcpdump and dicide your needs.By the way, Sun has written an
+excellent guide to optimizing NFS performance which, although emphasised on Solaris, is applicable to every
+modern Unix and is accessible online at 
+<A HREF="http://docs.sun.com">http://docs.sun.com</A>.</LI>
+</UL>
+<H2><A NAME="ss2.2">2.2 Setting up the DHCP/BOOTP server</A>
+</H2>
+
+<P>Although there are many DHCP or BOOTP servers 'out there', some of which are proprietary,
+the best option is to use the reference IETF DHCP server.
+It is the least vulnerable and the most extensible DHCP available.
+The main server configuration is done through the <CODE>/etc/dhcpd.conf</CODE> file.
+This file is divided into two sections, the general server configuration and the host specific configuration.
+A typical <CODE>dhcpd.conf</CODE> file looks like this, in case that the DHCP/BOOTP server is used in BOOTP mode:
+<BLOCKQUOTE><CODE>
+<PRE>
+subnet 193.250.160.0 netmask 255.255.255.0 {
+        range 193.250.160.10 193.250.160.12;
+ }
+
+host george{
+        hardware ethernet  00:60:08:2C:22:20;
+        fixed-address   193.250.160.10;
+}
+
+host earth{
+        hardware ethernet 00:A0:24:A5:FD:E0;
+        fixed-address   193.250.160.12;
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This structure is fairly easy to be understood by everyone. For every diskless client we have to
+supply the programm with a 'host' declaration providing a pair of hardware and IP adresses.
+The host name provided in the 'host' statement can be everything, but there is a conversion to
+use the real host name of the client having the specific IP. The range statement in the subnet declaration is not
+necessary to be the range that you want your clients to have. In fact, if these clients are normal workstations
+with an operating system that during its boot uses DHCP to obtain an IP address it is not recommended to have
+the same IP for their operation as diskless clients. If you have specific needs, have a look at <CODE>dhcpd.conf</CODE> man page.
+<P>Another difficulty is how to obtain the IP - MAC address pairs for a large network. The solution is a nice little programm
+called <CODE>arpwatch</CODE>. This programm runs at the background and keeps track of the IP - MAC address pairs of the computers
+that your computer has contacted in a file that you have specified. The only thing you have to do is to ping the computers
+you want. At Appendix B there is a script that starts <CODE>arpwatch</CODE>, pings a range of subsequent IP's and creates the <CODE>dhcpd.conf</CODE> file.
+If you want to do it manually, start <CODE>arpwatch</CODE> when your network is at its peak of usage and wait for some time.
+On a shared medium network (Ethernet, Tokenring) <CODE>arpwatch</CODE> will track down all different IP 's and hardware addresses.
+<P>
+<H2><A NAME="ss2.3">2.3 Preparing the base system</A>
+</H2>
+
+<P>To prepare the base system just install your favorite distribution to a mountable partition on a hard disk with a
+Unix like operating system
+already installed. Install all the programms you want to be available to your users.
+Then you have to transfer the whole partition preserving the links and the character or block devices.
+This is best done using the <CODE>tar</CODE> programm. Boot the previously installed system and execute the following command,
+assuming that you have mounted the new partition at <CODE>/mnt</CODE>:
+<BLOCKQUOTE><CODE>
+<PRE>
+ tar cpvf system.tar /mnt/.
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This command will create a tar archive at the current directory with the whole system to be served to the diskless clients.
+Then just copy the <CODE>tar</CODE> archive to the server using a CDROM or through the network and extract it at the base directory.
+The command to do this is:
+<BLOCKQUOTE><CODE>
+<PRE>
+ tar xvf system.tar /usr/local/linux/base
+</PRE>
+</CODE></BLOCKQUOTE>
+<HR>
+<A HREF="Diskless-root-NFS-other-HOWTO-3.html">Next</A>
+<A HREF="Diskless-root-NFS-other-HOWTO-1.html">Previous</A>
+<A HREF="Diskless-root-NFS-other-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

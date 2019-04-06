@@ -1,0 +1,347 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Le Francophones-HOWTO : Linux &amp; la langue fran&ccedil;aise: XFree</TITLE>
+ <LINK HREF="Francophones-HOWTO-6.html" REL=next>
+ <LINK HREF="Francophones-HOWTO-4.html" REL=previous>
+ <LINK HREF="Francophones-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Francophones-HOWTO-6.html">Next</A>
+<A HREF="Francophones-HOWTO-4.html">Previous</A>
+<A HREF="Francophones-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. XFree</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss5.1">5.1 Introduction</A>
+</H2>
+
+<P>
+<P>Il y a quelques ann&eacute;es, « xmodmap » servait &agrave; changer les tables de
+clavier sous XFree, un fichier de configuration d'ordinaire nomm&eacute;
+/usr/X11/lib/X11/xinit/.Xmodmap &eacute;tant pris en charge gr&acirc;ce &agrave; votre
+<CODE>.xinitrc</CODE> ou <CODE>/etc/X11/xinit/xinitrc</CODE>
+<P>Pour convertir une table console correcte, on utilisait « mk_modmap » livr&eacute; avec
+l'archive kbd et g&eacute;n&eacute;ralement install&eacute; en /usr/lib/kbd/keytables
+<P>Les utilisateurs d&eacute;sirant personnaliser leur table xmodmap employaient le
+programme « xkeycaps ».
+<P>Puis XFree 2.1 et les version ult&eacute;rieures ont reconnu la disposition des
+touches du clavier g&eacute;r&eacute;e par « loadkeys », rendant th&eacute;oriquement
+xmodmap inutile.
+<P>Mais la gestion de la touche « COMPOSE » assur&eacute;e par XFree 3.1 laissait
+un peu &agrave; d&eacute;sirer, la table h&eacute;rit&eacute;e de « loadkeys » ne servant gu&egrave;re.
+<P>Il fallait donc continuer &agrave; employer xmodmap, l'utilitaire logiciel standard
+permettant d'obliger le serveur X &agrave; associer les &eacute;v&eacute;nements souris/clavier &agrave;
+des caract&egrave;res.
+<P>Sous XFree version 3.2 et post&eacute;rieures, « xkb » rendit xmodmap d&eacute;finitivement
+obsol&egrave;te.
+<P>Mais ne voil&agrave;-t-il pas les rumeurs qui voulaient que les prochaines versions
+de XFree ne supporte plus les touches mortes se sont confirm&eacute;es !!!
+<P>Dans la distribution X11 du X Consortium, donc XFree86, qui en est
+directement issu, il n'existe plus de m&eacute;canisme g&eacute;n&eacute;ral de gestion des
+touches mortes, ou des solutions approximatives obligeant &agrave; supprimer
+aussi xkb ou modifier des biblioth&egrave;ques de programmes !
+<P>
+<H2><A NAME="ss5.2">5.2 Mal programmer</A>
+</H2>
+
+<P>
+<P>&Agrave; chaque programme de bien g&eacute;rer les touches mortes au lieu de faire
+confiance &agrave; X pour cette t&acirc;che.
+<P>En r&eacute;alit&eacute;, il n'est pas compliqu&eacute; de g&eacute;rer des touches mortes, il suffit
+d'utiliser la bonne fonction, XmbLookupString() dans les programmes
+Motif, au lieu de XLookupString().
+<P>
+<H2><A NAME="ss5.3">5.3 Le clavier en pratique</A>
+</H2>
+
+<P>
+<P>Quelle histoire compliqu&eacute;e !
+<P>De ce fait, elles ne fonctionnent que pour les clients X
+« internationalis&eacute;s », c'est-&agrave;-dire qui g&egrave;rent eux-m&ecirc;mes les probl&egrave;mes
+li&eacute;s aux m&eacute;thodes d'entr&eacute;e de donn&eacute;es des diff&eacute;rentes langues
+nationales.
+<P>Ceci est tr&egrave;s g&ecirc;nant lorsqu'on veut pouvoir saisir du texte
+comportant des lettres accentu&eacute;es, alors que le client utilis&eacute;
+n'est pas internationalis&eacute; !
+<P>
+<H3>a) Solution utilisant xmodmap</H3>
+
+<P>
+<P>Taper :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        cp fr-latin9.xmod /usr/X11R6/lib/X11/xinit/Xmodmap
+        cp fr-latin9.xmod ~/.Xmodmap
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>b) Solution utilisant xkb (recommand&eacute;e)</H3>
+
+<P>
+<P>Taper :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        cp fr-latin9 /usr/X11R6/lib/X11/xkb/symbols
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Puis &eacute;diter votre <CODE>XF86Config</CODE> pour y rajouter dans la section « Keyboard
+» les lignes xkb idoines :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Section "Keyboard"
+Protocol        "Standard"
+AutoRepeat      500 30
+LeftAlt         Meta
+RightAlt        ModeShift               # Important pour Alt-gr, mais dans les
+                                        # versions r&eacute;centes de XFree, AltGr et
+                                        # RightAlt sont synonymes.
+
+ScrollLock      Compose                 # Pour faire des caract&egrave;res sp&eacute;ciaux.
+                                        # Utiliser sinon une des 3 touches des
+                                        # nouveaux claviers 105 touches...
+
+RightCtl        Control                 # Garder la touche normale
+
+XkbKeycodes     "xfree86"
+XkbRules        "xfree86"
+XkbTypes        "default"
+XkbCompat       "default"
+XkbSymbols      "fr-latin9(pc105)"
+XkbGeometry     "pc(pc105)"
+XkbModel        "pc105"
+
+EndSection
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Pour cette partie Xkb, certains pr&eacute;f&egrave;rent :
+<BLOCKQUOTE><CODE>
+<PRE>
+        XkbKeymap       "xfree86(fr-latin9)"
+        XkbKeycodes     "xfree86"
+        XkbSymbols      "en_US(pc101)+fr-latin9"
+        XkbGeometry     "pc(pc101)"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Bien sur, remplacer « fr » par « cn », « be », « ch » ou « usx » selon
+votre clavier...
+<P>
+<H3>c) Solution du compose</H3>
+
+<P>
+<P>Une autre m&eacute;thode pour obtenir des caract&egrave;res 8 bits :
+<P>Dans <CODE>/usr/X11R6/lib/X11/locale/iso8859-1/Compose</CODE> se trouve une
+table de « correspondance » entre deux caract&egrave;res et un r&eacute;sultat ; les
+deux caract&egrave;res sont «m&eacute;lang&eacute;s» lors de l'appui sur la touche Compose :
+par exemple;
+<BLOCKQUOTE><CODE>
+<PRE>
+        COMPOSE suivi de « e » puis « ^ »
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>a toutes les chances de vous donner &ecirc;, y compris dans l'ordre oppos&eacute; («
+^ » puis « e »)
+<P>Mais pour utiliser la touche Compose, vous devez l'affecter &agrave; une touche !
+<P>Le param&eacute;trage pr&eacute;conis&eacute;, r&eacute;gl&eacute; dans XF86Config, la fait correspondre &agrave;
+la touche « Arr&ecirc;t D&eacute;fil » inutile sous X, par la commande :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        ScrollLock       Compose
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>dans la section Keyboard.
+<P>Attention, sous Linux en mode console, cette touche est utile (pour
+bloquer temporairement la console virtuelle) et c'est « Impr &Eacute;cran » ou
+« Print Screen » qui, ne servant &agrave; rien, est affect&eacute;e &agrave; « Compose ».
+<P>
+<H3>d) Solution modifiant la libX11</H3>
+
+<P>
+<P>Thomas Quinot &lt;Thomas.Quinot(&agrave;)cuivre.fdn.fr&gt; vous propose donc sa
+<CODE>libX11</CODE> modifi&eacute;e, qui g&egrave;re les touches mortes de
+mani&egrave;re transparente pour tous les clients.
+<P>Elle permet &eacute;galement de traiter les s&eacute;quences compos&eacute;es
+inconnues comme des paires de caract&egrave;res, par exemple :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        ~ + / = ~/
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Pour l'utiliser :
+<UL>
+<LI>R&eacute;cup&eacute;rez libX11-XF3.3.1.tar.gz ;</LI>
+<LI>Extrayez le fichier <CODE>libX11.so.6.1</CODE> ;</LI>
+<LI>Placez-le dans <CODE>/usr/X11R6/lib/</CODE> ;</LI>
+<LI>Ex&eacute;cutez <CODE>ldconfig</CODE> ;</LI>
+<LI>D&eacute;sactivez l'extension XKB en utilisant l'option
+<CODE>XkbDisable</CODE> dans la section <CODE>Keyboard</CODE> de votre
+<CODE>XF86Config</CODE>.</LI>
+</UL>
+<P>
+<H3>e) Est-ce n&eacute;cessaire ?</H3>
+
+<P>
+<P>Personnellement, je vous recommande de ne pas toucher &agrave; la libX11,
+d'oublier xmodmap et de l'alternative xkb + fichiers latin9 en
+attendant un autre changement de la politique du X Consortium envers
+les touches mortes (ou en rajoutant les options d'internationalisation
+au code source de vos programmes.)
+<P>Actuellement, si vous n'avez pas de r&eacute;pertoire
+<CODE>/usr/X11R6/lib/X11/xkb/symbols/</CODE> cela signifie que vous
+n'utilisez pas xkb : procurez-vous donc une version plus r&eacute;cente de X
+window !
+<P>Sans xkb, XFree se rabattra par d&eacute;faut sur votre configuration de
+clavier pour Linux avec loadkeys.
+<P>Toutefois, la translation n'est pas parfaite et je vous recommanderais
+plut&ocirc;t d'&eacute;viter cette option, aussi bien que l'ancien gestionnaire de
+clavier <CODE>Xmodmap</CODE>.
+<P>Il se peut aussi que sans aucune commande pour xkb, XFree vous consid&egrave;re
+comme utilisateur d'un clavier 7 bits !
+<P>Il convient donc d'utiliser une table adapt&eacute;e avec xkb.
+<P>
+<H2><A NAME="ss5.4">5.4 « latin9 » ou « latin1 » ?</A>
+</H2>
+
+<P>
+<P>Je vous conseille de choisir les tables <CODE>latin9</CODE> que je maintiens &agrave;
+jour, plus r&eacute;centes que les versions <CODE>latin1</CODE>, permettant d'utiliser
+de multiples am&eacute;liorations, d&eacute;taill&eacute;es dans la section clavier sous
+linux-console, pour disposer du plus de confort possible
+et plus adapt&eacute;es car maintenu par des francophones.
+<P>Les nombreuses am&eacute;liorations dont elles b&eacute;n&eacute;ficient permettent de
+pallier au d&eacute;ficiences de nombreux programmes.
+<P>Par exemple, certains programmes en Motif comme Netscape (tm) ne savent
+pas encore g&eacute;rer les touches mortes ... donc impossible de taper par
+exemple des &ecirc; ou des &icirc; sur les claviers des Belges et Fran&ccedil;ais, puisque
+la touche morte « accent circonflexe » est le seul moyen d'obtenir ces
+caract&egrave;res !
+<P>« fr-latin9 » r&eacute;pond &agrave; ce probl&egrave;me en proposant une solution de
+remplacement : AltGr (voyelle) permet d'obtenir la voyelle avec un
+accent grave, AltGr+Shift (voyelle) permet d'obtenir la voyelle avec un
+tr&eacute;ma !
+<P>
+<H2><A NAME="ss5.5">5.5 Table de correspondances</A>
+</H2>
+
+<P>
+<P>
+<UL>
+<LI> AltGr (voyelle) : voyelle accent grave</LI>
+<LI> AltGr + Shift (voyelle) : voyelle tr&eacute;ma</LI>
+<LI> AltGr (touche au dessous de la voyelle) : voyelle majuscule accent grave</LI>
+<LI> AltGr + Shift (touche au dessous de la voyelle) : voyelle majuscule
+tr&eacute;ma</LI>
+<LI> AltGr + Shift (minuscule accentu&eacute;e) : majuscule accentu&eacute;e</LI>
+</UL>
+<P>Par exemple :
+<P>
+<UL>
+<LI> AltGr (a) : &acirc;</LI>
+<LI> AltGr (q) : &Acirc;</LI>
+<LI> AltGr + Shift (&ugrave;) : &Ugrave;</LI>
+</UL>
+<P>L'astuce marche aussi pour le c c&eacute;dille :
+<P>
+<UL>
+<LI> AltGr + Shift (&ccedil;) : &Ccedil;</LI>
+</UL>
+<P>Donc m&ecirc;me dans les pires conditions, si aucune touche morte ne
+fonctionne, on peut quand m&ecirc;me acc&eacute;der &agrave; toutes les
+voyelles accentu&eacute;es, majuscules et minuscules !
+<P>Vous y trouverez en plus les guillemets fran&ccedil;ais (« »), les symboles
+employ&eacute;s en physique (&szlig;, &aring;, delta, phi ...), des signes
+de monnaies (yen, cent) ou de copyright (<CODE>tm</CODE>, &copy;) ainsi que des
+lettres d'autres langues (&Oslash;, &AElig; ...).
+<P>Tous ces signes s'obtiennent gr&acirc;ce &agrave; AltGr (lettre), par exemple
+AltGr (b) donne &szlig;, AltGr (r) donne <CODE>tm</CODE>, AltGr (y) donne yen...
+<P>Pour vous rapeller simplement de tout cel&agrave;, tapez par exemple :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        more /usr/lib/kbd/keytables/i386/azerty/fr-latin9.map
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Pour ce qui est du choix entre latin1 et latin9... &agrave; vous de voir !
+<P>Un conseil : essayez l'un puis l'autre si vous avez le temps.
+<P>
+<H2><A NAME="ss5.6">5.6 Les polices ISO 8859-15 latin 9 sous X</A>
+</H2>
+
+<P>
+<P>Il est bien d'avoir une table de clavier compatible latin 9, mais sans
+police adapt&eacute;e jamais vous ne verrez les caract&egrave;res rajout&eacute;s dans cette
+norme.
+<P>Il faut donc utiliser l'utilitaire de conversion « bdftopcf » qui en
+quelque sorte permet de compiler les polices de caract&egrave;res fournies.
+<P>Placez-vous dans le r&eacute;pertoire de l'archive que vous avez r&eacute;cup&eacute;r&eacute; puis
+sous root, taper par exemple pour Xlat9-10x20.bdf ou un autre bdf :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        bdftopcf Xlat9-10x20.bdf > Xlat9-10x20-lat9.pcf
+        gzip Xlat9-10x20-lat9.pcf
+        mv Xlat9-10x20-lat9.pcf.gz /usr/X11R6/lib/X11/fonts/misc
+        mkfontdir /usr/X11R6/lib/X11/fonts/misc
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Cel&agrave; cr&eacute;e un fichier « Xlat9-10x20-lat9.pcf » qu'il faut compresser avec
+gzip, on obtient alors le fichier « Xlat9-10x20-lat9.pcf.gz » qui doit
+&ecirc;tre mis dans le r&eacute;pertoire ad&eacute;quat, pour lequel l'index des polices de
+caract&egrave;res sera mis &agrave; jour.
+<P>Alors, ajoutez la table de composition latin9 aux compositions par
+d&eacute;faut de X, sp&eacute;cifiques &agrave; l'iso 8859-1 :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        cat XCompose-lat9 >> /usr/X11R6/lib/X11/locale/iso8859-1/Compose
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Nous faisons un cat vers l'ISO 8859-1, car X ne reconna&icirc;t pas l'ISO
+8859-15 latin9.
+<P>De l&agrave;, red&eacute;marrer X ou taper sous son compte d'utilisateur normal :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        xset +fp /usr/X11R6/lib/X11/fonts/misc
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Si vous utilisez xmodmap, lancez :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        xmodmap ~/.Xmodmap
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Pour choisir les polices latin9, lancer xfontsel et chercher les
+encodages iso8859-15.
+<P>Ou plus simplement, taper :
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        grep Xlat9-10x20.pcf /usr/X11R6/lib/X11/fonts/misc/*
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Puis utiliser le second param&egrave;tre comme nom de police, par exemple avec
+rxvt, xiterm, aterm ou wterm:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        aterm -fn -misc-fixed-medium-r-normal--20-200-75-75-c-100-iso8859-15
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Cela lance un terminal X utilisant une des polices latin9.
+<P>
+<HR>
+<A HREF="Francophones-HOWTO-6.html">Next</A>
+<A HREF="Francophones-HOWTO-4.html">Previous</A>
+<A HREF="Francophones-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

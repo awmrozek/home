@@ -1,0 +1,2570 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Checking your existing kernel for MASQ functionality</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Setting Up IP Masquerade"
+HREF="c472.html"><LINK
+REL="PREVIOUS"
+TITLE="Compiling a new kernel if needed"
+HREF="ipmasq-compiling3.0.html"><LINK
+REL="NEXT"
+TITLE="Assigning Private Network IP Addresses to the Internal LAN"
+HREF="addressing-the-lan.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="ipmasq-compiling3.0.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. Setting Up IP Masquerade</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="addressing-the-lan.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="IPMASQ-COMPILING3.1"
+></A
+>3.2. Checking your existing kernel for MASQ functionality</H1
+><P
+><STRONG
+>Almost ALL modern Linux distributions come MASQ-Ready 
+these days but its always good to check your system before you try to set 
+things up.  Follow these few steps for your kernel to see if your kernel
+is MASQ ready.</STRONG
+></P
+><P
+>To see which kernel your system is running, run the following command:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>uname -a</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>&#13;<P
+></P
+><UL
+><LI
+><P
+>   Just for clarity: 2.4.x kernels run IPTABLES :: 2.2.x kernels run IPCHAINS ::
+ 2.0.x kernels run IPFWADM 
+  </P
+></LI
+><LI
+><P
+>   In general, you must have kernel support for:
+   
+   <P
+></P
+><UL
+><LI
+><P
+>      IP forwarding
+     </P
+></LI
+><LI
+><P
+>      IP masquerading
+     </P
+></LI
+><LI
+><P
+>      IP Firewalling
+     </P
+></LI
+><LI
+><P
+>      etc.
+     </P
+></LI
+></UL
+>
+
+  </P
+></LI
+></UL
+> </P
+><P
+>You will also need to have most MASQ-related modules compiled (most modular 
+kernels will already have all you need already done.  Then you will NOT need 
+to re-compile the kernel.  If you AREN'T SURE if your Linux distribution is 
+MASQ ready, do the following: 
+
+<P
+></P
+><UL
+><LI
+><P
+>  <STRONG
+>2.4.x kernels</STRONG
+> (look for most of the 
+following entries out of the much longer list):
+   
+   <P
+></P
+><UL
+><LI
+><P
+>      Run the command "<TT
+CLASS="LITERAL"
+>ls /proc/sys/net/ipv4</TT
+>" while logged
+      into the Linux box.  These items are required and should be present 
+      regardless if your kernel built IPMASQ as modules or statically.
+
+      <P
+></P
+><UL
+><LI
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_dynaddr</TT
+>
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_forward</TT
+>
+        </P
+></LI
+></UL
+>  
+
+     </P
+></LI
+><LI
+><P
+>      To check if IPMASQ was compiled statically into the kernel, run the 
+      command "<TT
+CLASS="LITERAL"
+>/sbin/lsmod</TT
+>" and see if and modules like
+      the ones shown below for the MODULE section are loaded.  No?  Ok, 
+      now run the command "<TT
+CLASS="LITERAL"
+>ls /proc/net/</TT
+>" and see if you 
+      see additional /proc files such as:
+
+      <P
+></P
+><UL
+><LI
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_masquerade</TT
+>
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_conntrack</TT
+>
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_tables_names</TT
+>
+        </P
+></LI
+></UL
+>  
+
+     If you see these /proc entries and there WEREN'T any kernel modules loaded
+     (shown via the "lsmod" command mentioned above), then your kernel has 
+     the IPTABLES subsystem statically compiled into it and is ready to go to 
+     use IPMASQ on this system.
+     </P
+></LI
+><LI
+><P
+>      If your kernel uses IPTABLES via modules, most of the stuff listed above 
+      should have been missing (because the modules probably aren't loaded).  
+      Run the command "<TT
+CLASS="LITERAL"
+>ls 
+/lib/modules/`uname -r`/kernel/net/ipv4/netfilter/</TT
+>" where you should 
+      see files like:
+
+      <P
+></P
+><UL
+><LI
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_conntrack.o, ip_conntrack_ftp.o, ip_conntrack_irc.o, 
+ip_nat_ftp.o, ip_nat_irc.o</TT
+> 
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_tables.o, ipt_MASQUERADE.o, iptable_nat.o, 
+iptable_mangle.o, iptable_filter.o</TT
+>
+        </P
+><P
+>        And some optional ones like: <TT
+CLASS="LITERAL"
+>ipchains.o, ipt_REJECT.o, 
+and ipt_tcpmss.o</TT
+>
+        </P
+></LI
+></UL
+>  
+
+     If you see those kernel files, IPTABLES was compiled using modules and 
+     things look ready to go to use IPMASQ on this system. 
+
+     </P
+></LI
+></UL
+> 
+
+   </P
+></LI
+><LI
+><P
+>   <STRONG
+>2.2.x kernels</STRONG
+> (look for most of the 
+following entries out of the much longer list): list):
+   
+   <P
+></P
+><UL
+><LI
+><P
+>      Run the command "<TT
+CLASS="LITERAL"
+>ls /proc/sys/net/ipv4</TT
+>" while logged
+      into the Linux box.  These items are required and should be present 
+      regardless if your kernel built IPMASQ as modules or statically.
+
+      <P
+></P
+><UL
+><LI
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_always_defrag</TT
+>
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_dynaddr</TT
+>
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_forward</TT
+>
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_masq_debug</TT
+>
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_masq_udp_dloose</TT
+>  (some distros don't support 
+this -- ignore it for now
+        </P
+><P
+>&#13;
+         <STRONG
+>Other 2.2.x options</STRONG
+> can be checked 
+by running "ls /proc/net/"
+
+         <P
+></P
+><UL
+><LI
+><P
+>            <TT
+CLASS="LITERAL"
+>ip_fwchains</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>ip_fwnames</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>ip_masquerade</TT
+>
+           </P
+></LI
+></UL
+> 
+
+        </P
+><P
+>         <STRONG
+>Even more 2.2.x options</STRONG
+> can be 
+checked by running "ls /proc/net/"
+        
+         <P
+></P
+><UL
+><LI
+><P
+>            <TT
+CLASS="LITERAL"
+>app</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>icmp</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>icq</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>mfw</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>portfw</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>tcp</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>udp/</TT
+>
+           </P
+></LI
+></UL
+> 
+
+        </P
+></LI
+></UL
+> 
+     </P
+></LI
+></UL
+> 
+  </P
+></LI
+><LI
+><P
+>   <STRONG
+>2.0.x kernels</STRONG
+> (look for most of the 
+following entries out of the much longer list): 
+   
+   <P
+></P
+><UL
+><LI
+><P
+>      Run the command "<TT
+CLASS="LITERAL"
+>ls /proc/sys/net/ipv4</TT
+>" while logged
+      into the Linux box.  These items are required and should be present 
+      regardless if your kernel built IPMASQ as modules or statically.
+         
+      <P
+></P
+><UL
+><LI
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_dynaddr</TT
+>
+        </P
+><P
+>         <TT
+CLASS="LITERAL"
+>ip_forward</TT
+>
+        </P
+><P
+>         running "ls /proc/net"
+
+        <P
+></P
+><UL
+><LI
+><P
+>            <TT
+CLASS="LITERAL"
+>ip_forward</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>ip_masq_app</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>ip_masquerade</TT
+>
+           </P
+><P
+>            <TT
+CLASS="LITERAL"
+>ip_portfw</TT
+>
+           </P
+></LI
+></UL
+>  
+
+         </P
+></LI
+></UL
+>  
+
+     </P
+></LI
+></UL
+>  
+
+  </P
+></LI
+></UL
+> </P
+><P
+>Ultimately, it comes down to the fact if you see /proc files such as 
+"i<TT
+CLASS="LITERAL"
+>ip_forward</TT
+>", "<TT
+CLASS="LITERAL"
+>ip_masq_debug</TT
+>", 
+"<TT
+CLASS="LITERAL"
+>ip_masq_udp_dloose</TT
+>"(optional), and "<TT
+CLASS="LITERAL"
+>ip_always_defrag</TT
+>" (optional) exist.  </P
+><P
+>  So.  Do most of the above /proc entries or kernel modules show up for your 
+  respective kernel?  If so, thats good!  If you cannot find any of the above 
+  entries or if you aren't sure if your distribution supports IP Masquerading by 
+  default, ASSUME IT DOESN'T SUPPORT MASQ.  You can do one last check by looking 
+  at the <A
+HREF="masq-supported-distributions.html"
+>Section 7.1</A
+> section and see if your 
+  Linux Distribution is listed.  Still not there?  Sounds like you'll need to 
+  compile a kernel but don't worry.. it isn't hard.</P
+><P
+><STRONG
+>Regardless if your current kernel has MASQ support or 
+not</STRONG
+>, reading the remainder of this section is still highly 
+recommended as it contains other useful information.  </P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="IPMASQ-COMPILING3.1.1"
+></A
+>3.2.1. Compiling Linux 2.4.x Kernels</H2
+><P
+></P
+><UL
+><LI
+><P
+>   First, you'll need to get some 2.4.x kernel sources (preferably the latest 
+   kernel version - NEWER *IS* BETTER IN LINUX LAND)
+  </P
+><P
+></P
+><UL
+><LI
+><P
+>     NOTE #1: As both the 2.4.x kernel train and the iptables program 
+development progresses, the compile configurion options will change over time.  
+As of this version of the IPMASQ howto, this section reflects the settings for 
+IPTABLES 1.2.7a and the 2.4.20 kernel.  If you are compiling against a newer 
+or previous kernel or IPTABLES version, the dialogs and even commands might 
+look different.  It is recommended that you update to the newest versions of 
+both the kernel and IPTABLES for added capability, performance, and stability 
+of the kernel.
+    </P
+></LI
+></UL
+></LI
+><LI
+><P
+>   Next, depending on the version of the Linux kernel and IPTABLES archive you 
+   downloaded, you <STRONG
+>might </STRONG
+>want to apply some 
+   IPTABLES "patch-o-matic" patches against the kernel.  These OPTIONAL patches 
+   might fix some known problems, add additional functionality you might need 
+   (H.323 protocol, specific issues with network games), etc.  It should be 
+   noted that the Patch-O-Matic patches used to come with the IPTABLES archive.
+   This is no longer the case and you have to download them (if any) seperately. 
+   You can find the the various URLs for downloading IPTABLES, the 
+   Patch-o-matic system, etc.  <A
+HREF="kernel-2.4.x-requirements.html"
+>Section 2.6</A
+>.
+  </P
+></LI
+><LI
+><P
+>If this is your first time compiling the kernel, don't be scared. In fact, 
+it's rather easy and it's covered in several URLs found in 
+<A
+HREF="kernel-2.4.x-requirements.html"
+>Section 2.6</A
+>.  Please note that the instructions
+included here is just one way to do build a kernel.  Please see the Kernel
+HOWTO for full details.</P
+><P
+><STRONG
+>NOTE: </STRONG
+>Please notice that it <STRONG
+>IS NOT </STRONG
+> recommended to put the new kernel sources 
+into the /usr/src/linux directory.  You should leave the original kernel 
+sources that came with your Linux distribution in /usr/src/linux.  For more 
+details on this topic, please read the "README" file in the top level 
+directory of the kernel sources.</P
+></LI
+><LI
+><P
+>For this HOWTO example, create a directory called <TT
+CLASS="LITERAL"
+>/usr/src/kernel</TT
+>.  
+Next, "cd" into this directory and download the newest 2.4.x kernel sources
+into it.  Once downloaded, issue the following command (if the file ends in a .tar.gz): 
+<TT
+CLASS="LITERAL"
+>tar xvzf linux-2.4.x.tar.gz</TT
+> or (if the file ends in a 
+.tar.bzip2): <TT
+CLASS="LITERAL"
+>tar xyvf linux-2.4.x.tar.bz2</TT
+>.  Please 
+substitute the "x" in the 2.4.x filename with the Linux 2.4 kernel version you 
+downloaded.  </P
+><P
+>BZ2 Note:  Some Linux distributions use the "I" option instead of the "y" 
+option to decompress bzip2 archives.</P
+><P
+>   Once uncompressed, I recommend that you rename the directory from the stock
+   "linux" name to "linux-2.4.x" (replace the "x" with the specific version of
+   your newly installed kernel) for clarity.  To do this, run the command 
+   "<TT
+CLASS="LITERAL"
+>mv linux linux-2.4.x</TT
+>".  Next, make sure there is a 
+   directory or symbolic link pointing to 
+   "<TT
+CLASS="LITERAL"
+>/usr/src/kernel/linux</TT
+>" ie.  run the command: 
+   <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>ln -s /usr/src/kernel/linux-2.4.x /usr/src/kernel/linux</PRE
+></FONT
+></TD
+></TR
+></TABLE
+> 
+   again subsituting the "x" for your proper kernel version.
+  </P
+></LI
+><LI
+><P
+>As mentioned above, you might consider applying any appropriate or optional 
+patches to the kernel's MASQ code BEFORE you compile the final kernel.  
+The IP MASQ code found in the stock kernels is already very useful and does 
+not require any specific patching in order for the system to work for 
+NAT-friendly network applications.  Many of these patches are only to fix 
+possible known bugs, add new features (some are /very/ cool), etc.  Please 
+refer to <A
+HREF="kernel-2.4.x-requirements.html"
+>Section 2.6</A
+> for URLs and the 
+<A
+HREF="http://ipmasq.webhop.net/"
+TARGET="_top"
+>IP Masquerade Resources</A
+> for 
+up-to-date information and patch URLs.</P
+></LI
+><LI
+><P
+>  <STRONG
+>Applying IPTABLES and Patch-o-Matic kernel patches</STRONG
+></P
+><P
+>Download the iptables package and optional Patch-O-matics from the 
+<A
+HREF="kernel-2.4.x-requirements.html"
+>Section 2.6</A
+> and put it into a directory, say 
+"<TT
+CLASS="LITERAL"
+>/usr/src/archive/netfilter</TT
+>".  Next, go into this new 
+netfilter directory and uncompress the iptables archive with the command: </P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+><TT
+CLASS="LITERAL"
+>tar xyvf iptables-x.y.z.tar.bz2</TT
+>
+<TT
+CLASS="LITERAL"
+>tar xyvf patch-o-matic-x.tar.bz2</TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Now, go into the new iptables-x.y.x directory
+(/usr/src/archive/netfilter/iptables-x.y.z) and run the command</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> <TT
+CLASS="LITERAL"
+>#For iptables v1.2.7a:</TT
+>
+ <TT
+CLASS="LITERAL"
+>make KERNEL_DIR=/usr/src/kernel/linux</TT
+>
+ <TT
+CLASS="LITERAL"
+> </TT
+>
+ <TT
+CLASS="LITERAL"
+>#For iptables v1.2.4 (when Patch-o-matic was built-in):</TT
+>
+ <TT
+CLASS="LITERAL"
+>make pending-patches KERNEL_DIR=/usr/src/kernel/linux</TT
+>
+ <TT
+CLASS="LITERAL"
+> </TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>NOTE: this assumes that your 2.4.x kernel sources are in the 
+<TT
+CLASS="LITERAL"
+>/usr/src/kernel/linux</TT
+> directory.  </P
+><P
+>NOTE #2: If you append a "/" to the end of the above command line, you
+will get an error stating: 
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>"make: *** [/usr/src/kernel/linux/include/asm/socket.h] Error 1".</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+Remove the trailing "/" and try again.</P
+><P
+>Here is an example of compiling IPTABLES v1.2.7a.  Your output might look
+different depending on what version you are trying to use.</P
+></LI
+><LI
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># make KERNEL_DIR=/usr/src/kernel/linux
+
+Extensions found:
+
+cc -O2 -Wall -Wunused -I/usr/src/kernel/linux/include -Iinclude/
+-DIPTABLES_VERSION=\"1.2.7a\"  -fPIC -o extensions/libipt_ah_sh.o -c
+extensions/libipt_ah.c
+ld -shared -o extensions/libipt_ah.so extensions/libipt_ah_sh.o
+cc -O2 -Wall -Wunused -I/usr/src/kernel/linux/include -Iinclude/
+-DIPTABLES_VERSION=\"1.2.7a\"  -fPIC -o extensions/libipt_conntrack_sh.o -c
+extensions/libipt_conntrack.c
+ld -shared -o extensions/libipt_conntrack.so extensions/libipt_conntrack_sh.o
+cc -O2 -Wall -Wunused -I/usr/src/kernel/linux/include -Iinclude/
+-DIPTABLES_VERSION=\"1.2.7a\"  -fPIC -o extensions/libipt_dscp_sh.o -c
+extensions/libipt_dscp.c
+extensions/libipt_dscp_helper.c:69: warning: `dscp_to_name' defined but not
+used
+ld -shared -o extensions/libipt_dscp.so extensions/libipt_dscp_sh.o
+.
+.
+.
+cc -O2 -Wall -Wunused -I/usr/src/kernel/linux/include -Iinclude/
+-DIPTABLES_VERSION=\"1.2.7a\"    -c -o libipulog/libipulog.o
+libipulog/libipulog.c
+ar rv libipulog/libipulog.a libipulog/libipulog.o
+a - libipulog/libipulog.o
+rm libiptc/libip6tc.o libiptc/libip4tc.o libipulog/libipulog.o libipq/libipq.o</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></LI
+><LI
+><P
+>Ok, hopefully the IPTABLES program compiled up for you.  Now, you need to
+install it.  To do this, directory and run the command</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> <TT
+CLASS="LITERAL"
+>make install KERNEL_DIR=/usr/src/kernel/linux</TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></LI
+><LI
+><P
+>Here is an example of installing IPTABLES v1.2.7a.  Your output might look
+different depending on what version you are trying to use.</P
+></LI
+><LI
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># make install KERNEL_DIR=/usr/src/kernel/linux   
+
+cp iptables /usr/local/sbin/iptables
+cp iptables-save /usr/local/sbin/iptables-save
+cp iptables-restore /usr/local/sbin/iptables-restore
+cp ip6tables /usr/local/sbin/ip6tables
+cp extensions/libipt_ah.so /usr/local/lib/iptables/libipt_ah.so
+cp extensions/libipt_conntrack.so /usr/local/lib/iptables/libipt_conntrack.so
+cp extensions/libipt_dscp.so /usr/local/lib/iptables/libipt_dscp.so
+cp extensions/libipt_ecn.so /usr/local/lib/iptables/libipt_ecn.so
+cp extensions/libipt_esp.so /usr/local/lib/iptables/libipt_esp.so
+cp extensions/libipt_helper.so /usr/local/lib/iptables/libipt_helper.so
+.
+.
+.
+cp extensions/libip6t_udp.so /usr/local/lib/iptables/libip6t_udp.so
+cp extensions/libip6t_LOG.so /usr/local/lib/iptables/libip6t_LOG.so
+cp extensions/libip6t_MARK.so /usr/local/lib/iptables/libip6t_MARK.so</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></LI
+></UL
+><P
+>Next, if you are interested in applying a Patch-O-Matic patch set, go into the 
+<TT
+CLASS="LITERAL"
+>patch-o-matic-X </TT
+>directory 
+(/usr/src/archive/netfilter/patch-o-matic-X) and run the command</P
+><P
+></P
+><UL
+><LI
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> <TT
+CLASS="LITERAL"
+>#For Patch-O-Matic later than the release of iptables v1.2.7a:</TT
+>
+ <TT
+CLASS="LITERAL"
+>KERNEL_DIR=/usr/src/kernel/linux</TT
+>
+ <TT
+CLASS="LITERAL"
+>./runme pending</TT
+>
+ <TT
+CLASS="LITERAL"
+> </TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>NOTE #1: The use of the "pending" batch is the most common for IPMASQ
+functionality but there are several others.  See below.</P
+><P
+>NOTE #2: this assumes that your 2.4.x kernel sources are in the 
+<TT
+CLASS="LITERAL"
+>/usr/src/kernel/linux</TT
+> directory.  </P
+><P
+>NOTE #3: If you append a "/" to the end of the command line, you
+will get an error stating: 
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>"make: *** [/usr/src/kernel/linux/include/asm/socket.h] Error 1".
+Remove the trailing "/" and try again.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>Here is an example of the Patch-O-Matic prompts you might receive for a 
+2.4.20 kernel with the "20030107" Patch-O-Matic set.  You can also run the 
+"runme" program in a batch mode to speed things up, add experimental patches,
+etc. if you'd like.  To better 
+understand your options, simply run the "<TT
+CLASS="LITERAL"
+>./runme</TT
+>" command 
+by itself.  Please note that these prompts WILL CHANGE over time.</P
+></LI
+><LI
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Welcome to Rusty's Patch-o-matic!
+
+Each patch is a new feature: many have minimal impact, some do not.
+Almost every one has bugs, so I don't recommend applying them all!
+-------------------------------------------------------
+Already applied: submitted/01_2.4.19
+                 submitted/02_2.4.20
+                 submitted/ipt_ULOG-mac_len-fix
+                 submitted/ipt_multiport-invfix
+                 pending/01_ip_conntrack_proto_tcp-lockfix
+                 pending/02_newnat-udp-helper
+                 pending/03_REJECT-fwspotting-phrack60-fix
+                 pending/04_ftp-conntrack-msg-fix
+
+Testing... 05_ECN-tcpchecksum-littleendian-fix.patch NOT APPLIED (1 rejects out
+of 1 hunks)
+The pending/05_ECN-tcpchecksum-littleendian-fix patch:
+   Author: Patrick McHardy 
+   Status: Pending for kernel inclusion
+   
+   The 2.4.20 kernel included the new iptables 'ECN' target, enabling a
+selective
+   ECN disable mechanism.   Unfortunately there was a bug in the incremental
+TCP
+   checksum update, resulting in broken TCP checksums on little endian
+machines.
+   
+   This patch fixes the Bug.
+   
+Testing patch pending/05_ECN-tcpchecksum-littleendian-fix.patch...
+   Patch pending/05_ECN-tcpchecksum-littleendian-fix.patch applied cleanly.
+Applying patch pending/05_ECN-tcpchecksum-littleendian-fix.patch...
+   Patch pending/05_ECN-tcpchecksum-littleendian-fix.patch applied cleanly.
+
+Excellent! Kernel is now ready for compilation.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></LI
+><LI
+><P
+>   If everything patches fine, you should see something like the text
+  </P
+><P
+>   <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>Excellent! Kernel is now ready for compilation.</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+><P
+>   towards the bottom of the screen.  Beyond that, you don't have to
+   install anything at this point.  The next step is to compile the new 
+   PATCHED kernel.
+  </P
+></LI
+><LI
+><P
+>   Ok, now the new kernel is ready to be compiled but you should make sure 
+   that you also have the proper matching <TT
+CLASS="LITERAL"
+>iptables</TT
+> program 
+   on your machine too (just to make sure).  Run the command:
+   <P
+></P
+><UL
+><LI
+><P
+>      <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>whereis iptables</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     </P
+></LI
+></UL
+>
+   and make sure its installed on the machine (the default place is in
+   <TT
+CLASS="LITERAL"
+>/usr/local/sbin/iptables</TT
+>.  If you cannot find it
+   or patched up your kernel sources as shown above, I recommend you just 
+   re-compile it up as shown above.  
+  </P
+></LI
+></UL
+><P
+> Now that the kernel sources are patched up, you need to configure it to
+ know what kinds of features you need (HD support, Networking support, MASQ 
+ support, etc.).  Here are the MINIMUM kernel configuration options required 
+ to enable IP Masquerade functionality.  Please understand that this HOWTO 
+ illustrates just ONE way to configure and compile a kernel (modules vs static).  
+ The main difference from this example vs. an example given by a different
+ MASQ guide is that some people might wish to compile kernel components either 
+ as <STRONG
+>modules OR monolithically</STRONG
+> into the 
+ kernel.  Basically, compiling things as modules gives you added flexibility 
+ to what is or isn't installed into the kernel (reduces unneeded memory use 
+ for things you aren't / won't use and modules also allow for drop-in software
+ upgrades [usually no need to reboot the machine]).  On the flip side, kernel 
+ modules add more complexity to your configuration and sometimes the kernel 
+ auto-loader might make mistakes (not that I've ever seen this happen).  
+ Compiling things directly into the kernel makes things simpler BUT you loose 
+ a huge level of flexibility.  The following kernel configuration example is a 
+ mixture of both a selection of kernel modules and building them in 
+ monolithically (you probably will ALWAYS need MASQ functionality ready to go).</P
+><P
+></P
+><UL
+><LI
+><P
+>   Side Note:  It is assumed that you will also configure the kernel to use your 
+   other installed hardware such as USB printers, Ethernet network interfaces, 
+   SCSI and IDE HD controllers, etc. as well.  Please refer to the 
+   <A
+HREF="http://www.tldp.org/HOWTO/Kernel-HOWTO/index.html"
+TARGET="_top"
+>   Linux Kernel HOWTO</A
+> and the kernel source's "<TT
+CLASS="LITERAL"
+>README</TT
+>" 
+   file and "<TT
+CLASS="LITERAL"
+>Documentation/</TT
+>" directory for detailed help on 
+   compiling a kernel.
+  </P
+></LI
+></UL
+><P
+>You will need to answer either <STRONG
+>YES, NO, or MODULE</STRONG
+> to the following program.  Not all options will be available 
+without the proper kernel patches described later in this HOWTO.  This
+shouldn't be an issue as most 3rd party patches are only needed for a very 
+select group of users.</P
+><P
+>Run the following commands to configure your kernel:</P
+><P
+>&#13; <P
+></P
+><UL
+><LI
+><P
+>    <TT
+CLASS="LITERAL"
+>cd /usr/src/kernel/linux</TT
+>
+   </P
+></LI
+><LI
+><P
+>    <TT
+CLASS="LITERAL"
+>make menuconfig</TT
+>
+   </P
+></LI
+></UL
+></P
+><P
+>Please note the following kernel prompts reflect a 2.4.14 kernel (with some of
+the optional Patch-O-Matic additions.  Please read the following carefully for
+recommendations:</P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[ Code maturity level options ]
+
+  * Prompt for development and/or incomplete code/drivers (CONFIG_EXPERIMENTAL) [Y/n/?]
+    - YES: though not required for IP MASQ, this option allows the kernel to create 
+           the MASQ modules and enable the option for port forwarding
+
+  * Enable loadable module support (CONFIG_MODULES) [Y/n/?]
+    - YES: allows you to load kernel IP MASQ modules
+
+  * Set version information on all module symbols (CONFIG_MODVERSIONS) [Y/n/?]
+    - YES: allows newer kernels to load older modules if possible
+
+  * Kernel module loader (CONFIG_KMOD) [Y/n/?] 
+    - OPTIONAL: Recommended : allows the kernel to load various kernel modules as it needs them
+
+  == Non-MASQ options skipped
+  ==   (CPU type, memory, SMP, FPU, specific stuff)
+
+
+[ General setup ]
+
+  * Networking support (CONFIG_NET) [Y/n/?]
+    - YES: Enables the network subsystem
+
+  == Non-MASQ options skipped 
+  ==   (specific hardware, PCI, kernel binaries, PCMCIA, etc.)
+
+
+  * Sysctl support (CONFIG_SYSCTL) [Y/n/?] 
+    - YES:  Enables the ability to enable disable options such as forwarding,
+      dynamic IPs, etc. via the /proc interface
+
+
+[ Block devices ]
+
+  == Non-MASQ options skipped
+  ==   (kernel binaries, power management, PnP, RAID, etc.)
+
+    == Don't forget to compile in support for hardware that you might need:
+    ==   IDE controllers, HDs, CDROMs, etc.
+
+[ Networking options ]
+
+  * Packet socket (CONFIG_PACKET) [Y/m/n/?]
+    - YES: Though this is OPTIONAL, this recommended feature will allow you 
+           to use TCPDUMP to debug any problems with IP MASQ
+
+  * Packet socket: mmapped IO (CONFIG_PACKET_MMAP) [N/y/?] y
+    - YES: Speed up the packet protocol
+
+  * Kernel/User netlink socket (CONFIG_NETLINK) [Y/n/?] 
+    - OPTIONAL:  Recommended : this feature will allow the logging of 
+           advanced firewall issues such as routing messages, etc
+
+  * Routing messages (CONFIG_RTNETLINK) [N/y/?] (NEW) y
+    - OPTIONAL: Allows for support of advanced kernel routing messages
+                if you enabled the CONFIG_NETLINK option
+
+  * Netlink device emulation (CONFIG_NETLINK_DEV) [N/y/m/?] (NEW)  
+    - NO:  This option does not have anything to do with packet firewall 
+           logging
+
+  * Network packet filtering (replaces ipchains) (CONFIG_NETFILTER) [N/y/?] y
+    - YES: Enable this option to let IPTABLES configure the TCP/IP subsection
+           of the kernel.  By enabling this, then you can turn on advanced 
+           routing mechanisms like IP Masq, packet filtering, etc.
+
+  * Network packet filtering debugging (CONFIG_NETFILTER_DEBUG) [N/y/?] (NEW) n
+    - NO: Not required for Masquerading functionality though it may help 
+          for troubleshooting.  There might be a performance penalty when
+          enabling this.
+
+  * Socket Filtering (CONFIG_FILTER) [Y/n/?]
+    - OPTIONAL:  Recommended : Though this doesn't have anything do with IPMASQ, 
+      if you plan on implimenting a DHCP server on the internal network, you WILL 
+      need to enable this option.
+
+  * Unix domain sockets (CONFIG_UNIX) [Y/m/n/?]
+    - YES:  This enables the UNIX TCP/IP sockets mechanisms
+
+  * TCP/IP networking (CONFIG_INET) [Y/n/?]
+    - YES: Enables the TCP/IP protocol
+
+  * IP: multicasting (CONFIG_IP_MULTICAST) [N/y/?] 
+    - OPTIONAL:  You can enable this if you want to be able to receive
+                 Multicast traffic.  Please note that your ISP must 
+                 support Multicast as well for this all to work at all
+                 
+  * IP: advanced router (CONFIG_IP_ADVANCED_ROUTER) [Y/n/?]
+    - OPTIONAL:  Though there is nothing in this section mandatory for 
+                 Masquerade, some specific options might be useful
+
+    == Non-MASQ options skipped 
+    ==   ( autoconf, tunneling )
+
+  * IP: multicast routing (CONFIG_IP_MROUTE) [N/y/?] n
+    - OPTIONAL:  Though not needed for IPMASQ, enabling this feature will
+                 let you route multicast traffic through your Linux box.
+                 Please note that this requires that your ISP be multicast
+                 enabled as well.
+
+    == Non-MASQ options skipped 
+    ==   (ARPd) 
+
+  * IP: TCP Explicit Congestion Notification support (CONFIG_INET_ECN) [N/y/?] n
+    - NO: Though enabling this option would be great, there are many Internet
+          sites out there that will block this.  Hit the "?" when configuring
+          the kernel to learn more about it but it is recommended to say NO for 
+          now.
+
+  * IP: TCP syncookie support (disabled per default) (CONFIG_SYN_COOKIES) [Y/n/?]
+    - YES: Recommended : for basic TCP/IP network security
+
+
+[ Networking options --&#62; IP: Netfilter Configuration ]
+
+
+  * Connection tracking (required for masq/NAT) (CONFIG_IP_NF_CONNTRACK) [N/y/m/?] (NEW) m
+    - YES: (Module) This enables the kernel to track various network connections.
+           This option is required for Masquerading support as well as to enable 
+           Stateful tracking for various filewall mechanisms.  Please note that
+           if you compile this directly into the kernel, you cannot enable
+           the legacy IPCHAINS or IPFWADM compatibility modules.
+
+  * FTP protocol support (CONFIG_IP_NF_FTP) [M/n/?] (NEW) m
+    - YES: (Module) This enables the proper Masquerading of FTP connections if 
+           CONFIG_IP_NF_CONNTRACK was enabled above
+
+  * IRC protocol support (CONFIG_IP_NF_IRC) [M/n/?] (NEW) m
+    - YES: (Module) This enables the proper Masquerading of IRC connections if 
+           CONFIG_IP_NF_CONNTRACK was enabled above
+
+  * Userspace queueing via NETLINK (EXPERIMENTAL) (CONFIG_IP_NF_QUEUE) [N/y/m/?] (NEW) m
+    - OPTIONAL: Though this is OPTIONAL, this feature will allow IPTABLES to 
+                copy specific packets to UserSpace tools for additional checks
+
+  * IP tables support (required for filtering/masq/NAT) (CONFIG_IP_NF_IPTABLES) [N/y/m/?] (NEW) m
+    - YES: (Module) Enables IPTABLES support
+
+  * limit match support (CONFIG_IP_NF_MATCH_LIMIT) [N/y/m/?] (NEW) y
+    - OPTIONAL:  (Module) Recommended : Though not required, this option can used to 
+                 enable rate limiting of both traffic and loggin messages help slow down denial
+                 of service (DoS) attacks.
+
+  * MAC address match support (CONFIG_IP_NF_MATCH_MAC) [N/y/m/?] (NEW) m
+    - OPTIONAL:  Though not required, the option can allow you to 
+                 filter traffic based upon the SOURCE Ethernet MAC address.
+
+  * netfilter MARK match support (CONFIG_IP_NF_MATCH_MARK) [N/y/m/?] (NEW) y
+    - YES: (Module) Recommended : This enables IPTABLES to take action upon marked packets.  
+           This mechanism can allow for PORTFW functionality, TOS marking, etc.
+
+  * Multiple port match support (CONFIG_IP_NF_MATCH_MULTIPORT) [N/y/m/?] (NEW) y
+    - YES: (Module) Recommended : This enables IPTABLES to accept mutliple SRC/DST port
+           ranges (non-contiguous) instead of one port range per IPTABLES 
+           statement.
+
+  * TOS match support (CONFIG_IP_NF_MATCH_TOS) [Y/m/n/?] n
+    - OPTIONAL:  This allows IPTABLES to match packets based upon their
+                 DIFFSERV settings.
+
+  * LENGTH match support (CONFIG_IP_NF_MATCH_LENGTH) [N/m/?] (NEW) n
+    - OPTIONAL:  This allows IPTABLES to match packets based upon their
+                 packet length.
+
+  * TTL match support (CONFIG_IP_NF_MATCH_TTL) [N/m/?] (NEW) ? n
+    - OPTIONAL:  This allows IPTABLES to match packets based upon their
+                 TTL settings.
+
+  * tcpmss match support (CONFIG_IP_NF_MATCH_TCPMSS) [N/y/m/?] m
+    - OPTIONAL: (Module) Recommended :  This option allows users to examine the MSS value in
+                 TCP SYN packets.  This is an advanced knob but can be very valuable in 
+                 troubleshooting MTU problems.
+
+  * Connection state match support (CONFIG_IP_NF_MATCH_STATE) [M/n/?]  m
+    - YES: (Module) Recommended : This option allows for Stateful tracking of network
+            connections.
+
+  * Unclean match support (EXPERIMENTAL) (CONFIG_IP_NF_MATCH_UNCLEAN) [N/y/m/?] y
+    - YES: (Module) Recommended :  This option allows for connection tracking on odd packets.
+           It cal also help in the detection of possibly malicious packets.
+            This can be a valuable tool in tracking hostile people on the network.
+
+  * Owner match support (EXPERIMENTAL) (CONFIG_IP_NF_MATCH_OWNER) [N/y/m/?] n
+    - OPTIONAL:  This option allows IPTABLES to match traffic based upon the 
+                 user login, group, etc. who created the traffic.
+
+  * Packet filtering (CONFIG_IP_NF_FILTER) [N/y/m/?] ? y
+    - YES: (Module) This option allows for the kernel to be able filter traffic at
+            the INPUT, FORWARDING, and OUTPUT traffic points.
+
+    * REJECT target support (CONFIG_IP_NF_TARGET_REJECT) [N/y/m/?] (NEW) y
+      - YES: (Module) With this option, a packet firewall can send an ICMP Reject packet
+            back to the originator when a packet is blocked.
+
+  * MIRROR target support (EXPERIMENTAL) (CONFIG_IP_NF_TARGET_MIRROR) [N/y/m/?] (NEW) n
+    - OPTIONAL: This option allows the packet firewall to mirror the exact same 
+                network packet back to the originator when it is supposed to be 
+                blocked.  This is similar to the REJECT option above but it actually 
+                sends the original packet back to the originator.  i.e. a
+                hostile user could actually portscan themselves.
+
+
+  * Full NAT (CONFIG_IP_NF_NAT) [M/n/?] m
+    - YES: (Module) This option enables the future menus to enable Masquerading, 
+           PORTFWing, Full (1:1) NAT, etc.
+
+
+  * MASQUERADE target support (CONFIG_IP_NF_TARGET_MASQUERADE) [M/n/?] (NEW) m
+    - YES: (Module) This option specifically enables Masquerade into the 
+           kernel
+
+  * REDIRECT target support (CONFIG_IP_NF_TARGET_REDIRECT) [N/y/m/?] n
+    - OPTIONAL: Not needed for normal MASQ functionality though people who 
+                want to do transparent proxy via Squid will want this.  
+
+  * Basic SNMP-ALG support (EXPERIMENTAL) (CONFIG_IP_NF_NAT_SNMP_BASIC) [N/m/?] n
+    - OPTIONAL: This enables IPTABLES to properly NAT internal SNMP packets so 
+                that machines with duplicate addressing ranges can be properly
+                managed.
+
+                
+  * Packet mangling (CONFIG_IP_NF_MANGLE) [N/y/m/?] y
+    - YES: (Module) This option allows for advanced IPTABLES packet manipulation 
+           options.
+
+
+  * TOS target support (CONFIG_IP_NF_TARGET_TOS) [N/y/m/?] (NEW) n
+    - OPTIONAL: Enables the kernel to modify the TOS field in a packet 
+           before routing it on
+
+  * MARK target support (CONFIG_IP_NF_TARGET_MARK) [N/y/m/?] (NEW) m
+    - OPTIONAL: (Module) Recommended : This enables the kernel to manipulate 
+                packets based upon the MARK field.  This can be used for PORTFW 
+                as well as many other things.
+
+  * LOG target support (CONFIG_IP_NF_TARGET_LOG) [N/y/m/?]  m
+    - YES: (Module)  This allows for the logging of packets before they are accepted,
+           denied, rejected, etc.
+
+  * TCPMSS target support (CONFIG_IP_NF_TARGET_TCPMSS) [N/y/m/?] ? m
+    - YES: (Module) This option help some people with MTU problems.  Typically,
+           most users have to set their Internet connection's MTU to 
+           1500 as well as ALL internal machines to 1500.  With this
+           option, this whole MTU issue might be finally solved.
+
+  * ipchains (2.2-style) support (CONFIG_IP_NF_COMPAT_IPCHAINS) [N/y/m/?] m
+    - OPTIONAL: (Module) Recommended : If you have an existing IPCHAINS ruleset 
+           (2.2.x kernels) and enable this option, you can continue to use the 
+           IPCHAINS program and the majority of your old ruleset except for the 
+           use of any 2.2.x kernel-specific modules.  Please note that if this
+           IPCHAINS module is loaded, ALL IPTABLES modules will be non-
+           operational.  This is an either/or deal only intended for legacy
+           rulesets.
+
+  * ipfwadm (2.0-style) support (CONFIG_IP_NF_COMPAT_IPFWADM) [N/y/m/?] n
+    - OPTIONAL: If you have an existing IPFWADM ruleset (2.0.x kernels) and 
+           enable this option, you can continue to use the IPFWADM program and 
+           the majority of your old ruleset except for the use of any 2.0.x 
+           kernel-specific modules.   Please note that if this IPFWADM module 
+           is loaded, ALL IPTABLES modules will be non operational.  This is 
+           an either/or deal only intended to support legacy rulesets.                 
+
+
+    == Non-MASQ options skipped
+    ==   (IPv6, khttpd, ATM, IPX, AppleTalk, etc.) --
+
+  * Fast switching (read help!) (CONFIG_NET_FASTROUTE) [N/y/?] n
+    - NO: This performance optimization is NOT compatible with IP MASQ and/or
+          packet filtering
+
+
+    == Non-MASQ options skipped
+    == (QoS, Telephony, IDE, SCSI, 1394FW, I2O, etc)
+
+      == Don't forget to compile in support for hardware that you might need:
+      ==   IDE:    HDs, CDROMs, etc.
+      ==   SCSI:   HDs, CDROMs, etc.
+
+
+[ Network device support ]
+
+  * Network device support (CONFIG_NETDEVICES) [Y/n/?]
+    - YES: Enables the Linux Network device sublayer 
+
+    == Non-MASQ options skipped
+    ==   (Arcnet) 
+
+
+  * Dummy net driver support (CONFIG_DUMMY) [M/n/y/?] 
+    - YES:  Though OPTIONAL, this option can help when debugging problems
+
+    == Non-MASQ options skipped
+    == (EQL, etc..)
+
+    == Don't forget to compile in support for hardware that you might need:
+    ==   NICs:   eth, tr, etc.
+    ==   MODEMs: ppp (ppp async) and/or slip
+    ==   WANs:   T1, T3, ISDN, etc.
+    ==   ISDN:   for internal ISDN modems
+
+
+    == Non-MASQ options skipped
+    ==   (Amateur Radio, IrDA, ISDN, USB, etc.)
+
+
+[ Character devices ]
+
+    == Don't forget to compile in serial port support if you are a modem user
+    == Don't forget to compile in mouse support
+
+    == Non-MASQ options skipped
+    ==   (I2C, Watchdog cards, Ftape, Video for Linux, etc. )
+
+
+[ File systems ]
+
+    == Non-MASQ options skipped
+    ==   (Quota, ISO9660, NTFS, etc )
+
+  * /proc filesystem support (CONFIG_PROC_FS) [Y/n/?]
+    - YES:  Required to dynamically configure the Linux forwarding 
+            and NATing systems
+
+
+    == Non-MASQ options skipped
+    ==   (Console drivers, Sound, USB, Kernel Hacking) &#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+So go ahead and select "exit" and you should be prompted to save your config.</P
+><P
+>NOTE: These are just the kernel components you need for IP Masquerade networking
+support.  You will need to select whatever other options needed for your 
+specific setup.  If you want more information on what each one of these kernel 
+modules does, please see the FAQ section of this HOWTO for details.
+&#13;</P
+><P
+></P
+><UL
+><LI
+><P
+>Now compile the kernel (make dep; make clean; make bzImage; make modules; 
+make modules_install) , etc.  Again, it is beyond the scope of this HOWTO
+if you have problems compiling your kernel.  Please see 
+<A
+HREF="kernel-2.4.x-requirements.html"
+>Section 2.6</A
+> for URLs to the KERNEL howto, etc.</P
+></LI
+><LI
+><P
+>You will then have move over the kernel binary, update your bootloader 
+(LILO, Grub, etc.), and reboot.  If you have questions about kernel compiling, 
+I highly recommend to consult some of the URLs mentioned above in this section.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="IPMASQ-COMPILING3.1.2"
+></A
+>3.2.2. Compiling Linux 2.2.x Kernels</H2
+><P
+><STRONG
+>Please see <A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+> for 
+any required software, patches, etc.</STRONG
+></P
+><P
+></P
+><UL
+><LI
+><P
+>   First of all, you need the kernel source for 2.2.x (preferably the latest 
+   kernel version)
+  </P
+><P
+></P
+><UL
+><LI
+><P
+>    NOTE #1:    --- UPDATE YOUR KERNEL ---
+
+    Linux 2.2.x kernels less than version 2.2.20 contain several different 
+    <A
+HREF="http://www.linux.org.uk/VERSION/"
+TARGET="_top"
+>security 
+    vulnerabilities</A
+> (some were MASQ specific).  Kernels less than
+    2.2.20 have a few local vulnerabilities. Kernel versions less 
+    than 2.2.16 have a TCP root exploit vulnerability and versions less than 
+    2.2.11 have a IPCHAINS fragmentation bug.  Because of these issues, users 
+    running a firewall with strong IPCHAINS rulesets are open to possible 
+    instrusion.  Please upgrade your kernel to a fixed version.
+    </P
+></LI
+><LI
+><P
+>     NOTE #2: As the 2.2.x train progressed, the compile-time options keep on 
+     changing.  As of this version, this section reflects the settings for  a 
+     2.2.20 kernel.
+    </P
+><P
+>     If you are running either a newer or older kernel version, the dialogs 
+     will look different.  It is recommended that you update to the newest 
+     kernel for added capability and stability of the system.
+    </P
+></LI
+></UL
+></LI
+><LI
+><P
+>   If this is your first time compiling the kernel, don't be scared. In fact, 
+   it's rather easy and it's covered in several URLs found in 
+   <A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+>.  Please note that the instructions
+   included here is just one way to do build a kernel.  Please see the Kernel
+   HOWTO for full details.
+  </P
+><P
+>   <STRONG
+>NOTE: </STRONG
+>Please notice that it isn't 
+   recommended to put the new kernel sources into /usr/src/linux.  You 
+   should leave the original kernel sources that came with your Linux 
+   distribution in /usr/src/linux.  For more details on this 
+   topic, please read the "README" file in the top level directory of 
+   your kernel sources.
+  </P
+></LI
+><LI
+><P
+>   For this HOWTO example, create a directory called <TT
+CLASS="LITERAL"
+>/usr/src/kernel</TT
+>.  
+   Next, "cd" into this directory and download the newest 2.2.x kernel sources
+   into it.  Once downloaded, issue the following command (if the file ends in a .tar.gz): 
+   <TT
+CLASS="LITERAL"
+>tar xvzf linux-2.2.x.tar.gz</TT
+> or (if the file ends in a 
+   .tar.bzip2): <TT
+CLASS="LITERAL"
+>tar xyvf linux-2.2.x.tar.bz2</TT
+>.  Please 
+   substitute the "x" in the 2.2.x filename with the Linux 2.2 kernel version you 
+   downloaded.  
+  </P
+><P
+>   NOTE:  Some Linux distributions use the "I" option instead of the "y" option to 
+   decompress bzip2 archives.
+  </P
+><P
+>   Once uncompressed, I recommend that you rename the directory from "linux" to
+   "linux-2.2.x" for clarity.  To do this, run the command <TT
+CLASS="LITERAL"
+>mv linux
+   linux-2.2.x</TT
+>.  Next, make sure there is a directory or symbolic 
+   link pointing to <TT
+CLASS="LITERAL"
+>/usr/src/kernel/linux</TT
+> ie.  run the 
+   command: <TT
+CLASS="LITERAL"
+>ln -s /usr/src/kernel/linux-2.2.x /usr/src/kernel/linux</TT
+>o
+   again subsituting the "x" for your proper kernel version.
+  </P
+></LI
+><LI
+><P
+>   Apply any appropriate or optional patches to the kernel source code.  By
+   default, stock Linux kernels do not require any specific patching in order 
+   for the system to work.  Features like PPTP/IPSEC masqurading are already
+   built-in in the newest kernels but other tools like Xwindows forwarders 
+   are optional.  Please refer to <A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+> for 
+   URLs and the <A
+HREF="http://ipmasq.webhop.net/"
+TARGET="_top"
+>IP Masquerade Resources</A
+> 
+   for up-to-date information and patch URLs.
+  </P
+></LI
+><LI
+><P
+>   Now that the kernel is patched up (if required), here are the MINIMUM kernel
+   configuration options required to enable IP Masquerade functionality.  Please
+   understand that this HOWTO illustrates just ONE way to compile a kernel. The
+   main difference from this method vs. a different one is some people wish to
+   compile things either as modules OR monolithically right into the kernel.
+   Basically, compiling things as modules gives you added flexibility to what is
+   or isn't installed into the kernel (reduces unneeded memory use and allow for
+   drop-in upgrades [no need to reboot]) BUT they add more complexity to your
+   configuration. On the flip side, compiling things directly into the kernel
+   makes things simpler BUT you loose a level of flexibility. The following
+   example is a mixture of both built-in AND modules.
+  </P
+><P
+>   <STRONG
+>Side Note:</STRONG
+>
+   It is assumed that you will also configure the kernel to use your 
+   other installed hardware such as network interfaces, optional SCSI controllers,
+   etc. as well.  Please refer to the 
+   <A
+HREF="http://www.tldp.org/HOWTO/Kernel-HOWTO/index.html"
+TARGET="_top"
+>   Linux Kernel 
+   HOWTO</A
+> and the kernel source's README file and Documentation/ directory
+   for detailed help on compiling a kernel.
+  </P
+></LI
+></UL
+><P
+>Please note the <STRONG
+>YES or NO ANSWERS</STRONG
+> to the 
+following.  Not all options will be available without the proper kernel 
+patches described later in this HOWTO.</P
+><P
+>Run the following commands to configure your kernel:
+
+<P
+></P
+><UL
+><LI
+><P
+>   <TT
+CLASS="LITERAL"
+>cd /usr/src/kernel/linux</TT
+>
+  </P
+></LI
+><LI
+><P
+>   <TT
+CLASS="LITERAL"
+>make menuconfig</TT
+>
+  </P
+></LI
+></UL
+>&#13;</P
+><P
+>The following kernel prompts reflect a 2.2.20 kernel: </P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[ Code maturity level options ]
+
+  * Prompt for development and/or incomplete code/drivers (CONFIG_EXPERIMENTAL) [Y/n/?]
+    - YES: though not entirely required for IP MASQ, this option allows the kernel 
+           to create possible additional MASQ modules such as PORTFW, etc.
+
+  == Non-MASQ options skipped
+  ==   (CPU, memory, MTRR, SMP, etc.)
+
+
+[ Loadable module support ]
+
+  * Enable loadable module support (CONFIG_MODULES) [Y/n/?] y
+    - YES: allows you to load kernel IP MASQ modules
+
+  * Set version information on all symbols for modules (CONFIG_MODVERSIONS) [N/y/?] y
+    - YES: allows newer kernels to load older modules if possible
+
+  * Kernel module loader (CONFIG_KMOD) [Y/n/?] y
+    - OPTIONAL: Recommended : allows the kernel to load various kernel modules as 
+         it needs them
+
+
+[ General setup ]
+
+  * Networking support (CONFIG_NET) [Y/n/?]
+    - YES: This enables the network subsystem
+
+  == Non-MASQ options skipped
+  ==   (PCI, kernel binaries, specific hardware options, etc.)
+
+
+  * Sysctl support (CONFIG_SYSCTL) [Y/n/?] 
+    - YES:  Enables the ability to enable disable options such as forwarding,
+      dynamic IPs, etc. via the /proc interface
+
+
+[ Block devices ]
+
+  == Non-MASQ options skipped
+  ==   (kernel binaries, power management, PnP, IDE, SCSI, etc.)
+
+    == Don't forget to compile in support for hardware that you might need:
+    ==   IDE controllers, HDs, CDROMs, etc.
+
+
+[ Networking options ]
+
+
+  * Packet socket (CONFIG_PACKET) [Y/m/n/?] y
+    - YES: Though this is OPTIONAL, this recommended feature will allow you 
+           to use TCPDUMP to debug any problems with IP MASQ
+
+  * Kernel/User netlink socket (CONFIG_NETLINK) [Y/n/?] y
+    - OPTIONAL: Recommended :  This feature will allow the logging of 
+           advanced firewall issues such as routing messages, etc
+
+  * Routing messages (CONFIG_RTNETLINK) [Y/n/?] y
+    - OPTIONAL: If you enabled the CONFIG_NETLINK option above, this option 
+           will send routing messages and other information to SYSLOG.
+
+  * Netlink device emulation (CONFIG_NETLINK_DEV) [N/y/m/?] (NEW) n
+    - NO:  This option does not have anything to do with packet firewall 
+           logging
+
+  * Network firewalls (CONFIG_FIREWALL) [Y/n/?] y
+    - YES: Enables the kernel to be comfigured by the IPCHAINS firewall tool
+
+  * Socket Filtering (CONFIG_FILTER) [Y/n/?] y
+    - OPTIONAL:  Though this doesn't have anything do with IPMASQ, if you 
+         plan on implimenting a DHCP server on the internal network, you 
+         WILL need this option.
+
+  * Unix domain sockets (CONFIG_UNIX) [Y/m/n/?] y
+    - YES:  This enables the UNIX TCP/IP sockets mechanisms
+
+  * TCP/IP networking (CONFIG_INET) [Y/n/?] y
+    - YES: Enables the TCP/IP protocol
+
+  * IP: multicasting (CONFIG_IP_MULTICAST) [N/y/?] y
+    - OPTIONAL:  You can enable this if you want to be able to receive
+                 Multicast traffic.  Please note that your ISP must 
+                 support Multicast as well for this all to work
+                 
+  * IP: advanced router (CONFIG_IP_ADVANCED_ROUTER) [Y/n/?] n
+    - OPTIONAL:  Though there is nothing in this section mandatory for 
+                 Masquerade, some specific options might be useful
+
+  * IP: kernel level autoconfiguration (CONFIG_IP_PNP) [N/y/?] ?
+    - NO:  Not needed for normal MASQ functionality
+
+  * IP: firewalling (CONFIG_IP_FIREWALL) [Y/n/?] y
+    - YES: This enables the kernel to support packet filtering, NAT, etc.
+
+  * IP: firewall packet netlink device (CONFIG_IP_FIREWALL_NETLINK) [Y/n/?] n
+    - OPTIONAL: Though this is OPTIONAL, this feature will allow IPCHAINS to 
+                copy some packets to UserSpace tools for additional checks
+
+  * IP: transparent proxy support (CONFIG_IP_TRANSPARENT_PROXY) [N/y/?] n
+    - OPTIONAL:  Not needed for normal MASQ functionality though people who 
+           want to do transparent proxy via Squid will want this.  Please note
+           that there is a PERFORMANCE PENALTY enabling this feature.
+
+  * IP: masquerading (CONFIG_IP_MASQUERADE) [Y/n/?] y
+    - YES: Enable IP Masquerade to re-address specific internal to external 
+           TCP/IP packets
+
+  * IP: ICMP masquerading (CONFIG_IP_MASQUERADE_ICMP) [Y/n/?] y
+    - YES: Enable support for masquerading ICMP ping packets (ICMP error 
+           codes will be MASQed regardless).  This is an important feature 
+           for troubleshooting connections.
+
+  * IP: masquerading special modules support (CONFIG_IP_MASQUERADE_MOD) [Y/n/?] y
+    - YES: Though OPTIONAL, this enables the option to later enable other
+           modules like the PORTFW to give external computers a directly 
+           connection to specified internal MASQed machines.
+
+  * IP: ipautofw masq support (EXPERIMENTAL) (CONFIG_IP_MASQUERADE_IPAUTOFW) [N/y/m/?] n
+    - NO:  NOT recommended : IPautofw is a legacy method of port forwarding.  It 
+           is mainly old code and has been found to have some issues.  
+
+  * IP: ipportfw masq support (EXPERIMENTAL) (CONFIG_IP_MASQUERADE_IPPORTFW) [Y/m/n/?] y
+    - OPTIONAL: Recommended : This enables PORTFW which allows external computers 
+           on the Internet to directly communicate to specified internal MASQed 
+           machines.  This feature is typically used to allow access to internal 
+           SMTP, TELNET, and WWW servers.  Please note that FTP port forwarding 
+           needs an additional patch, as described in the FAQ section of the MASQ 
+           HOWTO.  Please see the this FAQ section in the HOWTO for additional 
+           information.
+
+  * IP: ip fwmark masq-forwarding support (EXPERIMENTAL) (CONFIG_IP_MASQUERADE_MFW) [Y/m/n/?] y
+    - OPTIONAL:  This is a NEW method of performing PORTFW-like functionality which is
+           similar to how the new 2.4.x kernels do things.  With this option, IPCHAINS 
+           can mark packets that should have additional work done upon it.  Using a 
+           UserSpace tool, much like IPMASQADM or IPPORFW, IPCHAINS would then 
+           do things like re-address the packets, change their TOS value, etc. 
+           Currently, this code is less tested than PORTFW but it looks promising.  
+           For now, this HOWTO recommends to use IPMASQADM and IPPORTFW.  If you 
+           have specific thoughts or comments on MFW, please email dranch.
+
+  * IP: optimize as a router not host (CONFIG_IP_ROUTER) [Y/n/?] y
+    - YES:  This optimizes the kernel for the network subsystem, though it 
+            isn't well known if this makes a siginificant performance difference 
+            or not.
+
+  == Non-MASQ options skipped 
+  ==   ( autoconf, tunneling, GRE )
+
+
+  * IP: multicast routing (CONFIG_IP_MROUTE) [N/y/?] n
+    - OPTIONAL:  Though not needed for IPMASQ, enabling this feature will
+                 let you route multicast traffic through your Linux box.
+                 Please note that this requires that your ISP be multicast
+                 enabled as well.
+
+
+    == Non-MASQ options skipped 
+    ==  (Aliasing, ARPd) 
+
+  * IP: TCP syncookie support (disabled per default) (CONFIG_SYN_COOKIES) [Y/n/?]
+    - YES: Recommended : for basic TCP/IP network security
+
+  * IP: GRE tunnels over IP (CONFIG_NET_IPGRE) [N/y/m/?]
+    - NO:   This OPTIONAL selection is to enable PPTP and GRE tunnels through 
+            the IP MASQ box
+
+    == Non-MASQ options skipped
+    ==   (aliasing, ARPd) 
+
+
+  * IP: TCP syncookie support (not enabled per default) (CONFIG_SYN_COOKIES) [Y/n/?]
+    - YES: HIGHLY recommended for basic TCP/IP network security
+
+    == Non-MASQ options skipped
+    ==  (RARP)
+
+
+  * IP: Allow large windows (not recommended if &#60;16Mb of memory) * (CONFIG_SKB_LARGE) [Y/n/?]
+    - YES:  This is recommended to optimize Linux's TCP window 
+
+    == Non-MASQ options skipped
+    ==   (IPv6, IPX, WAN router, etc.)
+
+  * Fast switching (read help!) (CONFIG_NET_FASTROUTE) [N/y/?] n
+    - NO: This performance optimization is NOT compatible with IP MASQ and/or
+          packet filtering
+
+
+  == Non-MASQ options skipped
+  == (Slow CPU, Telephony, SCSI, I2O, etc. )
+
+    == Don't forget to compile in support for hardware that you might need:
+    ==   SCSI:   HDs, CDROMs, etc.
+
+
+[ Network device support ]
+
+  * Network device support (CONFIG_NETDEVICES) [Y/n/?]
+    - YES: Enables the Linux Network device sublayer 
+
+
+  == Non-MASQ options skipped
+  ==   (Arcnet) 
+
+
+  * Dummy net driver support (CONFIG_DUMMY) [M/n/y/?] 
+    - YES:  Though OPTIONAL, this option can help when debugging problems
+
+
+  == Non-MASQ options skipped
+  == (EQL, NICs, Wireless, IrDA, ISDN, etc..)
+
+    == Don't forget to compile in support for hardware that you might need:
+    ==   NICs:   eth, tr, etc.
+    ==   MODEMs: ppp and/or slip
+    ==   WANs:   T1, T3, ISDN, etc.
+    ==   ISDN:   for internal ISDN modems
+
+
+ [ Character devices ]
+
+  == Don't forget to compile in serial port support for modem users
+  == Don't forget to compile in mouse support
+
+
+  == Non-MASQ options skipped
+  ==   (I2C, Watchdog cards, Ftape, Video for Linux, USB, etc. )
+
+
+[ File systems ]
+
+  == Non-MASQ options skipped
+  ==   (Quota, ISO9660, NTFS, etc )
+
+
+  * /proc filesystem support (CONFIG_PROC_FS) [Y/n/?]
+    - YES:  Required to dynamically configure the Linux forwarding 
+            and NATing systems
+
+
+  == Non-MASQ options skipped
+  ==   (network fs, NLS, video section, sound, kernel hacking)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+So go ahead and "exit" and you should be prompted to save your config.&#13;</P
+><P
+>NOTE: These are just the components you need for IP Masquerade.  You will need 
+to select whatever other options needed for your specific setup.  </P
+><P
+></P
+><UL
+><LI
+><P
+>   Now compile the kernel (make dep; make clean; make bzImage; make modules; 
+   make modules_install) , etc.  Again, it is beyond the scope of this HOWTO
+   if you have problems compiling your kernel.  Please see 
+   <A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+> for URLs to the KERNEL howto, etc.
+  </P
+></LI
+><LI
+><P
+>   You will then have move over the kernel binary, update your bootloader 
+   (LILO, Grub, etc.), and reboot.  If you have questions about kernel compiling, 
+   I highly recommend to consult some of the URLs above in this section.
+  </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="IPMASQ-COMPILING3.1.3"
+></A
+>3.2.3. Compiling Linux 2.0.x Kernels</H2
+><P
+><STRONG
+>Please see <A
+HREF="kernel-2.0.x-requirements.html"
+>Section 2.8</A
+> for any 
+required software, patches, etc.</STRONG
+></P
+><P
+></P
+><UL
+><LI
+><P
+>   First of all, you need the kernel source for 2.0.x (preferably the latest 
+   kernel version)
+
+  <P
+></P
+><UL
+><LI
+><P
+>     As the 2.0.x train progress, the compile-time options keep on changing.
+     As of this version, this section reflects the settings for a 2.0.39 
+     kernel.   
+    </P
+></LI
+></UL
+>
+
+  </P
+></LI
+><LI
+><P
+>   If this is your first time compiling the kernel, don't be scared. In fact, 
+   it's rather easy and it's covered in several URLs found in 
+   <A
+HREF="kernel-2.0.x-requirements.html"
+>Section 2.8</A
+>.  Please note that the instructions
+   included here is just one way to do build a kernel.  Please see the Kernel
+   HOWTO for full details.
+  </P
+><P
+>   <STRONG
+>NOTE: </STRONG
+>Please notice that it isn't 
+   recommended to put the new kernel sources into /usr/src/linux.  You 
+   should leave the original kernel sources that came with your Linux 
+   distribution in /usr/src/linux.  For more details on this 
+   topic, please read the "README" file in the top level directory of 
+   your kernel sources.
+  </P
+></LI
+><LI
+><P
+>   For this HOWTO example, create a directory called <TT
+CLASS="LITERAL"
+>/usr/src/kernel</TT
+>.  
+   Next, "cd" into this directory and download the newest 2.0.x kernel sources
+   into it.  Once downloaded, issue the following command: 
+   <TT
+CLASS="LITERAL"
+>tar xvzf linux-2.0.x.tar.gz</TT
+> .  Please substitute the "x" 
+   in the 2.0.x filename with the Linux 2.0 kernel version you downloaded.  
+  </P
+><P
+>   Once uncompressed, I recommend that you rename the directory from "linux" to
+   "linux-2.0.x" for clarity.  To do this, run the command <TT
+CLASS="LITERAL"
+>mv linux
+   linux-2.0.x</TT
+>.  Next, make sure there is a directory or symbolic 
+   link pointing to <TT
+CLASS="LITERAL"
+>/usr/src/kernel/linux</TT
+> ie.  run the 
+   command: <TT
+CLASS="LITERAL"
+>ln -s /usr/src/kernel/linux-2.0.x /usr/src/kernel/linux</TT
+>o
+   again subsituting the "x" for your proper kernel version.
+  </P
+></LI
+><LI
+><P
+>   Apply any appropriate or optional patches to the kernel source code.  By
+   default, stock Linux kernels do not require any specific patching in order 
+   for the system to work.  Features like IPPORTFW, PPTP, and Xwindows 
+   forwarders are optional but very useful.  Please refer to 
+   <A
+HREF="kernel-2.0.x-requirements.html"
+>Section 2.8</A
+> for URLs and the 
+   <A
+HREF="http://ipmasq.webhop.net/"
+TARGET="_top"
+>IP Masquerade Resources</A
+> 
+   for up-to-date information and patch URLs.
+  </P
+></LI
+><LI
+><P
+>   Now that the kernel is patched up (if required), here are the MINIMUM kernel
+   configuration options required to enable IP Masquerade functionality.  Please
+   understand that this HOWTO illustrates just ONE way to compile a kernel. The
+   main difference from this method vs. a different one is some people wish to
+   compile things either as modules OR monolithically right into the kernel.
+   Basically, compiling things as modules gives you added flexibility to what is
+   or isn't installed into the kernel (reduces unneeded memory use and allow for
+   drop-in upgrades [no need to reboot]) BUT they add more complexity to your
+   configuration. On the flip side, compiling things directly into the kernel
+   makes things simpler BUT you loose a level of flexibility. The following
+   example is a mixture of both built-in AND modules.
+  </P
+><P
+>   <STRONG
+>Side Note:</STRONG
+>
+   It is assumed that you will also configure the kernel to use your 
+   other installed hardware such as network interfaces, optional SCSI controllers,
+   etc. as well.  Please refer to the 
+   <A
+HREF="http://www.tldp.org/HOWTO/Kernel-HOWTO/index.html"
+TARGET="_top"
+>   Linux Kernel 
+   HOWTO</A
+> and the kernel source's "<TT
+CLASS="LITERAL"
+>README</TT
+>" file and 
+   "<TT
+CLASS="LITERAL"
+>Documentation/</TT
+>" directory for detailed help on compiling a kernel.
+  </P
+></LI
+></UL
+><P
+> 
+Please note the <STRONG
+>YES or NO ANSWERS</STRONG
+> to the 
+following options.  Not all options will be available without the proper 
+kernel patches described later in this HOWTO:</P
+><P
+>Run the following commands to configure your kernel:
+
+<P
+></P
+><UL
+><LI
+><P
+>   <TT
+CLASS="LITERAL"
+>cd /usr/src/kernel/linux</TT
+>
+  </P
+></LI
+><LI
+><P
+>   <TT
+CLASS="LITERAL"
+>make menuconfig</TT
+>
+  </P
+></LI
+></UL
+></P
+><P
+>The following kernel prompts reflect a 2.0.39 kernel: </P
+><P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[ Code maturity level options ]
+
+  * Prompt for development and/or incomplete code/drivers (CONFIG_EXPERIMENTAL) [Y/n/?] 
+    - YES: this will allow you to later select the IP Masquerade feature code 
+
+
+[ Loadable module support ]
+
+  * Enable loadable module support (CONFIG_MODULES) [Y/n/?] y
+    - YES: allows you to load kernel IP MASQ modules
+
+  * Set version information on all module symbols (CONFIG_MODVERSIONS) [N/y/?] y
+    - YES: allows newer kernels to load older modules if possible
+
+  * Kernel daemon support (e.g. autoload of modules) (CONFIG_KERNELD) [N/y/?] y
+    - OPTIONAL: Recommended : allows the kernel to load various kernel modules as 
+         it needs them
+
+
+[ General setup ]
+
+  == Non-MASQ options skipped
+  ==   (FPU, memory) 
+
+  * Networking support (CONFIG_NET) [Y/n/?] y
+    - YES: Enables the network subsystem
+
+  == Non-MASQ options skipped
+  ==   (memory, PCI, binary format, APM, etc.) 
+
+    == Don't forget to compile in support for hardware that you might need:
+    ==   IDE controllers, HDs, CDROMs, etc.
+
+
+[ Networking options ]
+
+  * Network firewalls (CONFIG_FIREWALL) [Y/n/?] y
+    - YES: Enables the IPFWADM firewall tool
+
+  == Non-MASQ options skipped
+  ==   (Aliasing)
+
+
+  * TCP/IP networking (CONFIG_INET) [Y/n/?] y
+    - YES: Enables the TCP/IP protocol
+
+  * IP: forwarding/gatewaying (CONFIG_IP_FORWARD) [N/y/?] y
+    - YES: Enables Linux network packet forwarding and routing 
+           - Controlled by IPFWADM
+
+  * IP: multicasting (CONFIG_IP_MULTICAST) [N/y/?] y
+    - OPTIONAL:  You can enable this if you want to be able to receive
+                 Multicast traffic.  Please note that your ISP must 
+                 support Multicast as well for this all to work
+                 
+  * IP: syn cookies (CONFIG_SYN_COOKIES) [Y/n/?] y
+    - YES: HIGHLY recommended for basic network security
+
+  * IP: firewalling (CONFIG_IP_FIREWALL) [Y/n/?] y
+    - YES: Enable the packet firewall features
+
+  * IP: firewall packet logging (CONFIG_IP_FIREWALL_VERBOSE) [Y/n/?] y
+    - YES: Allows the kernel to report back on various packets traversing
+           the firewall.
+
+  * IP: masquerading (CONFIG_IP_MASQUERADE [Y/n/?] y
+    - YES: Enable the kernel to perform IP MASQ NAT functionality
+
+  * IP: ipautofw masquerade support (EXPERIMENTAL) (CONFIG_IP_MASQUERADE_IPAUTOFW) [Y/n/?] n
+    - NO:  NOT Recommended : IPautofw is a legacy method of TCP/IP port forwarding.  
+           Though IPautofw works, IPPORTFW is a better choice.
+
+
+  * IP: ipportfw masq support (EXPERIMENTAL) (CONFIG_IP_MASQUERADE_IPPORTFW) [Y/n/?] y
+    - YES: This option is ONLY AVAILABLE VIA A PATCH for the 2.0.x kernels.  
+           With this option, external computers on the Internet can directly 
+           communicate to specified internal MASQed machines.  This feature is 
+           typically used to access internal SMTP, TELNET, and WWW servers.  
+           FTP port forwarding sometimes might require an additional patch as 
+           described in the FAQ section.  Additional information on port 
+           forwarding is available in the Forwards section of this HOWTO.
+
+
+  * IP: MS PPTP masq support (EXPERIMENTAL) (CONFIG_IP_MASQUERADE_PPTP) [N/y/?] (NEW) n
+    - OPTIONAL: Enabling this feature will allow internal MASQ clients to
+          properly connect to PPTP servers on the Internet.
+
+  * IP: MS PPTP Call ID masq support (CONFIG_IP_MASQUERADE_PPTP_MULTICLIENT) [N/y/?] (NEW) n
+    - OPTIONAL:  If you enabled the CONFIG_IP_MASQUERADE_PPTP above, this
+          option will allow for multiple internal PPTP clients behind the MASQ 
+          server to communicate to the same PPTP server.
+
+  * IP: MS PPTP masq debugging (DEBUG_IP_MASQUERADE_PPTP) [N/y/?] n
+    - OPTIONAL:  NOT recommended : This is not required for IP MASQ or MASQing PPTP 
+           connections unless you need additional troubleshooting help.  If enabled, 
+           this can fill up your logs quickly.
+
+  * IP: MS PPTP masq verbose debugging (DEBUG_IP_MASQUERADE_PPTP_VERBOSE) [N/y/?] (NEW) n
+    - OPTIONAL: NOT Recommended : If you enabled the DEBUG_IP_MASQUERADE_PPTP
+           option above, this will make the logging even more verbose.
+
+  * IP: IPSEC ESP &#38; ISAKMP masq support (EXPERIMENTAL) * (CONFIG_IP_MASQUERADE_IPSEC) [N/y/?] m
+    - OPTIONAL: This option allows for some forms of IPSEC tunnels to be
+           masquraded
+
+  * IP: IPSEC masq table lifetime (minutes) (CONFIG_IP_MASQUERADE_IPSEC_EXPIRE) * [30] (NEW) 
+    - OPTIONAL: This feature allows to change the MASQ table timeouts so that
+      idle IPSEC tunnels won't be prematurely disconnected.
+
+  * IP: Disable inbound ESP destination guessing * (CONFIG_IP_MASQUERADE_IPSEC_NOGUESS) [N/y/?] n
+    - OPTIONAL: This feature allows the kernel to guess where the fully encrypted IPSEC VPN 
+           might be going and add it to the MASQ table.
+
+  * IP: IPSEC masq debugging (DEBUG_IP_MASQUERADE_IPSEC) [N/y/?] ? n
+    - OPTIONAL:  NOT recommended : This is not required for IP MASQ or MASQing IPSEC 
+           connections unless you need additional troubleshooting help.  If enabled, 
+           this can fill up your logs quickly.
+
+  * IP: IPSEC masq verbose debugging (DEBUG_IP_MASQUERADE_IPSEC_VERBOSE) [N/y/?] (NEW) n
+    - OPTIONAL: NOT Recommended : If you enabled the DEBUG_IP_MASQUERADE_IPSEC
+           option above, this will make the logging even more verbose.
+
+
+  * IP: ICMP masquerading (CONFIG_IP_MASQUERADE_ICMP) [Y/n/?]
+    - YES: Enable support for masquerading ICMP packets. Though thought of as 
+           optional, many programs will NOT function properly with out ICMP 
+           support.
+
+  * IP: transparent proxy support (EXPERIMENTAL) (CONFIG_IP_TRANSPARENT_PROXY) [N/y/?] n
+    - OPTIONAL:  Not needed for normal MASQ functionality though people who 
+           want to do transparent proxy via Squid will want this.  Please note
+           that there is a PERFORMANCE PENALTY enabling this feature.
+
+  * IP: loose UDP port managing (EXPERIMENTAL) (CONFIG_IP_MASQ_LOOSE_UDP) [Y/n/?] 
+    - YES: This option is ONLY AVAILABLE VIA A PATCH for the 2.0.x kernels.
+           With this option, internally masqueraded computers can play 
+           NAT-friendly games over the Internet.  Explicit details are given 
+           in the FAQ section of this HOWTO.
+
+  * IP: always defragment (CONFIG_IP_ALWAYS_DEFRAG) [Y/n/?]
+    - YES:  This feature optimizes IP MASQ connections
+
+  == Non-MASQ options skipped
+  ==   (Accounting)
+
+
+  * IP: optimize as router not host (CONFIG_IP_ROUTER) [Y/n/?] 
+    - YES:  This optimizes the kernel for the network subsystem 
+
+  == Non-MASQ options skipped
+  ==   (Tunneling, Mcast routing, RARP, PMTU, etc.)
+
+
+  * IP: Drop source routed frames (CONFIG_IP_NOSR) [Y/n/?]
+    - YES: HIGHLY recommended for basic network security
+
+  == Non-MASQ options skipped
+  ==   (IPX, Bridging, SCSI, etc.)
+
+    == Don't forget to compile in support for hardware that you might need:
+    ==   SCSI controllers, HDs, CDROMs, etc.
+
+
+[ Network device support ]
+
+  * Network device support (CONFIG_NETDEVICES) [Y/n/?]
+    - YES: Enables the Linux Network device sublayer 
+
+
+  == Non-MASQ options skipped
+  ==   (Dummy, EQL, PPP, SLIP, NICs, Wireless, etc.) 
+
+    == Don't forget to compile in support for hardware that you might need:
+    ==   NICs:   eth, tr, etc.
+    ==   MODEMs: ppp and/or slip
+    ==   WANs:   T1, T3, ISDN, etc.
+    ==   ISDN:   for internal ISDN modems
+
+
+[ File systems ]
+
+  == Non-MASQ options skipped
+  ==   (Quota, ISO9660, Codepages, NTFS, etc )
+
+
+  * /proc filesystem support (CONFIG_PROC_FS) [Y/n/?]
+    - YES:  Required to dynamically configure the Linux forwarding 
+            and NATing systems
+  
+
+ [ Character devices ]
+
+  == Non-MASQ options skipped
+  ==   (multi-port serial, parallel, mice, Ftape, Sound, etc. )
+
+    == Don't forget to compile in serial port support for modem users
+    == Don't forget to compile in mouse support
+&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>So go ahead and "exit" and you should be prompted to save your config. </P
+><P
+>NOTE: These are only components for IP Masquerade functionality. You may need 
+to also select additional options to match your specific network and hardware setup.  </P
+><P
+></P
+><UL
+><LI
+><P
+>   Now compile the kernel (make dep; make clean; make bzImage; make modules; 
+   make modules_install) , etc.  Again, it is beyond the scope of this HOWTO
+   if you have problems compiling your kernel.  Please see 
+   <A
+HREF="kernel-2.0.x-requirements.html"
+>Section 2.8</A
+> for URLs to the KERNEL howto, etc.
+  </P
+></LI
+><LI
+><P
+>   You will then have move over the kernel binary, update your bootloader 
+   (LILO, Grub, etc.), and reboot.  If you have questions about kernel compiling, 
+   I highly recommend to consult some of the URLs above in this section.
+  </P
+></LI
+></UL
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="ipmasq-compiling3.0.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="addressing-the-lan.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Compiling a new kernel if needed</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c472.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Assigning Private Network IP Addresses to the Internal LAN</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

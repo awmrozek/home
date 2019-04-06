@@ -1,0 +1,1753 @@
+<HTML
+><HEAD
+><TITLE
+>Step 1: Which services do we really need?</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Security Quick-Start HOWTO for  Red Hat  Linux"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Foreword"
+HREF="foreword.html"><LINK
+REL="NEXT"
+TITLE="Step 2: Updating"
+HREF="updates.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Security Quick-Start HOWTO for  Red Hat  Linux</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="foreword.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="updates.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="SERVICES">3. Step 1: Which services do we really need?</H1
+><P
+> In this section we will see which services are running on our freshly installed
+ system, decide which we really need, and do away with the rest. If you are
+ not familiar with how servers and TCP connections work, you may want to read
+ the section on <A
+HREF="appendix.html#SERVERSETC"
+>servers and ports</A
+> in the
+ Appendix first. If not familiar with the <B
+CLASS="COMMAND"
+>netstat</B
+> utility,
+ you may want to read a quick <A
+HREF="appendix.html#NETSTAT"
+>overview</A
+> of it
+ beforehand. There is also a section in the Appendix on <A
+HREF="appendix.html#PORTS"
+>ports</A
+>, and corresponding services. You may want to 
+ look that over too.</P
+><P
+> Our goal is to turn off as many services as possible. If we can turn them 
+ all off, or at least off to outside connections, so much the better. Some
+ rules of thumb we will use to guide us:</P
+><P
+> <P
+></P
+><UL
+><LI
+><P
+>   It is perfectly possible to have a fully functional Internet connection
+   with no servers running that are accessible to outside connections. Not 
+   only possible, but desirable in many cases. The principle here is that 
+   you will never be successfully broken into via a port that is not opened 
+   because no server is listening on it. No server == no port open == not
+   vulnerable. At least to outside connections.
+  </P
+></LI
+><LI
+><P
+>   If you don't recognize a particular service, chances are good you don't 
+   really need it. We will assume that and so we'll turn it off. This may 
+   sound dangerous, but is a good rule of thumb to go by. 
+  </P
+></LI
+><LI
+><P
+>   Some services are just not intended to be run over the Internet -- even 
+   if you decide it is something you really do need. We'll flag these
+   as dangerous, and address these in later sections, should you decide 
+   you do really need them, and there is no good alternative.
+  </P
+></LI
+></UL
+></P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AUDIT">3.1. System Audit</H2
+><P
+> So what is really running on our system anyway? Let's not take anything for 
+ granted about what <SPAN
+CLASS="QUOTE"
+>"should"</SPAN
+> be running, or what we
+ <SPAN
+CLASS="QUOTE"
+>"think"</SPAN
+> is running.&#13;</P
+><P
+>  Which services get installed and started will vary greatly depending on
+  which version of Red Hat, and which installation options were chosen. 
+  Earlier releases were very much prone to start many services and then let 
+  the user figure out which ones were needed, and which ones weren't. Recent 
+  versions are much more cautious. But this makes providing a ready made list 
+  of likely services impossible. Not to worry, as we shouldn't trust what is 
+  <EM
+>supposed</EM
+> to be running anyway. What we need to do 
+  is list for ourselves all running services. &#13;</P
+><P
+> Now open an <B
+CLASS="COMMAND"
+>xterm</B
+>, and <B
+CLASS="COMMAND"
+>su</B
+> to root.
+ You'll need to widen the window wide so the lines do not wrap. Use this
+ command: <TT
+CLASS="LITERAL"
+>netstat -tap |grep LISTEN</TT
+>. This will give us a
+ list of all currently running servers as indicated by the keyword
+ <TT
+CLASS="LITERAL"
+>LISTEN</TT
+>, along with the <SPAN
+CLASS="QUOTE"
+>"PID"</SPAN
+> and
+ <SPAN
+CLASS="QUOTE"
+>"Program Name"</SPAN
+> that started each particular service.</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13;# netstat -tap |grep LISTEN
+  *:exec               *:*        LISTEN    988/inetd          
+  *:login              *:*        LISTEN    988/inetd          
+  *:shell              *:*        LISTEN    988/inetd          
+  *:printer            *:*        LISTEN    988/inetd          
+  *:time               *:*        LISTEN    988/inetd          
+  *:x11                *:*        LISTEN    1462/X              
+  *:http               *:*        LISTEN    1078/httpd          
+  bigcat:domain        *:*        LISTEN    956/named           
+  bigcat:domain        *:*        LISTEN    956/named           
+  *:ssh                *:*        LISTEN    972/sshd            
+  *:auth               *:*        LISTEN    388/in.identd
+  *:telnet             *:*        LISTEN    988/inetd          
+  *:finger             *:*        LISTEN    988/inetd
+  *:sunrpc             *:*        LISTEN    1290/portmap
+  *:ftp                *:*        LISTEN    988/inetd
+  *:smtp               *:*        LISTEN    1738/sendmail: accepting connections 
+  *:1694               *:*        LISTEN    1319/rpc.mountd
+  *:netbios-ssn        *:*        LISTEN    422/smbd
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>  Red Hat 7.x and Mandrake 8.x and later users will have
+ <TT
+CLASS="LITERAL"
+>xinetd</TT
+> in place of <TT
+CLASS="LITERAL"
+>inetd</TT
+>. Note the
+ first three columns are cropped above for readability. If your list is as
+ long as the example, you have some work ahead of you! It is highly unlikely
+ that you really need anywhere near this number of servers running. </P
+><P
+> Please be aware that the example above is just one of many, many possible
+ system configurations. Yours probably does look very different.</P
+><P
+> You don't understand what any of this is telling you? Hopefully then, you've
+ read the <B
+CLASS="COMMAND"
+>netstat</B
+> <A
+HREF="appendix.html#NETSTAT"
+>tutorial</A
+>
+ in the Appendix, and understand how it works. Understanding exactly what each
+ server is in the above example, and what it does, is beyond the scope of this
+ document. You will have to check your system's documentation (e.g.
+ Installation Guide, man pages, etc) if that service is important to you.  For
+ example, does <SPAN
+CLASS="QUOTE"
+>"exec"</SPAN
+>, <SPAN
+CLASS="QUOTE"
+>"login"</SPAN
+>, and <SPAN
+CLASS="QUOTE"
+>"shell"</SPAN
+> 
+ sound important? Yes, but these are not what they may sound like. They 
+ are actually <B
+CLASS="COMMAND"
+>rexec</B
+>, <B
+CLASS="COMMAND"
+>rlogin</B
+>, and
+ <B
+CLASS="COMMAND"
+>rsh</B
+>, the <SPAN
+CLASS="QUOTE"
+>"r"</SPAN
+> (for remote) commands. These are 
+ antiquated, unnecessary, and in fact, are very dangerous if exposed to the
+ Internet.&#13;</P
+><P
+> Let's make a few quick assumptions about what is necessary and unnecessary,
+ and therefore what goes and what stays on bigcat. Since we are running a
+ desktop on bigcat, <SPAN
+CLASS="APPLICATION"
+>X11</SPAN
+> of course needs to stay. If
+ bigcat were a dedicated server of some kind, then X11 would be unnecessary. If
+ there is a printer physically attached, the printer (lp) daemon should stay.
+ Otherwise, it goes. Print servers may sound harmless, but are potential
+ targets too since they can hold ports open. If we plan on logging
+ <EM
+>in to</EM
+> bigcat <EM
+>from</EM
+> other hosts,
+ sshd (Secure SHell Daemon) would be necessary. If we have Microsoft hosts on
+ our LAN, we probably want <SPAN
+CLASS="APPLICATION"
+>Samba</SPAN
+>, so
+ <SPAN
+CLASS="APPLICATION"
+>smbd</SPAN
+> should stay. Otherwise, it is completely
+ unnecessary. Everything else in this example is optional and not required for
+ a normally functioning system, and should probably go. See anything that you
+ don't recognize? Not sure about? It goes!&#13;</P
+><P
+> To sum up: since bigcat is a desktop with a printer attached, we will 
+ need <SPAN
+CLASS="QUOTE"
+>"x11"</SPAN
+>, <SPAN
+CLASS="QUOTE"
+>"printer"</SPAN
+>. bigcat is on a LAN with 
+ MS hosts, and shares files and printing with them, so
+ <SPAN
+CLASS="QUOTE"
+>"netbios-ssn"</SPAN
+> (<B
+CLASS="COMMAND"
+>smbd</B
+>) is desired. We will also
+ need <SPAN
+CLASS="QUOTE"
+>"ssh"</SPAN
+> so we can login from other machines. Everything else
+ is unnecessary for this particular case. &#13;</P
+><P
+> Nervous about this? If you want, you can make notes of any changes you make
+ or save the list of servers you got from <B
+CLASS="COMMAND"
+>netstat</B
+>, with
+ this command: <TT
+CLASS="LITERAL"
+>netstat -tap |grep LISTEN &#62; ~/services.lst</TT
+>.
+ That will save it your home directory with the name of
+ <SPAN
+CLASS="QUOTE"
+>"services.lst"</SPAN
+> for future reference.</P
+><P
+> This is to not say that the ones we have decided to keep are inherently safe.
+ Just that we probably need these. So we will have to deal with these via
+ firewalling or other means (addressed below).&#13;</P
+><P
+> It is worth noting that the <B
+CLASS="COMMAND"
+>telnet</B
+> and
+ <B
+CLASS="COMMAND"
+>ftp</B
+> daemons in the above example are
+ <EM
+>servers</EM
+>, aka <SPAN
+CLASS="QUOTE"
+>"listeners"</SPAN
+>. These accept
+ incoming connections to you. You do not need, or want, these just to use
+ <B
+CLASS="COMMAND"
+>ftp</B
+> or <B
+CLASS="COMMAND"
+>telnet</B
+>
+ <EM
+>clients</EM
+>. For instance, you can download files from an
+ FTP site with just an <B
+CLASS="COMMAND"
+>ftp</B
+> client. Running an
+ <SPAN
+CLASS="APPLICATION"
+>ftp</SPAN
+> server on your end is not required at all, and
+ has serious security implications.
+ </P
+><P
+> There may be individual situations where it is desirable to make exceptions
+ to the conclusions reached above. See <A
+HREF="services.html#EXCEPTIONS"
+>below</A
+>.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="DANGER">3.2. The Danger Zone (or r00t m3 pl34s3)</H2
+><P
+> The following is a list of services that should <EM
+>not</EM
+> be
+ run over the Internet. Either disable these (see below), uninstall, or if you
+ really do need these services running locally, make sure they are the
+ current, patched versions <EM
+>and</EM
+> that they are effectively
+ firewalled. And if you don't have a firewall in place now, turn them off
+ until it is up and verified to be working properly. These are potentially
+ insecure by their very nature, and as such are prime cracker targets. &#13;</P
+><P
+> <P
+></P
+><UL
+><LI
+><P
+>   <SPAN
+CLASS="APPLICATION"
+>NFS</SPAN
+> (Network File System) and related services,
+   including <SPAN
+CLASS="APPLICATION"
+>nfsd</SPAN
+>,
+   <SPAN
+CLASS="APPLICATION"
+>lockd</SPAN
+>, <SPAN
+CLASS="APPLICATION"
+>mountd</SPAN
+>,
+   <SPAN
+CLASS="APPLICATION"
+>statd</SPAN
+>, <SPAN
+CLASS="APPLICATION"
+>portmapper</SPAN
+>,
+   etc. NFS is the standard Unix service for sharing file systems across a
+   network. Great system for LAN usage, but dangerous over the Internet.
+   And its completely unnecessary on a stand alone system.
+  </P
+></LI
+><LI
+><P
+>   rpc.* services, Remote Procedure Call.*, typically NFS and NIS related (see
+   above). 
+  </P
+></LI
+><LI
+><P
+>   Printer services (<SPAN
+CLASS="APPLICATION"
+>lpd</SPAN
+>).
+  </P
+></LI
+><LI
+><P
+>   The so-called r* (for <SPAN
+CLASS="QUOTE"
+>"remote"</SPAN
+>, i.e. Remote SHell) services:
+   <SPAN
+CLASS="APPLICATION"
+>rsh</SPAN
+>, <SPAN
+CLASS="APPLICATION"
+>rlogin</SPAN
+>,
+   <SPAN
+CLASS="APPLICATION"
+>rexec</SPAN
+>, <SPAN
+CLASS="APPLICATION"
+>rcp</SPAN
+> etc.
+   Unnecessary, insecure and potentially dangerous, and better utilities are
+   available if these capabilities are needed. <SPAN
+CLASS="APPLICATION"
+>ssh</SPAN
+>
+   will do everything these command do, and in a much more sane way. See the
+   man pages for each if curious.  These will probably show in
+   <B
+CLASS="COMMAND"
+>netstat</B
+> output without the <SPAN
+CLASS="QUOTE"
+>"r"</SPAN
+>:
+   <B
+CLASS="COMMAND"
+>rlogin</B
+> will be just <SPAN
+CLASS="QUOTE"
+>"login"</SPAN
+>, etc.
+  </P
+></LI
+><LI
+><P
+>   <SPAN
+CLASS="APPLICATION"
+>telnet</SPAN
+> server. There is no reason for this
+   anymore. Use <SPAN
+CLASS="APPLICATION"
+>sshd</SPAN
+> instead.
+  </P
+></LI
+><LI
+><P
+>   <SPAN
+CLASS="APPLICATION"
+>ftp</SPAN
+> server. There are better, safer ways for
+   most systems to exchange files like <B
+CLASS="COMMAND"
+>scp</B
+> or 
+   via <B
+CLASS="COMMAND"
+>http</B
+> (see below). <SPAN
+CLASS="APPLICATION"
+>ftp</SPAN
+> is a
+   proper protocol only for someone who is running a dedicated ftp server, and
+   who has the time and skill to keep it buttoned down. For everyone else, it is
+   potentially big trouble. 
+  </P
+></LI
+><LI
+><P
+>   <SPAN
+CLASS="APPLICATION"
+>BIND</SPAN
+> (<B
+CLASS="COMMAND"
+>named</B
+>), DNS server
+   package. With some work, this can be done without great risk, but is not
+   necessary in many situations, and requires special handling no matter
+   how you do it. See the sections on <A
+HREF="services.html#EXCEPTIONS"
+>Exceptions</A
+> and special handling for <A
+HREF="firewalls.html#INDAPPS"
+>individual applications</A
+>. 
+  </P
+></LI
+><LI
+><P
+>   Mail Transport Agent, aka <SPAN
+CLASS="QUOTE"
+>"MTA"</SPAN
+>
+   (<SPAN
+CLASS="APPLICATION"
+>sendmail</SPAN
+>, <SPAN
+CLASS="APPLICATION"
+>exim</SPAN
+>,
+   <SPAN
+CLASS="APPLICATION"
+>postfix</SPAN
+>, <SPAN
+CLASS="APPLICATION"
+>qmail</SPAN
+>).
+   Most installations on single computers will not really need this. If you are not
+   going to be directly receiving mail from Internet hosts (as a designated MX
+   box), but will rather use the POP server of your ISP, then it is not
+   needed. You may however need this if you are receiving mail
+   <EM
+>directly</EM
+> from other hosts on your LAN, but initially
+   it's safer to disable this. Later, you can enable it over the local
+   interface once your firewall and access policies have been implemented.
+  
+  </P
+></LI
+></UL
+></P
+><P
+> This is not necessarily a definitive list. Just some common services that 
+ are sometimes started on default  Red Hat   installations. And conversely, this does not imply that other
+ services are inherently safe. </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="STOPSERVICES">3.3. Stopping Services</H2
+><P
+> The next step is to find where each server on our kill list is being started. 
+ If it is not obvious from the <B
+CLASS="COMMAND"
+>netstat</B
+> output, use
+ <B
+CLASS="COMMAND"
+>ps</B
+>, <B
+CLASS="COMMAND"
+>find</B
+>, <B
+CLASS="COMMAND"
+>grep</B
+> or
+ <B
+CLASS="COMMAND"
+>locate</B
+> to find more information from the <SPAN
+CLASS="QUOTE"
+>"Program
+ name"</SPAN
+> or <SPAN
+CLASS="QUOTE"
+>"PID"</SPAN
+> info in the last column. There is examples
+ of this in the <A
+HREF="appendix.html#PID"
+>Process Owner</A
+> section in the
+ <B
+CLASS="COMMAND"
+>netstat</B
+> Tutorial of the Appendix. If the service name or
+ port number do not look familiar to you, you might get a real brief
+ explanation in your <TT
+CLASS="FILENAME"
+>/etc/services</TT
+> file.</P
+><P
+> <B
+CLASS="COMMAND"
+>chkconfig</B
+> is a very useful command for controlling
+ services that are started via init scripts (see example below). Also, where
+ <SPAN
+CLASS="APPLICATION"
+>xinetd</SPAN
+> is used, it can control those services as
+ well. <B
+CLASS="COMMAND"
+>chkconfig</B
+> can tell us what services the system is
+ configured to run, but not necessarily all services that are indeed actually 
+ running. Or what services may be started by other means, e.g. from
+ <TT
+CLASS="FILENAME"
+>rc.local</TT
+>. It is a configuration tool, more than a 
+ real time system auditing too.</P
+><P
+> Skeptical that we are going to break your system, and the pieces won't go 
+ back together again? If so, take this approach: turn off everything listed 
+ above in <SPAN
+CLASS="QUOTE"
+>"The Danger Zone"</SPAN
+>, and run your system for a while. OK? 
+ Try stopping one of the ones we found to be <SPAN
+CLASS="QUOTE"
+>"unnecessary"</SPAN
+> above. 
+ Then, run the system for a while. Keep repeating this process, until you get 
+ to the bare minimum. If this works, then make the changes permanent (see
+ below).</P
+><P
+> The ultimate objective is not just to stop the service now, but to make sure
+ it is stopped permanently! So whatever steps you take here, be sure to check
+ after your next reboot.</P
+><P
+> There are various places and ways to start system services. Let's look at the
+ most common ways this is done, and is probably how your system works. System
+ services are typically either started by <SPAN
+CLASS="QUOTE"
+>"init"</SPAN
+> scripts, or by
+ <B
+CLASS="COMMAND"
+>inetd</B
+> (or its replacement <B
+CLASS="COMMAND"
+>xinetd</B
+>) on
+ most distributions. &#13;</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="INITS">3.3.1. Stopping Init Services</H3
+><P
+> Init services are typically started automatically during the boot process, or
+ during a runlevel change. There is a naming scheme that uses symlinks to
+ determine which services are to be started, or stopped, at any given
+ runlevel. The scripts themselves should be in
+ <TT
+CLASS="FILENAME"
+>/etc/init.d/</TT
+> (or possibly
+ <TT
+CLASS="FILENAME"
+>/etc/rc.d/init.d/</TT
+>  for older versions of
+ Red Hat).  </P
+><P
+> You can get a listing of these scripts:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13;  # ls -l /etc/rc.d/init.d/ | less 
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> To stop a running service now, as root:
+ </P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; # /etc/init.d/&#60;$SERVICE_NAME&#62; stop
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> Where <SPAN
+CLASS="QUOTE"
+>"$SERVICE_NAME"</SPAN
+> is the name of the init script, which is
+ often, but not always, the same as the service name itself.  Older
+ Red Hat versions may use the path <TT
+CLASS="FILENAME"
+>/etc/rc.d/init.d/</TT
+>
+ instead. &#13;</P
+><P
+> This only stops this particular service now. It will restart again on the 
+ next reboot, or runlevel change, unless additional steps are taken. So this is 
+ really a two step process for init type services.</P
+><P
+> <B
+CLASS="COMMAND"
+>chkconfig</B
+> can be used to see what services are 
+ started at each runlevel, and to turn off any unneeded services. To view 
+ <EM
+>all services</EM
+> under its control, type this command
+ in an <SPAN
+CLASS="APPLICATION"
+>xterm</SPAN
+>:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> 
+ # chkconfig --list | less
+ 
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> To view only the ones that are <SPAN
+CLASS="QUOTE"
+>"on"</SPAN
+>:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> 
+ # chkconfig --list | grep "\bon\b" | less
+ 
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> The first column is the service name, and the remaining columns are the various 
+ runlevels. We need generally only worry about runlevels 3 (boot
+ to text console login) and 5 (boot straight to X11 login).
+ <SPAN
+CLASS="APPLICATION"
+>xinetd</SPAN
+> services won't have columns, since that 
+ aspect would be controlled by <SPAN
+CLASS="APPLICATION"
+>xinetd</SPAN
+> itself.&#13;</P
+><P
+> Examples of commands to turn services <SPAN
+CLASS="QUOTE"
+>"off"</SPAN
+>:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> 
+ # chkconfig portmapper off
+ # chkconfig nfs off
+ # chkconfig telnet off
+ # chkconfig rlogin off
+ 
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> Note that the last two are <SPAN
+CLASS="APPLICATION"
+>xinetd</SPAN
+> services.
+ A very easy and nifty tool to use! Red Hat also includes <B
+CLASS="COMMAND"
+>ntsysv</B
+>
+ and <B
+CLASS="COMMAND"
+>tksysv</B
+> (GUI) for runlevel and service configuration.
+ See the man pages for additional command line options.</P
+><P
+> Another option here is to uninstall a package if you know you do not need it. 
+ This is a pretty sure-fire, permanent fix. This also alleviates the
+ potential problem of keeping all installed packages updated and current (Step
+ 2).  
+ <SPAN
+CLASS="APPLICATION"
+>RPM</SPAN
+> makes it very easy to re-install a package 
+ should you change your mind.
+ </P
+><P
+> To uninstall packages with <SPAN
+CLASS="APPLICATION"
+>RPM</SPAN
+>: &#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; # rpm -ev telnet-server  rsh  rsh-server
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> The above command would uninstall the <SPAN
+CLASS="QUOTE"
+>"telnet server"</SPAN
+> package 
+ (but not telnet client!), <SPAN
+CLASS="QUOTE"
+>"rsh"</SPAN
+> client and <SPAN
+CLASS="QUOTE"
+>"rsh
+ server"</SPAN
+> packages in one command. Red Hat also includes
+ <SPAN
+CLASS="APPLICATION"
+>gnorpm</SPAN
+>, a GUI <SPAN
+CLASS="APPLICATION"
+>RPM</SPAN
+> 
+ management utility which can do this as well.&#13;</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="INETD">3.3.2. Inetd</H3
+><P
+> <SPAN
+CLASS="APPLICATION"
+>Inetd</SPAN
+> is called a <SPAN
+CLASS="QUOTE"
+>"super-daemon"</SPAN
+> 
+ because it is used to spawn sub-daemons. <B
+CLASS="COMMAND"
+>inetd</B
+> itself will
+ generally be started via init scripts, and will <SPAN
+CLASS="QUOTE"
+>"listen"</SPAN
+> on the
+ various ports as determined by which services are enable in its configuration
+ file, <TT
+CLASS="FILENAME"
+>/etc/inetd.conf</TT
+>. Any service listed here will be 
+ under the control of <B
+CLASS="COMMAND"
+>inetd</B
+>. Likewise, any of the listening 
+ servers in <B
+CLASS="COMMAND"
+>netstat</B
+> output that list <SPAN
+CLASS="QUOTE"
+>"inetd"</SPAN
+> 
+ in the last column under <SPAN
+CLASS="QUOTE"
+>"Program Name"</SPAN
+>, will have been started
+ by <B
+CLASS="COMMAND"
+>inetd</B
+>.  You will have to adjust the
+ <B
+CLASS="COMMAND"
+>inetd</B
+> configuration to stop these services.
+ <B
+CLASS="COMMAND"
+>xinetd</B
+> is an enhanced <B
+CLASS="COMMAND"
+>inetd</B
+> replacement,
+ and is configured differently (see next section below). &#13;</P
+><P
+> Below is a partial snippet from a typical <TT
+CLASS="FILENAME"
+>inetd.conf</TT
+>. Any 
+ service with a <SPAN
+CLASS="QUOTE"
+>"#"</SPAN
+> at the beginning of the line is
+ <SPAN
+CLASS="QUOTE"
+>"commented out"</SPAN
+>, and thus ignored by <B
+CLASS="COMMAND"
+>inetd</B
+>,
+ and consequently disabled.</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13;#
+# inetd.conf  This file describes the services that will be available
+#    through the INETD TCP/IP super server.  To re-configure
+#    the running INETD process, edit this file, then send the
+#    INETD process a SIGHUP signal.
+#
+# Version:  @(#)/etc/inetd.conf  3.10  05/27/93
+#
+# Authors:  Original taken from BSD UNIX 4.3/TAHOE.
+#    Fred N. van Kempen, &#60;waltje@uwalt.nl.mugnet.org&#62;
+#
+# Modified for Debian Linux by Ian A. Murdock &#60;imurdock@shell.portal.com&#62;
+#
+# Echo, discard, daytime, and chargen are used primarily for testing.
+#
+# To re-read this file after changes, just do a 'killall -HUP inetd'
+#
+#echo  stream  tcp  nowait  root  internal
+#echo  dgram  udp   wait    root  internal
+#discard  stream  tcp  nowait  root  internal
+#discard  dgram  udp   wait    root  internal
+#daytime  stream tcp   nowait  root  internal
+#daytime  dgram  udp   wait    root  internal
+#chargen  stream tcp   nowait  root  internal
+#chargen  dgram  udp   wait    root  internal
+time  stream    tcp   nowait  root  internal
+#
+# These are standard services.
+#
+#ftp     stream  tcp   nowait  root  /usr/sbin/tcpd  in.ftpd -l -a
+#telnet  stream  tcp   nowait  root  /usr/sbin/tcpd  in.telnetd
+#
+# Shell, login, exec, comsat and talk are BSD protocols.
+#
+#shell  stream  tcp  nowait  root  /usr/sbin/tcpd  in.rshd
+#login  stream  tcp  nowait  root  /usr/sbin/tcpd  in.rlogind
+#exec   stream  tcp  nowait  root  /usr/sbin/tcpd  in.rexecd
+#comsat dgram   udp  wait    root  /usr/sbin/tcpd  in.comsat
+#talk   dgram   udp  wait    root  /usr/sbin/tcpd  in.talkd
+#ntalk  dgram   udp  wait    root  /usr/sbin/tcpd  in.ntalkd
+#dtalk  stream  tcp  wait    nobody /usr/sbin/tcpd in.dtalkd
+#
+# Pop and imap mail services et al
+#
+#pop-2   stream  tcp     nowait  root    /usr/sbin/tcpd  ipop2d
+pop-3    stream  tcp     nowait  root    /usr/sbin/tcpd  ipop3d
+#imap    stream  tcp     nowait  root    /usr/sbin/tcpd  imapd
+#
+# The Internet UUCP service.
+#
+#uucp  stream tcp nowait uucp /usr/sbin/tcpd  /usr/lib/uucp/uucico -l
+#
+
+&#60;snip&#62;
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> The above example has two services enabled: <B
+CLASS="COMMAND"
+>time</B
+> and 
+ <B
+CLASS="COMMAND"
+>pop3</B
+>. To disable these, all we need is to open the 
+ file with a text editor, comment out the two services with a
+ <SPAN
+CLASS="QUOTE"
+>"#"</SPAN
+>, save the file, and then restart <B
+CLASS="COMMAND"
+>inetd</B
+>
+ (as root): &#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; 
+  # /etc/rc.d/init.d/inetd restart  
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> Check your logs for errors, and run <B
+CLASS="COMMAND"
+>netstat</B
+> again to 
+ verify all went well.&#13;</P
+><P
+> A quicker way of getting the same information, using <B
+CLASS="COMMAND"
+>grep</B
+>:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; $ grep  -v '^#' /etc/inetd.conf
+ time     stream  tcp     nowait  root  internal
+ pop-3    stream  tcp     nowait  root  /usr/sbin/tcpd  ipop3d
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> Again, do you see anything there that you don't know what it is? Then in
+ all likelihood you are not using it, and it should be disabled.&#13;</P
+><P
+> Unlike the init services configuration, this is a lasting change so only 
+ the one step is required.</P
+><P
+> Let's expose one myth that gets tossed around: you shouldn't disable a 
+ service by commenting out, or removing, entries from 
+ <TT
+CLASS="FILENAME"
+>/etc/services</TT
+>. This may have the desired effect 
+ in some cases, but is not the right way to do it, and may interfere 
+ with the normal operation of other system utilities. &#13;</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="XINETD">3.3.3. Xinetd</H3
+><P
+><SPAN
+CLASS="APPLICATION"
+>xinetd</SPAN
+> is an <SPAN
+CLASS="APPLICATION"
+>inetd</SPAN
+> replacement with 
+enhancements.  Red Hat includes <SPAN
+CLASS="APPLICATION"
+>xinetd</SPAN
+> with 
+7.0 and later releases.  It essentially serves the same purpose as 
+<SPAN
+CLASS="APPLICATION"
+>inetd</SPAN
+>, but the 
+configuration is different. The configuration can be in the file 
+<TT
+CLASS="FILENAME"
+>/etc/xinetd.conf</TT
+>, or individual files in the directory 
+<TT
+CLASS="FILENAME"
+>/etc/xinetd.d/</TT
+>. 
+ Configuration of individual services will be in the individual
+files under <TT
+CLASS="FILENAME"
+>/etc/xinetd.d/*</TT
+>. Turning off
+<SPAN
+CLASS="APPLICATION"
+>xinetd</SPAN
+> services is done by either deleting the
+corresponding configuration section, or file. Or by using your text editor and
+simply setting <TT
+CLASS="LITERAL"
+>disable = yes </TT
+> for the appropriate service.
+ Or by using <B
+CLASS="COMMAND"
+>chkconfig</B
+>.  Then, 
+<SPAN
+CLASS="APPLICATION"
+>xinetd</SPAN
+> will need to be restarted. See <TT
+CLASS="LITERAL"
+>man
+xinetd</TT
+> and <TT
+CLASS="LITERAL"
+>man xinetd.conf</TT
+> for syntax and
+configuration options. A sample <B
+CLASS="COMMAND"
+>xinetd</B
+> configuration:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; # default: on
+ # description: The wu-ftpd FTP server serves FTP connections. It uses \
+ #       normal, unencrypted usernames and passwords for authentication.
+ service ftp
+ {
+        disable                 = no
+        socket_type             = stream
+        wait                    = no
+        user                    = root
+        server                  = /usr/sbin/in.ftpd
+        server_args             = -l -a
+        log_on_success          += DURATION USERID
+        log_on_failure          += USERID
+        nice                    = 10
+ }
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>You can get a quick list of enabled services:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; $ grep disable /etc/xinetd.d/* |grep no
+ /etc/xinetd.d/finger:   disable = no
+ /etc/xinetd.d/rexec:    disable = no
+ /etc/xinetd.d/rlogin:   disable = no
+ /etc/xinetd.d/rsh:      disable = no
+ /etc/xinetd.d/telnet:   disable = no
+ /etc/xinetd.d/wu-ftpd:  disable = no
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> At this point, the above output should raise some red flags. In the 
+ overwhelming majority of systems, all the above can be disabled without any
+ adverse impact. Not sure? Try it without that service. After disabling
+ unnecessary services, then restart <B
+CLASS="COMMAND"
+>xinetd</B
+>:</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; 
+  # /etc/rc.d/init.d/xinetd restart  
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN472">3.3.4. When All Else Fails</H3
+><P
+> OK, if you can't find the <SPAN
+CLASS="QUOTE"
+>"right"</SPAN
+> way to stop a service, 
+ or maybe a service is being started and you can't find how or where, 
+ you can <SPAN
+CLASS="QUOTE"
+>"kill"</SPAN
+> the process. To do this, you will need to know
+ the PID (Process I.D.). This can be found with <B
+CLASS="COMMAND"
+>ps</B
+>, 
+ <B
+CLASS="COMMAND"
+>top</B
+>, <B
+CLASS="COMMAND"
+>fuser</B
+> or other system utilities.
+ For <B
+CLASS="COMMAND"
+>top</B
+> and <B
+CLASS="COMMAND"
+>ps</B
+>, this will be the number
+ in the first column. See the <A
+HREF="appendix.html#PID"
+>Port and Process Owner</A
+> 
+ section in the Appendix for examples.
+ </P
+><P
+> Example (as root):</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; # kill 1163
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> Then run <B
+CLASS="COMMAND"
+>top</B
+> or <B
+CLASS="COMMAND"
+>ps</B
+> again to verify 
+ that the process is gone. If not, then:</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; # kill -KILL 1163
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> Note the second <SPAN
+CLASS="QUOTE"
+>"KILL"</SPAN
+> in there. This must be done either 
+ by the user who owns the process, or root. Now go find where and how this 
+ process got started ;-)&#13;</P
+><P
+> The <TT
+CLASS="FILENAME"
+>/proc</TT
+> filesystem can also be used to find out 
+ more information about each process. Armed with the PID, we can find 
+ the path to a mysterious process:&#13;</P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; $ /bin/ps ax|grep tcpgate
+  921 ?   S    0:00        tcpgate
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+> <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13; # ls -l /proc/921/exe
+ lrwxrwxrwx 1 root  root  0 July 21 12:11 /proc/921/exe -&#62; /usr/local/bin/tcpgate
+
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="EXCEPTIONS">3.4. Exceptions</H2
+><P
+> Above we used the criteria of turning off <EM
+>all</EM
+> unnecessary
+ services. Sometimes that is not so obvious. And sometimes what may be 
+ required for one person's configuration is not the same for another's. 
+ Let's look at a few common services that fall in this category.
+ </P
+><P
+> Again, our rule of thumb is if we don't need it, we won't run it. It's that
+ simple. If we do need any of these, they are prime candidates for some 
+ kind of restrictive policies via firewall rules or other mechanisms (see 
+ below).</P
+><P
+> <P
+></P
+><UL
+><LI
+><P
+>    <SPAN
+CLASS="APPLICATION"
+>identd</SPAN
+> - This is a protocol that has been
+    around for ages, and is often installed and running by default. It is used
+    to provide a minimal amount of information about who is connecting to a
+    server. But, it is not necessary in many cases. Where might you need it?
+    Most IRC servers require it. Many mail servers use it, but don't really
+    require it. Try your mail setup without it. If
+    <SPAN
+CLASS="APPLICATION"
+>identd</SPAN
+> is going to be a problem, it will
+    be because there is a time out before before the server starts sending or
+    receiving mail. So mail should work fine without it, but may be slower. A
+    few <SPAN
+CLASS="APPLICATION"
+>ftp</SPAN
+> servers may require it. Most don't
+    though.
+     Older versions of Red Hat started
+    <SPAN
+CLASS="APPLICATION"
+>identd</SPAN
+> via <SPAN
+CLASS="APPLICATION"
+>inetd</SPAN
+>.
+    Recent versions start this via init scripts. 
+    
+   </P
+><P
+>    If <SPAN
+CLASS="APPLICATION"
+>identd</SPAN
+> is required, there are some 
+    configuration options that can greatly reduce the information that is 
+    revealed:
+
+   </P
+><P
+>    <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>   
+    /usr/sbin/in.identd in.identd -l -e -o -n -N
+    
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+   </P
+><P
+>    The <TT
+CLASS="LITERAL"
+>-o</TT
+> flag tells <SPAN
+CLASS="APPLICATION"
+>identd</SPAN
+> to
+    not reveal the operating system type it is run on and to instead always
+    return <SPAN
+CLASS="QUOTE"
+>"OTHER"</SPAN
+>. The  <TT
+CLASS="LITERAL"
+>-e</TT
+> flag tells identd
+    to always return <SPAN
+CLASS="QUOTE"
+>"UNKNOWN-ERROR"</SPAN
+> instead of the
+    <SPAN
+CLASS="QUOTE"
+>"NO-USER"</SPAN
+> or <SPAN
+CLASS="QUOTE"
+>"INVALID-PORT"</SPAN
+> errors. The
+    <TT
+CLASS="LITERAL"
+>-n</TT
+> flag tells identd to  always  return  user numbers
+    instead of user names, if you wish to keep the user names a secret. The
+    <TT
+CLASS="LITERAL"
+>-N</TT
+> flag makes identd check for the file
+    <TT
+CLASS="FILENAME"
+>.noident</TT
+> in the user's home directory for which the
+    daemon is about to return a user name. It that  file  exists then the
+    daemon will give the error <SPAN
+CLASS="QUOTE"
+>"HIDDEN-USER"</SPAN
+> instead of the
+    normal <SPAN
+CLASS="QUOTE"
+>"USERID"</SPAN
+> response.
+
+   </P
+></LI
+><LI
+><P
+>     Mail server (MTA's like <SPAN
+CLASS="APPLICATION"
+>sendmail</SPAN
+>,
+     <SPAN
+CLASS="APPLICATION"
+>qmail</SPAN
+>, etc) - Often a fully functional mail
+     server like <SPAN
+CLASS="APPLICATION"
+>sendmail</SPAN
+> is installed by default.
+     The only time that this is actually required is if you are hosting a
+     domain, and receiving incoming mail directly. Or possibly, for exchanging
+     mail on a LAN, in which case it does not need Internet exposure and can
+     be safely firewalled. For your ISP's POP mail access, you don't need it
+     even though this is a common configuration. One alternative here is to
+     use <SPAN
+CLASS="APPLICATION"
+>fetchmail</SPAN
+> for POP mail retrieval with the
+     <TT
+CLASS="LITERAL"
+>-m</TT
+> option to specify a local delivery agent:
+     <TT
+CLASS="LITERAL"
+>fetchmail -m procmail</TT
+> for instance works with no
+     sendmail daemon running at all. Sendmail, can be handy to have running,
+     but the point is, it is not required in many situations, and can be
+     disabled, or firewalled safely.
+   </P
+></LI
+><LI
+><P
+>    <SPAN
+CLASS="APPLICATION"
+>BIND</SPAN
+> (named) - This often is installed by
+    default, but is only really needed if you are an authoritative name server
+    for a domain. If you are not sure what this means, then you definitely
+    don't need it. BIND is probably the number one crack target on the
+    Internet. <SPAN
+CLASS="APPLICATION"
+>BIND</SPAN
+> is often used though in a
+    <SPAN
+CLASS="QUOTE"
+>"caching"</SPAN
+> only mode. This can be quite useful, but does not
+    require full exposure to the Internet. In other words, it should be
+    restricted or firewalled. See special handling of <A
+HREF="firewalls.html#INDAPPS"
+>individual applications</A
+> below.
+    
+   </P
+></LI
+></UL
+></P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="CONCLUSIONS">3.5. Summary and Conclusions for Step 1</H2
+><P
+> In this section we learned how to identify which services are running 
+ on our system, and were given some tips on how to determine which 
+ services may be necessary. Then we learned how to find where the services
+ were being started, and how to stop them. If this has not made sense, 
+ now is a good time to re-read the above.</P
+><P
+> Hopefully you've already taken the above steps. Be sure to test your results 
+ with <B
+CLASS="COMMAND"
+>netstat</B
+> again, just to verify the desired end has 
+ been achieved, and only the services that are really required are running.</P
+><P
+> It would also be wise to do this after the next reboot, anytime you upgrade 
+ a package (to make sure a new configuration does not sneak in), and after 
+ every system upgrade or new install. &#13;</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="foreword.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="updates.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Foreword</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Step 2: Updating</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

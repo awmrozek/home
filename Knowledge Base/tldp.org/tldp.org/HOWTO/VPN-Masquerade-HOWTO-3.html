@@ -1,0 +1,988 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux VPN Masquerade HOWTO: Configuring the Linux firewall</TITLE>
+ <LINK HREF="VPN-Masquerade-HOWTO-4.html" REL=next>
+ <LINK HREF="VPN-Masquerade-HOWTO-2.html" REL=previous>
+ <LINK HREF="VPN-Masquerade-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="VPN-Masquerade-HOWTO-4.html">Next</A>
+<A HREF="VPN-Masquerade-HOWTO-2.html">Previous</A>
+<A HREF="VPN-Masquerade-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Configuring the Linux firewall</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss3.1">3.1 Example network</A>
+</H2>
+
+<P>For the Private-IP configuration examples in this document we will use this
+sample network:
+<BLOCKQUOTE>
+<PRE>
+Internet-------- 200.200.200.*   ppp0 or  200.200.200.200 eth1
+                                 Dual-Homed Linux Firewall
+            .--- 10.0.0.1        eth0
+            |
+            |--- 10.0.0.2        VPN client or server
+            |
+</PRE>
+</BLOCKQUOTE>
+
+For the registered-IP configuration examples in this document we will use this
+sample network:
+<BLOCKQUOTE>
+<PRE>
+Internet-------- 200.200.200.200 eth1
+                                 Dual-Homed Linux Firewall
+            .--- 222.0.0.1       eth0
+            |
+            |--- 222.0.0.2       VPN client or server
+            |
+</PRE>
+</BLOCKQUOTE>
+
+The VPN server that the example clients connect to will be
+<CODE>199.0.0.1</CODE>
+<P>The VPN clients that the connect to the example server will be
+<CODE>199.0.0.2</CODE> and <CODE>199.0.0.3</CODE>
+<P>
+<P>
+<H2><A NAME="ss3.2">3.2 Determining what needs to be done on the firewall</A>
+</H2>
+
+<P>If your VPN client or server has a registered internet IP address you do
+<EM>not</EM> need to masquerade or modify your kernel - the stock kernel
+will successfully route all VPN traffic. You can skip directly to the
+registered-IP setup sections below.
+<P>If your VPN client or server has a Private-Network IP address as described
+in 
+<A HREF="http://andrew2.andrew.cmu.edu/rfc/rfc1918.html">RFC1918</A> you will need to patch your kernel (unless your kernel is
+2.0.37 or higher in the 2.0.x series).
+<P>If you are setting up a masqueraded VPN server, you will also have to
+obtain and install the following two packages:
+<P>
+<UL>
+<LI>To redirect the inbound TCP/UDP traffic (the 1723/tcp PPTP control channel
+or the 500/udp ISAKMP channel), you need the appropriate <CODE>ipportfw</CODE>
+port-forwarding kernel patch and configuration tool from
+<A HREF="http://www.ox.compsoc.org.uk/~steve/portforwarding.html">http://www.ox.compsoc.org.uk/~steve/portforwarding.html</A>.
+Port forwarding has been incorporated into the 2.2.x kernel. See <CODE>man
+ipmasqadm</CODE> for configuration details. If <CODE>ipmasqadm</CODE> is not
+included with your distribution it can be obtained at
+<A HREF="http://juanjox.kernelnotes.org/">http://juanjox.kernelnotes.org/</A>.
+<P>
+</LI>
+<LI>To redirect the initial inbound tunnel traffic (GRE for PPTP and ESP for
+IPsec), you need the <CODE>ipfwd</CODE> generic-IP redirector from
+<A HREF="http://www.pdos.lcs.mit.edu/~cananian/Projects/IPfwd/">http://www.pdos.lcs.mit.edu/~cananian/Projects/IPfwd/</A>.</LI>
+</UL>
+<P>You <EM>do not</EM> need port forwarding or ipfwd if you are
+masquerading only clients.
+<P>
+<H2><A NAME="ss3.3">3.3 Patching and configuring the 2.0.x kernel for VPN Masquerade support</A>
+</H2>
+
+<P>
+<OL>
+<LI>Install the kernel source (preferably version 2.0.37), which
+you can obtain from 
+<A HREF="http://www.kernel.org/">http://www.kernel.org/</A> or a mirror. The
+sources should be automatically extracted into a directory named
+<CODE>/usr/src/linux</CODE>.
+<P>
+</LI>
+<LI>Configure and test standard IP Masquerading (see the 
+<A HREF="http://members.home.net/ipmasq/ipmasq-HOWTO-1.82.html">IP Masquerade HOWTO</A>). Doing this will familiarize you with
+recompiling your kernel and introduce you to IP Masquerading in general.
+<P>
+</LI>
+<LI><EM>Back up your kernel sources.</EM>
+<P>
+</LI>
+<LI>Obtain the kernel patch if necessary.
+<P>If your kernel version is 2.0.36 or lower, obtain the 2.0.x VPN Masquerade
+kernel patch from the VPN Masquerade home page in the &quot;Resources&quot;
+section above.
+<P>If your kernel version is 2.0.37 or higher in the 2.0.x series, you do not
+need to apply any patches. The VPN Masquerade code is included in the
+kernel. Skip the discussion of patching the kernel.
+<P>For the purposes of this document we'll assume
+you've saved the appropriate patch in <CODE>/usr/src/ip_masq_vpn.patch.gz</CODE>.
+<P>
+</LI>
+<LI>Apply the VPN Masquerade patch to your kernel if necessary:
+<P>
+<UL>
+<LI>Change to the kernel source directory:
+<BLOCKQUOTE>
+<CODE>cd /usr/src/linux</CODE>
+</BLOCKQUOTE>
+
+</LI>
+<LI>Apply the patch:
+<BLOCKQUOTE>
+<CODE>zcat ../ip_masq_vpn.patch.gz | patch -l -p0 &gt; vpn-patch.log 2&gt;&amp;1</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE>
+Note that the options are &quot;dash lowercase L, dash lowercase
+P zero&quot;. You may get odd results if you change the order of the arguments,
+as patch seems to be sensitive to the order they appear on the command line.
+</BLOCKQUOTE>
+
+</LI>
+<LI>Check the <CODE>vpn-patch.log</CODE> file to see if any hunks failed.
+If you get failed hunks, then you probably either omitted the options
+or ran the patch program from the wrong directory. Restore your kernel
+from the backup and try again.</LI>
+</UL>
+<P>
+</LI>
+<LI>If you are masquerading a VPN server, obtain and install the
+<CODE>ipportfw</CODE> patch from the site given above.
+<P>There is a known conflict between the VPN Masquerade patch and two other
+networking patches: the IP Firewall Chains patch and the ipportfw patch.
+They are all trying to add options at the same location in
+<CODE>net/ipv4/Config.in</CODE>, and the changes made by one patch alter the
+context that the other patches are looking for.
+<P>If you're applying the VPN Masquerade patch and the IP Firewall Chains or
+ipportfw patches to your 2.0.x kernel, you will have to manually edit
+<CODE>net/ipv4/Config.in</CODE> and add the block of configuration options from
+the patch file that fails to work. Looking at the patch file should show
+you where in <CODE>net/ipv4/Config.in</CODE> the new options should be added.
+<P>The syntax of patch files is simple. For each block of changes to make,
+there are two sections: the first shows the &quot;before&quot; state, with
+an indication of lines to be changed or deleted; the second shows the
+&quot;after&quot; state, with an indication of the lines that have been changed
+or added. Use the first section to find where to add the lines, and add the
+lines that are indicated in the second section.
+<P>This should not be a problem once those patches are updated for 2.0.37+
+<P>
+<P>
+</LI>
+<LI>Configure your kernel and select the following options -
+say <EM>YES</EM> to the following:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+  * Prompt for development and/or incomplete code/drivers 
+    CONFIG_EXPERIMENTAL 
+    - You must enable this to see the VPN Masq options.
+
+  * Networking support 
+    CONFIG_NET 
+
+  * Network firewalls 
+    CONFIG_FIREWALL 
+
+  * TCP/IP networking 
+    CONFIG_INET 
+
+  * IP: forwarding/gatewaying 
+    CONFIG_IP_FORWARD 
+
+  * IP: firewalling 
+    CONFIG_IP_FIREWALL 
+
+  * IP: masquerading (EXPERIMENTAL) 
+    CONFIG_IP_MASQUERADE 
+    - This is required.
+
+  * IP: PPTP masq support (EXPERIMENTAL)
+    CONFIG_IP_MASQUERADE_PPTP
+    - Enables PPTP data channel masquerading, if you are
+      masquerading a PPTP client or server.
+
+  * IP: PPTP Call ID masq support (EXPERIMENTAL)
+    CONFIG_IP_MASQUERADE_PPTP_MULTICLIENT
+    - Enables PPTP Call ID masquerading; only necessary if
+      you will be masquerading more than one client trying
+      to connect to the same remote server. DO NOT enable
+      this option if you will be masquerading a PPTP server.
+
+  * IP: IPsec ESP &amp; ISAKMP masq support (EXPERIMENTAL)
+    CONFIG_IP_MASQUERADE_IPSEC
+    - Enables IPsec masquerade, if you are masquerading an
+      IPsec host.
+
+  * IP: IPSEC masq table lifetime (minutes)
+    - See your network administrator to determine what the
+      &quot;rekey interval&quot; or &quot;key lifetime&quot; is set to. The
+      default lifetime of masq table entries is thirty
+      minutes.  If your rekey interval is greater than
+      thirty minutes, then you should increase the lifetime
+      to a value slightly greater than the rekey interval.
+
+  * IP: always defragment
+    CONFIG_IP_ALWAYS_DEFRAG 
+    - Highly recommended for a firewall.
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+<EM>NOTE:</EM> These are just the settings you need for masquerading.
+Select whatever other options you need for your specific setup. 
+<P>
+<P>
+</LI>
+<LI>Recompile the kernel and install it for testing. Don't replace a
+known working kernel with your new kernel until you have proven it works.
+<P>
+<P>
+</LI>
+</OL>
+<P>To determine whether the running kernel includes VPN Masquerade support,
+run the following command:
+<BLOCKQUOTE>
+<PRE>
+grep -i masq /proc/ksyms
+</PRE>
+</BLOCKQUOTE>
+
+...and look for the following entries:
+<UL>
+<LI>IPsec masquerade: <CODE>ip_masq_out_get_isakmp</CODE>,
+<CODE>ip_masq_in_get_isakmp</CODE>, <CODE>ip_fw_masq_esp</CODE> and
+<CODE>ip_fw_demasq_esp</CODE></LI>
+<LI>PPTP masquerade: <CODE>ip_fw_masq_gre</CODE> and <CODE>ip_fw_demasq_gre</CODE></LI>
+<LI>PPTP Call-ID masquerade: <CODE>ip_masq_pptp</CODE></LI>
+</UL>
+<P>If you don't see these entries, VPN Masquerade support is probably not
+available. If you get complaints about <CODE>/proc/ksyms</CODE> not being
+available or <CODE>/proc</CODE> not being available, make sure that you have
+enabled the <CODE>/proc</CODE> filesystem in your kernel configuration.
+<P>
+<P>See the 
+<A HREF="http://metalab.unc.edu/LDP/HOWTO/Kernel-HOWTO.html">Kernel HOWTO</A> for more details on configuring and recompiling your
+kernel.
+<P>
+<P>If you are using IPsec masquerade and your system is generating
+General Protection errors (see <CODE>/var/log/messages</CODE>) or is
+locking up, see the
+<A HREF="http://www.impsec.org/linux/masquerade/ip_masq_vpn.html">VPN Masquerade home page</A> for an update. This patch is for
+2.0.38, but should work on earlier kernels. It has been submitted to
+Alan Cox for inclusion in the 2.0.39 kernel.
+<P>
+<P>
+<H2><A NAME="ss3.4">3.4 Patching and configuring the 2.2.x kernel for VPN Masquerade support</A>
+</H2>
+
+<P>
+<OL>
+<LI>Install the kernel source (preferably version 2.2.17 or later), which
+you can obtain from 
+<A HREF="http://www.kernel.org/">http://www.kernel.org/</A> or a mirror. The
+sources should be automatically extracted into a directory named
+<CODE>/usr/src/linux</CODE>.
+<P>
+</LI>
+<LI>Configure and test standard IP Masquerading (see the 
+<A HREF="http://members.home.net/ipmasq/ipmasq-HOWTO-1.82.html">IP Masquerade HOWTO</A>). Doing this will familiarize you with
+recompiling your kernel and introduce you to IP Masquerading in general.
+<P>
+</LI>
+<LI><EM>Back up your kernel sources.</EM>
+<P>
+</LI>
+<LI>Obtain the kernel patch from the VPN Masquerade home page in the
+&quot;Resources&quot; section above.
+<P>For the purposes of this document we'll assume
+you've saved the appropriate patch in <CODE>/usr/src/ip_masq_vpn.patch.gz</CODE>.
+<P>
+</LI>
+<LI>Apply the VPN Masquerade patch to your kernel if necessary:
+<P>
+<UL>
+<LI>Change to the source directory:
+<BLOCKQUOTE>
+<CODE>cd /usr/src</CODE>
+</BLOCKQUOTE>
+
+</LI>
+<LI>Apply the patch:
+<BLOCKQUOTE>
+<CODE>zcat ip_masq_vpn.patch.gz | patch -l -p0 &gt; vpn-patch.log 2&gt;&amp;1</CODE>
+</BLOCKQUOTE>
+
+<BLOCKQUOTE>
+Note that the options are &quot;dash lowercase L, dash lowercase
+P zero&quot;. You may get odd results if you change the order of the arguments,
+as patch seems to be sensitive to the order they appear on the command line.
+</BLOCKQUOTE>
+
+<BLOCKQUOTE>
+Also note that the directory you run the patch command in is
+different for the 2.2.x kernel patch
+</BLOCKQUOTE>
+
+</LI>
+<LI>Check the <CODE>vpn-patch.log</CODE> file to see if any hunks failed.
+If you get failed hunks, then you probably either omitted the options
+or ran the patch program from the wrong directory. Restore your kernel
+from the backup and try again.</LI>
+</UL>
+<P>
+</LI>
+<LI>If you are masquerading a VPN server you do <EM>not</EM> need the
+<CODE>ipportfw</CODE> patch as port forwarding is now built-in. See the
+<CODE>ipmasqadm</CODE> man page for more details.
+If <CODE>ipmasqadm</CODE> is not included with your distribution it can be
+obtained at 
+<A HREF="http://juanjox.kernelnotes.org/">http://juanjox.kernelnotes.org/</A>.
+<P>
+<P>
+</LI>
+<LI>Configure your kernel and select the following options -
+say <EM>YES</EM> to the following:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+  * Prompt for development and/or incomplete code/drivers 
+    CONFIG_EXPERIMENTAL 
+    - You must enable this to see the VPN Masq options.
+
+  * Networking support 
+    CONFIG_NET 
+
+  * Network firewalls 
+    CONFIG_FIREWALL 
+
+  * TCP/IP networking 
+    CONFIG_INET 
+
+  * IP: firewalling 
+    CONFIG_IP_FIREWALL 
+
+  * IP: always defragment
+    CONFIG_IP_ALWAYS_DEFRAG 
+    - Required for masquerading. This may or may not
+      be in your kernel config. If not, you should
+      run this in your startup scripts:
+        echo 1 > /proc/sys/net/ipv4/ip_always_defrag
+
+  * IP: masquerading (EXPERIMENTAL) 
+    CONFIG_IP_MASQUERADE 
+    - This is required.
+
+  * IP: masquerading special modules support
+    CONFIG_IP_MASQUERADE_MOD
+    - This is required.
+
+  * IP: ipportfw masq support (EXPERIMENTAL)
+    CONFIG_IP_MASQUERADE_IPPORTFW
+    - Enable this if you will be masquerading a VPN server.
+
+  * IP: PPTP masq support
+    CONFIG_IP_MASQUERADE_PPTP
+    - Enables PPTP data channel masquerading, if you are
+      masquerading a PPTP client or server. This is now
+      available as a module.
+      Note that you no longer need to specify Call-ID masquerade.
+
+  * IP: IPsec ESP &amp; ISAKMP masq support (EXPERIMENTAL)
+    CONFIG_IP_MASQUERADE_IPSEC
+    - Enables IPsec masquerade, if you are masquerading an
+      IPsec host. This is now available as a module.
+
+  * IP: IPsec masq table lifetime (minutes)
+    - See your network administrator to determine what the
+      &quot;rekey interval&quot; or &quot;key lifetime&quot; is set to. The default
+      lifetime of masq table entries is thirty minutes. If
+      your rekey interval is greater than thirty minutes,
+      then you should increase the lifetime to a value
+      slightly greater than the rekey interval.
+
+  * IP: Enable parallel sessions (possible security risk - see help)
+    CONFIG_IP_MASQUERADE_IPSEC_PAROK
+    - See the IPsec masquerade technical notes and special
+      security considerations section of the HOWTO for
+      security considerations to be aware of when
+      masquerading IPsec traffic. If you are only
+      masquerading one IPsec client this setting has no
+      effect.
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+Say <EM>NO</EM> to the following:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+  * IP: GRE tunnels over IP
+    CONFIG_NET_IPGRE
+    - This, confusingly, has *NOTHING* to do with PPTP.
+      It enables support for GRE tunnels as used by Cisco
+      routers. The fact that you see this option does not
+      imply that PPTP support is available. You still need
+      to apply the VPN Masquerade patch if the PPTP options
+      listed above do not appear when you are configuring
+      your kernel. DO NOT enable this unless you are setting
+      up a GRE tunnel to a Cisco router.
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+<EM>NOTE:</EM> These are just the settings you need for masquerading.
+Select whatever other options you need for your specific setup. 
+<P>
+<P>
+</LI>
+<LI>Recompile the kernel and install it for testing. Don't replace a
+known working kernel with your new kernel until you have proven it works.
+<P>
+<P>
+</LI>
+</OL>
+<P>To determine whether the running kernel includes VPN Masquerade support,
+run the following command:
+<BLOCKQUOTE>
+<PRE>
+grep -i masq /proc/ksyms
+</PRE>
+</BLOCKQUOTE>
+
+...and look for the following entries:
+<UL>
+<LI>IPsec masquerade: <CODE>ip_masq_esp</CODE> and <CODE>ip_demasq_esp</CODE></LI>
+<LI>PPTP masquerade: <CODE>ip_masq_pptp_tcp</CODE> and <CODE>ip_demasq_pptp_tcp</CODE></LI>
+</UL>
+
+Or run:
+<BLOCKQUOTE>
+<PRE>
+lsmod
+</PRE>
+</BLOCKQUOTE>
+
+...and look for the following entries:
+<UL>
+<LI>IPsec masquerade: <CODE>ip_masq_ipsec</CODE></LI>
+<LI>PPTP masquerade: <CODE>ip_masq_pptp</CODE></LI>
+</UL>
+<P>If you don't see these entries, VPN Masquerade support is probably not
+available - did you remember to <CODE>modprobe ip_masq_pptp.o</CODE> or
+<CODE>modprobe ip_masq_ipsec.o</CODE> if you compiled them as modules? If VPN
+masquerade stops working after you reboot, did you remember to add the
+<CODE>modprobe</CODE> commands into your <CODE>/etc/rc.d/rc.local</CODE> startup
+script?
+<P>
+<P>If you get complaints about <CODE>/proc/ksyms</CODE> not being available or
+<CODE>/proc</CODE> not being available, make sure that you have enabled the
+<CODE>/proc</CODE> filesystem in your kernel configuration.
+<P>
+<P>See the 
+<A HREF="http://metalab.unc.edu/LDP/HOWTO/Kernel-HOWTO.html">Kernel HOWTO</A> for more details on configuring and recompiling your
+kernel.
+<P>
+<P>
+<H2><A NAME="ss3.5">3.5 ipfwadm setup for a Private-IP VPN Client or Server</A>
+</H2>
+
+<P>The firewall must now be configured to masquerade the outbound VPN traffic.
+You may wish to visit 
+<A HREF="http://www.wolfenet.com/~jhardin/ipfwadm.html">http://www.wolfenet.com/~jhardin/ipfwadm.html</A>
+to take a look at a GUI wrapper around the ipfwadm command that automates a
+lot of security-related packet filtering setup.
+<P>The minimum firewall rules are:
+<BLOCKQUOTE>
+<PRE>
+# Set the default forwarding policy to DENY:
+ipfwadm -F -p deny
+# Allow local-network traffic
+ipfwadm -I -a accept    -S 10.0.0.0/8 -D 0.0.0.0/0  -W eth0
+ipfwadm -O -a accept    -S 0.0.0.0/0  -D 10.0.0.0/8 -W eth0
+# Masquerade traffic for internet addresses and allow internet traffic
+ipfwadm -F -a accept -m -S 10.0.0.0/8 -D 0.0.0.0/0  -W ppp0
+ipfwadm -O -a accept    -S 0.0.0.0/0  -D 0.0.0.0/0  -W ppp0
+ipfwadm -I -a accept    -S 0.0.0.0/0  -D 0.0.0.0/0  -W ppp0
+</PRE>
+
+or, if you have a permanent connection,
+<PRE>
+ipfwadm -F -a accept -m -S 10.0.0.0/8 -D 0.0.0.0/0  -W eth1
+ipfwadm -O -a accept    -S 0.0.0.0/0  -D 0.0.0.0/0  -W eth1
+ipfwadm -I -a accept    -S 0.0.0.0/0  -D 0.0.0.0/0  -W eth1
+</PRE>
+</BLOCKQUOTE>
+
+This is a completely open setup, though. It will masquerade <EM>any</EM>
+traffic from <EM>any</EM> host on the local network destined for
+<EM>any</EM> host on the internet, and provides <EM>no</EM> security at
+all.
+<P>A tight firewall setup would only allow traffic between the client and the
+server, and would block everything else:
+<BLOCKQUOTE>
+<PRE>
+# Set the default policy to DENY:
+ipfwadm -I -p deny
+ipfwadm -O -p deny
+ipfwadm -F -p deny
+# Allow local-network traffic
+ipfwadm -I -a accept -S 10.0.0.0/8 -D 0.0.0.0/0  -W eth0
+ipfwadm -O -a accept -S 0.0.0.0/0  -D 10.0.0.0/8 -W eth0
+# Masquerade only VPN traffic between the VPN client and the VPN server
+ipfwadm -F -a accept -m -P udp -S 10.0.0.2/32 500 -D 199.0.0.1/32 500  -W ppp0
+ipfwadm -F -a accept -m -P tcp -S 10.0.0.2/32     -D 199.0.0.1/32 1723 -W ppp0
+ipfwadm -F -a deny      -P tcp -S 10.0.0.2/32     -D 199.0.0.1/32      -W ppp0
+ipfwadm -F -a deny      -P udp -S 10.0.0.2/32     -D 199.0.0.1/32      -W ppp0
+ipfwadm -F -a accept -m -P all -S 10.0.0.2/32     -D 199.0.0.1/32      -W ppp0
+ipfwadm -O -a accept    -P udp -S 200.200.200.0/24 500 -D 199.0.0.1/32 500  -W ppp0
+ipfwadm -O -a accept    -P tcp -S 200.200.200.0/24     -D 199.0.0.1/32 1723 -W ppp0
+ipfwadm -O -a deny      -P tcp -S 200.200.200.0/24     -D 199.0.0.1/32      -W ppp0
+ipfwadm -O -a deny      -P udp -S 200.200.200.0/24     -D 199.0.0.1/32      -W ppp0
+ipfwadm -O -a accept    -P all -S 200.200.200.0/24     -D 199.0.0.1/32      -W ppp0
+ipfwadm -I -a accept    -P udp -S 199.0.0.1/32 500     -D 200.200.200.0/24 500 -W ppp0
+ipfwadm -I -a accept    -P tcp -S 199.0.0.1/32 1723    -D 200.200.200.0/24     -W ppp0
+ipfwadm -I -a deny      -P tcp -S 199.0.0.1/32         -D 200.200.200.0/24     -W ppp0
+ipfwadm -I -a deny      -P udp -S 199.0.0.1/32         -D 200.200.200.0/24     -W ppp0
+ipfwadm -I -a accept    -P all -S 199.0.0.1/32         -D 200.200.200.0/24     -W ppp0
+</PRE>
+
+or, if you have a permanent connection,
+<PRE>
+ipfwadm -F -a accept -m -P udp -S 10.0.0.2/32 500 -D 199.0.0.1/32 500  -W eth1
+ipfwadm -F -a accept -m -P tcp -S 10.0.0.2/32     -D 199.0.0.1/32 1723 -W eth1
+ipfwadm -F -a deny      -P tcp -S 10.0.0.2/32     -D 199.0.0.1/32      -W eth1
+ipfwadm -F -a deny      -P udp -S 10.0.0.2/32     -D 199.0.0.1/32      -W eth1
+ipfwadm -F -a accept -m -P all -S 10.0.0.2/32     -D 199.0.0.1/32      -W eth1
+ipfwadm -O -a accept    -P udp -S 200.200.200.200/32 500 -D 199.0.0.1/32 500  -W eth1
+ipfwadm -O -a accept    -P tcp -S 200.200.200.200/32     -D 199.0.0.1/32 1723 -W eth1
+ipfwadm -O -a deny      -P tcp -S 200.200.200.200/32     -D 199.0.0.1/32      -W eth1
+ipfwadm -O -a deny      -P udp -S 200.200.200.200/32     -D 199.0.0.1/32      -W eth1
+ipfwadm -O -a accept    -P all -S 200.200.200.200/32     -D 199.0.0.1/32      -W eth1
+ipfwadm -I -a accept    -P udp -S 199.0.0.1/32 500  -D 200.200.200.200/32 500 -W eth1
+ipfwadm -I -a accept    -P tcp -S 199.0.0.1/32 1723 -D 200.200.200.200/32     -W eth1
+ipfwadm -I -a deny      -P tcp -S 199.0.0.1/32      -D 200.200.200.200/32     -W eth1
+ipfwadm -I -a deny      -P udp -S 199.0.0.1/32      -D 200.200.200.200/32     -W eth1
+ipfwadm -I -a accept    -P all -S 199.0.0.1/32      -D 200.200.200.200/32     -W eth1
+</PRE>
+</BLOCKQUOTE>
+<P>Note: these rules only allow VPN traffic and block <EM>everything
+else</EM>. You will have to add rules for any other traffic you wish to
+permit, such as DNS, HTTP, POP, IMAP, etc.
+<P>
+<P>
+<H2><A NAME="ss3.6">3.6 ipchains setup for a Private-IP VPN Client or Server</A>
+</H2>
+
+<P>The minimum ipchains firewall rules are:
+<BLOCKQUOTE>
+<PRE>
+# Set the default forwarding policy to DENY:
+ipchains -P forward DENY
+# Allow local-network traffic
+ipchains -A input   -j ACCEPT -s 10.0.0.0/8 -d 0.0.0.0/0  -i eth0
+ipchains -A output  -j ACCEPT -s 0.0.0.0/0  -d 10.0.0.0/8 -i eth0
+# Masquerade traffic for internet addresses and allow internet traffic
+ipchains -A forward -j MASQ   -s 10.0.0.0/8 -d 0.0.0.0/0  -i ppp0
+ipchains -A output  -j ACCEPT -s 0.0.0.0/0  -d 0.0.0.0/0  -i ppp0
+ipchains -A input   -j ACCEPT -s 0.0.0.0/0  -d 0.0.0.0/0  -i ppp0
+</PRE>
+
+or, if you have a permanent connection,
+<PRE>
+ipchains -A forward -j MASQ   -s 10.0.0.0/8 -d 0.0.0.0/0  -i eth1
+ipchains -A output  -j ACCEPT -s 0.0.0.0/0  -d 0.0.0.0/0  -i eth1
+ipchains -A input   -j ACCEPT -s 0.0.0.0/0  -d 0.0.0.0/0  -i eth1
+</PRE>
+</BLOCKQUOTE>
+
+This is a completely open setup, though. It will masquerade <EM>any</EM>
+traffic from <EM>any</EM> host on the local network destined for
+<EM>any</EM> host on the internet, and provides <EM>no</EM> security at
+all.
+<P>A tight firewall setup would only allow traffic between the client and the
+server, and would block everything else:
+<BLOCKQUOTE>
+<PRE>
+# Set the default policy to DENY:
+ipchains -P input   DENY
+ipchains -P output  DENY
+ipchains -P forward DENY
+# Allow local-network traffic
+ipchains -A input  -j ACCEPT -s 10.0.0.0/8 -d 0.0.0.0/0  -i eth0
+ipchains -A output -j ACCEPT -s 0.0.0.0/0  -d 10.0.0.0/8 -i eth0
+# Masquerade only VPN traffic between the VPN client and the VPN server
+# IPsec
+ipchains -A forward -j MASQ   -p udp -s 10.0.0.2/32 500      -d 199.0.0.1/32 500     -i ppp0
+ipchains -A output  -j ACCEPT -p udp -s 200.200.200.0/24 500 -d 199.0.0.1/32 500     -i ppp0
+ipchains -A input   -j ACCEPT -p udp -s 199.0.0.1/32 500     -d 200.200.200.0/24 500 -i ppp0
+ipchains -A forward -j MASQ   -p 50  -s 10.0.0.2/32          -d 199.0.0.1/32         -i ppp0
+ipchains -A output  -j ACCEPT -p 50  -s 200.200.200.0/24     -d 199.0.0.1/32         -i ppp0
+ipchains -A input   -j ACCEPT -p 50  -s 199.0.0.1/32         -d 200.200.200.0/24     -i ppp0
+# PPTP
+ipchains -A forward -j MASQ   -p tcp -s 10.0.0.2/32       -d 199.0.0.1/32 1723 -i ppp0
+ipchains -A output  -j ACCEPT -p tcp -s 200.200.200.0/24  -d 199.0.0.1/32 1723 -i ppp0
+ipchains -A input   -j ACCEPT -p tcp -s 199.0.0.1/32 1723 -d 200.200.200.0/24  -i ppp0
+ipchains -A forward -j MASQ   -p 47  -s 10.0.0.2/32       -d 199.0.0.1/32      -i ppp0
+ipchains -A output  -j ACCEPT -p 47  -s 200.200.200.0/24  -d 199.0.0.1/32      -i ppp0
+ipchains -A input   -j ACCEPT -p 47  -s 199.0.0.1/32      -d 200.200.200.0/24  -i ppp0
+</PRE>
+
+or, if you have a permanent connection,
+<PRE>
+# IPsec
+ipchains -A forward -j MASQ   -p udp -s 10.0.0.2/32 500        -d 199.0.0.1/32 500       -i eth1
+ipchains -A output  -j ACCEPT -p udp -s 200.200.200.200/32 500 -d 199.0.0.1/32 500       -i eth1
+ipchains -A input   -j ACCEPT -p udp -s 199.0.0.1/32 500       -d 200.200.200.200/32 500 -i eth1
+ipchains -A forward -j MASQ   -p 50  -s 10.0.0.2/32            -d 199.0.0.1/32           -i eth1
+ipchains -A output  -j ACCEPT -p 50  -s 200.200.200.200/32     -d 199.0.0.1/32           -i eth1
+ipchains -A input   -j ACCEPT -p 50  -s 199.0.0.1/32           -d 200.200.200.200/32     -i eth1
+# PPTP
+ipchains -A forward -j MASQ   -p tcp -s 10.0.0.2/32        -d 199.0.0.1/32 1723  -i eth1
+ipchains -A output  -j ACCEPT -p tcp -s 200.200.200.200/32 -d 199.0.0.1/32 1723  -i eth1
+ipchains -A input   -j ACCEPT -p tcp -s 199.0.0.1/32 1723  -d 200.200.200.200/32 -i eth1
+ipchains -A forward -j MASQ   -p 47  -s 10.0.0.2/32        -d 199.0.0.1/32       -i eth1
+ipchains -A output  -j ACCEPT -p 47  -s 200.200.200.200/32 -d 199.0.0.1/32       -i eth1
+ipchains -A input   -j ACCEPT -p 47  -s 199.0.0.1/32       -d 200.200.200.200/32 -i eth1
+</PRE>
+</BLOCKQUOTE>
+<P>Note: these rules only allow VPN traffic. You will have to add rules for any
+other traffic you wish to permit, such as DNS, HTTP, POP, IMAP, etc.
+<P>Also note how there rules are much neater and easier to make sense of than
+the equivalent ipfwadm rules. This is because ipchains allows specification
+of all IP protocols, not just TCP, UDP, ICMP or ALL.
+<P>
+<P>
+<H2><A NAME="ss3.7">3.7 A note about dynamic IP addressing</A>
+</H2>
+
+<P>If your firewall is assigned a dynamic IP address by your ISP (dialup
+accounts are this way, as are some cable internet services), then you
+should add the following to the startup script
+<CODE>/etc/rc.d/rc.local</CODE>:
+<BLOCKQUOTE>
+<PRE>
+echo 7 > /proc/sys/net/ipv4/ip_dynaddr
+</PRE>
+</BLOCKQUOTE>
+
+This enables dynamic IP address following, which means that should your
+connection drop and be reestablished, any active sessions will be updated
+to the new IP address rather than using the old IP address. This does not
+mean that the session will continue across the interruption, rather that it
+will be closed down quickly.
+<P>If you do not do this, then there may be a &quot;dead period&quot; after you redial
+and before old masq table entries expire where you're being masqueraded
+with the wrong IP address, which will prevent your establishing a
+connection.
+<P>This is particularly helpful if you are using a demand-dial daemon such as
+<CODE>diald</CODE> to manage your dialup connection.
+<P>See <CODE>
+<A HREF="file:/usr/src/linux/Documentation/networking/ip_dynaddr.txt">/usr/src/linux/Documentation/networking/ip_dynaddr.txt</A></CODE> for
+more details.
+<P>
+<P>
+<H2><A NAME="ss3.8">3.8 Additional setup for a Private-IP VPN Server</A>
+</H2>
+
+<P>If you are setting up VPN masquerade for a Private-IP VPN server (that is,
+you wish to provide for <EM>inbound</EM> connections as well as
+<EM>outbound</EM> connections), you also need to install two
+packet-forwarding utilities. One (<CODE>ipportfw</CODE>) forwards inbound TCP
+or UDP traffic addressed to a specific port on the firewall system to a
+system on the local network behind the firewall. This is used to redirect
+the initial inbound 1723/tcp PPTP control channel or 500/udp ISAKMP traffic
+to the VPN server. The other (<CODE>ipfwd</CODE>) is a more generic forwarding
+utility that allows you to do this for any IP protocol. It is used to
+forward the initial inbound 47/ip (GRE) or 50/ip (ESP) data channel traffic
+to the VPN server.
+<P>Outbound responses to the inbound 1723/tcp or 500/udp traffic are
+masqueraded using the normal IP-Masquerade facilities in the Linux kernel.
+The outbound 47/ip or 50/ip traffic is masqueraded using the VPN-Masquerade
+kernel patch you installed earlier.
+<P>Once these utilities are installed, you must configure them to forward the
+traffic to the VPN server.
+<P>
+<P>
+<UL>
+<LI>Configuring <CODE>ipportfw</CODE> under 2.0.x kernels
+<P>The following commands will set up <CODE>ipportfw</CODE> to forward the initial
+inbound 500/udp traffic to the IPsec server:
+<BLOCKQUOTE>
+<PRE>
+# Static-IP ipportfw setup for IPsec
+# Clear the ipportfw forwarding table
+/sbin/ipportfw -C
+# Forward traffic addressed to the firewall's 500/udp port
+# to the IPsec server's 500/udp port
+/sbin/ipportfw -A -u 200.200.200.200/500 -R 10.0.0.2/500
+</PRE>
+</BLOCKQUOTE>
+
+The following commands will set up <CODE>ipportfw</CODE> to forward the initial
+inbound 1723/tcp traffic to the PPTP server:
+<BLOCKQUOTE>
+<PRE>
+# Static-IP ipportfw setup for PPTP
+# Clear the ipportfw forwarding table
+/sbin/ipportfw -C
+# Forward traffic addressed to the firewall's 1723/tcp port
+# to the PPTP server's 1723/tcp port
+/sbin/ipportfw -A -t 200.200.200.200/1723 -R 10.0.0.2/1723
+</PRE>
+</BLOCKQUOTE>
+
+Note that the ipportfw command line requires the internet IP address of the
+firewall, and you cannot specify the interface (e.g. <CODE>ppp0</CODE>) as you
+can with ipfwadm. This means that for a dynamic-IP connection (such as a
+typical dialup PPP connection) you have to run these commands every time
+you connect to the internet and are assigned a new IP address. You can do
+this quite easily - simply add the following to your
+<CODE>/etc/ppp/ip-up</CODE> or <CODE>/etc/ppp/ip-up.local</CODE> script:
+<BLOCKQUOTE>
+<PRE>
+# Dynamic-IP ipportfw setup for IPsec
+# Clear the ipportfw forwarding table
+/sbin/ipportfw -C
+# Forward traffic addressed to the firewall's 500/udp port
+# to the IPsec server's 500/udp port
+/sbin/ipportfw -A -u ${4}/500 -R 10.0.0.2/500
+</PRE>
+</BLOCKQUOTE>
+
+or:
+<BLOCKQUOTE>
+<PRE>
+# Dynamic-IP ipportfw setup for PPTP
+# Clear the ipportfw forwarding table
+/sbin/ipportfw -C
+# Forward traffic addressed to the firewall's 1723/tcp port
+# to the PPTP server's 1723/tcp port
+/sbin/ipportfw -A -t ${4}/1723 -R 10.0.0.2/1723
+</PRE>
+</BLOCKQUOTE>
+
+See 
+<A HREF="http://www.wolfenet.com/~jhardin/ipfwadm/invocation.html">http://www.wolfenet.com/~jhardin/ipfwadm/invocation.html</A>
+for more information on firewalling with a dynamic IP.
+<P>
+<P>
+</LI>
+<LI>Configuring <CODE>ipfwd</CODE> under both 2.0.x and 2.2.x kernels
+<P>The following command will set up <CODE>ipfwd</CODE> to forward the initial
+inbound 50/ip traffic to the IPsec server:
+<BLOCKQUOTE>
+<PRE>
+/sbin/ipfwd --masq 10.0.0.2 50 &amp;
+</PRE>
+</BLOCKQUOTE>
+
+The following command will set up <CODE>ipfwd</CODE> to forward the initial
+inbound 47/ip traffic to the PPTP server:
+<BLOCKQUOTE>
+<PRE>
+/sbin/ipfwd --masq 10.0.0.2 47 &amp;
+</PRE>
+</BLOCKQUOTE>
+
+It should only be run once, from your <CODE>/etc/rc.d/rc.local</CODE> script.
+</LI>
+</UL>
+<P>
+<P>The techniques described here can be generalized to allow masquerading of
+most any type of server - HTTP, FTP, SMTP, and so forth. Servers that are
+purely TCP- or UDP-based will not require <CODE>ipfwd</CODE>.
+<P>
+<P>If you are masquerading a PPTP server you also need to make sure that you have
+<EM>not</EM> enabled PPTP Call ID masquerade in the kernel. Enabling PPTP Call ID
+masquerade builds in some assumptions that you're masquerading only PPTP
+clients, so enabling it will prevent proper masquerade of the PPTP server
+traffic. This also means that with the 2.0.x version of the patch you cannot
+simultaneously masquerade a PPTP server and PPTP clients.
+<P>
+<P>
+<H2><A NAME="ss3.9">3.9 ipfwadm setup for a Registered-IP VPN Server</A>
+</H2>
+
+<P>Setting up a registered-IP VPN server behind a Linux firewall is a simple
+matter of making sure the appropriate routing and packet-filter commands
+are in place. Masquerading is not required.
+<P>Unfortunately the 2.0.x-series kernels will not let us specify IP protocol
+47 or 50 directly, so this firewall is less secure than it could be. If
+this is a problem for you, then install the IP Firewall Chains kernel patch
+or move to the 2.1.x or 2.2.x series kernel, where you can filter by IP
+protocol.
+<P>The firewall rules will look something like this:
+<BLOCKQUOTE>
+<PRE>
+# This section should follow your other firewall rules.
+
+# Specify the acceptable clients explicitly for tighter security.
+# Allow the IPsec ISAKMP traffic in and out.
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P udp -S 199.0.0.2/32 500 -D 222.0.0.2/32 500
+ipfwadm -O -a accept -W eth1 -V 200.200.200.200 -P udp -D 199.0.0.2/32 500 -S 222.0.0.2/32 500
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P udp -S 199.0.0.3/32 500 -D 222.0.0.2/32 500
+ipfwadm -O -a accept -W eth1 -V 200.200.200.200 -P udp -D 199.0.0.3/32 500 -S 222.0.0.2/32 500
+# Allow the PPTP control channel in and out.
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P tcp -S 199.0.0.2/32 -D 222.0.0.2/32 1723
+ipfwadm -O -a accept -W eth1 -V 200.200.200.200 -P tcp -D 199.0.0.2/32 -S 222.0.0.2/32 1723
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P tcp -S 199.0.0.3/32 -D 222.0.0.2/32 1723
+ipfwadm -O -a accept -W eth1 -V 200.200.200.200 -P tcp -D 199.0.0.3/32 -S 222.0.0.2/32 1723
+
+# Block all other TCP and UDP traffic from the internet.
+# This is essentially a "default deny TCP/UDP" that
+# only applies to the internet interface.
+ipfwadm -I -a deny -W eth1 -V 200.200.200.200 -P tcp
+ipfwadm -I -a deny -W eth1 -V 200.200.200.200 -P udp
+
+# Specify the acceptable clients explicitly for tighter security.
+# Note that this is too open since we're forced to
+# specify "-P all" rather than "-P 47" or "-P 50"...
+# Allow the PPTP data channel and IPsec ESP traffic in and out.
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P all -S 199.0.0.2/32 -D 222.0.0.2/32
+ipfwadm -0 -a accept -W eth1 -V 200.200.200.200 -P all -D 199.0.0.2/32 -S 222.0.0.2/32
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P all -S 199.0.0.3/32 -D 222.0.0.2/32
+ipfwadm -O -a accept -W eth1 -V 200.200.200.200 -P all -D 199.0.0.3/32 -S 222.0.0.2/32
+
+# Block all other traffic from the internet.
+# This is essentially a "default deny" that
+# only applies to the internet interface.
+ipfwadm -I -a deny -W eth1 -V 200.200.200.200
+</PRE>
+</BLOCKQUOTE>
+<P>If you are installing firewall rules on forwarding and/or rules on the inner
+interface, you will have do do something similar. The above example only covers
+VPN traffic; you will have to merge it into your existing firewall setup to
+allow any other traffic you need.
+<P>
+<P>
+<H2><A NAME="ss3.10">3.10 ipfwadm setup for a Registered-IP VPN Client</A>
+</H2>
+
+<P>Setting up a registered-IP VPN client behind a Linux firewall is similar
+to setting up a registered-IP VPN server.
+<P>The firewall rules will look something like this:
+<BLOCKQUOTE>
+<PRE>
+# Allow the IPsec ISAKMP traffic out and in.
+ipfwadm -O -a accept -W eth1 -V 200.200.200.200 -P udp -S 222.0.0.2/32 500 -D 199.0.0.1/32 500
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P udp -D 222.0.0.2/32 500 -S 199.0.0.1/32 500
+# Allow the PPTP control channel out and in.
+ipfwadm -O -a accept -W eth1 -V 200.200.200.200 -P tcp -S 222.0.0.2/32 -D 199.0.0.1/32 1723
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P tcp -D 222.0.0.2/32 -S 199.0.0.1/32 1723
+
+# Block all other TCP and UDP traffic from the internet.
+# This is essentially a "default deny TCP/UDP" that
+# only applies to the internet interface.
+ipfwadm -I -a deny -W eth1 -V 200.200.200.200 -P tcp
+ipfwadm -I -a deny -W eth1 -V 200.200.200.200 -P udp
+
+# Note that this is too open since we're forced to
+# specify "-P all" rather than "-P 47" or "-P 50"...
+# Allow the PPTP data channel and IPsec ESP traffic out and in
+ipfwadm -O -a accept -W eth1 -V 200.200.200.200 -P all -S 222.0.0.2/32 -D 199.0.0.1/32
+ipfwadm -I -a accept -W eth1 -V 200.200.200.200 -P all -D 222.0.0.2/32 -S 199.0.0.1/32
+
+# Block all other traffic from the internet.
+# This is essentially a "default deny" that
+# only applies to the internet interface.
+ipfwadm -I -a deny -W eth1 -V 200.200.200.200
+</PRE>
+</BLOCKQUOTE>
+<P>
+<H2><A NAME="ss3.11">3.11 ipchains setup for a Registered-IP VPN Server</A>
+</H2>
+
+<P>Setting up a registered-IP VPN server behind a Linux firewall is a simple
+matter of making sure the appropriate routing and packet-filter commands
+are in place. Masquerading is not required.
+<P>The firewall rules will look something like this:
+<BLOCKQUOTE>
+<PRE>
+# Specify the acceptable clients explicitly for tighter security.
+# Allow the IPsec ISAKMP traffic in and out.
+ipchains -A input  -j ACCEPT -p udp -s 199.0.0.2/32 500 -d 222.0.0.2/32 500 -i eth1
+ipchains -A output -j ACCEPT -p udp -d 199.0.0.2/32 500 -s 222.0.0.2/32 500 -i eth1
+ipchains -A input  -j ACCEPT -p udp -s 199.0.0.3/32 500 -d 222.0.0.2/32 500 -i eth1
+ipchains -A output -j ACCEPT -p udp -d 199.0.0.3/32 500 -s 222.0.0.2/32 500 -i eth1
+# Allow the IPsec ESP traffic in and out.
+ipchains -A input  -j ACCEPT -p 50  -s 199.0.0.2/32     -d 222.0.0.2/32     -i eth1
+ipchains -A output -j ACCEPT -p 50  -d 199.0.0.2/32     -s 222.0.0.2/32     -i eth1
+ipchains -A input  -j ACCEPT -p 50  -s 199.0.0.3/32     -d 222.0.0.2/32     -i eth1
+ipchains -A output -j ACCEPT -p 50  -d 199.0.0.3/32     -s 222.0.0.2/32     -i eth1
+# Allow the PPTP control channel in and out.
+ipchains -A input  -j ACCEPT -p tcp -s 199.0.0.2/32 -d 222.0.0.2/32 1723 -i eth1
+ipchains -A output -j ACCEPT -p tcp -d 199.0.0.2/32 -s 222.0.0.2/32 1723 -i eth1
+ipchains -A input  -j ACCEPT -p tcp -s 199.0.0.3/32 -d 222.0.0.2/32 1723 -i eth1
+ipchains -A output -j ACCEPT -p tcp -d 199.0.0.3/32 -s 222.0.0.2/32 1723 -i eth1
+# Allow the PPTP tunnel in and out.
+ipchains -A input  -j ACCEPT -p 47  -s 199.0.0.2/32 -d 222.0.0.2/32      -i eth1
+ipchains -A output -j ACCEPT -p 47  -d 199.0.0.2/32 -s 222.0.0.2/32      -i eth1
+ipchains -A input  -j ACCEPT -p 47  -s 199.0.0.3/32 -d 222.0.0.2/32      -i eth1
+ipchains -A output -j ACCEPT -p 47  -d 199.0.0.3/32 -s 222.0.0.2/32      -i eth1
+</PRE>
+</BLOCKQUOTE>
+<P>If you are installing firewall rules on forwarding and/or rules on the inner
+interface, you will have do do something similar. The above example only covers
+VPN traffic; you will have to merge it into your existing firewall setup to
+allow any other traffic you need.
+<P>
+<P>
+<H2><A NAME="ss3.12">3.12 ipchains setup for a Registered-IP VPN Client</A>
+</H2>
+
+<P>Setting up a registered-IP VPN client behind a Linux firewall is similar
+to setting up a registered-IP VPN server.
+<P>The firewall rules will look something like this:
+<BLOCKQUOTE>
+<PRE>
+# Allow the IPsec ISAKMP traffic out and in.
+ipchains -A output -j ACCEPT -p udp -s 222.0.0.2/32 500 -d 199.0.0.1/32 500 -i eth1
+ipchains -A input  -j ACCEPT -p udp -d 222.0.0.2/32 500 -s 199.0.0.1/32 500 -i eth1
+# Allow the IPsec ESP traffic out and in.
+ipchains -A output -j ACCEPT -p 50  -s 222.0.0.2/32     -d 199.0.0.1/32     -i eth1
+ipchains -A input  -j ACCEPT -p 50  -d 222.0.0.2/32     -s 199.0.0.1/32     -i eth1
+# Allow the PPTP control channel out and in.
+ipchains -A output -j ACCEPT -p tcp -s 222.0.0.2/32 -d 199.0.0.1/32 1723 -i eth1
+ipchains -A input  -j ACCEPT -p tcp -d 222.0.0.2/32 -s 199.0.0.1/32 1723 -i eth1
+# Allow the PPTP tunnel out and in.
+ipchains -A output -j ACCEPT -p 47  -s 222.0.0.2/32 -d 199.0.0.1/32      -i eth1
+ipchains -A input  -j ACCEPT -p 47  -d 222.0.0.2/32 -s 199.0.0.1/32      -i eth1
+</PRE>
+</BLOCKQUOTE>
+<P>
+<H2><A NAME="ss3.13">3.13 VPN Masq and LRP</A>
+</H2>
+
+<P>The Linux Router Project at 
+<A HREF="http://www.linuxrouter.org/">http://www.linuxrouter.org/</A>
+provides a Linux-based firewall-on-a-floppy kit. With a '386 PC, two
+network cards, and a diskette drive, you can set up a full-featured
+masquerading firewall. No hard disk is needed.
+<P>
+<P>VPN Masquerade is supposed to be included in LRP version 2.2.9 - to verify
+it is available, see if <CODE>ip_masq_ipsec</CODE> or <CODE>ip_masq_pptp</CODE> are
+listed in the loadable modules in <CODE>Package Settings -&gt; Modules</CODE>,
+or grep <CODE>/proc/ksyms</CODE> as described above. If you want to add VPN
+masquerade to an earlier version of LRP then somebody on the LRP mailing
+list may be able to provide a diskette image for you, or you can roll your
+own kernel using the instructions available on the LRP home page.
+<P>
+<P>The firewall rules would be added to the startup script file in
+<CODE>Network Settings -&gt; Direct Network Setup</CODE>.
+<P>
+<P>
+<H2><A NAME="ss3.14">3.14 VPN Masq on a system running FreeS/WAN or PoPToP</A>
+</H2>
+
+<P>If you are going to be using the firewall as an IPsec gateway with
+FreeS/WAN, you <EM>must not</EM> enable IPsec masquerade.
+If you are going to be using the firewall as a PPTP server with
+PoPToP, or a PPTP client using the Linux PPTP client software, you <EM>must
+not</EM> enable PPTP masquerade.
+<P>VPN masquerade and a VPN client or server using the same protocols cannot
+at this time coexist on the same computer.
+<P>Your firewall <EM>can</EM>, however, be a FreeS/WAN IPsec VPN gateway while
+masquerading PPTP traffic, or vice-versa.
+<P>
+<HR>
+<A HREF="VPN-Masquerade-HOWTO-4.html">Next</A>
+<A HREF="VPN-Masquerade-HOWTO-2.html">Previous</A>
+<A HREF="VPN-Masquerade-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

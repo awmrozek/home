@@ -1,0 +1,308 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Testing internal MASQ client to external MASQ server connectivity</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Testing IP Masquerade "
+HREF="testing.html"><LINK
+REL="PREVIOUS"
+TITLE="Testing External MASQ server Internet connectivity"
+HREF="testing-masq-server-external.html"><LINK
+REL="NEXT"
+TITLE="Testing external MASQ ICMP forwarding "
+HREF="testing-masq-icmp.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="testing-masq-server-external.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 5. Testing IP Masquerade</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="testing-masq-icmp.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="TESTING-MASQED-PC-TO-EXT-MASQ-SERVER"
+></A
+>5.7. Testing internal MASQ client to external MASQ server connectivity</H1
+><P
+>&#13;<P
+></P
+><UL
+><LI
+><P
+><STRONG
+>Step Seven: Testing internal MASQ client to external MASQ 
+server connectivity</STRONG
+></P
+><P
+>From an internal MASQed computer, ping the IP address of the MASQ server's 
+EXTERNAL TCP/IP address obtained in Step FIVE above.  This address could be 
+from your Ethernet, PPP, etc. interface which is ultimately the address 
+connected to your ISP.  This ping test will prove that Linux masquerading 
+(ICMP Masquerading specifically) and IP forwarding is working.  </P
+><P
+>If everthing thing is working correctly, the output should look something 
+like the following (hit Control-C to abort the ping):</P
+><P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>-------------------------------------
+masq-client# ping 12.13.14.15
+PING 12.13.14.15 (12.13.14.15): 56 data bytes
+64 bytes from 12.13.14.15: icmp_seq=0 ttl=255 time=0.8 ms
+64 bytes from 12.13.14.15: icmp_seq=1 ttl=255 time=0.4 ms
+64 bytes from 12.13.14.15: icmp_seq=2 ttl=255 time=0.4 ms
+64 bytes from 12.13.14.15: icmp_seq=3 ttl=255 time=0.5 ms
+^C
+
+--- 12.13.14.15 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.4/0.5/0.8 ms
+-------------------------------------</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>If this test doesn't work, first make sure that the "Default Gateway" on the 
+MASQed PC is pointing to the IP address on the MASQ -SERVERs- INTERNAL NIC.  
+Also double check that the /etc/rc.d/rc.firewall-* script was run without any 
+errors.  Just as a test, try re-running the /etc/rc.d/rc.firewall-* script now 
+to see if it runs OK.  Also, though most kernels support it by default, make 
+sure that you enabled "ICMP Masquerading" in the kernel comfiguration and 
+"IP Forwarding" in your /etc/rc.d/rc.firewall-* script.  </P
+><P
+>If you still can't get things to work, take a look at the output from the 
+following commands run on the Linux MASQ SERVER: 
+
+<P
+></P
+><UL
+><LI
+><P
+> "<STRONG
+>ifconfig</STRONG
+>" : Make sure the interface for 
+your Internet connection (be it ppp0, eth0, etc.) is UP and you have the 
+correct IP address for the Internet connection.  An example of this output is 
+shown in STEP FIVE above.</P
+></LI
+><LI
+><P
+> "<STRONG
+>netstat -rn</STRONG
+>" : Make sure your default 
+gateway (the column with an IP address in the Gateway column) is set.  An 
+example of this output might look like:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>-------------------------------------
+masq-server# netstat -rn
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
+192.168.0.1     0.0.0.0         255.255.255.255 UH        0 16384      0 eth1
+12.13.14.15     0.0.0.0         255.255.255.255 UH        0 16384      0 eth0
+12.13.14.0      0.0.0.0         255.255.255.0   U         0 0          0 eth0
+192.168.0.0     0.0.0.0         255.255.255.0   U         0 0          0 eth1
+127.0.0.0       0.0.0.0         255.0.0.0       U         0 16384      0 lo
+0.0.0.0         12.13.14.1      0.0.0.0         UG        0 16384      0 eth0 
+-------------------------------------  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Notice the very LAST line that starts with 0.0.0.0?  Notice that it also has 
+an IP address in the "Gateway" field?  You should specify an IP address for 
+your specific setup in that field (this is typically done automatically when
+your Internet connection is enabled).</P
+></LI
+><LI
+><P
+> "<STRONG
+>cat /proc/sys/net/ipv4/ip_forward</STRONG
+>" : Make 
+sure it says "1" so that Linux forwarding is enabled</P
+></LI
+><LI
+><P
+>Run the command "<STRONG
+>/sbin/ipchains -n -L</STRONG
+>" for 
+2.2.x users or "<STRONG
+>/sbin/ipfwadm -F -l</STRONG
+>" for 
+2.0.x users. Specifically, look for the FORWARDing section to make sure you 
+have MASQ enabled.  An example of an IPCHAINS output might look like for users 
+using the SIMPLE rc.firewall-* ruleset:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>------------------------------------
+.
+.
+Chain forward (policy REJECT):
+target     prot opt     source                destination           ports
+MASQ       all  ------  192.168.0.0/24       0.0.0.0/0             n/a
+ACCEPT     all  ----l-  0.0.0.0/0            0.0.0.0/0             n/a
+.
+.  
+------------------------------------  
+   </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+></LI
+></UL
+></P
+></LI
+></UL
+>&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="testing-masq-server-external.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="testing-masq-icmp.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Testing External MASQ server Internet connectivity</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="testing.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Testing external MASQ ICMP forwarding</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

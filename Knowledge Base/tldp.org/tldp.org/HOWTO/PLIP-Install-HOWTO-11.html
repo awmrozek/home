@@ -1,0 +1,127 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE> PLIP Install HOWTO: The cdrom nfs server side</TITLE>
+ <LINK HREF="PLIP-Install-HOWTO-12.html" REL=next>
+ <LINK HREF="PLIP-Install-HOWTO-10.html" REL=previous>
+ <LINK HREF="PLIP-Install-HOWTO.html#toc11" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="PLIP-Install-HOWTO-12.html">Next</A>
+<A HREF="PLIP-Install-HOWTO-10.html">Previous</A>
+<A HREF="PLIP-Install-HOWTO.html#toc11">Contents</A>
+<HR>
+<H2><A NAME="s11">11. The cdrom nfs server side</A>   </H2>
+
+<P>
+<P>This section describes how to mount and export via NFS a cdrom drive.
+<P>Mount the cdrom. If you encounter a problem with your cdrom drive,
+read the <B><EM>CDROM-HOWTO</EM></B>. I assume that the cdrom
+device is <CODE>/dev/hdd</CODE> but it could be <CODE>/dev/sr0</CODE> or
+<CODE>/dev/hdb</CODE> etc. The mount point I choose is <CODE>/cdrom</CODE>
+but you can choose the one you want:
+<P>
+<PRE>
+     $ mount -t iso9660 /dev/hdd  /cdrom
+    
+</PRE>
+ 
+<P>You have to set up nfs services.  If something goes wrong, read the
+<B><EM>NFS-HOWTO</EM></B>
+<P>Verify your kernel supports nfs:
+<P>
+<PRE>
+     $ cat /proc/filesystems 
+             ext2
+     nodev   proc
+     nodev   nfs
+     nodev   ncpfs
+     nodev   devpts
+             iso9660
+    
+</PRE>
+<P>
+<P>Verify your portmapper can handle mountd and nfs client requests:
+<P>
+<P>
+<PRE>
+     $ rpcinfo -p
+     program vers proto   port
+     100000    2   tcp    111  portmapper
+     100000    2   udp    111  portmapper
+     100005    1   udp    655  mountd
+     100005    1   tcp    657  mountd
+     100003    2   udp   2049  nfs
+     100003    2   tcp   2049  nfs
+    
+</PRE>
+<P>Lines with <CODE>nfs</CODE> or <CODE>portmapper</CODE> have to be there. We
+have NFS on tcp?  progress have been made!
+<P>It doesn't matter if you have only NFS on udp. NFS has to work,
+that's the thing you need. 
+<P>Then, rerun <CODE>portmap</CODE>, <CODE>mountd</CODE>, <CODE>nfs</CODE>:
+<P>
+<PRE>
+     $ /etc/rc.d/init.d/portmap.init stop
+     Stopping INET services: portmap 
+
+     $ /etc/rc.d/init.d/portmap.init start
+     Starting portmapper: portmap
+
+     $ /etc/rc.d/init.d/nfs stop
+     Shutting down NFS services: rpc.mountd rpc.nfsd 
+
+     $ /etc/rc.d/init.d/nfs start
+     Starting NFS services: rpc.mountd rpc.nfsd 
+    
+</PRE>
+<P><CODE>/etc/rc.d/init.d/</CODE> is <CODE>/sbin/init.d/</CODE> on SuSE Linux
+systems. I had a dream last night: LSB was respected. (LDB: Linux
+Standard Base)
+<P>
+<P>Then, try to mount it "locally" (via nfs) on the <B>source</B> box
+and when the test is good remove the test directory:
+<P>
+<PRE>
+     $ mkdir /tmp/nfstest
+     $ mount -t nfs source:/cdrom /tmp/nfstest
+     $ ls  /tmp/nfstest/
+     README             debian/            locatedb.3         tools/
+     TRANS.TBL          ftp.netscape.com/  ls_lR.3            upgrade/
+     boot/              install/           realaudio/
+     
+     $ echo great stuff !
+     $ umount /tmp/nfstest
+     $ rmdir /tmp/nfstest
+     
+</PRE>
+<P>Bad luck ? Read the <B><EM>NFS-HOWTO</EM></B> and
+<B><CODE>/var/log/messages</CODE></B>.
+<P>Check the nfs server with those commands:
+<P>
+<PRE>
+     $ rpcinfo -p
+     
+</PRE>
+ 
+<P>Run <CODE>portmap</CODE> with the <CODE>-v</CODE> flag:
+<P>
+<PRE>
+      $ portmap -v
+     
+</PRE>
+<P>kill <CODE>portmap</CODE>, <CODE>mountd</CODE>, <CODE>nfsd</CODE> and rerun them
+in this order: <CODE>portmap</CODE>, <CODE>mountd</CODE>, <CODE>nfsd</CODE>.
+Take a rest, get more coffee. Read again the
+<B><EM>NFS-HOWTO</EM></B> and restart.
+<P>Now, the exported cdrom drive nfs server is ready to work.
+Congratulations.
+<P>
+<P>
+<HR>
+<A HREF="PLIP-Install-HOWTO-12.html">Next</A>
+<A HREF="PLIP-Install-HOWTO-10.html">Previous</A>
+<A HREF="PLIP-Install-HOWTO.html#toc11">Contents</A>
+</BODY>
+</HTML>

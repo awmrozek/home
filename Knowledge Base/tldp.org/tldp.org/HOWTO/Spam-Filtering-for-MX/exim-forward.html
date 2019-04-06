@@ -1,0 +1,326 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Exempting Forwarded Mail</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Exim Implementation"
+HREF="exim.html"><LINK
+REL="PREVIOUS"
+TITLE="Accept Bounces Only for Real Users"
+HREF="exim-bounces.html"><LINK
+REL="NEXT"
+TITLE="Final ACLs"
+HREF="exim-final.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="exim-bounces.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix A. Exim Implementation</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="exim-final.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="exim-forward"
+></A
+>A.13. Exempting Forwarded Mail</H1
+><P
+>&#13;      After adding all these checks in the SMTP transaction, we may
+      find ourselves indirectly creating collateral spam as a result
+      of rejecting mails forwarded from trusted sources, such as
+      mailing lists and mail accounts on other sites (see the
+      discussion on <A
+HREF="forwardedmail.html"
+>Forwarded Mail</A
+> for details).  We
+      now need to whitelist these hosts in order to exempt them from
+      SMTP rejections -- at least those rejections that are caused by
+      our spam and/or virus filtering.
+    </P
+><P
+>&#13;      In this example, we will consult two files in response to each
+      <B
+CLASS="command"
+>RCPT TO:</B
+> command:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;          A global whitelist in
+          <TT
+CLASS="option"
+>/etc/mail/whitelist-hosts</TT
+>, containing
+          backup MX hosts and other whitelisted senders
+          <A
+HREF="greylisting.html#FTN.noretrysenders"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>, and
+        </P
+></LI
+><LI
+><P
+>&#13;          A user-specific list in
+          <TT
+CLASS="option"
+>/home/<TT
+CLASS="parameter"
+><I
+>user</I
+></TT
+>/.forwarders</TT
+>,
+          specifying hosts from which that particuar user will receive
+          forwarded mail (e.g. mailing list servers, outgoing mail
+          servers for accounts elsewhere...)
+        </P
+></LI
+></UL
+><P
+>&#13;      If your mail users do not have local user accounts and home
+      directories, you may want to modify the file paths and/or lookup
+      mechanisms to something more suitable for your system
+      (e.g. database lookups or LDAP queries).
+    </P
+><P
+>&#13;      If the sender host is found in one of these whitelists, we save
+      the word <SPAN
+CLASS="QUOTE"
+>"accept"</SPAN
+> in <TT
+CLASS="varname"
+>$acl_m0</TT
+>, and
+      clear the contents of <TT
+CLASS="varname"
+>$acl_m1</TT
+>, as described in
+      the previous section on <A
+HREF="exim-smtpdelays.html#exim-smtpdelays-selective"
+>Selective Delays</A
+>.  This will indicate that
+      we should not reject the mail in subsequent statements.
+    </P
+><P
+>&#13;      In the <A
+HREF="exim-final.html#acl_rcpt_to_final"
+>acl_rcpt_to</A
+>, we insert the
+      following statement after validating the recipient address, but
+      before any <TT
+CLASS="option"
+>accept</TT
+> statements pertaining to
+      unauthenticated deliveries from remote hosts to local users
+      (i.e. before any greylist checks, envelope signature checks,
+      etc):
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  # Accept the mail if the sending host is matched in the global
+  # whitelist file.  Temporarily set $acl_m9 to point to this  file. 
+  # If the host is found, set a flag in $acl_m0 and clear $acl_m1 to 
+  # indicate that we should not reject this mail later.
+  # 
+  accept
+    set acl_m9  = /etc/mail/whitelist-hosts
+    hosts       = ${if exists {$acl_m9}{$acl_m9}}
+    set acl_m0  = accept
+    set acl_m1  = 
+
+
+  # Accept the mail if the sending host is matched in the ".forwarders" 
+  # file in the recipient's home directory.  Temporarily set $acl_m9 to
+  # point to this file.  If the host is found, set a flag in $acl_m0 and
+  # clear $acl_m1 to indicate that we should not reject this mail later.
+  #
+  accept
+    domains     = +local_domains
+    set acl_m9  = /home/${extract{1}{=}{${lc:$local_part}}}/.forwarders
+    hosts       = ${if exists {$acl_m9}{$acl_m9}} 
+    set acl_m0  = accept
+    set acl_m1  = 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;      In various statements in the <A
+HREF="exim-final.html#acl_data_final"
+>acl_data</A
+>
+      ACL, we check the contents of <TT
+CLASS="varname"
+>$acl_m0</TT
+> to avoid
+      rejecting the mail if this is set as per above.  For instance,
+      to avoid rejecting mail from whitelisted hosts due to a missing
+      RFC2822 header:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  deny
+    message     = Your message does not conform to RFC2822 standard
+    log_message = missing header lines
+    !hosts      = +relay_from_hosts
+    !senders    = : postmaster@*
+    condition   = ${if !eq {$acl_m0}{accept}{true}}
+    condition   = ${if or {{!def:h_Message-ID:}\
+                           {!def:h_Date:}\
+                           {!def:h_Subject:}} {true}{false}}
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;      The appropriate checks are embedded in the <A
+HREF="exim-final.html"
+>Final ACLs</A
+>, next.
+    </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="exim-bounces.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="exim-final.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Accept Bounces Only for Real Users</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="exim.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Final ACLs</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

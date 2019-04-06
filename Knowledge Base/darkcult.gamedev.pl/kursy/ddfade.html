@@ -1,0 +1,412 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Efekty przejścia</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h1>
+Efekty przejścia
+</h1>
+
+<P>
+W wielu grach występuje efekt, zwany <span class=Inglisz>fade-out</span> (obraz stopniowo zaciemnia się, aż staje się całkowicie czarny, dlatego też efekt ten bywa też nazywany <span class=Inglisz>fade to black</span> - lubicie Metallikę? ;-)) lub <SPAN CLASS=Inglisz>fade-in</SPAN> (na czarnym ekranie stopniowo pojawia się obraz). Można też spotkać coś w rodzaju połączenia tych dwóch efektów - jeden obraz przechodzi stopniowo w drugi. Wszystko to zazwyczaj znacznie podnosi estetyczne walory gry, więc warto wiedzieć, jak się to robi. Jeśli nie dysponujemy akurat biblioteką graficzną, która posiada specjalnie stworzone w tym celu funkcje, możemy sami zaimplementować podobne efekty.
+</P>
+
+<h2>
+Fade-out
+</h2>
+
+<P>
+Zacznijmy od ściemy - dosłownie i w przenośni :-). Na chłopski rozum efekt fade-out polega po prostu na stopniowym zmniejszaniu jasności pikseli. W modelu HSL jest to wręcz banalne do wykonania - wystarczy zmniejszać składową Lightness. Jednak w WinAPI i DirectX stosowany jest raczej model RGB, gdzie zresztą przyciemnianie pikseli jest również stosunkowo proste. Wystarczy proporcjonalnie zmniejszać wszystkie trzy składowe koloru. Proporcjonalnie, a więc najlepiej mnożyć je przez liczbę z zakresu <SPAN CLASS=L>&lt;0; 1&gt;</SPAN>. Tak więc trzeba rozłożyć każdy piksel na trzy składowe, każdą przemnożyć przez "współczynnik zaciemnienia" i z powrotem złożyć w 32-bitową liczbę.
+</P>
+<P>
+Oczywiście potrzebujemy bezpośredniego dostępu do powierzchni DirectDraw, aby się w coś takiego pobawić. Dlatego zaczynamy od zablokowania powierzchni ekranu. Zakładając więc, że mamy już wszystko zainicjalizowane, ustawiony tryb 32-bitowy, rozdzielczość 800x600 i gotowy obraz wczytany na powierzchnię ekranu (dostępną pod globalnym wskaźnikiem <SPAN CLASS=T>g_lpScreen</SPAN>), piszemy... 
+</P>
+<P>
+Odpalamy (z samodzielnym napisaniem nie miałeś problemu, gdyż czytasz uważnie moje kursy ;-P) i... rozczarowanie. Wprawdzie obraz się zaciemnia, ale trwa to całe wieki. Dlaczego tak się dzieje? Czyż nie stosujemy bezpośredniego dostępu do powierzchni, który jest najszybszą metodą manipulowania pikselami? Czyż nie piszemy w języku C++, tak samo jak twórcy dziesiątek gier, w których fade-out działa znacznie szybciej? Więc co jest, doktorku?
+</P>
+<P>
+Podstawowym błędem, który być może popełniliśmy, było grzebanie w pikselach powierzchni ekranu. Tak-się-nie-robi. Powinniśmy raczej utworzyć roboczą powierzchnię pozaekranową, przekopiować do niej obraz, cały proces przyciemniania wykonać na tej powierzchni pozaekranowej, wreszcie skopiować rezultat na ekran.
+</P>
+<P>
+Kolejną potencjalną pułapką jest formuła wyliczania indeksu piksela do zmodyfikowania, którą przedstawiłem w odcinku o bezpośrednim dostępie do powierzchni:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+((DWORD*)ddsd.lpSurface)[ddsd.dwWidth * y + x] = k;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jest metoda dobra, ale nie bardzo dobra - działa najzupełniej prawidłowo, ale niekoniecznie z optymalną wydajnością.
+Mamy tu bardzo kosztowne obliczeniowo mnożenie, które nie jest tu tak naprawdę do niczego potrzebne. Bierzemy przecież po prostu kolejne piksele. O wiele lepiej by było po prostu przesuwać wskaźnik na bity powierzchni o 1 dla każdego piksela. Wtedy mielibyśmy do czynienia jedynie z szybkim dodawaniem. 
+</P>
+<P>
+I wreszcie ostatni, najbardziej żmudny trick optymalizacyjny. Tracimy sporo mocy obliczeniowej na rozkładanie koloru każdego piksela na składowe, mnożenie każdej składowej przez liczbę zmiennoprzecinkową (o zmiennoprzecinkowym liczniku zewnętrznej pętli nawet nie ma co wspominać), składanie piksela z powrotem w liczbę 16-bitową. Co można z tym zrobić?
+</P>
+<P>
+Możemy... stablicować wszystkie wykorzystywane odcienie dla wszystkich możliwych kolorów! Spytasz pewnie, czy taka tablica nie będzie przypadkiem zajmowała zbyt dużo miejsca. Oczywiście, będzie. Nawet jeśli zmienimy tryb na 16-bitowy (stablicowanie wszystkich <SPAN CLASS=L>16 777 216</SPAN> kolorów trybu 24-bitowego i 32-bitowego oczywiście nie jest zbyt praktycznym pomysłem ;-)), to i tak tablica będzie spora.  Policzmy: <SPAN CLASS=L>65000 * 30 * 2</SPAN> daje razem prawie 4 MB! (<SPAN CLASS=L>30</SPAN> jest to założona przez nas liczba iteracji, czyli możliwych odcieni każdego piksela w efekcie fadingu, a <SPAN CLASS=L>2</SPAN> - tyle bajtów tworzy <SPAN CLASS=L>16</SPAN> bitów) Jednak w dzisiejszych czasach nie jest to aż tak wiele, więc możemy sobie bez problemu wygenerować taką tablicę, którą - gdyby nam zaczęło brakować miejsca w RAM-ie, zawsze można zrzucić tymczasowo na dysk. 
+</P>
+<h2>
+Kilka funkcji ułatwiających życie
+</h2>
+<P>
+Zanim przystąpimy do działania, ujmiemy w procedury garść operacji, które będziemy musieli wykonywać często. Operacje te to: tworzenie powierzchni, blokowanie i odblokowywanie. Wszystko to już robiliśmy w poprzednich odcinkach kursu DirectDraw, więc w szczegóły nie wchodzimy. Ewentualne wątpliwości rozwieją się później ;-).
+</P>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LPDIRECTDRAWSURFACE DDCreateSurface(DWORD dwWidth, DWORD dwHeight, DWORD dwFlags)<BR>
+{<BR>
+&nbsp;LPDIRECTDRAWSURFACE temp = NULL;<BR>
+&nbsp;DDSURFACEDESC ddsd;<BR>
+&nbsp;ZeroMemory(&ddsd,<SPAN CLASS=K>sizeof</SPAN>(DDSURFACEDESC));<BR>
+&nbsp;ddsd.dwSize         = <SPAN CLASS=K>sizeof</SPAN>(DDSURFACEDESC);<BR>
+&nbsp;ddsd.dwFlags        = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT;<BR>
+&nbsp;ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | dwFlags;<BR>
+&nbsp;ddsd.dwWidth        = dwWidth;<BR>
+&nbsp;ddsd.dwHeight       = dwHeight; <BR>
+<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(lpDD->CreateSurface(&ddsd, &temp, NULL) != DD_OK)<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>return</SPAN> NULL;<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> temp;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście zakładamy tu, że lpDD jest globalnym wskaźnikiem na obiekt główny DirectDraw.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+WORD *DDLockSurface(LPDIRECTDRAWSURFACE lpSurf, <SPAN CLASS=K>int</SPAN> *lpitch)<BR>
+{<BR>
+&nbsp;DDSURFACEDESC ddsd;<BR>
+&nbsp;ZeroMemory(&ddsd,<SPAN CLASS=K>sizeof</SPAN>(DDSURFACEDESC));
+&nbsp;ddsd.dwSize = <SPAN CLASS=K>sizeof</SPAN>(DDSURFACEDESC);<BR>
+&nbsp;lpSurf->Lock(NULL, &ddsd, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL);<BR>
+<BR>
+&nbsp;*lpitch = ddsd.lPitch &gt;&gt; <SPAN CLASS=L>1</SPAN>;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> (WORD*)ddsd.lpSurface;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>void</SPAN> DDUnlockSurface(LPDIRECTDRAWSURFACE lpSurf)<BR>
+{<BR>
+&nbsp;lpSurf-&gt;Unlock(NULL);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Można dojść do wniosku, że nie ma większego sensu tworzyć funkcję <SPAN CLASS=T>DDUnlockSurface</SPAN>, skoro wszystko, co ma ona za zadanie, to wywołanie metody <SPAN CLASS=T>Unlock</SPAN> dla podanej powierzchni. Jednak jakoś brzydko tak wygląda, gdy się blokuje własną funkcją, a odblokowuje funkcją biblioteczną, więc niniejszym zapewniamy symetrię ;-).
+</P>
+
+<h2>
+Kolor w trybie 16-bitowym
+</h2>
+
+<P>
+Skoro ustaliliśmy sobie, że będziemy działać w trybie 16-bitowym, to wypadałoby wiedzieć, jak dokładnie zbudowany jest piksel w tym trybie. W trybie 32-bitowym wszystko jest stosunkowo proste: mamy 4 bajty na piksel, przy czym trzy opisują kolor (każdy bajt to inna składowa w modelu RGB), czwarty jest zarezerwowany na kanał alfa. 
+Ale jak podzielić dwa bajty (czyli 16 bitów) między trzy składowe? Wybrnięto z tego problemu w ten sposób, że jedna ze składowych jest "uprzywilejowana" i dostaje 6 bitów, zaś pozostałe dwie - po 5. Ta "uprzywilejowana" składowa to umownie zieleń (kolor życia, jak by nie było ;-)). Tak więc można sobie wyobrazić przykładowy piksel w postaci binarnej:
+</P>
+
+<P>
+<b><font color=red>11111</font><font color=green>111111</font><font color=blue>11111</font></b>
+</P>
+
+<P>
+Ponieważ mamy tu same jedynki, z całą pewnością piksel ten jest biały, ale mniejsza z tym. Powinniśmy raczej skupić nasze mózgownice na tym, jak wyłuskać poszczególne składowe z takiej 16-bitowej liczby oraz jak je potem złożyć z powrotem - takie bowiem operacje będziemy wykonywać (o czym już sobie zresztą wspomnieliśmy). Zacznijmy od prostszej rzeczy, czyli właśnie od składania. Wystarczy tu tylko przesunąć bity na odpowiednie pozycje, zgodnie ze schematem, który przedstawiliśmy powyżej oraz po przesunięciu pododawać do siebie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#define KOLOR16(r, g, b)   (  (r &lt;&lt; 11) | (g &lt;&lt; 5) | b  )<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Nieco więcej zachodu jest z rozkładaniem. Musimy tu skorzystać z masek, aby "usunąć" (wyzerować) z danej liczby wszystkie bity oprócz tych, które nas akurat interesują. Przesuwamy w tym celu wszystkie bity, które leżą na lewo od bitów interesującej nas składowej, poza "obręb" naszych 16 bitów. Następnie aplikujemy maskę za pomocą operatora AND - operacja ta usuwa lewą część nieinteresujących nas bitów. Wreszcie przesuwamy w prawo pozostałe bity, by usunąć prawą część zbędnych bitów. W przypadku czerwonej składowej musimy oczywiście wykonać tylko przesunięcie w prawo, gdyż po lewej nie ma żadnych bitów danych:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#define RED(k)      (  (k &gt;&gt; 11)  )<BR>
+#define GREEN(k)    (  ((k &lt;&lt; 5) & 0xFFFF) &gt;&gt; 10 )<BR>
+#define BLUE(k)     (  ((k &lt;&lt; 11) & 0xFFFF) &gt;&gt; 11  )<BR>
+</SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy więc makra, które zapewnią nam łatwą obsługę koloru 16-bitowego. Pora na wspomnianą dużą tablicę odcieni pikseli. Oto ona:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+WORD Odcien[<SPAN CLASS=L>30</SPAN>][<SPAN CLASS=L>65536</SPAN>];<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Generowanie tablicy będzie wyglądało mniej więcej tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> InicjalizujOdcienie()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>const double</SPAN> alfa[<SPAN CLASS=L>30</SPAN>] = {<SPAN CLASS=L> 0.00, 0.01, 0.04, 0.08, 0.12, 0.16, 0.20, 0.24, 0.28, 0.32, 0.36, 0.40, 0.44, 0.48,<BR>
+&nbsp;0.51, 0.54, 0.58, 0.61, 0.65, 0.68, 0.72, 0.75, 0.79, 0.82, 0.86, 0.89, 0.93, 0.96, 0.99, 1.00</SPAN> };<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>;i&lt;<SPAN CLASS=L>30</SPAN>;++i)<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> j=<SPAN CLASS=L>0</SPAN>;j&lt;<SPAN CLASS=L>65536</SPAN>;++j)<BR>
+&nbsp;&nbsp;Odcien[i][j] = KOLOR16((BYTE)(RED(j)*alfa[i]), (BYTE)(GREEN(j)*alfa[i]), (BYTE)(BLUE(j)*alfa[i]));<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Cóż my tu mamy? Wartości w tablicy <SPAN CLASS=T>alfa</SPAN> odpowiadają po prostu procentowemu "zaciemnieniu" obrazu i różnica między nimi jest mniej więcej stała (pi razy drzwi ;-)), aby zapewnić złudzenie płynności zanikania obrazu. Jest <SPAN CLASS=L>30</SPAN> współczynników alfa - tyle samo, ile będzie naszych etapów "zaciemniania". Następnie dla każdego z tych etapów (dla każdego współczynnika alfa) i dla każdego z 65 tys. kolorów obliczamy odcień piksela, korzystając ze zdefiniowanych wcześniej makr <SPAN CLASS=T>RED, GREEN</SPAN> i <SPAN CLASS=T>BLUE</SPAN>. W ten oto sposób tablica <SPAN CLASS=T>Odcien</SPAN> zostaje wypełniona.
+</P>
+
+<h2>
+Ciemność widzę...
+</h2>
+<P>
+Teraz droga do optymalizacji jest już prosta. Stworzyliśmy sobie taką oto procedurkę "fejdingującą", którą za chwilę dokładniej sobie objaśnimy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> DDFadeToBlack()<BR>
+{<BR>
+&nbsp;RECT rect = {<SPAN CLASS=L>0, 0, 800, 600</SPAN>}; <SPAN CLASS=C>// prostokąt kadrujący - obejmuje cały ekran</SPAN><BR>
+&nbsp;WORD *tmp, *ref, *prm; <SPAN CLASS=C>// wskaźniki na piksele powierzchni</SPAN><BR>
+&nbsp;WORD *wsk_tmp, *wsk_prm; <SPAN CLASS=C>// wskaźniki pomocnicze do kopiowania na pow. ekranu</SPAN><BR>
+&nbsp;WORD *fastref, *fasttmp; <SPAN CLASS=C>// "szybkie" wskaźniki</SPAN><BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> tpitch, rpitch, ppitch;<BR>
+&nbsp;WORD *lpOdcien;<BR>
+&nbsp;LPDIRECTDRAWSURFACE lpTemp, lpRef;<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// Stwórz powierzchnie robocze</SPAN><BR>
+&nbsp;lpTemp = DDCreateSurface(<SPAN CLASS=L>800, 600</SPAN>, DDSCAPS_SYSTEMMEMORY);<BR>
+&nbsp;lpRef  = DDCreateSurface(<SPAN CLASS=L>800, 600</SPAN>, DDSCAPS_SYSTEMMEMORY);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// Blituj obraz na ekranie do powierzchni roboczej</SPAN><BR>
+&nbsp;lpRef-&gt;Blt(&rect, g_lpScreen, &rect, DDBLT_WAIT, NULL);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// Zablokuj powierzchnie</SPAN><BR>
+&nbsp;tmp = DDLockSurface(lpTemp, &tpitch);<BR>
+&nbsp;ref = DDLockSurface(lpRef, &rpitch);<BR>
+&nbsp;prm = DDLockSurface(g_lpScreen, &ppitch);<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> c=<SPAN CLASS=L>29</SPAN>; c&gt;=<SPAN CLASS=L>0</SPAN>; --c)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// pobierz odpowiedni fragment tablicy odcieni</SPAN><BR>
+&nbsp;&nbsp;lpOdcien = Odcien[c];<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// inicjalizuj "szybkie" wskaźniki</SPAN><BR>
+&nbsp;&nbsp;fastref = ref;<BR>
+&nbsp;&nbsp;fasttmp = tmp;<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// dla każdego piksela powierzchni (800*600=480000)</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>480000</SPAN>; ++i,++fasttmp,++fastref)<BR>
+&nbsp;&nbsp;&nbsp;*fasttmp = lpOdcien[*fastref];<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// kopiuj roboczy obszar na powierzchnię ekranu</SPAN><BR>
+&nbsp;&nbsp;wsk_prm = prm;<BR>
+&nbsp;&nbsp;wsk_tmp = tmp;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>600</SPAN>; ++i) <SPAN CLASS=C>// dla każdej linii obrazu</SPAN><BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;memcpy(wsk_prm, wsk_tmp, <SPAN CLASS=L>1600</SPAN>);<BR>
+&nbsp;&nbsp;&nbsp;wsk_prm += ppitch;<BR>
+&nbsp;&nbsp;&nbsp;wsk_tmp += tpitch;<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// żeby w ogóle dało się coś zauważyć - małe opóźnienie ;-)</SPAN><BR>
+&nbsp;&nbsp;Sleep(<SPAN CLASS=L>20</SPAN>);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// odblokowanie powierzchni</SPAN><BR>
+&nbsp;DDUnlockSurface(lpTemp);<BR>
+&nbsp;DDUnlockSurface(lpRef);<BR>
+&nbsp;DDUnlockSurface(g_lpScreen);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// sprzątanie</SPAN><BR>
+&nbsp;lpTemp-&gt;Release();<BR>
+&nbsp;lpRef-&gt;Release();<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Procedurka działa tak: najpierw tworzy sobie dwie powierzchnie robocze. W pierwszej (<SPAN CLASS=T>lpRef</SPAN>) będą pobierane wyjściowe wartości pikseli, w drugiej (<SPAN CLASS=T>lpTemp</SPAN>) będą zapisywane piksele po przetworzeniu. Z powierzchni ekranu (<SPAN CLASS=T>g_lpScreen</SPAN>) nie będziemy ani odczytywać, ani zapisywać, gdyż byłoby to zbyt powolne. Dlatego jeśli chcemy skopiować coś z powierzchni ekranu lub na nią, to korzystamy albo z <SPAN CLASS=T>Blt</SPAN> (<SPAN CLASS=T>BltFast</SPAN>), albo ewentualnie funkcji typu <SPAN CLASS=T>memcpy</SPAN> - nigdy nie kopiujemy pojedynczych bajtów w pętli.
+</P>
+<P>
+Następnym krokiem jest zablokowanie powierzchni. Użyta funkcja <SPAN CLASS=T>DDLockSurface</SPAN> (zdefiniowana powyżej) zwraca przy okazji parametr <SPAN CLASS=Wazne>pitch</SPAN> dla blokowanej powierzchni oraz wskaźnik do pikseli powierzchni (zaraz powiemy, co to ten pitch ;-)). 
+</P>
+<P>
+Wreszcie wchodzimy w pętlę, powtarzaną <SPAN CLASS=L>30</SPAN> razy (czyli dla każdego stadium zaciemnienia). Najpierw pobieramy wskaźnik (<SPAN CLASS=T>lpOdcien</SPAN>), który będzie nam wskazywał fragment tablicy <SPAN CLASS=T>Odcien</SPAN>, odpowiadający aktualnej fazie zaciemnienia (<SPAN CLASS=T>c</SPAN>). Inicjalizujemy wskaźniki <SPAN CLASS=T>fastref</SPAN> i <SPAN CLASS=T>fasttmp</SPAN>, tak aby wskazywały na początek powierzchni roboczych. Następnie w wewnętrznej pętli dla kolejnych <SPAN CLASS=L>480&nbsp;000</SPAN> pikseli (tyle liczy sobie ekran w rozdzielczości <SPAN CLASS=L>800x600</SPAN>) pobieramy nową wartość piksela z tablicy Odcien poprzez wskaźnik <SPAN CLASS=T>lpOdcien</SPAN>. Dodatkowe przyśpieszenie uzyskujemy dzięki użyciu wskaźników <SPAN CLASS=T>fasttmp</SPAN> i <SPAN CLASS=T>fastref</SPAN> - operacja <SPAN CLASS=T>'++'</SPAN> działa szybciej, niż <SPAN CLASS=T>'+=<SPAN CLASS=L>2</SPAN>'</SPAN> (zwłaszcza, gdy wykonywana jest w bloku kontrolnym pętli), natomiast <SPAN CLASS=T>'++'</SPAN> dla zmiennej <SPAN CLASS=T>WORD*</SPAN> daje ten sam efekt, co <SPAN CLASS=T>'+=<SPAN CLASS=L>2</SPAN>'</SPAN> dla <SPAN CLASS=T>WORD</SPAN>. 
+</P>
+<P>
+Po wyjściu z wewnętrznej pętli mamy już w roboczej powierzchni <SPAN CLASS=T>lpTemp</SPAN> przygotowaną "zaciemnioną wersję" obrazu. Wystarczy ją wyświetlić, czyli skopiować na powierzchnię ekranu. Ponieważ jednak powierzchnia ekranu jest nadal zablokowana, nie możemy skorzystać z metody <SPAN CLASS=T>Blt</SPAN> czy <SPAN CLASS=T>FastBlt</SPAN>. Nie możemy też odblokować powierzchni, gdyż jest to zbyt czasochłonna operacja i mogłaby zmniejszyć wydajność, o którą tak dzielnie walczymy. Jedynym wyjściem jest skopiowanie bajtów "ręcznie", czyli na przykład za pomocą standardowej funkcji <SPAN CLASS=T>memcpy</SPAN>. Niestety, nie możemy tego uczynić przez pojedyncze wywołanie <SPAN CLASS=T>memcpy</SPAN> (co byłoby z pewnością najszybsze), a to ze względu na parametr <SPAN CLASS=T>lPitch</SPAN> powierzchni...
+</P>
+<P>
+Tutaj mała dygresja. Składowa <SPAN CLASS=T>lPitch</SPAN> należy do struktury DDSURFACEDESC. Nie wspomniałem o niej w odcinku o bezpośrednim dostępie do powierzchni, a być może powinienem. Otóż pamięć powierzchni bywa czasem wypełniona zupełnie nas nie interesującymi "śmieciami". Z tego względu każda linia obrazu może zajmować więcej, niż wynikałoby z formuły <SPAN CLASS=T>rozdzielczość_pozioma * 2_bajty</SPAN>. Najlepiej to zrozumieć na obrazku:
+</P>
+<P align=center>
+<img src="../gfx/pitch.gif" alt="Parametr pitch powierzchni DirectDraw">
+</P>
+
+<P>
+Jak widać, po prawej mamy szary prostokąt - to właśnie obszar, który nas w tym momencie w ogóle nie interesuje. Występuje on z reguły tylko w przypadku powierzchni głównej ekranu oraz tych powierzchni pozaekranowych, na których wykonujemy obroty. Tutaj żadnych obrotów nie potrzebujemy, więc "szary obszar" dotyczy tylko powierzchni ekranu. Niemniej kopiowanie pikseli musimy zrealizować w pętli, uwzględniając przesunięcie linii (<SPAN CLASS=Inglisz>pitch</SPAN>). Ponieważ metoda <SPAN CLASS=T>Lock</SPAN> usłużnie zwraca nam przesunięcie blokowanej powierzchni, skorzystamy z tego i w ten właśnie sposób pobierzemy przesunięcie dla powierzchni ekranu. Natomiast piksele kopiujemy w ten sposób, że bierzemy pojedynczą linię (<SPAN CLASS=L>1600</SPAN> bajtów), przesuwamy wskaźnik "nad szarym obszarem", bierzemy kolejne <SPAN CLASS=L>1600</SPAN> bajtów, itd.
+</P>
+<P>
+Musimy jeszcze gdzieś wywołać stworzone przez nas procedurki:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+InicjalizujOdcienie();<BR>
+DDFadeToBlack();<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+I tak oto zrobiliśmy wreszcie stopniowe zanikanie obrazu. Czy teraz jest ono optymalne? Przekonaj się sam. Powiem tylko, że raczej nie jest już możliwe jakieś znaczące zwiększenie wydajności przedstawionych algorytmów. Natomiast jakieś drobne optymalizacje zawsze da się wynaleźć, tyle, że chyba szkoda zachodu...
+</P>
+<P>
+Wspomnę jeszcze, iż przez analogię łatwo możemy teraz zrobić efekt odwrotny, czyli stopniowe pojawianie się bitmapy na pustym ekranie. Wystarczy dokonać odpowiednich zmian w zewnętrznej pętli oraz oczywiście zamienić powierzchnie (tj. bitmapę blitujemy nie z powierzchni ekranu, tylko z wcześniej przygotowanej powierzchni pozaekranowej). Potraktujmy to jako pracę domową ;-).
+</P>
+
+<h2>
+Alfa-blending
+</h2>
+
+<P>
+Drugim efektem, który możemy wykonać niejako z rozpędu, jest tzw. alfa-blending, czyli wzajemne przenikanie się dwóch bitmap.  Jest to nic innego, jak tylko połączenie opisanego wyżej efektu fade-out z efektem fade-in. Z tego powodu zresztą alfa-blending bywa też nazywany <SPAN CLASS=Inglisz>cross-fading</SPAN> (albo jeszcze inaczej: <SPAN CLASS=Inglisz>alpha transition</SPAN>).
+</P>
+<P>
+Do tego efektu potrzebować będziemy aż czterech powierzchni jednocześnie. Oprócz powierzchni ekranu (co oczywiste) użyjemy po jednej powierzchni referencyjnej dla każdego z dwóch obrazków. Jedną będziemy nazywać źródłową (<SPAN CLASS=T>lpSrc</SPAN>) - to będzie ten obrazek, który na początku jest widoczny, a potem stopniowo zanika. Druga będzie zwana powierzchnią docelową (<SPAN CLASS=T>lpDst</SPAN>) - obrazek, którego na początku nie widać, a później stopniowo pojawia się. Czwarta powierzchnia to powierzchnia robocza, w której będziemy zapisywać wynik blendingu.
+</P>
+<P>
+W procedurce <SPAN CLASS=T>DDFadeToBlack</SPAN> mieliśmy wskaźnik <SPAN CLASS=T>lpOdcien</SPAN>, który wykorzystywaliśmy do wskazywania na odpowiedni fragment tablicy <SPAN CLASS=T>Odcien</SPAN>. Tym razem będziemy potrzebować dwóch takich wskaźników. Jeden będzie pokazywać na początek wspomnianej tablicy, drugi na koniec i w miarę wykonywania kolejnych iteracji algorytmu wskaźniki te będą się do siebie zbliżały, a następnie "wyminą się" i znowu zaczną oddalać. Nazwiemy je <SPAN CLASS=T>AlphaPtr</SPAN> i <SPAN CLASS=T>InvAlphaPtr</SPAN>.
+</P>
+<P>
+Ponieważ mamy więcej powierzchni, będzie też więcej "szybkich" wskaźników. Pytanie tylko - jaką właściwie operację wykonamy w celu "zmiksowania" kolorów pikseli, pochodzących z dwóch obrazów? Otóż wystarczy... zwykłe dodawanie:
+</P>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+*fasttmp = AlphaPtr[*fastsrc] + InvAlphaPtr[*fastdst];<BR>
+</TD></TR>
+</TABLE>
+<P>
+Jeśli wydaje ci się to trochę dziwne, to przypomnij sobie, że dokładnie to samo robiliśmy przy efekcie fade-out. Tyle tylko, że tam obraz docelowy był czarny, a więc do wartości piksela nic nie trzeba było dodawać (innymi słowy: dodawaliśmy zero).
+</P>
+<P>
+Poza opisanymi przed chwilą drobiazgami procedura, którą nazwiemy sobie <SPAN CLASS=T>DDAlphaTransition</SPAN>, nie będzie się zbytnio różnić od <SPAN CLASS=T>DDFadeToBlack</SPAN>. Tak więc nie przedłużajmy gadaniny i weźmy się do dzieła.
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> DDAlphaTransition()<BR>
+{<BR>
+&nbsp;RECT rect = {<SPAN CLASS=L>0, 0, 800, 600</SPAN>}; <SPAN CLASS=C>// prostokąt kadrujący - obejmuje cały ekran</SPAN><BR>
+&nbsp;WORD *tmp, *src, *dst, *prm; <SPAN CLASS=C>// wskaźniki na piksele powierzchni</SPAN><BR>
+&nbsp;WORD *wsk_tmp, *wsk_prm; <SPAN CLASS=C>// wskaźniki pomocnicze do kopiowania na pow. ekranu</SPAN><BR>
+&nbsp;WORD *fastsrc, *fasttmp, *fastdst; <SPAN CLASS=C>// "szybkie" wskaźniki</SPAN><BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> spitch, tpitch, dpitch, ppitch;<BR>
+&nbsp;LPDIRECTDRAWSURFACE lpTemp, lpSrc, lpDst;<BR>
+&nbsp;WORD *AlphaPtr, *InvAlphaPtr;<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// Stwórz powierzchnie robocze</SPAN><BR>
+&nbsp;lpTemp = DDCreateSurface(<SPAN CLASS=L>800, 600</SPAN>, DDSCAPS_SYSTEMMEMORY);<BR>
+&nbsp;lpSrc  = DDCreateSurface(<SPAN CLASS=L>800, 600</SPAN>, DDSCAPS_SYSTEMMEMORY);<BR>
+&nbsp;lpDst  = DDCreateSurface(<SPAN CLASS=L>800, 600</SPAN>, DDSCAPS_SYSTEMMEMORY);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// Blituj obraz na ekranie (znikający) do powierzchni roboczej źródłowej</SPAN><BR>
+&nbsp;lpSrc-&gt;Blt(&rect, g_lpScreen, &rect, DDBLT_WAIT, NULL);<BR>
+&nbsp;<SPAN CLASS=C>// ...i drugi obraz (pojawiający się) do powierzchni docelowej</SPAN><BR>
+&nbsp;lpDst-&gt;Blt(&rect, g_lpImage, &rect, DDBLT_WAIT, NULL);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// Zablokuj powierzchnie</SPAN><BR>
+&nbsp;tmp = DDLockSurface(lpTemp, &tpitch);<BR>
+&nbsp;src = DDLockSurface(lpSrc, &spitch);<BR>
+&nbsp;dst = DDLockSurface(lpDst, &dpitch);<BR>
+&nbsp;prm = DDLockSurface(g_lpScreen, &ppitch);<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> alfa=<SPAN CLASS=L>29</SPAN>; alfa&gt;=<SPAN CLASS=L>0</SPAN>; --alfa)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// pobierz odpowiedni fragment tablicy odcieni</SPAN><BR>
+&nbsp;&nbsp;AlphaPtr = Odcien[alfa];<BR>
+&nbsp;&nbsp;InvAlphaPtr = Odcien[29-alfa];<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// inicjalizuj "szybkie" wskaźniki</SPAN><BR>
+&nbsp;&nbsp;fastsrc = src;<BR>
+&nbsp;&nbsp;fastdst = dst;<BR>
+&nbsp;&nbsp;fasttmp = tmp;<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// dla każdego piksela powierzchni (800*600=480000)</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>480000</SPAN>; ++i,++fasttmp,++fastsrc,++fastdst)<BR>
+&nbsp;&nbsp;&nbsp;*fasttmp = AlphaPtr[*fastsrc] + InvAlphaPtr[*fastdst];<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// kopiuj roboczy obszar na powierzchnię ekranu</SPAN><BR>
+&nbsp;&nbsp;wsk_prm = prm;<BR>
+&nbsp;&nbsp;wsk_tmp = tmp;<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;<SPAN CLASS=L>600</SPAN>; ++i) <SPAN CLASS=C>// dla każdej linii obrazu</SPAN><BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;memcpy(wsk_prm, wsk_tmp, <SPAN CLASS=L>1600</SPAN>);<BR>
+&nbsp;&nbsp;&nbsp;wsk_prm += ppitch;<BR>
+&nbsp;&nbsp;&nbsp;wsk_tmp += tpitch;<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// żeby w ogóle dało się coś zauważyć - małe opóźnienie ;-)</SPAN><BR>
+&nbsp;&nbsp;Sleep(<SPAN CLASS=L>20</SPAN>);<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// odblokowanie powierzchni</SPAN><BR>
+&nbsp;DDUnlockSurface(lpTemp);<BR>
+&nbsp;DDUnlockSurface(lpSrc);<BR>
+&nbsp;DDUnlockSurface(lpDst);<BR>
+&nbsp;DDUnlockSurface(g_lpScreen);<BR>
+<BR>
+&nbsp;<SPAN CLASS=C>// sprzątanie</SPAN><BR>
+&nbsp;lpTemp-&gt;Release();<BR>
+&nbsp;lpSrc-&gt;Release();<BR>
+&nbsp;lpDst-&gt;Release();<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Gotowe. Nie było tak trudno, a jeśli nawet, to po kilkakrotnym przeczytaniu artykułu i przeanalizowaniu przykładowego kodu wątpliwości na pewno znikną. Teraz pozostaje tylko wykorzystać opisane efekty w twoich grach ;-).
+</P>
+
+<P align=center>
+<img src="../gfx/blend.jpg" alt="Dwie bitmapy potraktowane powyższą procedurą blendingu">
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

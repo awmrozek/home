@@ -1,0 +1,240 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Network Install HOWTO: Redhat Server Setup</TITLE>
+ <LINK HREF="Network-Install-HOWTO-7.html" REL=next>
+ <LINK HREF="Network-Install-HOWTO-5.html" REL=previous>
+ <LINK HREF="Network-Install-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Network-Install-HOWTO-7.html">Next</A>
+<A HREF="Network-Install-HOWTO-5.html">Previous</A>
+<A HREF="Network-Install-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Redhat Server Setup</A></H2>
+
+<P>
+<!--
+network install!redat server setup
+-->
+
+This section explains how to set up your server machine to be an install server
+for Redhat Linux.  You can set up any Linux distribution to be a Redhat install
+server, this machine does not necessarily have to be running Redhat.
+<P>This guide starts from the point where you have a machine installed with Linux
+which is already up and running and connected to your network.  If you require
+help with installing Linux on your server then please consult the Further
+Information section of this HOWTO in 
+<A HREF="Network-Install-HOWTO-10.html#AppendixA">Appendix A</A>.
+<P>
+<P>
+<H2><A NAME="ss6.1">6.1 Setting Up Filespace</A>
+</H2>
+
+<P>In order for your server to act as a Redhat network install server you will need
+to put on all the required data that will be needed to perform a full
+installation of the Redhat version you are serving.  For example, if you are
+used to installing Redhat using CDs then you will need space on your server to
+copy <EM>ALL</EM> the contents of each CD onto your server.
+<P>So, before you even think about setting up your machine as an install server,
+you must check that you have the required space available.  This sounds like a
+trivial thing to check but it is very important and easily forgotten when you're
+setting up.
+<P>
+<P>
+<H3>How much space will you need?</H3>
+
+<P>A guide for the amount of space that you will require will be the amount or
+space of install media that you are intending to copy from later.  This might be
+one of the following examples:
+<UL>
+<LI>Number of CDs x 650Mb</LI>
+<LI>Number of ISO images x 650Mb</LI>
+</UL>
+<P>
+<P>
+<H3>How much space do you have?</H3>
+
+<P>You will need the appropriate amount of space available to your system on some
+local filesystem.  It does not matter what form this takes, whether it's a RAID
+device, local disk (either SCSI or IDE), etc.  Ensure that the space you intend
+to use is formatted with your chosen filesystem and is mounted.
+<P>You can check this space with the command: 
+<PRE>
+df -h
+</PRE>
+<P>If this output shows you have enough space to copy your install media then
+great, you can continue installation.  If not then it's time to think about an
+upgrade to your intended server machine!
+<P>
+<P>
+<H2><A NAME="ss6.2">6.2 Copy Installation Media</A>
+</H2>
+
+<P>Once you know you have enough space available it's time to start copying your
+install media to your chosen filesystem and directory.  For the purposes of this
+HOWTO we will use the following example to represent the directory from which
+our install server will be setup and running: 
+<PRE>
+/install
+</PRE>
+<P>Copy your install media to <CODE>/install</CODE>.  The following example shows you how to do
+this for copying your Redhat CD images to <CODE>/install</CODE>:
+<OL>
+<LI>Mount your CD<BR>e.g. <CODE>mount /mnt/cdrom</CODE></LI>
+<LI>Copy the data from CD<BR>e.g. <CODE>cp -av /mnt/cdrom /install</CODE></LI>
+<LI>Unmount the CD<BR>e.g. <CODE>umount /mnt/cdrom</CODE></LI>
+<LI>Now swap CDs and repeat from step 1 for each of your CDs you have.</LI>
+</OL>
+<P>
+<P>
+<H2><A NAME="ss6.3">6.3 Enable Remote Access</A>
+</H2>
+
+<P>Time to make your install data available to other machines on the network.
+Redhat can be installed over the network using NFS, HTTP and FTP protocols.
+You can select which of these will be used at install time on the client.  If
+one of the services is not setup on the machine then it will still be available
+for selection by the client but the install will not work.  Therefore, it is
+either best to enable all three services on your server (so they all work on
+each client machine) or if you don't enable all three then advertise the fact
+very well and say which service should be used for your particular install
+server.
+<P>
+<P>
+<H3>NFS</H3>
+
+<P>The NFS protocol is the only one which will work with the graphical install
+method of Redhat when installing your client machine.  Therefore, if you want
+to do graphical (as opposed to text based) installations then you must enable
+this service on your server.
+<P>To install over NFS you need to meet certain conditions on the server:
+<UL>
+<LI>Your install directory is exported</LI>
+<LI>NFS is installed and running</LI>
+<LI>Portmap is running</LI>
+</UL>
+<P>To export your install directory edit the <CODE>/etc/exports</CODE> file and add an
+entry for <CODE>/install</CODE> to it.  In our example, we would use the folowing
+line: 
+<PRE>
+/install *(ro)
+</PRE>
+
+When you have saved your exports file you must then get your NFS daemon to read
+its configuration file again in order to export the directory you just added.
+Do this by running the command: 
+<PRE>
+exportfs -r
+</PRE>
+
+This gives us the most simple read-only export to all hosts on our network.  If
+you want to include more advanced options in your export e.g. only exporting to
+certain hosts on the network or a certain subnet, etc then see your man page for
+the exports file at exports (5).
+<P>
+<P>
+<H3>FTP</H3>
+
+<P>The FTP protocol will only allow text installs to be performed by your clients.
+This may or may not be ideal for your situation but bear it in mind.
+<P>To install over FTP you need to allow FTP access to the directory that you have
+setup on the server as the installation directory.  This can be either anonymous
+FTP access or access through a named account with a password.  Anonymous access
+is probably best unless you have a reason to protect your install server via
+a password.
+<P>If you want anonymous FTP to point to a different directory then you can use
+sym links to point to the directory that you have set up as the install
+directory on the server.  This will allow FTP into a chrooted environment but
+still give you access to the install images in a different location.
+<P>
+<P>
+<H3>HTTP</H3>
+
+<P>Similarly to the FTP protocol, HTTP will only allow text installs on the client
+side.  If you have a web server running and want to enable HTTP access to your
+install server then add sym links from your document root to the install server
+directory and this will grant access.  If you are not familiar with web servers
+or are not comfortable with this approach then leave out HTTP access from your
+install server as it provides no benefits over NFS or FTP installs which may
+be simpler to set up.
+<P>If you do choose to use HTTP then basically all you have to do is make the
+install directory visible to your web server by making it appear under the
+document root by some means.
+<P>You have now completed the basic setup of your install server.
+<P>
+<P>
+<H2><A NAME="redhatcustomrpm"></A> <A NAME="ss6.4">6.4 Package Customisation </A>
+</H2>
+
+<P>You can, if you wish, add your own packages to the Redhat distribution so that
+they are installed along with Redhat over the network when you install your
+clients.  The advantage of this is that you don't have to spend time
+configuring each machine for packages that you may want installed that are
+not included with Redhat.  Examples of this might be your own RPM packages that
+you have created or some specialised package.
+<P>Make sure you have the <CODE>anaconda-runtime</CODE> package installed on your
+server.  This is normally installed if you're running Redhat but if you have
+another distribution on the server then you should be able to install the
+Redhat RPM without too much trouble.  To check if you have the correct
+package enter the command 
+<PRE>
+rpm -q anaconda-runtime
+</PRE>
+If the name
+of the package is returned then you have it installed, if nothing is
+returned the install the RPM as required.
+<P>Now simply copy your RPM package files into the following directory
+<PRE>
+/install/Redhat/RPMS
+</PRE>
+
+This is the directory that should already contain all the Redhat standard
+RPMS for the Redhat version you have setup on your install server.
+<P>Once you have copied your custom RPMS you need to regenerate Redhat's list of
+packages that it can install.  Do this using the following command:
+<PRE>
+/usr/lib/anaconda-runtime/genhdlist /install
+</PRE>
+
+The directory used here of <CODE>/install</CODE> is the example directory we have
+been using so far.  Replace this with the directory where you copied the Redhat
+CD images to.  The directory should be the base directory of the Redhat CD set
+i.e. the one that contains a subdirectory called <CODE>Redhat</CODE> before the
+directory called <CODE>RPMS</CODE>
+<P>Your custom RPM packages should now be available to the clients.
+<P>
+<P>
+<H3>Further Customisation</H3>
+
+<P>In addition to adding your own RPMS to Redhat you can also create RPM groups for
+the installation process.  These will be similar to the standard groups offered
+by the Redhat install already such as the "Software Development" group which
+will install all packages for this purpose onto your system.
+<P>This allows quick installation of many RPMS for a specific purpose on your
+systems and the groups will become available like the normal Redhat groups (and
+are used in the same way) upon installation of the client.
+<P>To create your own groups you must edit a text file called the <CODE>comps</CODE>
+file.  In our example, this is located at:
+<PRE>
+/install/Redhat/base/comps
+</PRE>
+<P>Copy the syntax for the groups that are already in the file and you can create
+your own groupings.  These can include both packages from the standard Redhat
+install or any custom packages that you might have already added i.e. you can
+include any package in the <CODE>RPMS</CODE> directory.
+<P>Once you have edited the file then save it back out over the original (it might
+be an idea to take a backup of the original but it will always be on your CD
+images anyway if you need it).  You must now run the <CODE>genhdlist</CODE> command
+again as explained above.
+<P>
+<P>
+<P>
+<P>
+<HR>
+<A HREF="Network-Install-HOWTO-7.html">Next</A>
+<A HREF="Network-Install-HOWTO-5.html">Previous</A>
+<A HREF="Network-Install-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

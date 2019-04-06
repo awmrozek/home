@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux IPX-HOWTO: Configuring your Linux machine as an IPX router.</TITLE>
+ <LINK HREF="IPX-HOWTO-9.html" REL=next>
+ <LINK HREF="IPX-HOWTO-7.html" REL=previous>
+ <LINK HREF="IPX-HOWTO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="IPX-HOWTO-9.html">Next</A>
+<A HREF="IPX-HOWTO-7.html">Previous</A>
+<A HREF="IPX-HOWTO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8. Configuring your Linux machine as an IPX router.</A></H2>
+
+<P>If you have a number of IPX segments that you wish to internetwork you
+need the services of a router. In the Novell environment there are two
+pieces of information which are necessary to be propagated around the network.
+They are the network routing information propagated using Novell RIP, and
+the service advertisement information propagated using Novell SAP. Any
+router must support both of these protocols to be useful in most situations.
+<P>Linux has support for both of these protocols and can be fairly easily
+made to function as a fully Novell compliant router.
+<P>The Linux kernel IPX support actually manages the IPX packet forwarding
+across interfaces, but it does this according to the rules coded into the
+IPX routing table. Linux needs a program to implement the Novell RIP and SAP
+to ensure that the IPX routing table is built correctly and updated periodically
+to reflect changes in the network status.
+<P>Volker Lendecke <CODE>&lt;lendecke@namu01.gwdg.de></CODE> has developed a routing
+daemon <EM>ipxripd</EM> that will do this for you. The <EM>mars_nwe</EM> package
+mentioned later includes an alternative routing daemon.
+<P>You can find <EM>ipxripd</EM> at:
+<P>
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/system/filesystems/ncpfs/ipxripd-0.7.tgz">sunsite.unc.edu</A><P>or at Volkers home site at:
+<P>
+<A HREF="ftp://ftp.gwdg.de/pub/linux/misc/ncpfs/ipxripd-0.7.tgz">ftp.gwdg.de</A><P>Configuring your Linux machine to act as a router is very straightforward.
+The steps you must take are:
+<OL>
+<LI>Build your kernel with IPX, Ethernet and <CODE>/proc</CODE> support.</LI>
+<LI>Obtain, compile and install the <EM>ipxd</EM> daemon program.</LI>
+<LI>Boot the new kernel and ensure that each of the Ethernet cards has
+been properly detected and there are no hardware conflicts.</LI>
+<LI>Enable the IPX protocol on each of the interfaces using the
+<EM>ipx_interface</EM> command described above.</LI>
+<LI>Start the <EM>ipxd</EM> daemon program.</LI>
+</OL>
+<P>Consider the following simple network:
+<P>
+<PRE>
+ IPX Addr: 0x01000000  802.2
+|--------------------------|
+              |
+              \_________________________
+                                        \          Linux Router
+ IPX Addr: 0x02000000  802.2             \
+|--------------------------|              \   eth0/-----------\
+              |                            \--====|           |
+              \_________________________          | IPX route |
+                                        \     eth1|  Table    |
+ IPX Addr: 0x03000000  etherII           \----====|    ^      |
+|--------------------------|                      |    |      |
+              |                               eth2|  IPXd     |
+              \______________________________/====|           |
+                                                  |  SAPd     |
+ IPX Addr: 0x04000000  etherII                eth3|           |
+|--------------------------|                 /====|           |
+              |                              |    \___________/
+              \______________________________/
+</PRE>
+<P>The configuration for the above network would look like:
+<BLOCKQUOTE><CODE>
+<PRE>
+# ipx_interface add eth0 802.2 0x0100000000
+# ipx_interface add eth1 802.2 0x0200000000
+# ipx_interface add eth2 etherii 0x0300000000
+# ipx_interface add eth3 etherii 0x0400000000
+# ipxd
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You should then wait a moment or two and check your
+<CODE>/proc/net/ipx_route</CODE> file and you should see it populated with
+the IPX routes relevant to your configuration and any learned from any other
+routers in the network.
+<P>
+<H2><A NAME="ss8.1">8.1 Do I need to configure an internal network ?</A>
+</H2>
+
+<P>Novell has a feature called an internal network, which it uses to simplify
+routing in situations where a host has more than one network device connected.
+This is useful in the case of a fileserver connected to multiple networks
+as it means that only one route needs to be advertised to reach the server
+regardless of which network you are attempting from.
+<P>In the case of a configuration where you are not running a fileserver and
+your machine acting only as an IPX router the question is not as simple to
+answer. It has been reported that configuring for IPX/PPP works `better' if
+you also configure an internal network.
+<P>In any case it is easy to do, but may require a rebuild of your kernel.
+When you are working through the kernel <CODE>make config</CODE> you must answer
+<CODE>y</CODE> when asked <CODE>Full internal IPX network</CODE> as illustrated:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+  ...
+  ...
+ Full internal IPX network (CONFIG_IPX_INTERN) [N/y/?] y
+  ...
+  ...
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>To configure the internal network interface, use the <EM>ipx_internal_net</EM>
+command described earlier in the IPX tools section. The main precaution to
+take is to ensure that they IPX network address you assign is unique on your
+network and that no other machine or network is using it.
+<P>
+<HR>
+<A HREF="IPX-HOWTO-9.html">Next</A>
+<A HREF="IPX-HOWTO-7.html">Previous</A>
+<A HREF="IPX-HOWTO.html#toc8">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,408 @@
+<HTML
+><HEAD
+><TITLE
+>Black Magic and Sync Pulses</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="XFree86 Video Timings HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Computing Frame Sizes"
+HREF="framesizes.html"><LINK
+REL="NEXT"
+TITLE="Putting it All Together"
+HREF="synth.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>XFree86 Video Timings HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="framesizes.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="synth.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="magic"
+></A
+>11. Black Magic and Sync Pulses</H1
+><P
+>OK, now you've computed HFL/VFL numbers for your chosen dot
+clock, found the refresh rate acceptable, and checked that you have
+enough VRAM.  Now for the real black magic -- you need to know when
+and where to place synchronization pulses.</P
+><P
+>The sync pulses actually control the horizontal and vertical
+scan frequencies of the monitor.  The HSF and VSF you've pulled off
+the spec sheet are nominal, approximate maximum sync frequencies.  The
+sync pulse in the signal from the adapter card tells the monitor how
+fast to actually run.</P
+><P
+>Recall the two pictures above?  Only part of the time required
+for raster-scanning a frame is used for displaying viewable image
+(ie. your resolution).</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN274"
+></A
+>11.1. Horizontal Sync:</H2
+><P
+>By previous definition, it takes HFL ticks to trace the a
+horizontal scan line.  Let's call the visible tick count (your
+horizontal screen resolution) HR.  Then Obviously, HR &#60; HFL by
+definition.  For concreteness, let's assume both start at the same
+instant as shown below:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  |___ __ __ __ __ __ __ __ __ __ __ __ __
+  |_ _ _ _ _ _ _ _ _ _ _ _                |
+  |_______________________|_______________|_____ 
+  0                       ^               ^     unit: ticks
+                          |   ^       ^   |
+                          HR  |       |  HFL
+                          |   |&#60;-----&#62;|   |
+                          |&#60;-&#62;|  HSP  |&#60;-&#62;|
+                          HGT1         HGT2
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now, we would like to place a sync pulse of length HSP as shown
+above, ie, between the end of clock ticks for display data and the end
+of clock ticks for the entire frame.  Why so?  because if we can
+achieve this, then your screen image won't shift to the right or to
+the left.  It will be where it supposed to be on the screen, covering
+squarely the monitor's viewable area.</P
+><P
+>Furthermore, we want about 30 ticks of "guard time" on either
+side of the sync pulse.  This is represented by HGT1 and HGT2.  In a
+typical configuration HGT1 != HGT2, but if you're building a
+configuration from scratch, you want to start your experimentation
+with them equal (that is, with the sync pulse centered).</P
+><P
+>The symptom of a misplaced sync pulse is that the image is
+displaced on the screen, with one border excessively wide and the
+other side of the image wrapped around the screen edge, producing a
+white edge line and a band of "ghost image" on that side.  A
+way-out-of-place vertical sync pulse can actually cause the image to
+roll like a TV with a mis-adjusted vertical hold (in fact, it's the
+same phenomenon at work).</P
+><P
+>If you're lucky, your monitor's sync pulse widths will be
+documented on its specification page.  If not, here's where the real
+black magic starts...</P
+><P
+>You'll have to do a little trial and error for this part.  But
+most of the time, we can safely assume that a sync pulse is about 3.5
+to 4.0 microsecond in length.</P
+><P
+>For concretness again, let's take HSP to be 3.8 microseconds
+(which btw, is not a bad value to start with when
+experimenting).</P
+><P
+>Now, using the 65Mhz clock timing above, we know HSP is
+equivalent to 247 clock ticks (= 65 * 10**6 * 3.8 * 10^-6)
+[recall M=10^6, micro=10^-6]</P
+><P
+>Some vendors like to quote their horizontal framing parameters as
+timings rather than dot widths.  You may see the following
+terms:</P
+><P
+></P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
+>active time (HAT)</DT
+><DD
+><P
+>&#13;	Corresponds to HR, but in time units (usually microseconds). 
+	HAT * DCF = HR.
+</P
+></DD
+><DT
+>blanking time (HBT)</DT
+><DD
+><P
+>&#13;	Corresponds to (HFL - HR), but in time units (usually
+	microseconds).  HBT * DCF = (HFL - HR).
+</P
+></DD
+><DT
+>front porch (HFP)</DT
+><DD
+><P
+>&#13;	This is just HGT1.
+</P
+></DD
+><DT
+>sync time</DT
+><DD
+><P
+>&#13;	This is just HSP.
+</P
+></DD
+><DT
+>back porch (HBP)</DT
+><DD
+><P
+>&#13;	This is just HGT2.
+</P
+></DD
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN307"
+></A
+>11.2. Vertical Sync:</H2
+><P
+>Going back to the picture above, how do we place the 247 clock
+ticks as shown in the picture?</P
+><P
+>Using our example, HR is 944 and HFL is 1176.  The difference
+between the two is 1176 - 944=232 &#60; 247!  Obviously we have to do some
+adjustment here.  What can we do?</P
+><P
+>The first thing is to raise 1176 to 1184, and lower 944 to 936.
+Now the difference = 1184-936= 248. Hmm, closer.</P
+><P
+>Next, instead using 3.8, we use 3.5 for calculating HSP; then, we have
+65*3.5=227.  Looks better.  But 248 is not much higher than 227.  It's normally
+necessary to have 30 or so clock ticks between HR and the start of SP, and the
+same for the end of SP and HFL.  AND they have to be multiple of eight!  Are we
+stuck?</P
+><P
+>No.  Let's do this, 936 % 8 = 0, (936 + 32) % 8 = 0 too.  But
+936 + 32 = 968, 968 + 227 = 1195, 1195 + 32 = 1227.  Hmm.. this looks
+not too bad.  But it's not a multiple of 8, so let's round it up to
+1232.</P
+><P
+>But now we have potential trouble, the sync pulse is no longer
+placed right in the middle between h and H any more.  Happily, using
+our calculator we find 1232 - 32 = 1200 is also a multiple of 8 and
+(1232 - 32) - 968 = 232 corresponding using a sync pulse of 3.57
+microseconds long, still reasonable.</P
+><P
+>In addition, 936/1232 ~ 0.76 or 76%, still not far from 80%, so
+it should be all right.</P
+><P
+>Furthermore, using the current horizontal frame length, we
+basically ask our monitor to sync at 52.7khz (= 65Mhz/1232) which is
+within its capability.  No problems.</P
+><P
+>Using rules of thumb we mentioned before, 936*75%=702, This is
+our new vertical resolution.  702 * 1.05 = 737, our new vertical frame
+length.</P
+><P
+>Screen refresh rate = 65Mhz/(737*1232)=71.6 Hz.  This is still
+excellent.</P
+><P
+>Figuring the vertical sync pulse layout is similar:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;   |___ __ __ __ __ __ __ __ __ __ __ __ __
+   |_ _ _ _ _ _ _ _ _ _ _ _                |
+   |_______________________|_______________|_____ 
+   0                      VR              VFL     unit: ticks
+                           ^   ^       ^
+                           |   |       |
+                           |&#60;-&#62;|&#60;-----&#62;|
+                            VGT    VSP
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>We start the sync pulse just past the end of the vertical
+display data ticks.  VGT is the vertical guard time required for the
+sync pulse.  Most monitors are comfortable with a VGT of 0 (no guard
+time) and we'll use that in this example.  A few need two or three
+ticks of guard time, and it usually doesn't hurt to add that.</P
+><P
+>Returning to the example: since by the defintion of frame
+length, a vertical tick is the time for tracing a complete HORIZONTAL
+frame, therefore in our example, it is 1232/65Mhz=18.95us.</P
+><P
+>Experience shows that a vertical sync pulse should be in the
+range of 50us and 300us.  As an example let's use 150us, which
+translates into 8 vertical clock ticks (150us/18.95us~8).</P
+><P
+>Some makers like to quote their vertical framing parameters as
+timings rather than dot widths.  You may see the following
+terms:</P
+><P
+></P
+><DIV
+CLASS="variablelist"
+><DL
+><DT
+>active time (VAT)</DT
+><DD
+><P
+>Corresponds to VR, but in milliseconds.  VAT * VSF =
+	VR.</P
+></DD
+><DT
+>blanking time (VBT)</DT
+><DD
+><P
+>Corresponds to (VFL - VR), but in milliseconds.  
+	VBT * VSF = (VFL - VR).</P
+></DD
+><DT
+>front porch (VFP)</DT
+><DD
+><P
+>This is just VGT.</P
+></DD
+><DT
+>sync time</DT
+><DD
+><P
+>This is just VSP.</P
+></DD
+><DT
+>back porch (VBP)</DT
+><DD
+><P
+>This is like a second guard time after the vertical sync
+	pulse.  It is often zero.</P
+></DD
+></DL
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="framesizes.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="synth.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Computing Frame Sizes</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Putting it All Together</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

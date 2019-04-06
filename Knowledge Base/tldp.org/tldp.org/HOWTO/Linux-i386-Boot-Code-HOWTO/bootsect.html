@@ -1,0 +1,968 @@
+<HTML
+><HEAD
+><TITLE
+>linux/arch/i386/boot/bootsect.S</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux i386 Boot Code HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Linux Makefiles"
+HREF="makefiles.html"><LINK
+REL="NEXT"
+TITLE="linux/arch/i386/boot/setup.S"
+HREF="setup.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux i386 Boot Code HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="makefiles.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="setup.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="bootsect"
+></A
+>3. linux/arch/i386/boot/bootsect.S</H1
+><P
+>&#13;   Given that we are booting up <EM
+>bzImage</EM
+>, which is
+   composed of <EM
+>bbootsect</EM
+>, <EM
+>bsetup</EM
+>
+   and <EM
+>bvmlinux (head.o, misc.o, piggy.o)</EM
+>,
+   the first floppy sector, <EM
+>bbootsect</EM
+> (512 bytes),
+   which is compiled from <TT
+CLASS="filename"
+>linux/arch/i386/boot/bootsect.S</TT
+>,
+   is loaded by BIOS to 07C0:0.
+   The reset of <EM
+>bzImage</EM
+> (<EM
+>bsetup</EM
+>
+   and <EM
+>bvmlinux</EM
+>) has not been loaded yet.
+  </P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="move_bootsect"
+></A
+>3.1. Move Bootsect</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>SETUPSECTS      = 4                     /* default nr of setup-sectors */
+BOOTSEG         = 0x07C0                /* original address of boot-sector */
+INITSEG         = DEF_INITSEG  (0x9000) /* we move boot here - out of the way */
+SETUPSEG        = DEF_SETUPSEG (0x9020) /* setup starts here */
+SYSSEG          = DEF_SYSSEG   (0x1000) /* system loaded at 0x10000 (65536) */
+SYSSIZE         = DEF_SYSSIZE  (0x7F00) /* system size: # of 16-byte clicks */
+                                        /* to be loaded */
+ROOT_DEV        = 0                     /* ROOT_DEV is now written by "build" */
+SWAP_DEV        = 0                     /* SWAP_DEV is now written by "build" */
+
+.code16
+.text
+
+///////////////////////////////////////////////////////////////////////////////
+_start:
+{
+        // move ourself from 0x7C00 to 0x90000 and jump there.
+        move BOOTSEG:0 to INITSEG:0 (512 bytes);
+        goto INITSEG:go;
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     <EM
+>bbootsect</EM
+> has been moved to INITSEG:0 (0x9000:0).
+     Now we can forget BOOTSEG.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="get_disk_para"
+></A
+>3.2. Get Disk Parameters</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+// prepare stack and disk parameter table
+go:
+{
+        SS:SP = INITSEG:3FF4;   // put stack at INITSEG:0x4000-12
+        /* 0x4000 is an arbitrary value &#62;=
+         *   length of bootsect + length of setup + room for stack;
+         * 12 is disk parm size. */
+        copy disk parameter (pointer in 0:0078) to INITSEG:3FF4 (12 bytes);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-2445.htm"
+TARGET="_top"
+>int1E: SYSTEM DATA - DISKETTE PARAMETERS</A
+>
+        patch sector count to 36 (offset 4 in parameter table, 1 byte);
+        set disk parameter table pointer (0:0078, int1E) to INITSEG:3FF4;
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Make sure SP is initialized immediately after SS register.
+     The recommended method of modifying SS is to use "lss" instruction
+     according to
+<A
+HREF="http://developer.intel.com/design/pentium4/manuals/"
+TARGET="_top"
+>&#13;     IA-32 Intel Architecture Software Developer's Manual</A
+>
+     (Vol.3. Ch.5.8.3. Masking Exceptions and Interrupts When Switching Stacks).
+    </P
+><P
+>&#13;     Stack operations, such as push and pop, will be OK now.
+     First 12 bytes of disk parameter have been copied to INITSEG:3FF4.
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+// get disk drive parameters, specifically number of sectors/track.
+        char disksizes[] = {36, 18, 15, 9};
+        int sectors;
+{
+        SI = disksizes;                         // i = 0;
+        do {
+probe_loop:
+                sectors = DS:[SI++];            // sectors = disksizes[i++];
+                if (SI&#62;=disksizes+4) break;     // if (i&#62;=4) break;
+                int13/AH=02h(AL=1, ES:BX=INITSEG:0200, CX=sectors, DX=0);
+                // <A
+HREF="http://www.ctyme.com/intr/rb-0607.htm"
+TARGET="_top"
+>int13/AH=02h: DISK - READ SECTOR(S) INTO MEMORY</A
+>
+        } while (failed to read sectors);
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     "lodsb" loads a byte from DS:[SI] to AL and increases SI automatically.
+    </P
+><P
+>&#13;     The number of sectors per track has been saved in variable
+     <EM
+>sectors</EM
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="load_setup"
+></A
+>3.3. Load Setup Code</H2
+><P
+>&#13;     <EM
+>bsetup</EM
+> (<EM
+>setup_sects</EM
+> sectors)
+     will be loaded right after <EM
+>bbootsect</EM
+>, i.e. SETUPSEG:0.
+     Note that INITSEG:0200==SETUPSEG:0 and
+     <EM
+>setup_sects</EM
+> has been changed
+     by <B
+CLASS="command"
+>tools/build</B
+> to match
+     <EM
+>bsetup</EM
+> size
+     in <A
+HREF="makefiles.html#i386_tools_build.c"
+>Section 2.6</A
+>.
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+got_sectors:
+        word sread;             // sectors read for current track
+        char setup_sects;       // overwritten by tools/build
+{
+        print out "Loading";
+        /* <A
+HREF="http://www.ctyme.com/intr/rb-0088.htm"
+TARGET="_top"
+>int10/AH=03h(BH=0): VIDEO - GET CURSOR POSITION AND SIZE</A
+>
+         * <A
+HREF="http://www.ctyme.com/intr/rb-0210.htm"
+TARGET="_top"
+>int10/AH=13h(AL=1, BH=0, BL=7, CX=9, DH=DL=0, ES:BP=INITSEG:$msg1):</A
+>
+         *   <A
+HREF="http://www.ctyme.com/intr/rb-0210.htm"
+TARGET="_top"
+>VIDEO - WRITE STRING</A
+> */
+
+        // load setup-sectors directly after the moved bootblock (at 0x90200).
+        SI = &#38;sread;            // using SI to index sread, head and track
+        sread = 1;              // the boot sector has already been read
+
+        int13/AH=00h(DL=0);     // <A
+HREF="http://www.ctyme.com/intr/rb-0605.htm"
+TARGET="_top"
+>reset FDC</A
+>
+
+        BX = 0x0200;            // read bsetup right after bbootsect (512 bytes)
+        do {
+next_step:
+                /* to prevent cylinder crossing reading,
+                 *   calculate how many sectors to read this time */
+                uint16 pushw_ax = AX = MIN(sectors-sread, setup_sects);
+no_cyl_crossing:
+                read_track(AL, ES:BX);          // AX is not modified
+                // set ES:BX, sread, head and track for next read_track()
+                set_next(AX);
+                setup_sects -= pushw_ax;        // rest - for next step
+        } while (setup_sects);
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     SI is set to the address of <EM
+>sread</EM
+> to index
+     variables <EM
+>sread</EM
+>, <EM
+>head</EM
+> and
+     <EM
+>track</EM
+>, as they are contiguous in memory.
+     Check <A
+HREF="bootsect.html#read_disk"
+>Section 3.6</A
+> for read_track() and set_next() details.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="load_compressed"
+></A
+>3.4. Load Compressed Image</H2
+><P
+>&#13;     <EM
+>bvmlinux (head.o, misc.o, piggy.o)</EM
+> will be loaded
+     at 0x100000, <EM
+>syssize</EM
+>*16 bytes.
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+// load vmlinux/bvmlinux (head.o, misc.o, piggy.o)
+{
+        read_it(ES=SYSSEG);
+        kill_motor();                           // turn off floppy drive motor
+        print_nl();                             // print CR LF
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Check <A
+HREF="bootsect.html#read_disk"
+>Section 3.6</A
+> for read_it() details.
+     If we are booting up <EM
+>zImage</EM
+>,
+     <EM
+>vmlinux</EM
+> is loaded at 0x10000 (SYSSEG:0).
+    </P
+><P
+>&#13;     <EM
+>bzImage (bbootsect, bsetup, bvmlinux)</EM
+> is
+     in the memory as a whole now.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="go_setup"
+></A
+>3.5. Go Setup</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+// check which root-device to use and jump to setup.S
+        int root_dev;                           // overwritten by tools/build
+{
+        if (!root_dev) {
+                switch (sectors) {
+                case 15: root_dev = 0x0208;     // /dev/ps0 - 1.2Mb
+                        break;
+                case 18: root_dev = 0x021C;     // /dev/PS0 - 1.44Mb
+                        break;
+                case 36: root_dev = 0x0220;     // /dev/fd0H2880 - 2.88Mb
+                        break;
+                default: root_dev = 0x0200;     // /dev/fd0 - auto detect
+                        break;
+                }
+        }
+
+        // jump to the setup-routine loaded directly after the bootblock
+        goto SETUPSEG:0;
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     It passes control to <EM
+>bsetup</EM
+>.
+     See <EM
+>linux/arch/i386/boot/setup.S:start</EM
+> in
+     <A
+HREF="setup.html"
+>Section 4</A
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="read_disk"
+></A
+>3.6. Read Disk</H2
+><P
+>&#13;     The following functions are used to load <EM
+>bsetup</EM
+>
+     and <EM
+>bvmlinux</EM
+> from disk.
+     Note that <EM
+>syssize</EM
+> has been changed
+     by <B
+CLASS="command"
+>tools/build</B
+> in
+     <A
+HREF="makefiles.html#i386_tools_build.c"
+>Section 2.6</A
+> too.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>sread:  .word 0                         # sectors read of current track
+head:   .word 0                         # current head
+track:  .word 0                         # current track
+///////////////////////////////////////////////////////////////////////////////
+// load the system image at address SYSSEG:0
+read_it(ES=SYSSEG)
+        int syssize;                    /* system size in 16-bytes,
+                                         *   overwritten by tools/build */
+{
+        if (ES &#38; 0x0fff) die;           // not 64KB aligned
+
+        BX = 0;
+        for (;;) {
+rp_read:
+#ifdef __BIG_KERNEL__
+                bootsect_helper(ES:BX);
+                /* INITSEG:0220==SETUPSEG:0020 is bootsect_kludge,
+                 *   which contains pointer SETUPSEG:bootsect_helper().
+                 * This function initializes some data structures
+                 *   when it is called for the first time,
+                 *   and moves SYSSEG:0 to 0x100000, 64KB each time,
+                 *   in the following calls.
+                 * See <A
+HREF="bootsect.html#bootsect_helper"
+>Section 3.7</A
+>. */
+#else
+                AX = ES - SYSSEG + ( BX &#62;&#62; 4);  // how many 16-bytes read
+#endif
+                if (AX &#62; syssize) return;       // everything loaded
+ok1_read:
+                /* Get proper AL (sectors to read) for this time
+                 *   to prevent cylinder crossing reading and BX overflow. */
+                AX = sectors - sread;
+                CX = BX + (AX &#60;&#60; 9);            // 1 sector = 2^9 bytes
+                if (CX overflow &#38;&#38; CX!=0) {     // &#62; 64KB
+                        AX = (-BX) &#62;&#62; 9;
+                }
+ok2_read:
+                read_track(AL, ES:BX);
+                set_next(AX);
+        }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// read disk with parameters (sread, track, head)
+read_track(AL sectors, ES:BX destination)
+{
+        for (;;) {
+                printf(".");
+                // <A
+HREF="http://www.ctyme.com/intr/rb-0106.htm"
+TARGET="_top"
+>int10/AH=0Eh: VIDEO - TELETYPE OUTPUT</A
+>
+
+                // set CX, DX according to (sread, track, head)
+                DX = track;
+                CX = sread + 1;
+                CH = DL;
+
+                DX = head;
+                DH = DL;
+                DX &#38;= 0x0100;
+
+                int13/AH=02h(AL, ES:BX, CX, DX);
+                // <A
+HREF="http://www.ctyme.com/intr/rb-0607.htm"
+TARGET="_top"
+>int13/AH=02h: DISK - READ SECTOR(S) INTO MEMORY</A
+>
+                if (read disk success) return;
+                // "addw $8, %sp" is to cancel previous 4 "pushw" operations.
+bad_rt:
+                print_all();            // print error code, AX, BX, CX and DX
+                int13/AH=00h(DL=0);     // <A
+HREF="http://www.ctyme.com/intr/rb-0605.htm"
+TARGET="_top"
+>reset FDC</A
+>
+        }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// set ES:BX, sread, head and track for next read_track()
+set_next(AX sectors_read)
+{
+        CX = AX;                        // sectors read
+        AX += sread;
+        if (AX==sectors) {
+                head = 1 ^ head;        // flap head between 0 and 1
+                if (head==0) track++;
+ok4_set:
+                AX = 0;
+        }
+ok3_set:
+        sread = AX;
+        BX += CX &#38;&#38; 9;
+        if (BX overflow) {              // &#62; 64KB
+                ES += 0x1000;
+                BX = 0;
+        }
+set_next_fn:
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="bootsect_helper"
+></A
+>3.7. Bootsect Helper</H2
+><P
+>&#13;     <EM
+>setup.S:bootsect_helper()</EM
+> is only used by
+     <EM
+>bootsect.S:read_it()</EM
+>.
+    </P
+><P
+>&#13;     Because <EM
+>bbootsect</EM
+> and <EM
+>bsetup</EM
+>
+     are linked separately, they use offsets relative to
+     their own code/data segments.
+     We have to "call far" (lcall) for <EM
+>bootsect_helper()</EM
+>
+     in different segment, and it must "return far" (lret) then.
+     This results in CS change in calling, which makes CS!=DS, and
+     we have to use segment modifier to specify variables in
+     <TT
+CLASS="filename"
+>setup.S</TT
+>.
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+// called by bootsect loader when loading bzImage
+bootsect_helper(ES:BX)
+        bootsect_es = 0;                // defined in setup.S
+        type_of_loader = 0;             // defined in setup.S
+{
+        if (!bootsect_es) {             // called for the first time
+                type_of_loader = 0x20;  // bootsect-loader, version 0
+                AX = ES &#62;&#62; 4;
+                *(byte*)(&#38;bootsect_src_base+2) = AH;
+                bootsect_es = ES;
+                AX = ES - SYSSEG;
+                return;
+        }
+bootsect_second:
+        if (!BX) {                      // 64KB full
+                // move from SYSSEG:0 to destination, 64KB each time
+                int15/AH=87h(CX=0x8000, ES:SI=CS:bootsect_gdt);
+                // <A
+HREF="http://www.ctyme.com/intr/rb-1527.htm"
+TARGET="_top"
+>int15/AH=87h: SYSTEM - COPY EXTENDED MEMORY</A
+>
+                if (failed to copy) {
+                        bootsect_panic() {
+                                prtstr("INT15 refuses to access high mem, "
+                                        "giving up.");
+bootsect_panic_loop:            goto bootsect_panic_loop;   // never return
+                        }
+                }
+                ES = bootsect_es;       // reset ES to always point to 0x10000
+                *(byte*)(&#38;bootsect_dst_base+2)++;
+        }
+bootsect_ex:
+        // have the number of moved frames (16-bytes) in AX
+        AH = *(byte*)(&#38;bootsect_dst_base+2) &#60;&#60; 4;
+        AL = 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// data used by bootsect_helper()
+bootsect_gdt:
+        .word   0, 0, 0, 0
+        .word   0, 0, 0, 0
+
+bootsect_src:
+        .word   0xffff
+
+bootsect_src_base:
+        .byte   0x00, 0x00, 0x01                # base = 0x010000
+        .byte   0x93                            # typbyte
+        .word   0                               # limit16,base24 =0
+
+bootsect_dst:
+        .word   0xffff
+
+bootsect_dst_base:
+        .byte   0x00, 0x00, 0x10                # base = 0x100000
+        .byte   0x93                            # typbyte
+        .word   0                               # limit16,base24 =0
+        .word   0, 0, 0, 0                      # BIOS CS
+        .word   0, 0, 0, 0                      # BIOS DS
+
+bootsect_es:
+        .word   0
+
+bootsect_panic_mess:
+        .string "INT15 refuses to access high mem, giving up."</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Note that <EM
+>type_of_loader</EM
+> value is changed.
+     It will be referenced in <A
+HREF="setup.html#check_loader"
+>Section 4.3</A
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="bootsect_misc"
+></A
+>3.8. Miscellaneous</H2
+><P
+>&#13;     The rest are supporting functions, variables
+     and part of "real-mode kernel header".
+     Note that data is in .text segment as code, thus it can be
+     properly initialized when loaded.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+// some small functions
+print_all();  /* print error code, AX, BX, CX and DX */
+print_nl();   /* print CR LF */
+print_hex();  /* print the word pointed to by SS:BP in hexadecimal */
+kill_motor()  /* turn off floppy drive motor */
+{
+#if 1
+        int13/AH=00h(DL=0);     // <A
+HREF="http://www.ctyme.com/intr/rb-0605.htm"
+TARGET="_top"
+>reset FDC</A
+>
+#else
+        outb(0, 0x3F2);         // outb(val, port)
+#endif
+}
+
+///////////////////////////////////////////////////////////////////////////////
+sectors:        .word 0
+disksizes:      .byte 36, 18, 15, 9
+msg1:           .byte 13, 10
+                .ascii "Loading"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;     Bootsect trailer, which is a part of "real-mode kernel header",
+     begins at offset 497.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>.org 497
+setup_sects:    .byte SETUPSECS         // overwritten by tools/build
+root_flags:     .word ROOT_RDONLY
+syssize:        .word SYSSIZE           // overwritten by tools/build
+swap_dev:       .word SWAP_DEV
+ram_size:       .word RAMDISK
+vid_mode:       .word SVGA_MODE
+root_dev:       .word ROOT_DEV          // overwritten by tools/build
+boot_flag:      .word 0xAA55</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;     This "header" must conform to the layout pattern in
+     <TT
+CLASS="filename"
+>linux/Documentation/i386/boot.txt</TT
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>Offset  Proto   Name            Meaning
+/Size
+01F1/1  ALL     setup_sects     The size of the setup in sectors
+01F2/2  ALL     root_flags      If set, the root is mounted readonly
+01F4/2  ALL     syssize         DO NOT USE - for bootsect.S use only
+01F6/2  ALL     swap_dev        DO NOT USE - obsolete
+01F8/2  ALL     ram_size        DO NOT USE - for bootsect.S use only
+01FA/2  ALL     vid_mode        Video mode control
+01FC/2  ALL     root_dev        Default root device number
+01FE/2  ALL     boot_flag       0xAA55 magic number</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="bootsect_ref"
+></A
+>3.9. Reference</H2
+><P
+>&#13;    <P
+></P
+><UL
+><LI
+><P
+>THE LINUX/I386 BOOT PROTOCOL:
+        <TT
+CLASS="filename"
+>linux/Documentation/i386/boot.txt</TT
+></P
+></LI
+><LI
+><P
+><A
+HREF="http://developer.intel.com/design/pentium4/manuals/"
+TARGET="_top"
+>&#13;        IA-32 Intel Architecture Software Developer's Manual</A
+></P
+></LI
+><LI
+><P
+><A
+HREF="http://www.cs.cmu.edu/~ralf/files.html"
+TARGET="_top"
+>&#13;        Ralf Brown's Interrupt List</A
+></P
+></LI
+></UL
+>
+    As &#60;IA-32 Intel Architecture Software Developer's Manual&#62;
+    is widely referenced in this document, I will call it "IA-32 Manual"
+    for short.
+    </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="makefiles.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="setup.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Linux Makefiles</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>linux/arch/i386/boot/setup.S</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,214 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Kurs, wskaźniki, cz. 2</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs03.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="kurs04.html">Następna część kursu >></A></TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H2>
+3.4 Nieprzewidywalne tablice, czyli dynamiczna alokacja
+</H2>
+
+Bawiliśmy się już tablicami, pewnie zdążyliście już zadać sobie pytanie, czy nie można by było zmieniać rozmiaru tablic już gdzieś w kodzie programu, nie tylko w deklaracji. Może się bowiem gdzieś w tym kodzie okazać, że chcemy sobie dopisać jakiś element do tablicy, a tu się nagle okazuje, że tablica jest już pełna i nie da rady nic więcej do niej już wcisnąć. Jak rozszerzyć tablicę?
+<BR><BR>
+W języku C istniała funkcja <SPAN CLASS=T>malloc</SPAN>, która służyła do dynamicznej alokacji pamięci; w C++ jest ona również, ale jest też operator <SPAN CLASS=K>new</SPAN>, który pozwala nam dokonać tego samego w nieco prostszy sposób. Najwidoczniejsza zaleta korzystania z <SPAN CLASS=K>new</SPAN> (w porównaniu do <SPAN CLASS=T>malloc</SPAN>-a) jest taka, że nie musimy się bawić w konwersje typów; <SPAN CLASS=K>new</SPAN> jest operatorem przeciążonym i działa sprawnie ze wszystkimi podstawowymi typami, a także z typami zdefiniowanymi przez użytkownika (choć tutaj jest już mało wydajny i dobrze jest go przeciążyć na własną rękę, ale nie wybiegajmy zanadto w przyszłość).
+<BR><BR>
+Działanie <SPAN CLASS=K>new</SPAN> można opisać krótko: rezerwuje (czyli alokuje) on obszar pamięci dla podanej liczby elementów podanego typu, po czym zwraca wskaźnik do świeżo zaalokowanego obszaru:
+
+<BR><BR>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN>* tab_dyn = <SPAN CLASS=K>new int</SPAN>[<SPAN CLASS=L>600</SPAN>];<BR>
+</TD></TR>
+</TABLE>
+<BR>
+
+Powyższy przykład pokazuje dynamiczną alokację tablicy <SPAN CLASS=L>600</SPAN> elementów typu <SPAN CLASS=K>int</SPAN>. W przykładzie tym operator <SPAN CLASS=K>new</SPAN> przeszukuje najpierw nasz RAM, aż znajdzie niezajęty obszar <SPAN CLASS=L>4*600=2400</SPAN> bajtów. Gdy to się już stanie, zwraca nam wskaźnik do tego obszaru, który jest zapisywany do <SPAN CLASS=T>tab_dyn</SPAN>. Od tej pory <SPAN CLASS=T>tab_dyn</SPAN> wskazuje na nowo zaalokowany obszar. Zauważ, że obszar ten nie posiada żadnej nazwy, możemy do niego odwoływać się tylko przez wskaźniki. Pamiętamy jednak o mechanizmie zamiany nazwy tablicy na wskaźnik do jej pierwszego elementu; działa on też w drugą stronę, a więc wskaźnik, który wskazuje na pierwszy element naszego nowo alokowanego obszaru, jest jednocześnie nazwą dynamicznej tablicy:
+
+<BR><BR>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+tab_dyn[<SPAN CLASS=L>0</SPAN>] = <SPAN CLASS=L>10</SPAN>;          <SPAN CLASS=C>//wpisujemy dziesiątkę</SPAN><BR>
+tab_dyn[<SPAN CLASS=L>7</SPAN>] = *tab_dyn;    <SPAN CLASS=C>//dziesiątka wędruje dalej</SPAN><BR>
+tab_dyn[<SPAN CLASS=L>200</SPAN>] = tab_dyn[<SPAN CLASS=L>7</SPAN>] <SPAN CLASS=C>//i jeszcze dalej</SPAN><BR>
+</TD></TR>
+</TABLE>
+<BR>
+
+
+Co stanie się, jeśli <SPAN CLASS=K>new</SPAN> nie znajdzie <SPAN CLASS=L>2400</SPAN> wolnych bajtów? Wprawdzie to niedużo, jak na dzisiejsze czasy, ale może się zdarzyć, że pamięć jest bardzo zapchana albo pofragmentowana (patrz rysunek niżej). Wówczas nic się nie zaalokuje (z pustego i <SPAN CLASS=K>new</SPAN> nie naleje ;-) ), co oznajmi nam, zwracając <SPAN CLASS=T>NULL</SPAN>. Tak więc przed brakami w RAM-ie możemy się zabezpieczyć następująco:
+
+<BR><BR>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN>* tab = <SPAN CLASS=K>new long double</SPAN>[<SPAN CLASS=L>1000000</SPAN>];<BR>
+<SPAN CLASS=K>if</SPAN>(tab==NULL) <SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>1</SPAN>; <SPAN CLASS=C>//brak pamięci, wyjdź z programu</SPAN><BR>
+</TD></TR>
+</TABLE>
+<BR>
+
+Wspomniałem o fragmentacji pamięci. Spójrz na ten rysunek - wyobraź sobie, że jest to cała pamięć naszego komputera:
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/frag.gif" ALT="Fragmentacja pamięci">
+</P>
+
+Te śliczne błękitne kwadraciki, poukładane w rzędach, oznaczają wolne miejsce (każdy kwadracik to <SPAN CLASS=L>2</SPAN> bajty). Czerwone kwadraciki to bajty zajęte. W poniższym przykładzie będziemy próbować alokacji <SPAN CLASS=L>2</SPAN> elementów typu <SPAN CLASS=K>int</SPAN>, czyli <SPAN CLASS=L>8</SPAN> bajtów. A tu zonk - nigdzie nie ma ośmiu błękitnych kwadracików pod rząd! Ogólna liczba wolnych bajtów na rysunku wynosi aż <SPAN CLASS=L>37</SPAN>  (jeśli się nie mylę :-)), czyli o wiele więcej, niż nam trzeba, ale nie leżą one obok siebie, więc nie można z nich zrobić tablicy. To jest właśnie fragmentacja pamięci. Oczywiście defragmentacja będzie polegała na takim posortowaniu zawartości pamięci, żeby bajty zajęte leżały obok siebie, a wolne - w innym miejscu, ale też obok siebie. Ale to już zadanie systemu operacyjnego oraz odpowiednich programów do optymalizacji RAM-u. Nam jako programistom pozostaje tylko się modlić, aby takie sytuacje się nie zdarzały ;-). A oto nasza nieudana próba alokacji:
+
+<BR><BR>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN>* tab = <SPAN CLASS=K>new int</SPAN>[<SPAN CLASS=L>2</SPAN>];<BR>
+<SPAN CLASS=K>if</SPAN>(tab==NULL) <SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>1</SPAN>;<BR>
+<SPAN CLASS=C>//dalsze instrukcje</SPAN><BR>
+</TD></TR>
+</TABLE>
+<BR>
+
+Jeśli pamięć w tym przypadku wyglądałaby tak, jak na rysunku, to <SPAN CLASS=K>new</SPAN> zwróci nam <SPAN CLASS=T>NULL</SPAN> i program zostanie zakończony z kodem błędu <SPAN CLASS=L>1</SPAN>. 
+<BR><BR>
+Zaleca się, żeby zawsze sprawdzać powodzenie dynamicznej alokacji, ale jeśli wiemy, że zaalokujemy tylko kilka bajtów, to sprawdzanie nie ma praktycznie sensu - jeśli w pamięci nie ma nawet tych kilku wolnych bajtów, to program i tak się zawiesi ;-).
+<BR><BR>
+Nic nie stoi na przeszkodzie, aby dynamicznie alokować nie całe tablice, lecz pojedyńcze zmienne, np:
+
+<BR><BR>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN>* z = <SPAN CLASS=K>new int</SPAN>;<BR>
+*z = <SPAN CLASS=L>10</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+<BR>
+
+tylko trochę nie ma to sensu w przypadku takich kilkubajtowych mikrusów. Za to może się przydać, jak już będziemy tworzyć własne typy danych. Ale nic się nie bój, to jeszcze nie teraz ;-).
+<BR><BR>
+Z dynamicznie alokowaną pamięcią jest jak z zarezerwowanym pokojem w hotelu: po skorzystaniu trzeba go zwolnić. W przypadku hotelu trzeba oddać klucz i już hotel może przyjmować następnego turystę do tego pokoju. Żeby oddać systemowi klucz do niepotrzebnego nam już obszaru pamięci, piszemy coś w stylu:
+
+<BR><BR>
+<SPAN CLASS=K>delete</SPAN><SPAN CLASS=T> z;</SPAN>
+<BR><BR>
+
+lub w przypadku całych tablic:
+
+<BR><BR>
+<SPAN CLASS=K>delete[]</SPAN><SPAN CLASS=T> tab_dyn;</SPAN>
+<BR><BR>
+
+Pamiętaj, żeby nie odwoływać się do zwolnionego już przez <SPAN CLASS=K>delete</SPAN> adresu tablicy. To by było tak, jakbyś wtargnął siłą do pokoju hotelowego, za który jeszcze nie zapłaciłeś i to bez wiedzy portiera. Pół biedy, jeśli nikt tam się jeszcze nie zdążył wprowadzić, ale po oddaniu klucza nigdy nie wiesz, czy ktoś zdążył, czy nie. Trudno też wyobrazić sobie sytuację, żeby zwrócić dwa razy ten sam klucz, więc nie stosuj <SPAN CLASS=K>delete</SPAN> do już zwolnionego obszaru (inaczej będzie bardzo niedobrze). To ważne, bo tego rodzaju błędy zwykle nie powodują wykrzaczenia się naszego programu, a jeśli program z błędami pozornie dobrze działa, to możemy o błędzie się w ogóle nie dowiedzieć, a wyjdzie on na wierzch akurat w najmniej odpowiednim momencie i co gorsza wtedy nie będziemy wiedzieli, co się właściwie dzieje.
+<BR><BR>
+Zwróć uwagę na to, że <SPAN CLASS=K>delete</SPAN> wbrew ewentualnym pozorom nie usuwa w żaden sposób wskaźnika do zwalnianego obszaru; tylko oznajmia systemowi, że obszar jest wolny. Co więcej, w większości kompilatorów wskaźnik nie jest zerowany, więc wskazuje dalej na pamięć, do której jednak nie mamy już żadnych praw. Dlatego jeśli po zastosowaniu <SPAN CLASS=K>delete</SPAN> program ma jeszcze coś zrobić, warto ustawić ten wskaźnik na <SPAN CLASS=T>NULL</SPAN>. Wtedy w razie próby wtargnięcia do niezarezerwowanego pokoju nie zostaniemy wykopani przez ochroniarzy, bo nie będziemy nawet potrafili odnaleźć tego pokoju ;-). Innymi słowy, dostaniemy komunikat o próbie dostępu do nieistniejącego adresu zamiast błędu ochrony pamięci, co łatwiej nas naprowadzi na lukę w naszym programie.
+
+<H2>
+3.6 Zróbmy to w innym wymiarze
+</H2>
+
+Umiemy już alokować dynamicznie pamięć dla tablic. Zauważ jednak, że były to tablice jednowymiarowe. Pewnie się zastanawiasz, jak zrobić to samo z wielowymiarowymi. C++ nie zezwala bowiem na to, by zaalokować jednowymiarową tablicę, a potem odwoływać się do niej jak do wielowymiarowej (a szkoda, przydałaby się taka możliwość). Oczywiście możemy sobie to zrobić sami, ale wtedy za każdym razem, gdy będziemy się chcieli odwoływać do jakiegoś elementu takiej tablicy, trzeba będzie przeliczać indeksy dwuwymiarowe na jednowymiarowe i na odwrót. Zresztą i tak to kiedyś zrobimy, jak już wytłumaczymy sobie, czym są klasy ;-).
+<BR><BR>
+Konstrukcja dwuwymiarowej dynamicznej tablicy z prawdziwego zdarzenia jest zupełnie inna, niż tablicy jednowymiarowej. Składa się ona z wielu jednowymiarowych tablic oraz jednowymiarowej tablicy wskaźników do tych tablic:
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/tab2d.gif" ALT="Schemat tablicy dwuwymiarowej">
+</P>
+
+Takie rozwiązanie oprócz ewidentnej wady (jest dość skomplikowane) ma wiele zalet. Po pierwsze, dzięki temu możemy alokować całkiem dużą tablicę nawet wtedy, gdy pamięć jest pofragmentowana, bowiem poszczególne jednowymiarowe tablice wchodzące w skład naszej tablicy dwuwymiarowej mogą się znajdować w zupełnie różnych miejscach w pamięci. Po drugie, spośród naszych składowych tablic jednowymiarowych każda może mieć inny rozmiar (tak jest np. na powyższym rysunku).
+<BR><BR>
+Na razie jednak stworzymy sobie "normalną" dwuwymiarową tablicę. Kolejne składowe tablice jednowymiarowe alokujemy w pętli <SPAN CLASS=K>for</SPAN>:
+
+<BR><BR>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN>* jw;<BR>
+<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;liczba_wierszy; i++)<BR>
+&nbsp;jw = <SPAN CLASS=K>new int</SPAN>[liczba_kolumn];<BR>
+</TD></TR>
+</TABLE>
+<BR>
+
+Praktycznie to już jest nasza cała tablica dwuwymiarowa, ale ponieważ mieliśmy kilka alokacji, a nie jedną, to nie wiemy, czy np. pamięć zarezerwowana dla drugiego wiersza leży dokładnie za pamięcią dla pierwszego wiersza. Potrzebujemy więc wspomnianej już tablicy wskaźników, do których zapiszemy adresy każdego z alokowanych wierszy:
+
+<BR><BR>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN>** tab = <SPAN CLASS=K>new int</SPAN>*[liczba_wierszy];<BR>
+<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;liczba_wierszy; i++)<BR>
+&nbsp;tab[i] = <SPAN CLASS=K>new int</SPAN>[liczba_kolumn];<BR>
+</TD></TR>
+</TABLE>
+<BR>
+
+No i wszystko gra - mamy dwuwymiarową tablicę <SPAN CLASS=T>tab</SPAN>. Pewnie wydaje ci się dziwne, że napisaliśmy <SPAN CLASS=K>int</SPAN><SPAN CLASS=T>** tab</SPAN> z dwiema gwiazdkami, ale tak ma być - <SPAN CLASS=T>tab</SPAN> jest tablicą wskaźników do tablic, czyli wskaźnikiem do wskaźnika - bo jak już wiemy, nazwa tablicy jest przekształcana na wskaźnik do pierwszego jej elementu. Dla łatwiejszego zapamiętania możemy sobie powiedzieć, że operator <SPAN CLASS=K>new</SPAN> "zabiera" jedną gwiazdkę i "przerabia" ją na jeden wymiar tablicy. Dzięki takiemu trochę dziecięcemu tłumaczeniu nie pogubisz się przy alokowaniu tablic trzy-, cztero- i więcej wymiarowych.
+<BR><BR>
+Oto i kompletny program, alokujący tablicę dwuwymiarową (macierz) o rozmiarach podanych przez użytkownika, wpisujący do każdego jej elementu numer kolumny, w której ten element się znajduje, wypisujący to na ekranie i po zakończeniu zwalniający alokowaną pamięć:
+
+<BR><BR>
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;stdio.h&gt;</SPAN><BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> rx,ry,**tab;<BR>
+<BR>
+&nbsp;printf(<SPAN CLASS=L>"Podaj liczbę wierszy: "</SPAN>);<BR>
+&nbsp;scanf(<SPAN CLASS=L>"%i"</SPAN>, &ry);<BR>
+&nbsp;printf(<SPAN CLASS=L>"Podaj liczbę kolumn: "</SPAN>);<BR>
+&nbsp;scanf(<SPAN CLASS=L>"%i"</SPAN>, &rx);<BR>
+<BR>
+&nbsp;tab = <SPAN CLASS=K>new int</SPAN>* [ry]; <SPAN CLASS=C>//alokacja pamięci</SPAN><BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;ry) tab[i] = <SPAN CLASS=K>new int</SPAN>[rx];<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> y=<SPAN CLASS=L>0</SPAN>; y&lt;ry; y++) <SPAN CLASS=C>//wypełnianie tablicy</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> x=<SPAN CLASS=L>0</SPAN>; x&lt;rx; x++)<BR>
+&nbsp;&nbsp;&nbsp;tab[y][x] = x;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> y=<SPAN CLASS=L>0</SPAN>; y&lt;ry; y++) <SPAN CLASS=C>//wypisanie zawartości na ekranie</SPAN><BR>
+&nbsp;{<BR>  
+&nbsp;&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> x=<SPAN CLASS=L>0</SPAN>; y&lt;rx; x++) printf(<SPAN CLASS=L>"%3i"</SPAN>, tab[y][x]);<BR>
+&nbsp;&nbsp;printf(<SPAN CLASS=L>"\n"</SPAN>); <SPAN CLASS=C>//na zakończenie każdego wiersza</SPAN><BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>for</SPAN>(<SPAN CLASS=K>int</SPAN> i=<SPAN CLASS=L>0</SPAN>; i&lt;ry; i++) <SPAN CLASS=C>//zwolnienie pamięci</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>delete[]</SPAN> tab[i];<BR>
+&nbsp;<SPAN CLASS=K>delete[]</SPAN> tab;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+<BR>
+
+Program nie jest doskonały; nie sprawdza, czy użytkownik faktycznie wpisał liczbę (czyli np. wpisanie <SPAN CLASS=L>0</SPAN> spowoduje wykrzaczenie się programu), ani czy alokacja pamięci się powiodła. Jednak takie drobiazgi możesz sobie dodać sam - pominąłem je, żeby nie zaciemniały nam programu. Zwróć uwagę na instrukcje zwalniające zaalokowaną pamięć na końcu programu. Zwalniamy w kolejności odwrotnej do tej, w jakiej ją alokowaliśmy. Gdybyśmy najpierw zwolnili tablicę wskaźników, to nie moglibyśmy trafić do poszczególnych tablic jednowymiarowych, tworzących wiersze naszej tablicy. Co by było, gdyby płatny zabójca zgubił gdzieś adresy swoich ofiar? Marnowałby naboje, próbując wykonywać zlecenie w ciemno? ;-)
+
+<BR><BR>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs03.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="kurs04.html">Następna część kursu >></A></TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

@@ -1,0 +1,188 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux VME Howto: Installation of the VMELinux Kernel Driver</TITLE>
+ <LINK HREF="VME-HOWTO-3.html" REL=next>
+ <LINK HREF="VME-HOWTO-1.html" REL=previous>
+ <LINK HREF="VME-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="VME-HOWTO-3.html">Next</A>
+<A HREF="VME-HOWTO-1.html">Previous</A>
+<A HREF="VME-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Installation of the VMELinux Kernel Driver</A></H2>
+
+<H2><A NAME="ss2.1">2.1 Download the Source</A>
+</H2>
+
+<P>Download the distribution from the 
+<A HREF="http://www.vmelinux.org/">VMELinux Web Site</A>.
+<P>
+<H2><A NAME="ss2.2">2.2 Install the source to the software</A>
+</H2>
+
+<P>Place the file in your source directory; We suggest /usr/src. Untar the zipped/tarred file by typing...
+<PRE>
+tar -xzf VMELinux_1.3.x.tar.gz
+</PRE>
+<P>Then:
+<PRE>
+cd vmelinux
+</PRE>
+
+You should see three directories:
+<PRE>
+ca91c042
+vmeshell
+vmeutils
+</PRE>
+<P>In ca91c042 you should find:
+<PRE>
+ca91c042/
+ca91c042/Makefile
+ca91c042/ca91c042.c
+ca91c042/ca91c042.h
+ca91c042/README
+ca91c042/e
+ca91c042/ins
+ca91c042/stat
+ca91c042/uns
+</PRE>
+<P>In vmeshell you should find:
+<PRE>
+vmeshell/vmer
+vmeshell/README
+vmeshell/vmeseek
+vmeshell/cmd.vme
+vmeshell/vmew
+vmeshell/vmeregw
+vmeshell/vmeregr
+vmeshell/vmefa
+vmeshell/vmecall
+vmeshell/e
+vmeshell/ec
+vmeshell/fa.vme
+vmeshell/map.vme
+vmeshell/tmp.vme
+vmeshell/vmedb
+vmeshell/vmedl
+vmeshell/vmedw
+vmeshell/vmemap
+vmeshell/vmerb
+vmeshell/vmerf
+vmeshell/vmerl
+vmeshell/vmerw
+vmeshell/vmewb
+vmeshell/vmewf
+vmeshell/vmewl
+vmeshell/vmeww
+vmeshell/makelinks
+</PRE>
+<P>In the vmeutils directory you should find:
+<PRE>
+vmeutils/commands.cpp
+vmeutils/commands.h
+vmeutils/universe.h
+vmeutils/Makefile
+vmeutils/vmeutils.h
+vmeutils/unilib.h
+vmeutils/unilib.cpp
+vmeutils/vmeutils.cpp
+vmeutils/README
+</PRE>
+<H2><A NAME="ss2.3">2.3 Compile the VMELinux components</A>
+</H2>
+
+<P>Enter the "ca91c042" directory and make the VMELinux device driver module.
+<PRE>
+make
+</PRE>
+<P>Now you must create the several /dev driver files.  Type:
+<PRE>
+make devices
+</PRE>
+<P>DON'T FORGET TO MAKE THE /dev/vme* DEVICES!!!
+<P>Once made, you should see the file "ca91c042.o" in the directory.  This is a loadable module.  See below for loading information.  Plus, you should find several "vme..." files in the /dev directory.
+Here is how the files should look:
+<PRE>
+hostname:/dev# ls -l vme*
+crw-rw-rw-   1 root     root      221,   8 Jul 30 10:51 vme_ctl
+crw-rw-rw-   1 root     root      221,   0 Jul 30 10:51 vme_m0
+crw-rw-rw-   1 root     root      221,   1 Jul 30 10:51 vme_m1
+crw-rw-rw-   1 root     root      221,   2 Jul 30 10:51 vme_m2
+crw-------   1 root     root      221,   3 Jul 30 10:51 vme_m3
+crw-rw-rw-   1 root     root      221,   4 Jul 30 10:51 vme_m4
+crw-rw-rw-   1 root     root      221,   5 Jul 30 10:51 vme_m5
+crw-rw-rw-   1 root     root      221,   6 Jul 30 10:51 vme_m6
+crw-------   1 root     root      221,   7 Jul 30 10:51 vme_m7
+hostname:/dev#
+</PRE>
+<P>Change to the "vmeutils" directory and type make there.
+<PRE>
+make
+</PRE>
+<P>This will compile the "vmeutils" program.  This program directly speaks to the kernel driver.  It is a reference work for those of you who wish to write your own programs to directly speak with the driver.
+<P>Copy the program "vmeutils" to your user binary directory or let the makelinks script do this for your in the next step.  On our system this is "/usr/local/bin."  Alternatively, you can create a link in the user bin directory to the "vmeutils" program.
+<P>Change to the "vmeshell" directory.  There are no files to be compiled here.  These are shell programs that use the "vmeutils" program to access the VMEbus.  All the files beginning with "vme" should with have a link made or be copied to the "/usr/local/bin" directory.
+<P>just type:
+<PRE>
+./makelinks
+</PRE>
+<P>Have a look in the libvme directory for a C++ example on how to communicate with the driver.  You can use the libvme code as your interface to the driver for your programs if you wish.  Docmentation for this is planned for the future.
+<P>You are now ready to try the driver.
+<P>
+<H2><A NAME="ss2.4">2.4 Load the VMELinux Kernel Module</A>
+</H2>
+
+<P>Make sure you are root and insert "load" the VMELinux Kernel Module for the Universe chip by typing...
+<PRE>
+insmod ca91c042
+</PRE>
+<P> Or just type "./ins" to let the shell script do this for you.  Once complete, type...
+<PRE>
+./stat
+</PRE>
+<P>or
+<PRE>
+more /proc/ca91c042
+</PRE>
+
+You should see a list of registers displayed on your screen.  Something like this...
+<PRE>
+Universe driver info:
+  Control Pointer = 0000
+  Stats  reads = 0  writes = 0  ioctls = 0
+  LSI0_CTL = 00800000    LSI1_CTL = 00800000
+  LSI0_BS  = C0000000    LSI1_BS  = 00000000
+  LSI0_BD  = C0010000    LSI1_BD  = 00000000
+  LSI0_TO  = 40009000    LSI1_TO  = 00000000
+  LSI2_CTL = 00800000    LSI3_CTL = 00800000
+  LSI2_BS  = 00000000    LSI3_BS  = 00000000
+  LSI2_BD  = 00000000    LSI3_BD  = 00000000
+  LSI2_TO  = 00000000    LSI3_TO  = 00000000
+  image_va0   = 00000000     image_va1   = 00000000
+  image_va2   = 00000000     image_va3   = 00000000
+
+Driver Program Status:
+  DMACTL 0    = 00000000 DMACTL 1    = 00000000
+  DMACTL 2    = 00000000 DMACTL 3    = 00000000
+  OkToWrite 0 = 0        OkToWrite 1 = 0
+  OkToWrite 2 = 0        OkToWrite 3 = 0
+  Mode 0      = 0        Mode 1      = 0
+  Mode 2      = 0        Mode 3      = 0
+</PRE>
+
+If not, something went wrong.
+<H2><A NAME="ss2.5">2.5 Difficulties</A>
+</H2>
+
+<P>The Universe driver does a good job of finding the Universe chip on a PCI bus, but differences in board design may prevent this.  We tested all our routines on a Xycom XVME-655, Dynatem DPC and SBS VP7.  There is little reason why this should not work on any other Intel board with a PCI bus and the Universe PCI-VME bridge chip.  If you encounter problems, please let us know at the 
+<A HREF="http://bugs.vmelinux.org/">The VMELinux Project Bug Reporter</A><P>
+<HR>
+<A HREF="VME-HOWTO-3.html">Next</A>
+<A HREF="VME-HOWTO-1.html">Previous</A>
+<A HREF="VME-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

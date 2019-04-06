@@ -1,0 +1,218 @@
+<HTML
+><HEAD
+><TITLE
+>Protecting your host from SYN floods</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Cookbook"
+HREF="lartc.cookbook.html"><LINK
+REL="PREVIOUS"
+TITLE="Running multiple sites with different SLAs"
+HREF="lartc.cookbook.sla.html"><LINK
+REL="NEXT"
+TITLE="Rate limit ICMP to prevent dDoS"
+HREF="lartc.cookbook.icmp-ratelimit.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.sla.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 15. Cookbook</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.icmp-ratelimit.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.COOKBOOK.SYNFLOOD-PROTECT"
+></A
+>15.2. Protecting your host from SYN floods</H1
+><P
+>&#62;From Alexey's iproute documentation, adapted to netfilter and with more
+plausible paths. If you use this, take care to adjust the numbers to
+reasonable values for your system.</P
+><P
+>If you want to protect an entire network, skip this script, which is best
+suited for a single host.</P
+><P
+>It appears that you need the very latest version of the iproute2 tools to
+get this to work with 2.4.0.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#! /bin/sh -x
+#
+# sample script on using the ingress capabilities
+# this script shows how one can rate limit incoming SYNs
+# Useful for TCP-SYN attack protection. You can use
+# IPchains to have more powerful additions to the SYN (eg 
+# in addition the subnet)
+#
+#path to various utilities;
+#change to reflect yours.
+#
+TC=/sbin/tc
+IP=/sbin/ip
+IPTABLES=/sbin/iptables
+INDEV=eth2
+#
+# tag all incoming SYN packets through $INDEV as mark value 1
+############################################################ 
+$iptables -A PREROUTING -i $INDEV -t mangle -p tcp --syn \
+  -j MARK --set-mark 1
+############################################################ 
+#
+# install the ingress qdisc on the ingress interface
+############################################################ 
+$TC qdisc add dev $INDEV handle ffff: ingress
+############################################################ 
+
+#
+# 
+# SYN packets are 40 bytes (320 bits) so three SYNs equals
+# 960 bits (approximately 1kbit); so we rate limit below
+# the incoming SYNs to 3/sec (not very useful really; but
+#serves to show the point - JHS
+############################################################ 
+$TC filter add dev $INDEV parent ffff: protocol ip prio 50 handle 1 fw \
+police rate 1kbit burst 40 mtu 9k drop flowid :1
+############################################################ 
+
+
+#
+echo "---- qdisc parameters Ingress  ----------"
+$TC qdisc ls dev $INDEV
+echo "---- Class parameters Ingress  ----------"
+$TC class ls dev $INDEV
+echo "---- filter parameters Ingress ----------"
+$TC filter ls dev $INDEV parent ffff:
+
+#deleting the ingress qdisc
+#$TC qdisc del $INDEV ingress</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.sla.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.icmp-ratelimit.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Running multiple sites with different SLAs</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Rate limit ICMP to prevent dDoS</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

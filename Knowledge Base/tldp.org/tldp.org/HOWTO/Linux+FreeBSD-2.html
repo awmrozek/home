@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>The Linux+FreeBSD mini-HOWTO: The FreeBSD way of labelling hard drives</TITLE>
+ <LINK HREF="Linux+FreeBSD-3.html" REL=next>
+ <LINK HREF="Linux+FreeBSD-1.html" REL=previous>
+ <LINK HREF="Linux+FreeBSD.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Linux+FreeBSD-3.html">Next</A>
+<A HREF="Linux+FreeBSD-1.html">Previous</A>
+<A HREF="Linux+FreeBSD.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. The FreeBSD way of labelling hard drives</A><!--FreeBSD dualboot!disk drive labelling--></H2>
+
+<P>Linux and FreeBSD label hard drives and partitions after two differents
+schemes. This section explains the main differences between the two schemes.
+In fact the FreeBSD labelling scheme is an adaption of the traditional BSD
+labelling style ported to live within the PC's fdisk partitions. Thus it is
+very similar to other BSD-based Unix systems such as NetBSD, OpenBSD, Ultrix,
+Digital Unix, SunOS, and Solaris.
+<P>
+<H2><A NAME="ss2.1">2.1 FreeBSD ``slices'' and ``partitions''</A>
+<!--FreeBSD dualboot!disk drive partitions--><!--FreeBSD dualboot!disk drive slices--></H2>
+
+<P>FreeBSD needs one of the four entries in the partition table on your PC's
+hard drive. This primary partition is called a <B>``slice''</B> in FreeBSD
+terminology. It then uses the <CODE>disklabel</CODE> program to make up to eight
+partitions in this primary partition. These logical partitions are called
+<B>``partitions''</B> in FreeBSD terminology. This concept is similar to the way
+Linux (and DOS) handles logical partitions in an extended partition. You
+cannot install FreeBSD in an extended partition made by Linux (or DOS). Note
+that the Linux <CODE>fdisk</CODE> program doesn't display the BSD partitions in a
+FreeBSD slice from the main menu, but it can display BSD disklabel information
+if you give the command `b'. The output is something like this
+(<CODE>/dev/hda4</CODE> is the FreeBSD slice):
+<PRE>
+bash# fdisk /dev/hda
+
+Command (m for help): p
+
+Disk /dev/hda: 64 heads, 63 sectors, 621 cylinders
+Units = cylinders of 4032 * 512 bytes
+
+   Device Boot   Begin    Start      End   Blocks   Id  System
+/dev/hda1   *        1        1       27    54400+  83  Linux native
+/dev/hda2           28       28       55    56448   83  Linux native
+/dev/hda3           56       56      403   701568   83  Linux native
+/dev/hda4          404      404      621   439488   a5  BSD/386
+
+Command (m for help): b
+Reading disklabel of /dev/hda4 at sector 1624897.
+
+BSD disklabel command (m for help): p
+
+8 partitions:
+#        size   offset    fstype   [fsize bsize   cpg]
+  a:    64512  1624896    4.2BSD        0     0     0   # (Cyl.  404 - 419)
+  b:   104832  1689408      swap                        # (Cyl.  420 - 445)
+  c:   878976  1624896    unused        0     0         # (Cyl.  404 - 621)
+  e:    64512  1794240    4.2BSD        0     0     0   # (Cyl.  446 - 461)
+  f:   645120  1858752    4.2BSD        0     0     0   # (Cyl.  462 - 621)
+
+BSD disklabel command (m for help): q
+bash#
+</PRE>
+<P>The letters `a'...`f' in the first column are the same labels as shown below
+in the example for a FreeBSD slice. There are three special partitions in BSD
+parlace. The letter `a' designates the root partition, `b' designates the swap
+partition, while `c' designates the whole slice. See the FreeBSD documentation
+for more information on the ``standard'' way of assigning these letters to
+different partition types.
+<P>
+<H2><A NAME="ss2.2">2.2 Drive and partition labelling in Linux and FreeBSD</A>
+<!--FreeBSD dualboot!disk drive labelling!compared with Linux--><!--FreeBSD dualboot!disk drive partitions!compared with Linux--></H2>
+
+<P>The hard drives are labelled in the following way in Linux and FreeBSD:
+<PRE>
+                        Linux           FreeBSD
+First IDE drive         /dev/hda        /dev/wd0
+Second IDE drive        /dev/hdb        /dev/wd1
+First SCSI drive        /dev/sda        /dev/sd0
+Second SCSI drive       /dev/sdb        /dev/sd1
+</PRE>
+<P>The partitions (FreeBSD slices) on an IDE drive are labelled in the following
+way (<CODE>/dev/hda</CODE> is used as an example):
+<PRE>
+                                Linux           FreeBSD
+First primary partition         /dev/hda1       /dev/wd0s1
+Second primary partition        /dev/hda2       /dev/wd0s2
+Third primary partition         /dev/hda3       /dev/wd0s3
+Fourth primary partition        /dev/hda4       /dev/wd0s4
+</PRE>
+<P>The partitions in my FreeBSD slice is labelled in the following way. It is the
+labelling you get by default. It is possible to change the labelling if you do
+a custom installation of FreeBSD (<CODE>/dev/hda4</CODE> is the FreeBSD slice in
+the example):
+<PRE>
+Linux label     FreeBSD label   FreeBSD mount point 
+/dev/hda5       /dev/wd0s4a     /
+/dev/hda6       /dev/wd0s4b     swap
+/dev/hda7       /dev/wd0s4e     /var
+/dev/hda8       /dev/wd0s4f     /usr
+</PRE>
+<P>If you run <CODE>dmesg</CODE> in Linux you will see this as (The linux kernel must be
+build with <B>UFS filesystem support</B> for this to work. See section 
+<A HREF="Linux+FreeBSD-3.html#installlinux">Installing and preparing Linux</A>):
+<PRE>
+Partition check:
+ hda: hda1 hda2 hda3 hda4 &lt; hda5 hda6 hda7 hda8 >
+</PRE>
+<P>If you have installed FreeBSD in the <CODE>/dev/sd1s3</CODE> slice
+(<CODE>/dev/sdb3</CODE> in Linux parlace), and <CODE>/dev/sdb2</CODE> is a Linux
+extended partition containing two logical partitions (<CODE>/dev/sdb5</CODE> and
+<CODE>/dev/sdb6</CODE>), the previous example would look like this:
+<PRE>
+Linux label     FreeBSD label   FreeBSD mount point 
+/dev/sdb7       /dev/sd1s3a     /
+/dev/sdb8       /dev/sd1s3b     swap
+/dev/sdb9       /dev/sd1s3e     /var
+/dev/sdb10      /dev/sd1s3f     /usr
+</PRE>
+<P>This will be shown as
+<PRE>
+Partition check:
+ sdb: sdb1 sdb2 &lt; sdb5 sdb6 > sdb3 &lt; sdb7 sdb8 sdb9 sdb10 >
+</PRE>
+
+in the output from <CODE>dmesg</CODE>.
+<P>If you have a Linux extended partition <EM>after</EM> your FreeBSD slice you're in
+for trouble, because most Linux kernels installation floppies are build
+without UFS support, they will not recognise the FreeBSD partitions inside the
+slice. What should have have been seen as (<CODE>/dev/hda3</CODE> is the FreeBSD
+slice and <CODE>/dev/hda4</CODE> is the Linux extended partition)
+<PRE>
+Partition check:
+ hda: hda1 hda2 hda3 &lt; hda5 hda6 hda7 hda8 > hda4 &lt; hda9 hda10 >
+</PRE>
+
+is seen as:
+<PRE>
+Partition check:
+ hda: hda1 hda2 hda3 hda4 &lt; hda5 hda6 >
+</PRE>
+<P>This can give you the wrong device assignment and cause the loss of data. My
+advice is to <EM>always put your FreeBSD slice after any Linux extended
+partitions, and do not change any logical partitions in your Linux extended
+partitions after installing FreeBSD!</EM>
+<P>
+<HR>
+<A HREF="Linux+FreeBSD-3.html">Next</A>
+<A HREF="Linux+FreeBSD-1.html">Previous</A>
+<A HREF="Linux+FreeBSD.html#toc2">Contents</A>
+</BODY>
+</HTML>

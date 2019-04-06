@@ -1,0 +1,276 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Text-Terminal-HOWTO: Terminfo and Termcap (detailed) </TITLE>
+ <LINK HREF="Text-Terminal-HOWTO-17.html" REL=next>
+ <LINK HREF="Text-Terminal-HOWTO-15.html" REL=previous>
+ <LINK HREF="Text-Terminal-HOWTO.html#toc16" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Text-Terminal-HOWTO-17.html">Next</A>
+<A HREF="Text-Terminal-HOWTO-15.html">Previous</A>
+<A HREF="Text-Terminal-HOWTO.html#toc16">Contents</A>
+<HR>
+<H2><A NAME="termcap2"></A> <A NAME="s16">16.</A> <A HREF="Text-Terminal-HOWTO.html#toc16">Terminfo and Termcap (detailed) </A></H2>
+
+<H2><A NAME="ss16.1">16.1</A> <A HREF="Text-Terminal-HOWTO.html#toc16.1">Intro to Terminfo</A>
+</H2>
+
+<P> Terminfo (formerly Termcap) is a database of terminal capabilities
+and more.  For every (well almost) model of terminal it tells
+application programs what the terminal is capable of doing.  It tells
+what escape sequences (or control characters) to send to the terminal
+in order to do things such as move the cursor to a new location, erase
+part of the screen, scroll the screen, change modes, change appearance
+(colors, brightness, blinking, underlining, reverse video etc.).
+After about 1980, many terminals supported over a hundred different
+commands (some of which take numeric parameters).</P>
+<P>One way in which terminfo gives the its information to an application
+program is via the "ncurses" functions that a programmer may put into
+a C program.  For example, if a program wants to move the cursor to row
+3, col 6 it simply calls: move(3,6).  The move() function (part of
+ncurses) knows how to do this for your terminal (it has read
+terminfo).  So it sends the appropriate escape sequence to the
+terminal to make this particular move for a certain terminal.
+Some programs get info directly from a terminfo files without using
+ncurses.  Thus a Linux package that doesn't require ncurses may still
+need a terminfo file for your terminal.</P>
+<P>The terminfo abbreviations are usually longer than those of termcap
+and thus it's easier to guess what they mean.  The manual pages for
+terminfo are more detailed (and include the old termcap
+abbreviations).  Also, the termcap entries had a size limitation which
+is not present for terminfo.  Thus, unless you are already committed
+to working with termcap, it's suggested you use terminfo.</P>
+
+<H2><A NAME="database"></A> <A NAME="ss16.2">16.2</A> <A HREF="Text-Terminal-HOWTO.html#toc16.2">Terminfo Database </A>
+</H2>
+
+<H3>Introduction</H3>
+
+<P> The terminfo database is compiled and thus has a source part and a
+compiled part.  The old termcap database has only a source part but
+this source can, by a single command, be both converted to terminfo
+source and then compiled.  Thus you may get by without having any
+terminfo source since the termcap source can create the compiled
+terminfo database.  To see a display of the database for the terminal
+you're now using (including a PC monitor) type "infocmp" and you
+should see the source terminfo "file" for it.</P>
+<P>To see if your terminal (say vt100) is in the terminfo data base type
+"locate vt100".  If you need to find the terminfo name for your
+terminal, explore the listing of files in the compiled database or see
+<A HREF="Text-Terminal-HOWTO-15.html#term_name">What is the terminfo name of my terminal ?</A></P>
+
+<H3>Where is the database located ?</H3>
+
+<H3><A NAME="tc_compiled_locs"></A> Compiled database locations </H3>
+
+<P> Typing "locate vt100" may show /usr/lib/terminfo/v/vt100,
+/usr/share/terminfo/v/vt100, /home/.../.terminfo/v/vt100, and/or
+/etc/terminfo/v/vt100.  All these are possible locations of the
+compiled terminfo files.  Although the /etc/terminfo directory is not
+a standard location for it, having a few terminal types there could be
+useful in case the /usr directory is not accessible.  For example /usr
+could be on a separate disk or partition that failed to mount.
+Normally, programs that use your main terminfo data base are able to
+find it if it's in at least one of the locations mentioned above.
+Otherwise the environment variable TERMINFO may be set to the path to
+this database.  Example: TERMINFO=/usr/share/terminfo</P>
+<P>For the Debian Distribution of Linux, several commonly used terminals
+(including the monitor-console) are in the ncurses-term package.
+These are put into /etc/terminfo/.  All of the terminals in the
+database are in the ncurses-bin package and go into
+/usr/share/terminfo/.</P>
+<P>If the compiled terminfo is in more than one location, everything is
+usually OK until someone installs new terminfo files (from a newer
+distribution, from the net, by editing the old one, etc.).  Each new
+terminfo file should replace all the existing older copies of that file
+(at various locations) unless you abolish redundant locations.  If you
+don't ensure this gets done, then some application programs could wind
+up still finding and using the old (and possibly buggy) terminfo data
+that sill exists in a "possible" location.  Setting the environment
+variable TERMINFO to the up-to-date location (as mentioned above)
+would help avoid this problem.</P>
+
+<H3><A NAME="tc_source_loc"></A> Source-code database locations </H3>
+
+<P> While the source-code file may  not be installed on your computer
+there's another way to get the source-code if you have the compiled
+code.  Just use the "<CODE>infocmp</CODE>" command.</P>
+<P>The source code file (for all terminals) may be /etc/termcap and/or
+terminfo.src (or another name).  See the man pages: terminfo(5) or
+termcap(5) for the format required to create (or modify) these source
+files.  The file terminfo.src may be in various locations on your
+computer or it may not be included with your Linux distribution.  Use
+the <CODE>locate</CODE> command to try to find it.  It is available on the web
+at 
+<A HREF="http://catb.org/terminfo/">http://catb.org/terminfo/</A>.</P>
+
+<H3><A NAME="tic"></A> Terminfo Compiler (tic) </H3>
+
+<P> The data in the source files is compiled with the "tic" program
+which is capable of converting between termcap format and terminfo
+format.  Thus you can create a compiled terminfo data base from
+termcap source.  The installation program which was used to install
+Linux probably installed the compiled files on your hard disk so you
+don't need to compile anything unless you modify /etc/termcap (or
+terminfo.src ).  "tic" will automatically install the resulting
+compiled files into a terminfo directory ready to be used by
+application programs.  Which location it's installed in depends on ...
+See "man tic" for the explanation.</P>
+
+<H3><A NAME="infocmp"></A> Look at Your Terminfo </H3>
+
+<P> It's a good idea to take a look at the terminfo entry for the
+terminal you are using (source code of course) and read the comments.
+A quick way to inspect it without comments is to just type "infocmp".
+But the comments may tell you something special about the terminal
+such as how you need to set it up so that it will work correctly with
+the terminfo database.</P>
+
+<H3>Deleting Data Not Needed</H3>
+
+<P> In order to save disk space, one may delete all of the terminfo
+database except for the terminals types that you have (or might need
+in the future).  Don't delete any of the termcaps for a "Linux
+terminal" (the console) or the ones used for x-terminal-emulation
+such as xterm.  The terminal type "dumb" may be needed when an
+application program can't figure out what type of terminal you are
+using.  It would save disk space if install programs only installed
+the terminfo for the terminals that you have and if you could get a
+termcap for a newly installed terminal over the Internet in a few
+seconds.</P>
+
+<H2><A NAME="ss16.3">16.3</A> <A HREF="Text-Terminal-HOWTO.html#toc16.3">Bugs in Existing Terminfo Files (and Hardware)</A>
+</H2>
+
+<P> Unfortunately, there are a number of bugs in the terminfo and
+termcap files.  In addition, many of these terminfo files are
+incomplete and do not define certain features available on the
+terminals.  Sometimes you can get by without modifying the terminfo
+but in other cases you need to modify it or possibly use another
+emulation that has a good terminfo.</P>
+<P>The sad state of the supplied terminfo files is due to a number of
+reasons.  One is that during the 1980's when many of them were written
+(often in termcap format), application programs did not utilize more
+advanced terminal features.  Thus if such feature were not in the
+termcap (or terminfo) file, no one complained.  Also, writing termcaps
+was often done by volunteers who were in short supply.  Today,
+programs such as vim use "context highlighting" and minicom uses the
+terminal's graphics character set.  These often need more definitions
+to be added to the old termcap.  This may (or may not) have already
+been done.</P>
+<P>Most terminals had hardware bugs (in their firmware) and sometimes
+these were "fixed" by modifying the termcap.  Then the manufacturer
+might send out replacement chips which would fix the bug.  Not all
+owners would bother to get the replacement chips.  Thus there may be 2
+or more terminfos for your terminal, depending on what firmware chips
+it has in it.  This situation was often not noted in the termcap and
+only one of these termcaps may be supplied with Linux.  Some hardware
+bugs which existed for features that were almost never used in the
+past likely never did get fixed.  Also, some reported hardware bugs
+may never have been fixed since they were not of much significance at
+the time or because the terminal manufacturing company went out of
+business, etc.</P>
+
+<H2><A NAME="ss16.4">16.4</A> <A HREF="Text-Terminal-HOWTO.html#toc16.4">Modifying Terminfo Files</A>
+</H2>
+
+<P> To do this you need a manual for your terminal showing what escape
+sequences it uses.  Newer manuals from the 1990's often don't show
+this.  You also need a terminfo manual (the man page "terminfo" is
+one).  After you edit the terminfo source file you compile it using
+"tic".  "tic" should automatically put the compiled terminfo file in
+the correct directory reserved for it.</P>
+<P>If you would like to find a better terminfo entry for a certain terminal
+than the one supplied, you might try searching the Internet (but what
+you find could be worse).  If your new terminfo entry is better than
+the old one and it seems stable (you've used it for a while with no
+problems) then you should send a copy to the maintainer of terminfo as
+noted at the start of the source file for terminfo (or termcap).</P>
+
+<H2><A NAME="init_string"></A> <A NAME="ss16.5">16.5</A> <A HREF="Text-Terminal-HOWTO.html#toc16.5">Init String </A>
+</H2>
+
+<P> Included in the terminfo are often a couple of initialization
+strings which may be sent to the terminal to initialize it.  This may
+change the appearance of the screen, change what mode the terminal is
+in, and/or make the terminal emulate another terminal.  No
+initialization string is automatically sent to the terminal to
+initialize it.  One might expect that the getty program should do
+this.  If it did, one could make a change to the set-up stored inside
+the terminal but this change wouldn't happen because the init string
+would override it.  Application programs don't seem to initialize
+(send an init string per terminfo) either.</P>
+<P>To actually send an init string you must use a command given on the
+command line (or in a shell script such as /etc/profile).  Such
+commands are: "reset" "tset", "tput init", or "setterm -initialize".
+Sometimes there is no need to send an init string since the terminal
+may set itself up correctly when it is powered on (using
+options/preferences one has set up and saved in the non-volatile
+memory of the terminal).</P>
+
+<H2><A NAME="term_var"></A> <A NAME="ss16.6">16.6</A> <A HREF="Text-Terminal-HOWTO.html#toc16.6">TERM Variable </A>
+</H2>
+
+<P> The Environment variable TERM should be set to the name of
+terminal which you are using.  If TERM hasn't been set yet and you
+don't know the name of your terminal see 
+<A HREF="Text-Terminal-HOWTO-15.html#term_name">What is the terminfo name of my terminal ?</A>.  It is normally
+set by the terminal_type parameter passed to the getty program (look
+at it in the /etc/inittab file).  This name must be in the Terminfo
+data base.  Just type "set" at the command line to see what TERM is
+set to (or type: tset -q).  At a console (monitor) TERM is set to
+"linux" which is the PC monitor emulating a fictitious terminal model
+named "linux".  Since "linux" is close to a vt100 terminal and many
+text terminals are also, the "linux" designation will sometimes work
+as a temporary expedient with a text terminal.</P>
+<P>If more than one type of terminal may be connected to the same port
+(/dev/ttyS...) (for example, if there is a switch to permit different
+terminal types to use the same serial port, or if the port is
+connected to a modem to which people call in from different types of
+terminals) then TERM needs to be set each time someone connects to the
+serial port.  There is often a query escape sequence so that the
+computer may ask the terminal what type it is.  Another way is to ask
+the user to type in (or select) the type of terminal s/he is using.
+You may need to use tset for this or write a short shell script to
+handle this.</P>
+<P>
+<A NAME="reset_"></A> 
+One way to do this is to use "reset" (same as "tset"; see the manual
+page).  reset tries to determine the terminal name of the terminal you
+are using.  Then it looks up the data in terminfo and sends your
+terminal an init string.  It can also set the value of TERM.  For
+example, a user dials in and logs in.  The .profile login script is
+executed which contains within it the following statement: eval `tset
+-s ?vt100`.  This results in: The user is asked if s/he is using a
+vt100.  The user either responds yes or types in the actual terminal
+type s/he is using.  Then "reset" sends the init string and sets TERM
+to this terminal name (type).</P>
+
+<H2><A NAME="termcap_docs"></A> <A NAME="ss16.7">16.7</A> <A HREF="Text-Terminal-HOWTO.html#toc16.7">Terminfo/Termcap Documents </A>
+</H2>
+
+<P> 
+<UL>
+<LI> manual pages for terminfo(5) (best) and/or termcap(5).
+<A HREF="http://www.delorie.com/gnu/docs/termcap/termcap_toc.html">The Termcap Manual</A> (2nd ed.) by Richard M. Stallman is a GNU
+manual also known as the "Termcap Library".  It's somewhat obsolete
+since it doesn't include terminfo.  It's also at:
+<A HREF="http://www.gnu.org/software/termutils/manual/termcap-1.3/html_mono/termcap.html">Termcap Library</A></LI>
+<LI> the files: terminfo.src and
+/etc/termcap have info about various versions of termcap files,
+naming conventions for terminals, and special capabilities code named
+u6-u9. If you don't have one, go to 
+<A HREF="http://catb.org/terminfo/">http://catb.org/terminfo/</A></LI>
+<LI> "Termcap and Terminfo" is a book published by O'Reilly in
+1988.</LI>
+</UL>
+</P>
+
+<HR>
+<A HREF="Text-Terminal-HOWTO-17.html">Next</A>
+<A HREF="Text-Terminal-HOWTO-15.html">Previous</A>
+<A HREF="Text-Terminal-HOWTO.html#toc16">Contents</A>
+</BODY>
+</HTML>

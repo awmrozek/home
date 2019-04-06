@@ -1,0 +1,314 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>The Compaq way</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="CompaqT1500-Linux HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Introduction"
+HREF="x80.html"><LINK
+REL="NEXT"
+TITLE="The one true way"
+HREF="debian.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>CompaqT1500-Linux HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x80.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="debian.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="COMPAQ"
+></A
+>3. The Compaq way</H1
+><P
+>Create the directories for the kernel and file system on your server, mount 
+  and copy the files from the Compaq CD. Unpack the file system:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>mkdir /exports/T1500 
+mkdir /exports/T1500/root 
+mkdir /exports/T1500/tftpboot  
+mount /cdrom
+cp /cdrom/product/vmlinux /exports/T1500/tftpboot
+cd /exports/T1500/root
+tar xvf /cdrom/product/netboot.tar</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Configure DHCP by adding a section like this to your /etc/dhcpd.conf</P
+><P
+>Change the ethernet address to that of your T1500.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>group {
+   #little black box
+   host box {
+   	 hardware ethernet 00:80:64:10:1d:1c;
+     fixed-address box.house;
+     option host-name "box";
+     server-name "192.168.1.1";
+     filename "/exports/T1500/tftpboot/vmlinux";
+     option root-path "192.168.1.1:/exports/T1500/root";
+     }
+   }</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Configure a new host in DNS</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>db.192.168.1.1:
+52 in ptr box.&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>db.house:
+   box in a 192.168.1.52</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Export the root file system by adding</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>/exports/T1500/root box(rw,no_root_squash)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>to</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>/etc/exports</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Configuring tftp by adding/altering a line to /etc/inetd.conf</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>tftp dgram udp wait root /usr/sbin/tcpd in.tftpd /exports/T1500/tftpboot</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now restart inetd,dhcpd,nfs and named
+Select the 'netboot' option on the T1500, and reboot.
+The T1500 will now boot into something very similar to its normal O/S.
+You may want to add</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>exec /nor/Xbin/xterm &#38;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>as the penultimate line in</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>/exports/T1500/root/root/.xinitrc</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>and then logout and back in again, to get an xterm.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x80.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="debian.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Introduction</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>The one true way</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

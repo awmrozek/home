@@ -1,0 +1,247 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Szablony, cz. 1</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs07.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs08a.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+Szablony
+</H1>
+
+<P>
+Przed nami prawdziwa wunderwaffe języka C++, a zarazem jeden z jego najistotniejszych składników, bez którego wielu ludzi już nie wyobraża sobie programowania.
+</P>
+
+<H2>
+Szablony funkcji
+</H2>
+
+<P>
+Być może zdarzyło ci się kiedyś napisać funkcję, która wykonywała jakąś operację na jakimś konkretnym typie danych, a następnie musiałeś ją przeciążyć na rzecz innego typu. W rezultacie powstały dwie, a może nawet więcej funkcji, które były niemal dokładnymi kopiami (bo wykonywały takie same czynności), a różniły się jedynie typami argumentów, typami zwracanymi i ewentualnie typami jakichś pomocniczych zmiennych lokalnych. Takie funkcje (a jeszcze częściej - całe klasy, ale o tym nieco później) zdarzają się programistom całkiem często, doprowadzając ich tym samym do białej gorączki (takie przeciążanie jest wyjątkowo nudne i żmudne). Podsunęło to twórcom języka C++ pomysł wprowadzenia szablonów.
+</P>
+<P>
+Sam szablon nie jest formalnie kodem wykonywalnym, tylko "instrukcją" dla kompilatora, w jaki sposób ma on wykonać właściwy "egzemplarz" funkcji. Coś jakby foremka, dzięki której można wykonać wiele babek z piasku ;-). Z tym, że babki raczej nie różnią się między sobą niczym (chyba, że ich twórca wypił za dużo soczku i stawiał je krzywo), natomiast funkcje generowane z szablonu MUSZĄ się różnić parametrami, a konkretnie typem przynajmniej jednego z parametrów.
+</P>
+<P>
+Dość paplania, zabierzmy się za konkretny przykład. Niech będzie to banalna funkcja, obliczająca kwadrat podanej liczby:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> Kwadrat(<SPAN CLASS=K>int</SPAN> L)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> L*L;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, zarówno typ argumentu, jak i typ zwracany funkcji to <SPAN CLASS=K>int</SPAN>. Ktoś może jednak dojść do wniosku, że nie potrzebuje obliczać kwadratów aż tak dużych liczb, a za to bardzo zależy mu na wydajności funkcji <SPAN CLASS=T>Kwadrat</SPAN>, w związku z czym wystarczy, żeby typem argumentu (oraz funkcji) był <SPAN CLASS=K>short</SPAN>, a nawet <SPAN CLASS=K>unsigned char</SPAN>. Jeszcze później ten sam ktoś być może dojdzie do wniosku, że w pewnym miejscu jego programu zajdzie potrzeba obliczenia kwadratu liczby 64-bitowej albo liczby zmiennoprzeciwkowej (<SPAN CLASS=K>float, double</SPAN>...). Tak więc nasz ktoś musi powielić kod swojej funkcyjki <SPAN CLASS=T>Kwadrat</SPAN> w taki mniej więcej sposób:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Kwadrat(<SPAN CLASS=K>int</SPAN> L)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; { <SPAN CLASS=K>return</SPAN> L*L; }<BR>
+<SPAN CLASS=K>short</SPAN>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Kwadrat(<SPAN CLASS=K>short</SPAN> L)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   { <SPAN CLASS=K>return</SPAN> L*L; }<BR>
+<SPAN CLASS=K>unsigned char</SPAN> Kwadrat(<SPAN CLASS=K>unsigned char</SPAN> L)   { <SPAN CLASS=K>return</SPAN> L*L; }<BR>
+<SPAN CLASS=K>float</SPAN>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Kwadrat(<SPAN CLASS=K>float</SPAN> L)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; { <SPAN CLASS=K>return</SPAN> L*L; }<BR>
+<SPAN CLASS=K>int64_</SPAN>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Kwadrat(<SPAN CLASS=K>int64_</SPAN> L)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; { <SPAN CLASS=K>return</SPAN> L*L; }<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Widać jak na dłoni (po to właśnie te śmieszne tabulacje), że ciała tych przeciążonych funkcji są identyczne, różnice są tylko w typach argumentów i typach zwracanych. Oczywiście, w tak prostym przypadku wcale nam to nie przeszkadza, może nawet wręcz przeciwnie. Ale to tylko przykład, w praktyce zdarzają się o wiele bardziej skomplikowane sytuacje... I tutaj właśnie pasuje nam zrobić szablonik:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TYP&gt;
+TYP Kwadrat(TYP L)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> L*L;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Typ funkcji oraz typ jej jedynego argumentu <SPAN CLASS=Wazne>sparametryzowaliśmy</SPAN>. Uczyniliśmy to, dodając na poczatku nagłówka słowo kluczowe <SPAN CLASS=K>template</SPAN>, a następnie deklarując <SPAN CLASS=Wazne>parametr szablonu</SPAN>, którym jest tutaj <SPAN CLASS=Wazne>nazwa typu</SPAN> (w nawiasach trójkątnych).
+</P>
+
+<P class=UWAGA>
+Parametrem szablonu nie musi być koniecznie nazwa typu; może nim być praktycznie cokolwiek. Jednakże w tym kursie interesują nas w tym przypadku tylko nazwy typów.
+</P>
+
+<P>
+Aby zadeklarować nazwę typu jako parametr szablonu, używamy słowa kluczowego <SPAN CLASS=K>typename</SPAN>. Zadeklarowany parametr od tej pory staje się "uniwersalną" nazwą typu w danym szablonie (w większości przypadków zastępujemy tą nazwą wszystkie istotne deklaracje zarówno w nagłówku, jak i w ciele funkcji). Dzięki niemu możemy w naszym przykładowym programie obliczyć kwadrat dowolnej wartości zapisanej w zmiennej numerycznej.
+</P>
+
+<P class=UWAGA>
+Zamiast słowa typename w starszych kompilatorach używało się słowa <SPAN CLASS=K>class</SPAN>. Obecnie nadal jest ono dozwolone (w tym kontekście <SPAN CLASS=K>typename</SPAN> i <SPAN CLASS=K>class</SPAN> są synonimami), aczkolwiek zalecane jest stosowanie tego pierwszego ze względu na to, że lepiej oddaje ono sens parametrów szablonu (które niekoniecznie muszą być klasami w pełnym tego słowa znaczeniu).
+</P>
+
+<P>
+A jak właściwie użyć funkcji szablonowej? Dokładnie tak samo, jak zwykłej funkcji! Kompilator sprawdzi typ podanego przy wywołaniu argumentu i użyje szablonu, by <SPAN CLASS=Wazne>automatycznie</SPAN> wygenerować najlepiej pasującą "wariację" funkcji. Programista musi tylko ewentualnie ustalić, czy to automatyczne dopasowanie na pewno mu odpowiada, a o resztę martwić się już nie musi. Tak więc już w tym momencie uwidacznia się kolejna wielka zaleta szablonów. Pora na trochę praktyki:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#include &lt;iostream.h&gt;<BR>
+</SPAN>
+<BR>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TYP&gt;
+TYP Kwadrat(TYP L)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> L*L;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>short</SPAN> t = <SPAN CLASS=L>3</SPAN>;<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> i = <SPAN CLASS=L>1000000</SPAN>;<BR>
+&nbsp;<SPAN CLASS=K>float</SPAN> f = <SPAN CLASS=L>7.5</SPAN>;<BR>
+<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"t="</SPAN> &lt;&lt; Kwadrat(t)<BR>
+&nbsp;&lt;&lt; <SPAN CLASS=L>", i="</SPAN> &lt;&lt; Kwadrat(i)<BR>
+&nbsp;&lt;&lt; <SPAN CLASS=L>", f="</SPAN> &lt;&lt; Kwadrat(f) &lt;&lt; endl;<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Kompilator w tym wypadku zakasa rękawy, rzuci okiem na kod i od razu zauważy, że mamy w nim szablon. Wtedy rzuci okiem po raz drugi i znajdzie w kodzie trzy wywołania szablonowej funkcji <SPAN CLASS=T>Kwadrat</SPAN>. Stwierdzi, że pierwsze jest dla parametru <SPAN CLASS=K>short</SPAN>, drugie - <SPAN CLASS=K>int</SPAN>, trzecie - <SPAN CLASS=K>float</SPAN>. Tak więc wygenerowane zostaną trzy "wersje" funkcji <SPAN CLASS=T>Kwadrat</SPAN> i każda będzie wywołana w odpowiednim miejscu.
+</P>
+
+<h2>
+Szablony klas
+</h2>
+
+<P>
+Możemy też robić szablony całych klas i w praktyce są one wykorzystywane znacznie częściej, niż szablony funkcji. Chociażby dlatego, że przy równie niewielkim nakładzie pracy możemy dzięki nim zaoszczędzić jeszcze więcej czasu i nerwów. Szablony klas działają na bardzo podobnych zasadach. Przykładowo, możemy zrobić klasę <SPAN CLASS=T>Tablica</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TDane, <SPAN CLASS=K>typename</SPAN> TIterator&gt;
+<SPAN CLASS=K>class</SPAN> Tablica<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>private:</SPAN><BR>
+&nbsp;&nbsp;TDane* dane;<BR>
+&nbsp;&nbsp;TIterator liczba;<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// ...</SPAN><BR>
+&nbsp;<SPAN CLASS=K>public:</SPAN><BR>
+&nbsp;&nbsp;Tablica();<BR>
+&nbsp;&nbsp;~Tablica();<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>bool</SPAN> Dodaj(TDane* elem);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>bool</SPAN> Alokuj(TIterator ile);<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>void</SPAN> Czysc();<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// ...</SPAN> <BR>
+};<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W szczegóły implementacyjne nie będziemy się bawić, chodzi tylko o pokazanie, jak działają szablony klas. Widzimy, że zgodnie z tym co przed chwilą powiedziałem, przypominają one szablony funkcji (no proszę, nie okłamałem was :D). Tu również poprzedzamy definicję (w tym przypadku będącą jednocześnie deklaracją) słowem <SPAN CLASS=K>template</SPAN> oraz listą parametrów szablonu. Tym razem wprowadziliśmy dwa parametry: <SPAN CLASS=T>TDane</SPAN> oznacza typ danych, przechowywanych w tablicy (czyli typ pojednyczego elementu), natomiast <SPAN CLASS=T>TIterator</SPAN> - typ licznika / zmiennej indeksującej tablicę (najczęściej <SPAN CLASS=K>int</SPAN> lub unsigned <SPAN CLASS=K>int</SPAN>, ale ktoś może sobie przecież zażyczyć inny).
+</P>
+<P>
+Różnica w użyciu szablonu klasy i szablonu funkcji jest taka, że w tym pierwszym przypadku należy podać parametry szablonu przy każdej deklaracji obiektu danej klasy. To znaczy, że nie możemy po prostu zadeklarować obiektu <SPAN CLASS=T>Tablica</SPAN>, ponieważ byłaby to deklaracja niejednoznaczna:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Tablica tab; <SPAN CLASS=C>//cholernie źle!</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Kompilator po prostu dostałby kręćka, bo nie wiedziałby, jakiego typu są niektóre zmienne składowe oraz metody klasy <SPAN CLASS=T>Tablica</SPAN> (te mianowicie, które zadeklarowaliśmy jako typ <SPAN CLASS=T>TDane</SPAN> lub <SPAN CLASS=T>TIterator</SPAN>). Deklaracja obiektu, wykorzystującego szablon musi wyglądać tak (lub podobnie):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+Tablica&lt;DWORD, DWORD&gt;  tab1; <SPAN CLASS=C>//dobrze</SPAN><BR>
+Tablica&lt;HFONT, <SPAN CLASS=K>int</SPAN>&gt; &nbsp;&nbsp;tab2; <SPAN CLASS=C>//też dobrze</SPAN><BR>
+Tablica&lt;string,<SPAN CLASS=K> long</SPAN>&gt; tab3; <SPAN CLASS=C>//też dobrze</SPAN><BR>
+Tablica&lt;string*, <SPAN CLASS=K>int</SPAN>&gt; tab4; <SPAN CLASS=C>//też może być</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+Umiejscowienie kodu szablonów
+</H2>
+
+<P>
+Jeśli szablony umieści się tak, jak w powyższym przykładzie z funkcją <SPAN CLASS=T>Kwadrat</SPAN> (czyli cały kod w jednym pliku), to wszystko chodzi jak w zegarku szwajcarskim. Ale spróbuj tylko przenieść szablon do innego pliku (z pewnością wymagałaby tego estetyka, a wkrótce też doszłyby do tego czysto techniczne przesłanki) - prawie na pewno pojawią się zgrzyty. Cóż, nie ma róży bez kolców, a że szablony są różyczką wyjątkowo kolorową i pachnącą, to i kolce mają ogromne i kłujące jak jasny gwint.
+</P>
+<P>
+Jeśli jesteś szczęśliwym posiadaczem nowoczesnego kompilatora, takiego jak w Visual Studio .NET 2003, to możesz skorzystać z zaklęcia <SPAN CLASS=K>export</SPAN> (które w dodatku jest "jeszcze ciepłe" i jeszcze nie do końca sprawdzone w praktyce). Kompilator stosowany w Dev-C++ takiej możliwości na razie nie posiada, chociaż widać, że jego twórcy poczynili już pewne kroki w kierunku jego wprowadzenia (w przypadku użycia pojawia się specjalne ostrzeżenie, że słowo <SPAN CLASS=K>export</SPAN> nie jest jeszcze zaimplementowane i że będzie zignorowane).
+</P>
+<P>
+Tak więc pozostaje nam tylko dość hardkorowe (a w każdym razie niezbyt eleganckie) rozwiązanie, polegające na umieszczeniu CAŁEGO kodu szablonu (deklaracja + definicja) w pliku nagłówkowym, który następnie dołączymy do reszty kodu dyrektywą <SPAN CLASS=C>#include</SPAN>...
+</P>
+<P>
+Tyle w tym dobrego, że możemy tradycyjnie oddzielić deklarację od definicji, co w przypadku klas bardziej złożonych od tych, które tu sobie przytaczamy jako przykłady, znacznie zwiększa przejrzystość kodu. Tylko... jak to zrobić? Otóż musimy pamiętać o dwóch rzeczach. Po pierwsze - każda metoda szablonu klasy musi zostać oddzielnie opatrzona słówkiem <SPAN CLASS=K>template</SPAN> oraz nawiasami trójkątnymi z deklaracją parametrów szablonu. Po drugie - w określeniu "pochodzenia" metody musimy również podać nawias trójkątny z parametrami szablonu (innymi słowy - nazwa klasy szablonowej W KAŻDYM MIEJSCU kodu źródłowego musi mieć postać: <SPAN CLASS=T>nazwa_klasy&lt;lista_parametrów&gt;</SPAN>). Jako przykład zdefiniujemy metodę <SPAN CLASS=T>Dodaj</SPAN> klasy <SPAN CLASS=T>Tablica</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+//DEKLARACJA KLASY</SPAN><BR>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TDane, <SPAN CLASS=K>typename</SPAN> TIterator&gt;<BR>
+<SPAN CLASS=K>class</SPAN> Tablica<BR>
+{<BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// ...</SPAN><BR>
+&nbsp;&nbsp;<SPAN CLASS=K>bool</SPAN> Dodaj(TDane* elem);  <BR>
+&nbsp;&nbsp;<SPAN CLASS=C>// ...</SPAN><BR>
+};<BR>
+<BR>
+<SPAN CLASS=C>//DEFINICJA METODY<BR></SPAN>
+<SPAN CLASS=K>template</SPAN>&lt;<SPAN CLASS=K>typename</SPAN> TDane, <SPAN CLASS=K>typename</SPAN> TIterator&gt;<BR>
+Tablica&lt;TDane, TIterator&gt;::Dodaj(TDane* elem)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>// ...</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Tak więc trochę pisaniny z tym jest i gdybyśmy mieli wykorzystać taki szablon do wygenerowania zaledwie jednej "wersji" klasy <SPAN CLASS=T>Tablica</SPAN>, to byłoby to ewidentne marnotrawstwo czasu i klawiatury ;-). Za to już przy dwóch-trzech "wersjach" (co w większych programach i w przypadku tak uniwersalnych kategorii klas, jak nasza przykładowa klasa <SPAN CLASS=T>Tablica</SPAN> jest niemal nie do uniknięcia) oszczędność byłaby widoczna gołym okiem.
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs07.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs08a.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

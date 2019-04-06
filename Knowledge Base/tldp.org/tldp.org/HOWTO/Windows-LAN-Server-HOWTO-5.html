@@ -1,0 +1,112 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Windows LAN server HOW-TO: Installation</TITLE>
+ <LINK HREF="Windows-LAN-Server-HOWTO-6.html" REL=next>
+ <LINK HREF="Windows-LAN-Server-HOWTO-4.html" REL=previous>
+ <LINK HREF="Windows-LAN-Server-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Windows-LAN-Server-HOWTO-6.html">Next</A>
+<A HREF="Windows-LAN-Server-HOWTO-4.html">Previous</A>
+<A HREF="Windows-LAN-Server-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Installation</A></H2>
+
+<H2><A NAME="ss5.1">5.1 RedHat</A>
+</H2>
+
+<P>I assembled a PC from bits lying around the IT stores - a fun exercise in itself - and ended up with a test system of P133, 32MB Ram and 540MB HD. I was planning on replacing the HD with a much larger one but wanted to test the installation on the rest of the system first.
+<P>Having installed RH6 before a few times I *knew* this would be a breeze...I believe "famous last words" is the phrase I am looking for here!  Installation seemed fine but on 1st boot (and subsequent ones) I encountered "invalid compressed format" errors as the system tried to Uncompress Linux. This evolved into a system that hung at boot with a "LI" prompt and a few questions on UCOL highlighted this problem as being a drive geometry problem. The system could boot from an MSDos bootdisk launching Linux from LOADLIN but this was far from acceptable. A 1GB hard disk was used instead. 
+<P>A secondary problem was the NIC. The one I first used was a Realtek8019 ISA card, this is an NE2000 compatible card and thus *should* use the ne2000 driver. After much trying and even a kernel recompile the card refused to work with said driver, so I swapped it with a D-Link DT-530 PCI card from another PC. This card was reported to work with the 'tulip' driver. However the RedHat install procedure could not detect it. A quick look on the D-Link website pointed to the latest via-rhine driver as a solution. This was downloaded and compiled and installed along with the pci-scan driver file from the same site (http://www.scyld.com/network/via-rhine.html). This site also contains excellent installation  notes. With the new drivers in place the machine was up and running and a few ping tests proved the NIC was running fine.
+<H2><A NAME="ss5.2">5.2 Samba</A>
+</H2>
+
+<P>Version 2.0.3 was installed as part of the RedHat installation and because this was a trial run I saw no reason to download the latest (at time writing this is 2.0.7). smbclient was not installed as there would be no reason for the Linux box to access shares on the Windows PC's. Configuration was a breeze thanks to the SWAT utility which is accessed by pointing a web browser at port 901 (ie: http://localhost:901). I was even able to access and configure this from one of the Windows boxes across the network (http://&lt;ip address&gt;:901).
+<H3>Samba configuration</H3>
+
+<P>For some reason our users have a habit of not exploring the network beyond their workgroup - even though they often can. To avoid confusion on their part and to keep accidents to a minimum the server was put in it's own workgroup. There is much excellent documentation on setup and configuration of Samba and thus I refer the reader to those rather than repeat the information here.
+<P>As our PC's all have static IP addresses and users are primarily seated in front of the same PC every day I opted for the share security option in Samba. This has the danger of leaving resources open for anyone browsing the network so I also employed the hosts-allow feature in the globals section. This was restricted to those on our network using a partial IP address. Shares were enabled pointing to various directories all under a new /resources directory.
+<H3>Microsoft Word templates</H3>
+
+<P>All the shares worked fine except when it came to templates for MS Word97. Word has a feature where you can set a Workgroup Templates location in its options. The problem was that if that pointed to a Samba share, the share could not be at top level (ie: //SERVER/template). When you clicked File|New, MSWord would report that it could not open the templates in the location selected yet you could open a template from that location through File|Open. This was further confused because you could navigate to said top level share in Explorer and double click on the template file and Word would create a new document based on your selected template. The workaround was found to be as simple as sharing the parent of the template directory and setting Word to look through that path (ie: //SERVER/resource/template). Despite much amending of file permissions and usernames it seems this is the only way to get this to work. I remain unsure as to which end causes the problem, Word seems a likely culprit (because everything else can use the files okay) but Samba can also be pointed to (because a Windows top level share will work in Word).
+<H2><A NAME="ss5.3">5.3 E-mail</A>
+</H2>
+
+<P>qmail was chosen as the Mail Transport Agent (MTA) over sendmail which was supplied with RedHat. This is primarily because the former has a reputation for easier configuration and better security than the latter.
+<H3>qmail</H3>
+
+<P>The latest source files were downloaded via a mirror of http://www.qmail.org and compiled and installed. There is plenty of documentation supplied with qmail but I chose to also use Life With Qmail (http://web.infoave.net/&nbsp;dsill/lwq.html). This document is similar to a HOWTO and was probably the most useful document for our purposes.
+<P>Qmail installed easily enough but I encountered a few minor problems with using it. I configured it, for performance and reliability reasons to use Maildir as the default delivery. The good old standard mail program does not recognise this type of delivery and thus it took me a while to figure out why my mail was being sent but I could not see it. The solution was to use mutt (http://www.mutt.org) which does support Maildir. Of course this was a minor problem as the users would not be using the Linux box to read their mail but rather get it through a pop client (MS Outlook) on their Windows workstations.
+<H3>fetchmail</H3>
+
+<P>Fetchmail was used as a collection agent and installation and setup of this was a breeze, especially when I found out about fetchmailconf :o). We do not require mail collection at all times but prefer to collect at set intervals. To facilitate this fetchmail is called using the -d switch by a cron job everyday and stopped by another one.
+<P>We collect our mail from ten mailboxes on our webhosts server, one of these is a bulk redirect where anything addressed to our hostname but not to one of the other nine specific addresses is deposited. fetchmails multidrop facility was employed to allow us to download all the mail from this mailbox and then smtp it to qmail using the intended recipients address.
+One problem we encountered was sending mail from our new qmail server to our salespeople. They collect their mail direct from the webhosts yet their domain is the same as everyone else's. This meant that every time a local user tried to send a message to one of the salespeople, qmail tried to find a local username to pass the message to and, upon finding no matching user, bounced it to the postmaster. The solution was to use a secondary e-mail address for the salespeople. Our webhosts do not provide dial-up services so our salespeople each have their own free ISP account to get access to the web. This account provides them with an address on a different domain and so qmail was able to forward all mail for them to this address using the alias files.
+<P><EM>Note: To make life easier for the salespeople our webhosts redirected all mail coming to their mailbox for these people to  the free ISP mail address - this meant the salespeople weren't 'confused' by having to juggle multiple accounts and addresses on their notebooks - bless 'em :o).</EM>
+<H2><A NAME="ss5.4">5.4 Faxing</A>
+</H2>
+
+<P>The old serverPC used Microsoft's network faxing to share a fax service across the network. Users then used MS Word templates (which had VBA macros) to create and send faxes automatically, errors were mailed to the user.  To provide and equal if not better service on the new server I chose mgetty+sendfax to provide the local faxing service. This installed easily and I was soon able to spool faxes from the Linux server. Spooling from Windows clients was to prove a much tougher nut to crack and resulted in a change from the original choice.
+<H3>Faxing from Windows clients</H3>
+
+<P>The previous arrangement shared a fax modem from the serverPC using Microsoft Fax under MS Outlook to provide fax services to all Windows clients. Further to this we used a standard Word97 template which had a macro attached for automatic sending of faxes. Utilising the Sendfax VBA command, this macro meant users had only to fill in the template and hit the "fax now" button on their Word toolbar to send a fax. They didn't have to deal with any third party programs which asked them to repeat everything they had just typed into the template. This arrangement thus provided seamless faxing to the user and it was one I was keen to continue.
+<P>Ideally what I wanted to do was have some way of passing the intended document, the username and the fax number to faxspool on the Linux box from the Windows client applications. The traditional way to provide fax services to any Windows app is to setup a "printer" which points to the fax modem.
+<H3>HylaFAX</H3>
+
+<P>Originally I installed mgetty+sendfax to use as a fax server. This was primarily because it is supplied with RedHat 6 and so was readily available. Unfortunately it proved to be unsuitable for our particular use as we required some way of sending faxes to the faxserver using Microsoft Word macros.  There are some excellent Windows clients for mgetty+sendfax but alas they all require the user to enter the fax number etc. each time a fax is sent. I wanted a solution to match our current one where the user fills in a Word template, hits a button and the macro reads the fax number from the document and uses the VBA Sendfax command to send the fax via MS Fax.
+<P>After much deliberating and searching I was pointed toward HylaFAX (http://www.hylafax.org) which has a windows client WHFC (http://www.uli-eckhardt.de/whfc/). This client allows for communication through VBA macros which was exactly what I wanted.
+Hylafax installed okay although I had some rather annoying client access problems. These were solved by ensuring the client IP addresses were correctly added to not only /var/spool/fax/etc/hosts (as indicated in the man pages and FAQ) but to /var/spool/fax/etc/hosts.hfaxd. Once this was done I was up and running in no time. WHFC installed very easily and was set-up in seconds.
+<H3>Word macros</H3>
+
+<P>As mentioned, our users are accustomed to being able to hit one button to send a fax document from within MS Word97, it was important to keep this feature available with the new server. WHFC has OLE capabilities and thus we were able to write a new macro which allowed the user to send a fax from within Word without having to enter the fax details into a secondary popup box.  The macro does two things - first it prints the current document to a file, then it uses WHFC's SendFax OLE function to send the printed file to HylaFAX. The printer driver we use is the Apple Laserwriter 16/600(ps) one as recommended in the WHFC setup notes.
+<P>Here is the macro code we use ...
+<P>
+<PRE>
+Sub Spool_fax()
+' Spool_fax Macro
+' Macro created 09/08/00 by Ryan Cartwright 
+
+Dim givenfax, realnum As String
+Dim whfc As Object
+Dim OLE_Return As Long
+Dim Box_Return As Integer 
+
+' First we print the document to a local file - note that Background must be false
+' otherwise the function will return before the file is entirely written
+' and thus HylaFAX will be unable to convert it properly.
+Application.PrintOut FileName:="", Range:=wdPrintAllDocument, Item:= _
+   wdPrintDocumentContent, Copies:=1, Pages:="", PageType:=wdPrintAllPages, _
+   Collate:=True, Background:=False, PrintToFile:=True, _
+   OutputFileName:="c:\faxtemp\printout.ps", Append:=False 
+
+' In our template the user is asked by an Autonew macro for the faxnumber etc.
+' the field number for the faxnumber is 8, we need to retrieve this
+' and add a 9 to the front of it
+Set givenfax = ActiveDocument.Fields(8).Result realnum = "9" + givenfax 
+
+' Now we create the OLE object and call the Sendfax() routine
+Set whfc = CreateObject("WHFC.OleSrv")
+OLE_Return = whfc.SendFax("c:\faxtemp\faxoutput.ps", realnum, False) 
+
+' Finally we test the returned value and report accordingly
+If OLE_Return &amp;&lt;= 0 Then
+   Box_Return = MsgBox("Error sending file", 16, "FAX Not Spooled")
+Else
+   Box_Return = MsgBox("Fax Job ID:" &amp; _ 
+      OLE_Return &amp; Chr(13) &amp; _ 
+      "You will be notified by email if it was successfully sent", _ 
+       0, "Fax spooled")
+End If
+Set whfc = Nothing
+End Sub 
+</PRE>
+<P>
+<P>
+<HR>
+<A HREF="Windows-LAN-Server-HOWTO-6.html">Next</A>
+<A HREF="Windows-LAN-Server-HOWTO-4.html">Previous</A>
+<A HREF="Windows-LAN-Server-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,1553 @@
+<HTML
+><HEAD
+><TITLE
+>linux/arch/i386/boot/setup.S</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux i386 Boot Code HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="linux/arch/i386/boot/bootsect.S"
+HREF="bootsect.html"><LINK
+REL="NEXT"
+TITLE="linux/arch/i386/boot/compressed/head.S"
+HREF="compressed_head.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux i386 Boot Code HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="bootsect.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="compressed_head.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="setup"
+></A
+>4. linux/arch/i386/boot/setup.S</H1
+><P
+>&#13;   <TT
+CLASS="filename"
+>setup.S</TT
+> is responsible for getting the system data
+   from the BIOS and putting them into appropriate places in system memory.
+  </P
+><P
+>&#13;   Other boot loaders, like
+   <A
+HREF="http://www.gnu.org/software/grub"
+TARGET="_top"
+>GNU GRUB</A
+> and
+   <A
+HREF="http://freshmeat.net/projects/lilo"
+TARGET="_top"
+>LILO</A
+>,
+   can load <EM
+>bzImage</EM
+> too.
+   Such boot loaders should load <EM
+>bzImage</EM
+> into memory
+   and setup "real-mode kernel header",
+   esp. <EM
+>type_of_loader</EM
+>, then pass control
+   to <EM
+>bsetup</EM
+> directly.
+   <TT
+CLASS="filename"
+>setup.S</TT
+> assumes:
+   <P
+></P
+><UL
+><LI
+><P
+>&#13;        <EM
+>bsetup</EM
+> or <EM
+>setup</EM
+> may not be
+        loaded at SETUPSEG:0, i.e. CS may not be equal to SETUPSEG
+        when control is passed to <TT
+CLASS="filename"
+>setup.S</TT
+>;
+       </P
+></LI
+><LI
+><P
+>&#13;        The first 4 sectors of <EM
+>setup</EM
+>
+        are loaded right after <EM
+>bootsect</EM
+>.
+        The reset may be loaded at SYSSEG:0, preceding
+        <EM
+>vmlinux</EM
+>;
+        This assumption does not apply to <EM
+>bsetup</EM
+>.
+       </P
+></LI
+></UL
+>
+  </P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="setup_header"
+></A
+>4.1. Header</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>/* Signature words to ensure LILO loaded us right */
+#define SIG1    0xAA55
+#define SIG2    0x5A5A
+
+INITSEG  = DEF_INITSEG          # 0x9000, we move boot here, out of the way
+SYSSEG   = DEF_SYSSEG           # 0x1000, system loaded at 0x10000 (65536).
+SETUPSEG = DEF_SETUPSEG         # 0x9020, this is the current segment
+                                # ... and the former contents of CS
+
+DELTA_INITSEG = SETUPSEG - INITSEG      # 0x0020
+
+.code16
+.text
+
+///////////////////////////////////////////////////////////////////////////////
+start:
+{
+        goto trampoline();              // skip the following header
+}
+
+# This is the setup header, and it must start at %cs:2 (old 0x9020:2)
+                .ascii  "HdrS"          # header signature
+                .word   0x0203          # header version number (&#62;= 0x0105)
+                                        # or else old loadlin-1.5 will fail)
+realmode_swtch: .word   0, 0            # default_switch, SETUPSEG
+start_sys_seg:  .word   SYSSEG
+                .word   kernel_version  # pointing to kernel version string
+                                        # above section of header is compatible
+                                        # with loadlin-1.5 (header v1.5). Don't
+                                        # change it.
+// kernel_version defined below
+type_of_loader: .byte   0               # = 0, old one (LILO, Loadlin,
+                                        #      Bootlin, SYSLX, bootsect...)
+                                        # See Documentation/i386/boot.txt for
+                                        # assigned ids
+# flags, unused bits must be zero (RFU) bit within loadflags
+loadflags:
+LOADED_HIGH     = 1                     # If set, the kernel is loaded high
+CAN_USE_HEAP    = 0x80                  # If set, the loader also has set
+                                        # heap_end_ptr to tell how much
+                                        # space behind setup.S can be used for
+                                        # heap purposes.
+                                        # Only the loader knows what is free
+#ifndef __BIG_KERNEL__
+                .byte   0
+#else
+                .byte   LOADED_HIGH
+#endif
+setup_move_size: .word  0x8000          # size to move, when setup is not
+                                        # loaded at 0x90000. We will move setup
+                                        # to 0x90000 then just before jumping
+                                        # into the kernel. However, only the
+                                        # loader knows how much data behind
+                                        # us also needs to be loaded.
+code32_start:                           # here loaders can put a different
+                                        # start address for 32-bit code.
+#ifndef __BIG_KERNEL__
+                .long   0x1000          #   0x1000 = default for zImage
+#else
+                .long   0x100000        # 0x100000 = default for big kernel
+#endif
+ramdisk_image:  .long   0               # address of loaded ramdisk image
+                                        # Here the loader puts the 32-bit
+                                        # address where it loaded the image.
+                                        # This only will be read by the kernel.
+ramdisk_size:   .long   0               # its size in bytes
+bootsect_kludge:
+                .word  bootsect_helper, SETUPSEG
+heap_end_ptr:   .word   modelist+1024   # (Header version 0x0201 or later)
+                                        # space from here (exclusive) down to
+                                        # end of setup code can be used by setup
+                                        # for local heap purposes.
+// modelist is at the end of .text section
+pad1:           .word   0
+cmd_line_ptr:   .long 0                 # (Header version 0x0202 or later)
+                                        # If nonzero, a 32-bit pointer
+                                        # to the kernel command line.
+                                        # The command line should be
+                                        # located between the start of
+                                        # setup and the end of low
+                                        # memory (0xa0000), or it may
+                                        # get overwritten before it
+                                        # gets read.  If this field is
+                                        # used, there is no longer
+                                        # anything magical about the
+                                        # 0x90000 segment; the setup
+                                        # can be located anywhere in
+                                        # low memory 0x10000 or higher.
+ramdisk_max:    .long __MAXMEM-1        # (Header version 0x0203 or later)
+                                        # The highest safe address for
+                                        # the contents of an initrd</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;     The <EM
+>__MAXMEM</EM
+> definition in
+     <TT
+CLASS="filename"
+>linux/asm-i386/page.h</TT
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>/*
+ * A __PAGE_OFFSET of 0xC0000000 means that the kernel has
+ * a virtual address space of one gigabyte, which limits the
+ * amount of physical memory you can use to about 950MB.
+ */
+#define __PAGE_OFFSET           (0xC0000000)
+
+/*
+ * This much address space is reserved for vmalloc() and iomap()
+ * as well as fixmap mappings.
+ */
+#define __VMALLOC_RESERVE       (128 &#60;&#60; 20)
+
+#define __MAXMEM                (-__PAGE_OFFSET-__VMALLOC_RESERVE)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     It gives <EM
+>__MAXMEM</EM
+> = 1G - 128M.
+    </P
+><P
+>&#13;     The setup header must follow some layout pattern.
+     Refer to <TT
+CLASS="filename"
+>linux/Documentation/i386/boot.txt</TT
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>Offset  Proto   Name            Meaning
+/Size
+0200/2  2.00+   jump            Jump instruction
+0202/4  2.00+   header          Magic signature "HdrS"
+0206/2  2.00+   version         Boot protocol version supported
+0208/4  2.00+   realmode_swtch  Boot loader hook
+020C/2  2.00+   start_sys       The load-low segment (0x1000) (obsolete)
+020E/2  2.00+   kernel_version  Pointer to kernel version string
+0210/1  2.00+   type_of_loader  Boot loader identifier
+0211/1  2.00+   loadflags       Boot protocol option flags
+0212/2  2.00+   setup_move_size Move to high memory size (used with hooks)
+0214/4  2.00+   code32_start    Boot loader hook
+0218/4  2.00+   ramdisk_image   initrd load address (set by boot loader)
+021C/4  2.00+   ramdisk_size    initrd size (set by boot loader)
+0220/4  2.00+   bootsect_kludge DO NOT USE - for bootsect.S use only
+0224/2  2.01+   heap_end_ptr    Free memory after setup end
+0226/2  N/A     pad1            Unused
+0228/4  2.02+   cmd_line_ptr    32-bit pointer to the kernel command line
+022C/4  2.03+   initrd_addr_max Highest legal initrd address</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="check_code"
+></A
+>4.2. Check Code Integrity</H2
+><P
+>&#13;     As <EM
+>setup</EM
+> code may not be contiguous, we should
+     check code integrity first.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+trampoline()
+{
+        start_of_setup();       // never return
+        .space 1024;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// check signature to see if all code loaded
+start_of_setup()
+{
+        // Bootlin depends on this being done early, check <A
+HREF="http://ftp.us.xemacs.org/ftp/pub/linux/suse/suse/i386/7.3/dosutils/bootlin/technic.doc"
+TARGET="_top"
+>bootlin:technic.doc</A
+>
+        int13/AH=15h(AL=0, DL=0x81);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-0639.htm"
+TARGET="_top"
+>int13/AH=15h: DISK - GET DISK TYPE</A
+>
+
+#ifdef SAFE_RESET_DISK_CONTROLLER
+        int13/AH=0(AL=0, DL=0x80);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-0605.htm"
+TARGET="_top"
+>int13/AH=00h: DISK - RESET DISK SYSTEM</A
+>
+#endif
+
+        DS = CS;
+        // check signature at end of setup
+        if (setup_sig1!=SIG1 || setup_sig2!=SIG2) {
+                goto bad_sig;
+        }
+        goto goodsig1;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// some small functions
+prtstr();  /* print asciiz string at DS:SI */
+prtsp2();  /* print double space */
+prtspc();  /* print single space */
+prtchr();  /* print ascii in AL */
+beep();    /* print CTRL-G, i.e. beep */</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Signature is checked to verify code integrity.
+    </P
+><P
+>&#13;     If signature is not found, the rest <EM
+>setup</EM
+> code
+     may precede <EM
+>vmlinux</EM
+> at SYSSEG:0.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>no_sig_mess: .string "No setup signature found ..."
+
+goodsig1:
+        goto goodsig;                           // make near jump
+
+///////////////////////////////////////////////////////////////////////////////
+// move the rest setup code from SYSSEG:0 to CS:0800
+bad_sig()
+        DELTA_INITSEG = 0x0020 (= SETUPSEG - INITSEG)
+        SYSSEG = 0x1000
+        word start_sys_seg = SYSSEG;            // defined in setup header
+{
+        DS = CS - DELTA_INITSEG;                // aka INITSEG
+        BX = (byte)(DS:[497]);                  // i.e. setup_sects
+
+        // first 4 sectors already loaded
+        CX = (BX - 4) &#60;&#60; 8;                     // rest code in word (2-bytes)
+        start_sys_seg = (CX &#62;&#62; 3) + SYSSEG;     // real system code start
+        move SYSSEG:0 to CS:0800 (CX*2 bytes);
+
+        if (setup_sig1!=SIG1 || setup_sig2!=SIG2) {
+no_sig:
+                prtstr("No setup signature found ...");
+no_sig_loop:
+                hlt;
+                goto no_sig_loop;
+        }
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     "hlt" instruction stops instruction execution and places the processor
+     in halt state.
+     The processor generates a special bus cycle to indicate that
+     halt mode has been entered.
+     When an enabled interrupt (including NMI) is issued,
+     the processor will resume execution after the "hlt" instruction,
+     and the instruction pointer (CS:EIP), pointing to the instruction
+     following the "hlt", will be saved to stack
+     before the interrupt handler is called.
+     Thus we need a "jmp" instruction after the "hlt" to put the processor
+     back to halt state again.
+    </P
+><P
+>&#13;     The <EM
+>setup</EM
+> code has been moved to correct place.
+     Variable <EM
+>start_sys_seg</EM
+> points to
+     where real system code starts.
+     If "bad_sig" does not happen, <EM
+>start_sys_seg</EM
+>
+     remains SYSSEG.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="check_loader"
+></A
+>4.3. Check Loader Type</H2
+><P
+>&#13;     Check if the loader is compatible with the image.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+good_sig()
+        char loadflags;                 // in setup header
+        char type_of_loader;            // in setup header
+        LOADHIGH = 1
+{
+        DS = CS - DELTA_INITSEG;        // aka INITSEG
+        if ( (loadflags &#38; LOADHIGH) &#38;&#38; !type_of_loader ) {
+                // Nope, old loader tries to load big-kernel
+                prtstr("Wrong loader, giving up...");
+                goto no_sig_loop;       // defined above in bad_sig()
+        }
+}
+
+loader_panic_mess: .string "Wrong loader, giving up..."</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Note that <EM
+>type_of_loader</EM
+> has been changed to 0x20 by
+     <EM
+>bootsect_helper()</EM
+> when it loads
+     <EM
+>bvmlinux</EM
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="get_mem_size"
+></A
+>4.4. Get Memory Size</H2
+><P
+>&#13;     Try three different memory detection schemes
+     to get the extended memory size (above 1M) in KB.
+    </P
+><P
+>&#13;     First, try e820h, which lets us assemble a memory map;
+     then try e801h, which returns a 32-bit memory size;
+     and finally 88h, which returns 0-64M.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>///////////////////////////////////////////////////////////////////////////////
+// get memory size
+loader_ok()
+        E820NR  = 0x1E8
+        E820MAP = 0x2D0
+{
+        // when entering this function, DS = CS-DELTA_INITSEG, aka INITSEG
+        (long)DS:[0x1E0] = 0;
+
+#ifndef STANDARD_MEMORY_BIOS_CALL
+        (byte)DS:[0x1E8] = 0;                   // E820NR
+
+        /* method E820H: see <A
+HREF="http://www.acpi.info"
+TARGET="_top"
+>ACPI spec</A
+>
+         * the memory map from hell.  e820h returns memory classified into
+         * a whole bunch of different types, and allows memory holes and
+         * everything.  We scan through this memory map and build a list
+         * of the first 32 memory areas, which we return at [E820MAP]. */
+meme820:
+        EBX = 0;
+        DI = 0x02D0;                            // E820MAP
+        do {
+jmpe820:
+                int15/EAX=E820h(EDX='SMAP', EBX, ECX=20, ES:DI=DS:DI);
+                // <A
+HREF="http://www.ctyme.com/intr/rb-1741.htm"
+TARGET="_top"
+>int15/AX=E820h: GET SYSTEM MEMORY MAP</A
+>
+                if (failed || 'SMAP'!=EAX) break;
+                // if (1!=DS:[DI+16]) continue; // not usable
+good820:
+                if (DS:[1E8]&#62;=32) break;        // entry# &#62; E820MAX
+                DS:[0x1E8]++;                   // entry# ++;
+                DI += 20;                       // adjust buffer for next
+again820:
+        } while (!EBX)                          // not finished
+bail820:
+
+        /* method E801H:
+         * memory size is in 1k chunksizes, to avoid confusing loadlin.
+         * we store the 0xe801 memory size in a completely different place,
+         * because it will most likely be longer than 16 bits.
+         * (use 1e0 because that's what Larry Augustine uses in his
+         * alternative new memory detection scheme, and it's sensible
+         * to write everything into the same place.) */
+meme801:
+        stc;            // to work around buggy BIOSes
+        CX = DX = 0;
+        int15/AX=E801h;
+        /* <A
+HREF="http://www.ctyme.com/intr/rb-1739.htm"
+TARGET="_top"
+>int15/AX=E801h: GET MEMORY SIZE FOR &#62;64M CONFIGURATIONS</A
+>
+         *   AX = extended memory between 1M and 16M, in K (max 3C00 = 15MB)
+         *   BX = extended memory above 16M, in 64K blocks
+         *   CX = configured memory 1M to 16M, in K
+         *   DX = configured memory above 16M, in 64K blocks */
+        if (failed) goto mem88;
+        if (!CX &#38;&#38; !DX) {
+                CX = AX;
+                DX = BX;
+        }
+e801usecxdx:
+        (long)DS:[0x1E0] = ((EDX &#38; 0xFFFF) &#60;&#60; 6) + (ECX &#38; 0xFFFF);      // in K
+#endif
+
+mem88:  // old traditional method
+        int15/AH=88h;
+        /* <A
+HREF="http://www.ctyme.com/intr/rb-1529.htm"
+TARGET="_top"
+>int15/AH=88h: SYSTEM - GET EXTENDED MEMORY SIZE</A
+>
+         *   AX = number of contiguous KB starting at absolute address 100000h */
+        DS:[2] = AX;
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="hw_support"
+></A
+>4.5. Hardware Support</H2
+><P
+>&#13;     Check hardware support, like keyboard, video adapter, hard disk, MCA bus
+     and pointing device.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>{
+        // set the keyboard repeat rate to the max
+        int16/AX=0305h(BX=0);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-1757.htm"
+TARGET="_top"
+>int16/AH=03h: KEYBOARD - SET TYPEMATIC RATE AND DELAY</A
+>
+
+        /* Check for video adapter and its parameters and
+         *   allow the user to browse video modes. */
+        video();                        // see video.S
+
+        // get hd0 and hd1 data
+        copy hd0 data (*int41) to CS-DELTA_INITSEG:0080 (16 bytes);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-6135.htm"
+TARGET="_top"
+>int41: SYSTEM DATA - HARD DISK 0 PARAMETER TABLE ADDRESS</A
+>
+        copy hd1 data (*int46) to CS-DELTA_INITSEG:0090 (16 bytes);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-6184.htm"
+TARGET="_top"
+>int46: SYSTEM DATA - HARD DISK 1 PARAMETER TABLE ADDRESS</A
+>
+        // check if hd1 exists
+        int13/AH=15h(AL=0, DL=0x81);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-0639.htm"
+TARGET="_top"
+>int13/AH=15h: DISK - GET DISK TYPE</A
+>
+        if (failed || AH!=03h) {        // AH==03h if it is a hard disk
+no_disk1:
+                clear CS-DELTA_INITSEG:0090 (16 bytes);
+        }
+is_disk1:
+
+        // check for Micro Channel (MCA) bus
+        CS-DELTA_INITSEG:[0xA0] = 0;    // set table length to 0
+        int15/AH=C0h;
+        /* <A
+HREF="http://www.ctyme.com/intr/rb-1594.htm"
+TARGET="_top"
+>int15/AH=C0h: SYSTEM - GET CONFIGURATION</A
+>
+         *   ES:BX = ROM configuration table */
+        if (failed) goto no_mca;
+        move ROM configuration table (ES:BX) to CS-DELTA_INITSEG:00A0;
+        // CX = (table length&#60;14)? CX:16;    first 16 bytes only
+no_mca:
+
+        // check for PS/2 pointing device
+        CS-DELTA_INITSEG:[0x1FF] = 0;   // default is no pointing device
+        int11h();
+        // <A
+HREF="http://www.ctyme.com/intr/rb-0575.htm"
+TARGET="_top"
+>int11h: BIOS - GET EQUIPMENT LIST</A
+>
+        if (AL &#38; 0x04) {                // mouse installed
+                DS:[0x1FF] = 0xAA;
+        }
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="apm_support"
+></A
+>4.6. APM Support</H2
+><P
+>&#13;     Check BIOS APM support.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>#if defined(CONFIG_APM) || defined(CONFIG_APM_MODULE)
+{
+        DS:[0x40] = 0;                  // version = 0 means no APM BIOS
+        int15/AX=5300h(BX=0);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-1394.htm"
+TARGET="_top"
+>int15/AX=5300h: Advanced Power Management v1.0+ - INSTALLATION CHECK</A
+>
+        if (failed || 'PM'!=BX || !(CX &#38; 0x02)) goto done_apm_bios;
+        // (CX &#38; 0x02) means 32 bit is supported
+        int15/AX=5304h(BX=0);
+        // <A
+HREF="http://www.ctyme.com/intr/rb-1398.htm"
+TARGET="_top"
+>int15/AX=5304h: Advanced Power Management v1.0+ - DISCONNECT INTERFACE</A
+>
+        EBX = CX = DX = ESI = DI = 0;
+        int15/AX=5303h(BX=0);
+        /* <A
+HREF="http://www.ctyme.com/intr/rb-1397.htm"
+TARGET="_top"
+>int15/AX=5303h: Advanced Power Management v1.0+</A
+>
+         *   <A
+HREF="http://www.ctyme.com/intr/rb-1397.htm"
+TARGET="_top"
+>- CONNECT 32-BIT PROTMODE INTERFACE</A
+> */
+        if (failed) {
+no_32_apm_bios:                         // I moved label no_32_apm_bios here
+                DS:[0x4C] &#38;= ~0x0002;   // remove 32 bit support bit
+                goto done_apm_bios;
+        }
+        DS:[0x42] = AX, 32-bit code segment base address;
+        DS:[0x44] = EBX, offset of entry point;
+        DS:[0x48] = CX, 16-bit code segment base address;
+        DS:[0x4A] = DX, 16-bit data segment base address;
+        DS:[0x4E] = ESI, APM BIOS code segment length;
+        DS:[0x52] = DI, APM BIOS data segment length;
+        int15/AX=5300h(BX=0);           // check again
+        // <A
+HREF="http://www.ctyme.com/intr/rb-1394.htm"
+TARGET="_top"
+>int15/AX=5300h: Advanced Power Management v1.0+ - INSTALLATION CHECK</A
+>
+        if (success &#38;&#38;  'PM'==BX) {
+                DS:[0x40] = AX, APM version;
+                DS:[0x4C] = CX, APM flags;
+        } else {
+apm_disconnect:
+                int15/AX=5304h(BX=0);
+                /* <A
+HREF="http://www.ctyme.com/intr/rb-1398.htm"
+TARGET="_top"
+>int15/AX=5304h: Advanced Power Management v1.0+</A
+>
+                 *   <A
+HREF="http://www.ctyme.com/intr/rb-1398.htm"
+TARGET="_top"
+>- DISCONNECT INTERFACE</A
+> */
+        }
+done_apm_bios:
+}
+#endif</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="prepare_protmode"
+></A
+>4.7. Prepare for Protected Mode</H2
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>// call mode switch
+{
+        if (realmode_swtch) {
+                realmode_swtch();               // mode switch hook
+        } else {
+rmodeswtch_normal:
+                default_switch() {
+                        cli;                    // no interrupts allowed
+                        outb(0x80, 0x70);       // disable NMI
+                }
+        }
+rmodeswtch_end:
+}
+
+// relocate code if necessary
+{
+        (long)code32 = code32_start;
+        if (!(loadflags &#38; LOADED_HIGH)) {       // low loaded zImage
+                // 0x0100 &#60;= start_sys_seg &#60; CS-DELTA_INITSEG
+do_move0:
+                AX = 0x100;
+                BP = CS - DELTA_INITSEG;        // aka INITSEG
+                BX = start_sys_seg;
+do_move:
+                move system image from (start_sys_seg:0 .. CS-DELTA_INITSEG:0)
+                        to 0100:0;              // move 0x1000 bytes each time
+        }
+end_move:</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Note that <EM
+>code32_start</EM
+> is initialized to
+     0x1000 for <EM
+>zImage</EM
+>, or
+     0x100000 for <EM
+>bzImage</EM
+>.
+     The <EM
+>code32</EM
+> value will be used in passing control to
+     <TT
+CLASS="filename"
+>linux/arch/i386/boot/compressed/head.S</TT
+> in
+     <A
+HREF="setup.html#switch_protmode"
+>Section 4.9</A
+>.
+     If we boot up <EM
+>zImage</EM
+>, it relocates
+     <EM
+>vmlinux</EM
+> to 0100:0;
+     If we boot up <EM
+>bzImage</EM
+>,
+     <EM
+>bvmlinux</EM
+> remains at start_sys_seg:0.
+     The relocation address must match the "-Ttext" option in
+     <TT
+CLASS="filename"
+>linux/arch/i386/boot/compressed/Makefile</TT
+>.
+     See <A
+HREF="makefiles.html#i386_boot_compressed_makefile"
+>Section 2.5</A
+>.
+    </P
+><P
+>&#13;     Then it will relocate code from CS-DELTA_INITSEG:0
+     (<EM
+>bbootsect</EM
+> and <EM
+>bsetup</EM
+>)
+     to INITSEG:0, if necessary.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>        DS = CS;                // aka SETUPSEG
+        // Check whether we need to be downward compatible with version &#60;=201
+        if (!cmd_line_ptr &#38;&#38; 0x20!=type_of_loader &#38;&#38; SETUPSEG!=CS) {
+                cli;            // as interrupt may use stack when we are moving
+                // store new SS in DX
+                AX = CS - DELTA_INITSEG;
+                DX = SS;
+                if (DX&#62;=AX) {   // stack frame will be moved together
+                        DX = DX + INITSEG - AX; // i.e. SS-CS+SETUPSEG
+                }
+move_self_1:
+                /* move CS-DELTA_INITSEG:0 to INITSEG:0 (setup_move_size bytes)
+                 *   in two steps in order not to overwrite code on CS:IP
+                 * move up (src &#60; dest) but downward ("std") */
+                move CS-DELTA_INITSEG:move_self_here+0x200
+                  to INITSEG:move_self_here+0x200,
+                  setup_move_size-(move_self_here+0x200) bytes;
+                // INITSEG:move_self_here+0x200 == SETUPSEG:move_self_here
+                goto SETUPSEG:move_self_here;   // CS=SETUPSEG now
+move_self_here:
+                move CS-DELTA_INITSEG:0 to INITSEG:0,
+                  move_self_here+0x200 bytes;   // I mean old CS before goto
+                DS = SETUPSEG;
+                SS = DX;
+        }
+end_move_self:
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     Note again, <EM
+>type_of_loader</EM
+> has been changed to 0x20
+     by <EM
+>bootsect_helper()</EM
+> when it loads
+     <EM
+>bvmlinux</EM
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="enable_a20"
+></A
+>4.8. Enable A20</H2
+><P
+>&#13;     For A20 problem and solution, refer to
+     <A
+HREF="http://www.win.tue.nl/~aeb/linux/kbd/A20.html"
+TARGET="_top"
+>&#13;     A20 - a pain from the past</A
+>.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>        A20_TEST_LOOPS          =  32   # Iterations per wait
+        A20_ENABLE_LOOPS        = 255   # Total loops to try
+{
+#if defined(CONFIG_MELAN)
+        // Enable A20. AMD Elan bug fix.
+        outb(0x02, 0x92);               // outb(val, port)
+a20_elan_wait:
+        while (!a20_test());            // test not passed
+        goto a20_done;
+#endif
+
+a20_try_loop:
+        // First, see if we are on a system with no A20 gate.
+a20_none:
+        if (a20_test()) goto a20_done;  // test passed
+
+        // Next, try the BIOS (INT 0x15, AX=0x2401)
+a20_bios:
+        int15/AX=2401h;
+        // <A
+HREF="http://www.ctyme.com/intr/rb-1336.htm"
+TARGET="_top"
+>Int15/AX=2401h: SYSTEM - later PS/2s - ENABLE A20 GATE</A
+>
+        if (a20_test()) goto a20_done;  // test passed
+
+        // Try enabling A20 through the keyboard controller
+a20_kbc:
+        empty_8042();
+        if (a20_test()) goto a20_done;  // test again in case BIOS delayed
+        outb(0xD1, 0x64);               // command write
+        empty_8042();
+        outb(0xDF, 0x60);               // A20 on
+        empty_8042();
+        // wait until a20 really *is* enabled
+a20_kbc_wait:
+        CX = 0;
+a20_kbc_wait_loop:
+        do {
+                if (a20_test()) goto a20_done;  // test passed
+        } while (--CX)
+
+        // Final attempt: use "configuration port A"
+        outb((inb(0x92) | 0x02) &#38; 0xFE, 0x92);
+        // wait for configuration port A to take effect
+a20_fast_wait:
+        CX = 0;
+a20_fast_wait_loop:
+        do {
+                if (a20_test()) goto a20_done;  // test passed
+        } while (--CX)
+
+        // A20 is still not responding. Try frobbing it again.
+        if (--a20_tries) goto a20_try_loop;
+        prtstr("linux: fatal error: A20 gate not responding!");
+a20_die:
+        hlt;
+        goto a20_die;
+}
+
+a20_tries:
+        .byte   A20_ENABLE_LOOPS                // i.e. 255
+a20_err_msg:
+        .ascii  "linux: fatal error: A20 gate not responding!"
+        .byte   13, 10, 0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     For I/O port operations, take a look at related reference materials in
+     <A
+HREF="setup.html#setup_ref"
+>Section 4.11</A
+>.
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="switch_protmode"
+></A
+>4.9. Switch to Protected Mode</H2
+><P
+>&#13;     To ensure code compatibility with all 32-bit IA-32 processors,
+     perform the following steps to switch to protected mode:
+     <P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>Prepare GDT with a null descriptor in the first GDT entry,
+         one code segment descriptor and one data segment descriptor;</P
+></LI
+><LI
+><P
+>Disable interrupts, including maskable hardware interrupts
+         and NMI;</P
+></LI
+><LI
+><P
+>&#13;          Load the base address and limit of the GDT to GDTR register,
+          using "lgdt" instruction;
+         </P
+></LI
+><LI
+><P
+>&#13;          Set PE flag in CR0 register, using "mov cr0" (Intel 386 and up)
+          or "lmsw" instruction (for compatibility with Intel 286);
+        </P
+></LI
+><LI
+><P
+>&#13;          Immediately execute a far "jmp" or a far "call" instruction.
+         </P
+></LI
+></OL
+>
+     The stack can be placed in a normal read/write data segment,
+     so no dedicated descriptor is required.
+    </P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>a20_done:
+{
+        lidt    idt_48;         // load idt with 0, 0;
+
+        // convert DS:gdt to a linear ptr
+        *(long*)(gdt_48+2) = DS &#60;&#60; 4 + &#38;gdt;
+        lgdt    gdt_48;
+
+        // reset coprocessor
+        outb(0, 0xF0);
+        delay();
+        outb(0, 0xF1);
+        delay();
+
+        // reprogram the interrupts
+        outb(0xFF, 0xA1);       // mask all interrupts
+        delay();
+        outb(0xFB, 0x21);       // mask all irq's but irq2 which is cascaded
+
+        // protected mode!
+        AX = 1;
+        lmsw ax;                // machine status word, bit 0 thru 15 of CR0
+                                // only affects PE, MP, EM &#38; TS flags
+        goto flush_instr;
+
+flush_instr:
+        BX = 0;                                 // flag to indicate a boot
+        ESI = (CS - DELTA_INITSEG) &#60;&#60; 4;        // pointer to real-mode code
+        /* NOTE: For high loaded big kernels we need a
+         * jmpi    0x100000,__KERNEL_CS
+         *
+         * but we yet haven't reloaded the CS register, so the default size
+         * of the target offset still is 16 bit.
+         * However, using an operand prefix (0x66), the CPU will properly
+         * take our 48 bit far pointer. (INTeL 80386 Programmer's Reference
+         * Manual, Mixing 16-bit and 32-bit code, page 16-6) */
+
+        // goto __KERNEL_CS:[(uint32*)code32]; */
+        .byte   0x66, 0xea
+code32: .long   0x1000          // overwritten in <A
+HREF="setup.html#prepare_protmode"
+>Section 4.7</A
+>
+        .word   __KERNEL_CS     // segment 0x10
+        // see linux/arch/i386/boot/compressed/head.S:startup_32
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     The far "jmp" instruction (0xea) updates CS register.
+     The contents of the remaining segment registers (DS, SS, ES, FS and GS)
+     should be reloaded later.
+     The operand-size prefix (0x66) is used to enforce "jmp" to be executed
+     upon the 32-bit operand <EM
+>code32</EM
+>.
+     For operand-size prefix details, check IA-32 Manual
+     (Vol.1. Ch.3.6. Operand-size and Address-size Attributes, and
+     Vol.3. Ch.17. Mixing 16-bit and 32-bit Code).
+    </P
+><P
+>&#13;     Control is passed to
+     <EM
+>linux/arch/i386/boot/compressed/head.S:startup_32</EM
+>.
+     For <EM
+>zImage</EM
+>, it is at address 0x1000;
+     For <EM
+>bzImage</EM
+>, it is at 0x100000.
+     See <A
+HREF="compressed_head.html"
+>Section 5</A
+>.
+    </P
+><P
+>&#13;     ESI points to the memory area of collected system data.
+     It is used to pass parameters from the 16-bit real mode code of the kernel
+     to the 32-bit part.
+     See <TT
+CLASS="filename"
+>linux/Documentation/i386/zero-page.txt</TT
+>
+     for details.
+    </P
+><P
+>&#13;     For mode switching details, refer to IA-32 Manual Vol.3.
+     (Ch.9.8. Software Initialization for Protected-Mode Operation,
+     Ch.9.9.1. Switching to Protected Mode, and
+     Ch.17.4. Transferring Control Among Mixed-Size Code Segments).
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="setup_misc"
+></A
+>4.10. Miscellaneous</H2
+><P
+>&#13;     The rest are supporting functions and variables.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>/* macros created by linux/Makefile targets:
+ *   include/linux/compile.h and include/linux/version.h */
+kernel_version: .ascii  UTS_RELEASE
+                .ascii  " ("
+                .ascii  LINUX_COMPILE_BY
+                .ascii  "@"
+                .ascii  LINUX_COMPILE_HOST
+                .ascii  ") "
+                .ascii  UTS_VERSION
+                .byte   0
+
+///////////////////////////////////////////////////////////////////////////////
+default_switch() { cli; outb(0x80, 0x70); } /* disable interrupts and NMI */
+bootsect_helper(ES:BX); /* see <A
+HREF="bootsect.html#bootsect_helper"
+>Section 3.7</A
+> */
+
+///////////////////////////////////////////////////////////////////////////////
+a20_test()
+{
+        FS = 0;
+        GS = 0xFFFF;
+        CX = A20_TEST_LOOPS;                    // i.e. 32
+        AX = FS:[0x200];
+        do {
+a20_test_wait:
+                FS:[0x200] = ++AX;
+                delay();
+        } while (AX==GS:[0x210] &#38;&#38; --CX);
+        return (AX!=GS[0x210]);
+        // ZF==0 (i.e. NZ/NE, a20_test!=0) means test passed
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// check that the keyboard command queue is empty
+empty_8042()
+{
+        int timeout = 100000;
+
+        for (;;) {
+empty_8042_loop:
+                if (!--timeout) return;
+                delay();
+                inb(0x64, &#38;AL);                 // 8042 status port
+                if (AL &#38; 1) {                   // has output
+                        delay();
+                        inb(0x60, &#38;AL);         // read it
+no_output:      } else if (!(AL &#38; 2)) return;   // no input either
+        }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// read the CMOS clock, return the seconds in AL, used in video.S
+gettime()
+{
+        int1A/AH=02h();
+        /* <A
+HREF="http://www.ctyme.com/intr/rb-2273.htm"
+TARGET="_top"
+>int1A/AH=02h: TIME - GET REAL-TIME CLOCK TIME</A
+>
+         * DH = seconds in BCD */
+        AL = DH &#38; 0x0F;
+        AH = DH &#62;&#62; 4;
+        aad;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+delay() { outb(AL, 0x80); }                     // needed after doing I/O
+
+// Descriptor table
+gdt:
+        .word   0, 0, 0, 0                      # dummy
+        .word   0, 0, 0, 0                      # unused
+        // segment 0x10, __KERNEL_CS
+        .word   0xFFFF                          # 4Gb - (0x100000*0x1000 = 4Gb)
+        .word   0                               # base address = 0
+        .word   0x9A00                          # code read/exec
+        .word   0x00CF                          # granularity = 4096, 386
+                                                #  (+5th nibble of limit)
+        // segment 0x18, __KERNEL_DS
+        .word   0xFFFF                          # 4Gb - (0x100000*0x1000 = 4Gb)
+        .word   0                               # base address = 0
+        .word   0x9200                          # data read/write
+        .word   0x00CF                          # granularity = 4096, 386
+                                                #  (+5th nibble of limit)
+idt_48:
+        .word   0                               # idt limit = 0
+        .word   0, 0                            # idt base = 0L
+/* [gdt_48] should be 0x0800 (2048) to match the comment,
+ *   like what Linux 2.2.22 does. */
+gdt_48:
+        .word   0x8000                          # gdt limit=2048,
+                                                #  256 GDT entries
+        .word   0, 0                            # gdt base (filled in later)
+
+#include "video.S"
+
+// signature at the end of setup.S:
+{
+setup_sig1:     .word   SIG1                    // 0xAA55
+setup_sig2:     .word   SIG2                    // 0x5A5A
+modelist:
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><P
+>&#13;     Video setup and detection code in <TT
+CLASS="filename"
+>video.S</TT
+>:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>ASK_VGA = 0xFFFD  // defined in linux/include/asm-i386/boot.h
+///////////////////////////////////////////////////////////////////////////////
+video()
+{
+        pushw DS;               // use different segments
+        FS = DS;
+        DS = ES = CS;
+        GS = 0;
+        cld;
+        basic_detect();         // basic adapter type testing (EGA/VGA/MDA/CGA)
+#ifdef CONFIG_VIDEO_SELECT
+        if (FS:[0x01FA]!=ASK_VGA) {     // user selected video mode
+                mode_set();
+                if (failed) {
+                        prtstr("You passed an undefined mode number.\n");
+                        mode_menu();
+                }
+        } else {
+vid2:           mode_menu();
+        }
+vid1:
+#ifdef CONFIG_VIDEO_RETAIN
+        restore_screen();               // restore screen contents
+#endif /* CONFIG_VIDEO_RETAIN */
+#endif /* CONFIG_VIDEO_SELECT */
+        mode_params();                  // store mode parameters
+        popw ds;                        // restore original DS
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+     /* TODO: video() details */
+    </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="setup_ref"
+></A
+>4.11. Reference</H2
+><P
+>&#13;    <P
+></P
+><UL
+><LI
+><P
+><A
+HREF="http://www.win.tue.nl/~aeb/linux/kbd/A20.html"
+TARGET="_top"
+>&#13;        A20 - a pain from the past</A
+></P
+></LI
+><LI
+><P
+>&#13;<A
+HREF="http://www.student.cs.uwaterloo.ca/~cs452/postscript/book.ps"
+TARGET="_top"
+>&#13;         Real-time Programming</A
+> Appendix A: Complete I/O Port List
+        </P
+></LI
+><LI
+><P
+><A
+HREF="http://developer.intel.com/design/pentium4/manuals/"
+TARGET="_top"
+>&#13;        IA-32 Intel Architecture Software Developer's Manual</A
+></P
+></LI
+><LI
+><P
+>Summary of empty_zero_page layout (kernel point of view):
+        <TT
+CLASS="filename"
+>linux/Documentation/i386/zero-page.txt</TT
+></P
+></LI
+></UL
+>
+    </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="bootsect.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="compressed_head.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>linux/arch/i386/boot/bootsect.S</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>linux/arch/i386/boot/compressed/head.S</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

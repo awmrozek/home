@@ -1,0 +1,937 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.7">
+ <TITLE>The Ftape-FAQ: "Using Ftape" related questions !</TITLE>
+ <LINK HREF="Ftape-FAQ-4.html" REL=next>
+ <LINK HREF="Ftape-FAQ-2.html" REL=previous>
+ <LINK HREF="Ftape-FAQ.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ftape-FAQ-4.html"><IMG SRC="next.gif" ALT="Next"></A>
+<A HREF="Ftape-FAQ-2.html"><IMG SRC="prev.gif" ALT="Previous"></A>
+<A HREF="Ftape-FAQ.html#toc3"><IMG SRC="toc.gif" ALT="Contents"></A>
+<HR>
+<H2><A NAME="s3">3. "Using Ftape" related questions !</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss3.1">3.1 How fast is Ftape ?</A>
+</H2>
+
+<P>
+<P>You can achieve quite respectable backup and restore speeds with
+<EM>Ftape</EM>: a Colorado DJ-20 and an Adaptec 1542CF controller, has
+been measured at 4.25Mbyte/min sustained data transfer rate (no
+compression) across a 70Mbyte tar archive, while comparing the archive
+on the tape with data on an IDE disk.  The speed of <EM>Ftape</EM> is
+mostly dependent on the data transfer rate of your FDC: The AHA1542CF
+has a ``post-1991 82077'' FDC, and it will push 1Mbit/sec at the tape
+drive.  If you have an FDC which can only deliver 500Kbit/sec data
+rates, you will see half the transfer rate (well, roughly).
+<P>
+<P>
+<H2><A NAME="ss3.2">3.2 When I write to some of my tapes, they seem to spend a lot of time "shoe-shining," or repositioning instead of streaming.  Is something wrong with my system?</A>
+</H2>
+
+<P>
+<P>There has been a few reports of "shoeshining".  This is when the tape just  
+seems to run back and forth endlessly.  This has been seen on a Jumbo  
+250 (74407.3051@compuserve.com) and on an Iomega 250 Ditto Insider  
+(tom@opus.cais.com). In the latter case it has been narrowed own to  
+using an ELF Linux and running off a SCSI hard disk (connected to an  
+Adaptec 1542cf).  Please contact me if you have an update to this  
+problem.
+<P>&lt;from the Ftape-Howto&gt;
+<P>Probably not. If you are backing up a large number of &lt; 2K files, you're   
+just going to have to live with it.  In this event, the repositions are caused  
+by file system access overhead. If you are backing up a normal system's files,  
+this may be caused by slop or media stretching in the tape cartridge. By   
+simply retensioning the tape, you should see this go away. Try  
+<BLOCKQUOTE><CODE>
+<PRE>
+ftmt -f /dev/zqft0 reten
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to retension the tape. If retensioning doesn't solve this, and it's only   
+happening on certain tapes, it might be wise to replace the tapes in question.
+<P>&lt;answer from Tim Jones&gt;
+<P>If you use afio as your backup tool you can set it to write a very large   
+number of buffers in one hit by using the -c flag. Make it large enough so   
+that you supply enough data for most of a single end-to-end pass over the tape.
+For my system, the following streams quite nicely - stopping relatively few  
+times per tape pass on an unloaded system:
+<BLOCKQUOTE><CODE>
+<PRE>
+find /usr/local -xdev -print | afio -o -v -f -b 10240 -c 800 /dev/qft0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+In my case I'm writing 800 x 10240 bytes per tape write, i.e. about 8MB.   
+haven't experimented that much with these settings - so someone might like   
+to establish more optimal ones.
+<P>Presumably other backup utilities could be modified to use a similar technique.
+<P>&lt;answer by Michael Hamilton&gt;
+<P>GNU tar doesn't use buffering in this way. The commercial backup program   
+"bru" is able to multi-buffer using shared memory; this works only when   
+writing compressed archive with bru (regardless whether you use <EM>Ftape's</EM>   
+builtin compression)
+<P>Another way to overcome the problem might be to use more dma buffers in the   
+<EM>Ftape kernel driver</EM> like:
+<BLOCKQUOTE><CODE>
+<PRE>
+mt -f /dev/qft0 setdrvbuffer $((6&ast;32786))
+</PRE>
+</CODE></BLOCKQUOTE>
+
+$((6&ast;32786)) should be expanded by your shell when using a Bourne  
+compatible one. This has a negative impact on the system's memory pool:   
+<EM>Ftape's</EM> dma buffers cannot be used by any other part of the kernel nor   
+by any other application. And kernel memory cannot be swapped out. If you   
+decide to use this kind of multi-buffering then you should unload the driver   
+as soon as it isn't needed any longer.
+<P>&lt;answer by Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.3">3.3 Do I have to reboot to the DOS world to format tapes? </A>
+</H2>
+
+<P>
+<P>Not if you are using the latest version of the <EM>Ftape drivers</EM> from  the  
+<A HREF="http://www-math.math.rwth-aachen.de/~LBFM/claus/ftape/">Ftape Home Page</A>.
+<P>To format a QIC-80, TR-1, TR-3, QICWide 3010 or 3020 tape, get the
+latest version of <CODE>ftape</CODE> and the latest version of the
+<CODE>ftape-tools</CODE> package (from the same location) and read the
+documentation of the <CODE>ftformat</CODE> utility which is included in the
+<CODE>ftape-tools</CODE> package.
+<P>
+<H4>Comment</H4>
+Do not try to format Ditto 2GB tapes.
+<H4>Comment</H4>
+Do not try to format Ditto Max or Max Pro tapes.
+<P>&lt;answers from Tim Jones and Claus Heine&gt; 
+<P>
+<H2><A NAME="ss3.4">3.4 Is it possibly to format Ditto 2GB tapes with ftape?</A>
+</H2>
+
+<P>
+<P>It isn't possible to format <CODE>Ditto 2GB</CODE> tapes with <CODE>Ditto 2GB</CODE>
+tape drive, and it isn't possible at all to re-format <CODE>Ditto 2GB</CODE>
+tapes in a way that they still can be used by a <CODE>Ditto 2GB</CODE> tape
+drive.
+<P>This is a hardware limitation of the <CODE>Ditto 2GB</CODE> tape drive. It
+can't be helped at the software level, i.e. it isn't <CODE>ftape's</CODE>
+fault.
+<P>
+<H2><A NAME="ss3.5">3.5 Is it possibly to format Ditto Max or Max Pro tapes with ftape?</A>
+</H2>
+
+<P>
+<P>No, the <CODE>Ditto Max</CODE> can't format tapes.
+<P>This is a hardware limitation of the <CODE>Ditto Max (Pro)</CODE> tape drive. It
+can't be helped at the software level, i.e. it isn't <CODE>ftape's</CODE>
+fault.
+<P>
+<H2><A NAME="ss3.6">3.6 Ftape detects more bad sectors than DOS on QIC-3020 tapes</A>
+</H2>
+
+<P>
+<P>If you look at the difference, you will notice that <EM>Ftape</EM>
+always detects 2784 sectors more than DOS.
+<P>The number that <EM>Ftape</EM> reports is correct (of course <CODE>:-)</CODE>. Each
+correctly formatted QIC-3020 tape has 2784 sectors at fixed positions
+that are marked in the bad sector map. To quote from the specs:
+<P>
+<BLOCKQUOTE>
+Tracks 5,7,9,11,13,15,17,19,21,23,25 and 27 within 4 segments of
+either EOT or BOT are prone to increased error rates due to hole
+imprints.  Therefore, these regions shall be mapped as bad at format
+time and entered in the bad sector map by indicating that all sectors
+within the identified segments are bad.
+</BLOCKQUOTE>
+<P>This gives 12 tracks &ast; 2 &ast; 4 segments &ast; 29 sectors == 2784 sectors.
+<P>So <EM>Ftape</EM> choose to report the real number of sectors that cannot be
+used on the tape, while DOS gives a more optimistic number giving a
+better indication of tape quality.  (<EM>Ftape's</EM> behavior might change in
+the future to detect correct formatting and display the separate
+numbers. It has rather low priority though).
+<P>QIC-3010 are alike QIC-3020 tapes regarding this.
+<P>&lt;from the Ftape-Howto&gt;
+<P>
+<H2><A NAME="ss3.7">3.7 Is it ok that I'm not hearing the tape move when I do a fsf or a bsf with mt?</A>
+</H2>
+
+<P>
+<P>Yes.  The driver merely updates an internal counter when those
+commands are issues.  The tape should move to the proper location on
+the next read or write access to the tape drive.
+<P>&lt;from the Ftape-Howto&gt;
+<P>
+<H2><A NAME="ss3.8">3.8 Why does my XYZ backup program complain about "Invalid argument" errors?</A>
+</H2>
+
+<P>
+<P><CODE>zftape</CODE> requires the data to be written in multiples of a fixed minimal   
+block size. This is a very usual behavior for a tape device. There are three   
+ways to get rid of those errors:
+<UL>
+<LI>set <EM>Ftape's</EM> block size to the block size used by the backup program. The example below works for "afio":
+<BLOCKQUOTE><CODE>
+<PRE>
+mt -f /dev/qft0 setblk 5120
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>If you don't want to use <EM>Ftape's</EM> built in compression you can also use
+<BLOCKQUOTE><CODE>
+<PRE>
+mt -f /dev/qft0 setblk 0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+to switch <EM>Ftape</EM> to variable block size mode and be able to write the   
+data in arbitrary portions to the tape (BUT: the builtin compression doesn't   
+work with this setting). When you intend to use "KBackup" then this is the   
+only way to make it work together with <EM>Ftape</EM> (it _may_ work, don't know   
+if it does)</LI>
+<LI>tell your backup program about <EM>Ftape's</EM> default block size of 10k (which   
+is also the default of GNU tar). For "afio" you can use the following command   
+line switch:
+<BLOCKQUOTE><CODE>
+<PRE>
+afio -b 10k ...
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+</UL>
+<P>You may want to read the section "Tape blocks" of the manual (use its   
+"Concept index" to directly jump to that section)
+<P>When using GNU tar's builtin compression with GNU tar versions prior to
+tar-1.12 one needs to run tar with the <CODE>--block-compress</CODE> switch to
+<CODE>re-block</CODE> the output to the tape.  Otherwise tar will compress the data 
+it reads, and write it in arbitrary portions to the tape.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Example :
+
+tar -czvf /dev/qft0 --block-compress /etc
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><B>WARNING:</B>
+One shouldn't use tar's builtin compression with large backups as it makes the
+entire data stream one huge compressed block.  If such archives are corrupted
+right at the beginning it will be very difficult to recover.
+<P>&lt;answer by Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.9">3.9 I/O errors and FDC - some explanations.</A>
+</H2>
+
+<P>
+<P>When you get next messages, this could be interesting for you !
+<P>
+<UL>
+<LI>fdc-io.c (ft_handle_perpend) - Your FDC does not support QIC-3020.</LI>
+<LI>Cannot write to /dev/qft0: I/O error</LI>
+</UL>
+<P>The explanations: 
+<P>"FDC" menas "Floppy Disk Controller". The
+problem is that your floppy disk controller must be able to support
+something that is called "perpendicular mode" to be able to read and
+write QIC-3020/QIC-3010 cartridges (i.e. TR-3 cartridges). To my
+knowledge all FDCs that are capable of at least 1Mbit/sec data
+transfer rate also support "perpendicular mode" ("perpendicular"
+refers to the direction of magnetization of the ferro-magnetic
+particles on the tape).
+<P>This means that you need to purchase another FDC. Either look around
+some computer stores and ask for an IO controller cards that is able
+to support 2.88 Mb floppies (which imlies 1Mbit data transfer rate and
+perpendicular mode).
+<P>Or get one of the so called "high speed" controllers that even support
+2Mbit/sec data transfer rate. Those controllers are based on an Intel
+82078 FDC. Iomega sells such a card under the name "Ditto Dash". I
+think Exabyte sells their 2Mbit controllers separately, too, whereas
+Seagate ships its TR-3 drives (i.e. the TST-3200) together with such a
+controller.
+<P>
+<P>&lt;answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.10">3.10 Why do I get "/dev/qft0: No such device" errors?</A>
+</H2>
+
+<P>
+<P>I assume that the following is the problem:
+The <EM>Ftape</EM> module is loaded OK into the kernel:
+<BLOCKQUOTE><CODE>
+<PRE>
+/usr/src/ftape-3.03b-970603# lsmod
+ Module         Pages    Used by
+ ftape             22            0
+</PRE>
+</CODE></BLOCKQUOTE>
+
+but then this happens:
+<BLOCKQUOTE><CODE>
+<PRE>
+$ ftmt -f /dev/qft0 status
+ftmt: /dev/qft0: No such device
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Solution
+You need to load the <EM>zftape.o</EM> module as well. With Ftape-3.&ast; the   
+<EM>ftape.o</EM> module doesn't implement the VFS interface. This is done by   
+<EM>zftape.o</EM>.
+<P>&lt;answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.11">3.11 I get "device busy" when I make multiple backups on a tape using some script.</A>
+</H2>
+
+<P>
+<P>The "device busy" messages can only occur while the <EM>Ftape devices</EM> are   
+still held open by some program. As soon as the close() system call has   
+completed the busy flag is cleared. May be "bru" or some other program has   
+still forked off a child that dies delayed?
+<P>Yes, this will reproduce the problem, it seems:
+<BLOCKQUOTE><CODE>
+<PRE>
+tar -cvvzf /dev/nqft0 --block-compress ; mt rewind
+</PRE>
+</CODE></BLOCKQUOTE>
+
+You can skip the "--block-compress" if using the most recent version  
+of GNU tar.
+<P>However, this is not a bug of <EM>Ftape</EM>. It seems that the parent tar  
+process exits before its child has closed the tape device. I know,  
+however, from hacking the tar code ages ago, that tar properly waits  
+for its parent to die.
+<P>However, the busy message simply means that the "busy" variable is  
+still held at 1 (zftape/zftape-init.c). And this simply means that  
+there still is a process hanging around that holds the tape device  
+open. 
+<P>I think I have it (only for the case of tar 'cause I have the source
+code.
+<P>If on uses tar with compression, then it forks a child which will
+become the compressor bei execing  "gzip" or whatever. Before the call
+to execlp() the child will fork off a grand child of its parent
+tar. That grandchild will do the actual tape I/O.
+<BLOCKQUOTE><CODE>
+<PRE>
+tar - fork() - write to child tar
+        |
+      child tar - fork() - gzip (will pipe to grand child tar)
+                    |
+                  grand child tar - open archive.
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Now, parent tar only waits for its child to die. gzip surely doesn't
+wait for the grand child as the gzip is a result of an execlp().
+<P>What I don't know is whether the grand child should be implicitly
+waited for by the parent tar, or if the wait() function also waits for
+grand childs.
+<P>But this seems to be the problem: the parent tar already has exited
+while its grandchild still is busy closing the archive. One hardly
+will notice this problem if the close() happens fast (i.e. regular
+files, block devices, also other tape devices?), but it isn't a bug in
+<EM>Ftape</EM>, but either in the backup programs or in the kernel or maybe
+libc exit code.
+<P>Don't know if the considerations above also apply to bru. If there is
+no grandchild and the parent process properly waits for its childs
+then there shouldn't be a problem.
+<P>&lt;answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.12">3.12 How do I "..." with tar?</A>
+</H2>
+
+<P>
+<P>These are really <CODE>tar</CODE> questions: Please read the <CODE>man</CODE> page and  
+the <CODE>info</CODE> page.  If you have not got it either, try 
+<BLOCKQUOTE><CODE>
+<PRE>
+tar  --help 2>&amp;1 | less
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If your version of <CODE>tar</CODE> is v1.11.1 or earlier, consider  
+upgrading to v1.11.8 - This version can call <CODE>GNU zip</CODE> directly  
+(i.e.: it supports the <CODE>-z</CODE> option) and has an elaborate help  
+included.  Also, it compiles right out of the box on Linux.  
+<P>&lt;from the Ftape-Howto&gt;
+<P>
+<H2><A NAME="ss3.13">3.13 What block-size should I use with tar ?</A>
+</H2>
+
+<P>
+<P>When using compression, and in all general, it can be a benefit to  
+specify to <CODE>tar</CODE>, that it should block the output into chunks.  
+Since <EM>Ftape</EM> cuts things into 29Kbyte blocks, saying `<CODE>-b58</CODE>'  
+should be optimum.
+<P>"Why 29Kbyte?", I hear you cry.  Well, the QIC-80 standard specifies  
+that all data should be protected by an Error Correcting Code (ECC)  
+code.  The code specified in the QIC-80 standard is known as a  
+Reed-Solomon (R-S) code.  The R-S code takes 29 data bytes and  
+generates 3 parity bytes.  To increase the performance of the ECC  
+code, the parity bytes are generated across 29 1Kbyte sectors.  Thus,  
+<EM>Ftape</EM> takes 29Kbytes of data, adds 3Kbytes of ECC parity, and  
+writes 32Kbytes to the tape at a time.  For this reason, <EM>Ftape</EM> will  
+always read and write 32K byte blocks to be able to detect (and  
+correct) data errors.
+<P>If you are curious, and wish to know more, look in the <CODE>ecc.c</CODE> and  
+<CODE>ecc.h</CODE> files, for an explanation of the code and a reference to a  
+textbook on Reed-Solomon codes.
+<P>&lt;from the Ftape-Howto&gt;
+<P>
+<H2><A NAME="ss3.14">3.14 Where can I find the tar/mt/cpio/dd binaries - sources - manpages?</A>
+</H2>
+
+<P>
+<P>All of these tools have been developed by the GNU project, and the  
+source (and man page) can be fetched from just-about any ftp site in  
+the world (including <CODE>ftp.funet.fi</CODE>, <CODE>tsx-11.mit.edu</CODE>, and  
+<CODE>sunsite.unc.edu</CODE>).  In any case they can be fetched from the  
+official GNU home site: <CODE>prep.ai.mit.edu [18.71.0.38]:/pub/gnu</CODE>.  The latest versions (as of September 12  
+1996) are:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+cpio:   2.4.2 (cpio-2.4.2.tar.gz)
+dd:     3.13 (fileutils-3.13.tar.gz)
+mt:     2.4.2 (cpio-2.4.2.tar.gz)
+tar:    1.11.8 (tar-1.11.8.tar.gz)
+gzip:   1.2.4 (gzip-1.2.4.tar.gz)
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>They all compile out of the box on Linux <CODE>v1.0.4</CODE> / <CODE>libc
+v4.5.19</CODE> / <CODE>gcc v2.5.8</CODE>.
+<P>&lt;from the Ftape-Howto&gt;
+<P>
+<H2><A NAME="ss3.15">3.15 If I use tapers compression, is it a bad idea to use the compression with zftape, or would it be better to not use tapers compression, and let zftape do it?</A>
+</H2>
+
+<P>
+<P>It is not bad as such to compress data twice (which would be the case
+when using tapers compression together with <EM>zftape's</EM> compression) but
+it doesn't make any sense. You won't gain much further compression,
+but only waste CPU cycles. 
+<P>Tapers compression should be quite safe, as taper compresses single
+files; in contrast to <I>tar -czf ...</I> which makes the entire data
+stream a large compressed block of data, which is really a bad thing
+with serious backups as a single bad byte at the beginning of the
+archive can make the entire archive unusable, well, it will be at
+least quite difficult to recover.
+<P>&lt;Answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.16">3.16 How does zftape compression compare to say gzip -9?</A>
+</H2>
+
+<P>
+<P><I>gzip -9</I> is better (i.e. one gains higher compression). <EM>zftape's</EM>
+compression is comparable with the Un*x <I>compress</I> program, but should
+be faster, and is faster than <I>gzip</I>.
+<P>&lt;Answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.17">3.17 I don't trust compression, but hear that the sftape interface is going away. What should I do?</A>
+</H2>
+
+<P>
+<P>Use the <EM>zftape interface</EM>, but don't load the <EM>zft-compressor module</EM>.  
+The device then becomes <CODE>/dev/qft0</CODE>.
+<P>&lt;answer from Tim Jones&gt;
+<P>
+<H2><A NAME="ss3.18">3.18 Ftape says "This tape has no 'Linux raw format"</A>
+</H2>
+
+<P>
+<P>You get this complaint if you haven't <EM>erased</EM> your freshly
+formatted tape.  This is because <EM>Ftape</EM> expect a "magic header"
+on the tape, to be able that it is allowed to interpret the header
+segment in its own way (eg: file marks).  To remove the problem, say
+<PRE>
+mt -f /dev/nftape erase
+</PRE>
+<P>&lt;from the Ftape-Howto&gt;
+<P>
+<H2><A NAME="ss3.19">3.19 Can I exchange tapes with someone using DOS?</A>
+</H2>
+
+<P>
+<P>No.  The DOS software conforms to the QIC-80 specs about the layout of
+the DOS filesystem, and it should(?)  be a small problem to write a
+program that can read/write the DOS format.  In fact, I'd bet that
+creating a nice user interface would be a bigger problem.
+<P>&lt;From the Ftape-Howto&gt;
+<P>
+<H2><A NAME="ss3.20">3.20 How does `mt eom' work when you've started overwriting a tape in the middle?</A>
+</H2>
+
+<P>
+<P>(EOM is "End Of recorded Media", the position right after all data  
+already recorded to the tape)
+<P>One cannot use tape "files" like files on an ordinary file system.  
+<P>In principle, a tape doesn't allow anything but appending new data at  
+EOM.  However, if one positiones just in the middle of the already  
+recorded data AND starts writing, then the driver first deletes all  
+following files (thus moving the EOM to the actual position) and then  
+starts writing.
+<P>Thus, the new EOM after finishing the write process, is then after the  
+newly recorded data.
+<P>One of the consequences of the above is, of course, that writing to  
+the tape in the middle of the already recorded area, is destructive in  
+the sense, that it not only overwrites the "file" the tape is  
+positioned at, but also deletes all following files.  
+<P>&lt;from the Ftape-Howto&gt;
+&lt;Answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.21">3.21 When I made backups before using taper, under the 2.0.29 ftape my drive didn't support fsf, under the new zftape it does, why would this be, and what exactly is fsf ?</A>
+</H2>
+
+<P>
+<P>It probably didn't work before because you didn't use a 
+<BLOCKQUOTE><CODE>
+<PRE>
+mt -f /dev/rft0 erase
+</PRE>
+</CODE></BLOCKQUOTE>
+
+before writing data to the cartridge. THIS ISN'T necessary any more.
+<P>But, hey, what does <I>mt fsf</I>? Tape drives don't store files in the
+sense that you can use 
+<PRE>
+cp somefile /dev/my_what_ever_tape
+</PRE>
+ 
+or be able to mount the tape drive like you could mount a harddisk. 
+You can't do nothing with a tape drive but write data to it in a sequential 
+manner.
+<P>As this is quite inconvenient, somebody invented something which is
+known under the name <I>file mark</I> or <I>eof mark</I> (eof == End Of
+File). Those marks don't separate files that have been backed up to
+the tape device, but only separate blocks of data (whatever data that
+might be).
+<P>Normally, the kernel tape device drivers take care of writing file
+marks when the tape device is closed, i.e.
+<BLOCKQUOTE><CODE>
+<PRE>
+tar -cf /dev/nqft0 /bin
+tar -cf /dev/nqft0 /etc
+mt -f /dev/nqft0 rewind
+</PRE>
+</CODE></BLOCKQUOTE>
+
+would result in a backup of all files under <I>/bin</I> and <I>/etc</I>. When
+the first <I>tar</I> finishes, the kernel driver will take care of writing
+a file mark to the tape at the the current tape position, and when the
+second <I>tar</I> process has finished, another file mark is written to the
+tape cartridge at that position.
+<P>Now, the sense of those file marks is, that it is possible to skip
+between different archives on the tape more quickly than would be
+possible with reading the data back.
+<P>The commands to do that are:
+<DL>
+<DT><B>mt fsf</B><DD><P>fast skip to the next file mark towards EOT (End Of Tape)
+<DT><B>mt bsf</B><DD><P>fast skip to the next file marks towards BOT (Begin Of Tape)
+</DL>
+
+Thus, to extract the second archive in the example above, one doesn't
+need to read the first archive back, but can proceed as follows:
+<BLOCKQUOTE><CODE>
+<PRE>
+mt -f /dev/nqft0 rewind
+mt -f /dev/nqft0 fsf
+tar -xvf /dev/nqft0 
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>&lt;Answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.22">3.22 What exactly is the difference between ftape, and zftape?</A>
+</H2>
+
+<P>
+<P>When <EM>Ftape</EM> was young there were two versions of the floppy tape
+driver, one of them was called <EM>zftape</EM> because of its built-in
+user-transparent on-the-fly compression. Whether such a thing is a
+feature or a bug ('cause this needn't be done in kernel space) is
+another question. However, the ioctl interface and file mark handling
+provided by <EM>zftape</EM> was much better and had less bugs. And <EM>zftape</EM>
+allows to use floppy tape cartridges with different OS. Well, you
+can't exchange data, but <EM>zftape</EM> won't overwrite volumes created by
+your Windoze program, and vice versa.
+<P>Nowadays, <EM>Ftape</EM> is name of the entire floppy tape driver package AND
+<I>ftape.o</I> is the file-name of the kernel module that implements the
+low-level hardware support. <EM>zftape</EM> has ceased to exist as a separate
+package, but the new <EM>Ftape</EM> versions (since ftape-3.00) contain a
+<EM>zftape.o</EM> module that needs to be loaded on top of <EM>ftape.o</EM>
+(i.e. you need to load BOTH modules to be able to access your floppy
+tape drive) and implements the file system interface and the advanced
+(?) features of the previous verions <EM>zftape</EM>.
+<P>&lt;Answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.23">3.23 What is the difference between a rewinding, and non rewinding drive?</A>
+</H2>
+
+<P>
+<P>Well, the rewinding tape devices rewind the tape to BOT (Begin Of
+Tape) when the device is closed, i.e.
+<BLOCKQUOTE><CODE>
+<PRE>
+tar -cvf /dev/qft0 /bin
+</PRE>
+</CODE></BLOCKQUOTE>
+
+will rewind the tape cartridge when the tar job has finished. In contrast, 
+<BLOCKQUOTE><CODE>
+<PRE>
+tar -cvf /dev/nqft0 /bin 
+</PRE>
+</CODE></BLOCKQUOTE>
+
+will NOT rewind the tape cartridge and leave the tape R/W head at its
+current position.
+<P>Rewinding devices should be used when performing a single backup,
+non-rewinding devices can be useful when doing multiple backups as one
+doesn't need to space to EOM (End Of recorded Media) before appending
+another archive.
+<P>Non-rewinding devices MUST be used when sending any of the tape motion
+command to the tape drive, such as 
+<BLOCKQUOTE><CODE>
+<PRE>
+mt -f /dev/nqft0 fsf
+</PRE>
+</CODE></BLOCKQUOTE>
+
+, because when the <I>mt</I> process finishes then the tape device is closed  
+which would result in rewinding the cartridge with the rewinding devices.
+<P>&lt;Answer from Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.24">3.24 Can someone tell me how to use mt to rewind my TR-3 drive one record using zftape record, so I can verify it?</A>
+</H2>
+
+<P>
+<P>Well, it depends. If the tape is still positioned inside the volume  
+just written, "mt bsf 1" (or equivalently "mt bsf") will backspace  
+just to the beginning of that volume (this is how "tar --verify"  
+works). If the tape is already positioned AFTER the filemark that  
+marks the end of the last written volume, then you need to issue   
+"mt bsf 2"
+<P>The logic behind this is as follows:
+"MTBSF count" backspaces over count file marks, stops, and then  
+positions on the <CODE>EOT</CODE> side of the last skipped file mark. This means,  
+an "mt bsf 2" will position right at the beginning of the previous  
+volume. 
+<P>&lt;answer form Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.25">3.25 By non-rewinding, they mean that it doesn't automatically rewind, correct? It doesn't mean that under no circumstances it will rewind, right?  I tried using /dev/zqft0, and it instantly rewinds the tape.</A>
+</H2>
+
+<P>
+<P>You are right: auto-rewind means, the tape is rewound when the tape  
+device is closed, non-rewinding  means, the tape isn't automatically  
+rewound when the tape device is closed (but you can, of course, use  
+the tape motion commands BSF/FSF etc. to position the tape head at  
+every position you like).
+<P>&lt;answer form Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.26">3.26 What is the difference between what mt considers a record and what it considers a file?</A>
+</H2>
+
+<P>
+<P>A record is the minimal amount of bytes that will be accepted by the
+tape in one read/write operation (except in "variable block size mode"
+where it just should be the amount of data actually written in a
+single write operation??). 
+<P>For <EM>zftape</EM> every read and write access has to be a multiple of a fixed
+block size (fixed, but tunable with <CODE>MTSETBLK</CODE>). This block size is a
+"tape record" (as mentioned in the GNU mt man page and defaults to
+10kb for <EM>zftape</EM>.
+<P>A "file" (in the sense of the mt man page) is a, well, misleading
+terminus. What is meant is an area of the tape between two file
+marks. This is not a file like a file on the file system, in the sense
+that it could have a name, file access modes, could be moved or copied
+with cp, mv, rm etc. 
+<P>Instead, It simply is the area of the tape that was recorded in one
+backup session, its end is marked by a tape file mark, and its
+beginning is delimited by either <CODE>BOT</CODE> or the file mark of the previous
+tape "file". That tape "files" are the things that can be skipped with
+the <CODE>MTBSF/FSF</CODE> commands.
+<P>&lt;answer form Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.27">3.27 Reusing tapes with zftape without reformatting the tape.</A>
+</H2>
+
+<P>
+<P>We try to answer the followong questions :
+<UL>
+<LI>Is there a good way to erase, as in remove the data or at least the volumes 
+from a tape, without reformating?  </LI>
+<LI>Can you overwrite the last volume on a tape with making a mess out of it? </LI>
+<LI>Can you overwrite the last several volumes without making a mess? </LI>
+<LI>Can you delete the last volume?</LI>
+</UL>
+<P>If you want to "erase" an entire cartridge, then simply do:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+mt -f /dev/qft0 erase
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This will erase the volume table (i.e. the "file marks").
+<P>Pre-ftape-3.x releases of zftape and ftape used to allow overwriting
+of already existing volumes on a cartridge. I have removed this
+feature as it was reported that it already has caused data-loss with
+some backup programs.
+<P>If you indeed need to remove some volumes on the tape then you should
+use the 
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+vtblc
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>program that comes with the <CODE>ftape-tools</CODE> package which can be
+down-loaded from the same locations as the <CODE>ftape</CODE> kernel driver
+package. Please refer to the documentation which is contained in the
+<CODE>ftape-tools</CODE> package for more information.
+<P>If you simply want to reuse old tapes, then it suffices to do
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+mt rewind
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If the tape is at BOT (Begin Of Tape) then every write access to the
+tape will silently erase all file marks and overwrite the data already
+existing on the tape.
+<P>&lt;answer by Claus Heine&gt;
+<P>
+<H2><A NAME="ss3.28">3.28 This script implements a simple contents listing for the zftape package using the "MTIOCVOLINFO" ioctl.</A>
+</H2>
+
+<P>
+<P>Here is as little perl/bash script that lists the contents of a cartridge
+using the <EM>zftape</EM> specific "volinfo" ioctl. Hope this shows how to
+handle this kind of stuff.
+<P>What it basically does is the following:
+<P>
+<OL>
+<LI>Rewind the cartridge</LI>
+<LI>Issue the volinfo command:
+<BLOCKQUOTE><CODE>
+<PRE>
+   claus@thales:~$ mt volinfo
+   file number          = 1
+   block size           = 10240
+   physical space used  =  522.0 kilobytes
+   real size of volume  =  520.0 kilobytes
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Parse the ouput and place the values in appropriate variables</LI>
+<LI>Skip to the next volume with "mt fsf"</LI>
+<LI>Exit if this gives an error (EOD), otherwise "goto 2)"</LI>
+</OL>
+<P><B>The Perl Script</B>
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+
+#!/usr/bin/perl
+#
+#     Copyright (C) 1997 Claus-Justus Heine
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING.  If not, write to
+# the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+#   This script implements a simple contents listing for the zftape
+#   package using the MTIOCVOLINFO ioctl.
+#
+
+$version = &lt;&lt;EOT;
+listtape-1.0 -- a perl script to list the contents of a floppy tape cartridge
+under Linux using the zftape driver
+
+RCS \$Revision: 1.2 $
+RCS \$Date: 1998/08/30 13:43:28 $
+EOT
+
+$tapedev = "/dev/tape";
+$usage = &lt;&lt;EOT;
+Usage: listtape [options ...]
+
+Mandatory or optional arguments to long options are mandatory or optional
+for short options too.
+
+-f, --file=FILE       Tape device to use. Default is  "/dev/tape".
+-h, --help            Print this help.
+-?                    Same as '-h'.
+--usage           Same as '-h'.
+-V, --version         Print version information.
+
+Author: Claus-Justus Heine &lt;claus\@momo.math.rwth-aachen.de>
+EOT
+
+while ($ARGV[0] =~ /^-/) {
+$_ = shift; 
+if (/--file/) {$_ = shift; $tapedev = $_; next;} 
+if (/-f/) {$_ = shift; $tapedev = $_; next;} 
+if (/--help/) { print $usage; exit 0; }
+if (/-h/) { print $usage; exit 0; }
+if (/--usage/) { print $usage; exit 0; }
+if (/-\?/) { print $usage; exit 0; }
+if (/--version/) { print $version; exit 0; }
+if (/-V/) { print $version; exit 0; }
+die $usage;
+}
+
+&amp;open_tape($tapedev, "status");
+while(&lt;FTMT>)
+{
+$online = 1 if (/.*online.*/);
+}
+
+if (! $online) { die "No cartridge present.\n"; }
+
+&amp;mtop($tapedev, "rewind");
+
+printf "%11s%12s%20s%20s\n",
+"file number", "block size", "volume size", "tape space";
+
+while (1)
+{
+&amp;open_tape($tapedev, "volinfo");
+while (&lt;FTMT>) {
+if (/^file number\s*=\s*([0-9]*)$/) { $filenumber = $1; }
+if (/^block size\s*=\s*([0-9]*)$/) { $blocksize = $1; }
+if (/^physical space used\s*=\s*([[0-9]*.*)/) { $rawsize = $1; }
+if (/^real size of volume\s*=\s*([[0-9]*.*)/) { $size = $1; }
+}
+close(FTMT);
+if (&amp;mtop($tapedev, "fsf 1") != 0) {
+&amp;mtop($tapedev,"rewind");
+print "\nRemaining space: $rawsize\n";
+print "Tape block size: $blocksize\n";
+exit 0;
+}           
+printf "%6d          %5d  %20s%20s\n",
+    $filenumber, $blocksize, $size, $rawsize;
+}
+
+sub mtop
+{
+local ($tape, $operation) = @_;
+local ($exitval);
+system "ftmt -f $tape $operation > /dev/null 2>&amp;1";
+}
+
+sub open_tape
+{
+local ($tape, $operation) = @_;
+local ($command);
+
+$command = "ftmt -f " . $tape . " " . $operation . " |";
+open(FTMT, $command) || die "Couldn't open $command -- $!\n";
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>
+<P><B>The Bash Script</B>
+<P>
+<HR>
+<PRE>
+
+#! /bin/bash
+#
+#     Copyright (C) 1997 Claus-Justus Heine
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING.  If not, write to
+# the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+#   This script implements a simple contents listing for the zftape
+#   package using the MTIOCVOLINFO ioctl.
+#
+
+#
+# insert better option parsing here
+#
+TAPEDEV=${1-/dev/tape}
+
+if ! echo $TAPEDEV | grep "/dev/n"
+then
+TAPEDEV=/dev/n$(basename $TAPEDEV)
+fi
+
+if ! [ -c $TAPEDEV ]
+then
+echo $TAPEDEV is not a character device!  1>&amp;2
+exit 1
+fi
+
+if ! mt -f $TAPEDEV rewind
+then
+echo Could not rewind $TAPEDEV - no cartridge present?  1>&amp;2
+exit 1
+fi
+
+echo -e "\nContents of $TAPEDEV:\n"
+
+printf "%11s%12s%20s%20s\n" "file number" "block size" "volume size" "tape space"
+
+trap "rm -f /tmp/$0.$$" exit
+
+while true
+do
+if ! foo=$(mt -f $TAPEDEV volinfo |cut -f 2 -d =)
+then
+echo $TAPEDEV doesn\'t seem to be a floppy tape device 1>&amp;2
+exit 1
+fi
+#
+# "echo foo | read foo" will not work as the "read foo" is executed in
+# another shell.
+#
+echo $foo > /tmp/$0.$$
+read file blksz used usedunit size sizeunit &lt; /tmp/$0.$$
+if ! mt -f $TAPEDEV fsf 1 > /dev/null 2>&amp;1
+then
+echo -e "\nRemaining space: $used $usedunit"
+echo -e "Tape block size: $blksz"
+if ! mt -f $TAPEDEV rewind
+then
+    echo Rewind of $TAPEDEV failed 1>&amp;2
+    exit 1
+fi
+exit 0
+fi
+printf "%6d          %5d  %20s%20s\n"\
+$file $blksz "$size $sizeunit" "$used $usedunit"
+done
+</PRE>
+<HR>
+<P>&lt;answer from Claus Heine&gt;
+<P>
+<HR>
+<A HREF="Ftape-FAQ-4.html"><IMG SRC="next.gif" ALT="Next"></A>
+<A HREF="Ftape-FAQ-2.html"><IMG SRC="prev.gif" ALT="Previous"></A>
+<A HREF="Ftape-FAQ.html#toc3"><IMG SRC="toc.gif" ALT="Contents"></A>
+</BODY>
+</HTML>

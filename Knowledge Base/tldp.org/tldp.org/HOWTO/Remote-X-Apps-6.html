@@ -1,0 +1,314 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Remote X Apps mini-HOWTO: Telling the Server</TITLE>
+ <LINK HREF="Remote-X-Apps-7.html" REL=next>
+ <LINK HREF="Remote-X-Apps-5.html" REL=previous>
+ <LINK HREF="Remote-X-Apps.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Remote-X-Apps-7.html">Next</A>
+<A HREF="Remote-X-Apps-5.html">Previous</A>
+<A HREF="Remote-X-Apps.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Telling the Server</A></H2>
+
+<P>The server will not accept connections from just anywhere. You don't want
+everyone to be able to display windows on your screen. Or read what you
+type -- remember that your keyboard is part of your display!
+<P>Too few people seem to realise that allowing access to your display poses
+a security risk. Someone with access to your display can read and write
+your screens, read your keystrokes, and read your mouse actions.
+<P>Most servers know two ways of authenticating connections to it: the
+host list mechanism (xhost) and the magic cookie mechanism (xauth).
+Then there is ssh, the secure shell, that can forward X connections.
+<P>Notice that some X servers (from XFree86) can be configured not to
+listen on the usual TCP port with the <CODE>-nolisten tcp</CODE> argument.
+Notably the default configuration of Debian GNU/Linux is to disable
+the X server listening on the TCP port.  If you wish to use remote X
+on a Debian system, you should re-enable this by altering the way the X
+server is started.  Look at <CODE>/etc/X11/xinit/xserverrc</CODE> for a start.
+<P>
+<H2><A NAME="ss6.1">6.1 Xhost</A>
+</H2>
+
+<P>Xhost allows access based on hostnames. The server maintains a list
+of hosts which are allowed to connect to it. It can also disable host
+checking entirely. Beware: this means no checks are done, so <EM>every</EM>
+host may connect!
+<P>You can control the server's host list with the xhost program. To use
+this mechanism in the previous example, do:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+light$ xhost +dark.matt.er
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This allows all connections from host <CODE>dark.matt.er</CODE>. As soon as
+your X client has made its connection and displays a window, for safety,
+revoke permissions for more connections with:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+light$ xhost -dark.matt.er
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You can disable host checking with:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+light$ xhost +
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This disables host access checking and thus allows <EM>everyone</EM>
+to connect. You should <EM>never</EM> do this on a network on which you
+don't trust <EM>all</EM> users (such as Internet). You can re-enable host
+checking with:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+light$ xhost -
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>xhost - by itself does <EM>not</EM> remove all hosts from the access list
+(that would be quite useless - you wouldn't be able to connect from
+anywhere, not even your local host).
+<P><EM>Xhost is a very insecure mechanism.</EM> It does not distinguish between
+different users on the remote host. Also, hostnames (addresses actually)
+can be spoofed. This is bad if you're on an untrusted network (for
+instance already with dialup PPP access to Internet).
+<P>
+<H2><A NAME="ss6.2">6.2 Xauth</A>
+</H2>
+
+<P>Xauth allows access to anyone who knows the right secret. Such a secret
+is called an authorization record, or a magic cookie. This authorization
+scheme is formally called MIT-MAGIC-COOKIE-1.
+<P>The cookies for different displays are stored together in
+<CODE>~/.Xauthority</CODE>.  Your <CODE>~/.Xauthority</CODE> must
+be inaccessible for group/other users.  The xauth program manages these
+cookies, hence the nickname xauth for the scheme.
+<P>You can specify a different cookie file with the <CODE>XAUTHORITY</CODE>
+environment variable, but you will rarely need this.  If you're not sure
+which cookie file your xauth is using, do an <CODE>xauth -v</CODE>, and it will
+tell you.
+<P>On starting a session, the server reads a cookie from the file that
+is indicated by the <CODE>-auth</CODE> argument. After that, the server only
+allows connections from clients that know the same cookie. When the
+cookie in <CODE>~/.Xauthority</CODE> changes, <EM>the server will not pick
+up the change</EM>.
+<P>Newer servers can generate cookies on the fly for clients that ask for
+it. Cookies are still kept inside the server though; they don't end up
+in <CODE>~/.Xauthority</CODE> unless a client puts them there. According to
+David Wiggins:
+<P>
+<BLOCKQUOTE>
+A further wrinkle was added in X11R6.3 that you may be interested in. Via
+the new SECURITY extension, the X server itself can generate and return
+new cookies on the fly. Furthermore, the cookies can be designated
+``untrusted'' so that applications making connections with such cookies
+will be restricted in their operation. For example, they won't be able
+to steal keyboard/mouse input, or window contents, from other trusted
+clients. There is a new ``generate'' subcommand to xauth to make this
+facility at least possible to use, if not easy.
+</BLOCKQUOTE>
+<P>Xauth has a clear security advantage over xhost. You can limit access to
+specific users on specific computers. It does not suffer from spoofed
+addresses as xhost does. And if you want to, you can still use xhost
+next to it to allow connections.
+<P>
+<H3>Making the Cookie</H3>
+
+<P>If you want to use xauth, you must start the X server with the <CODE>-auth
+authfile</CODE> argument. If you use the startx script, that's the right place
+to do it. Create the authorization record as below in your startx script.
+<P>Excerpt from <CODE>/usr/X11R6/bin/startx</CODE>:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+mcookie|sed -e 's/^/add :0 . /'|xauth -q
+xinit -- -auth "$HOME/.Xauthority"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Mcookie is a tiny program in the util-linux package,
+primary site 
+<A HREF="ftp://ftp.math.uio.no/pub/linux/">ftp://ftp.math.uio.no/pub/linux/</A>.  Alternatively, you
+can use md5sum to massage some random data (from, for instance,
+<CODE>/dev/urandom</CODE> or <CODE>ps -axl</CODE>) into cookie format:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+dd if=/dev/urandom count=1|md5sum|sed -e 's/^/add :0 . /'|xauth -q
+xinit -- -auth "$HOME/.Xauthority"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you can't edit the startx script (because you aren't root), get
+your system administrator to set up startx properly, or let him set up
+xdm instead. If he can't or won't, you can make a <CODE>~/.xserverrc</CODE>
+script.  If you have this script, it is run by xinit instead of the real
+X server. Then you can start the real X server from this script with the
+proper arguments. To do so, have your <CODE>~/.xserverrc</CODE> use the magic
+cookie line above to create a cookie and then exec the real X server:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+mcookie|sed -e 's/^/add :0 . /'|xauth -q
+exec /usr/X11R6/bin/X "$@" -auth "$HOME/.Xauthority"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you use xdm to manage your X sessions, you can use
+xauth easily.  Define the DisplayManager.authDir resource in
+<CODE>/etc/X11/xdm/xdm-config</CODE>.  Xdm will pass the <CODE>-auth</CODE> argument
+to the X server when it starts.  When you then log in under xdm, xdm
+puts the cookie in your <CODE>~/.Xauthority</CODE> for you.  See xdm(1)
+for more information. For instance, my <CODE>/etc/X11/xdm/xdm-config</CODE>
+has the following line in it:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+DisplayManager.authDir: /var/lib/xdm
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>Transporting the Cookie</H3>
+
+<P>Now that you have started your X session on the server host
+<CODE>light.uni.verse</CODE> and have your cookie in <CODE>~/.Xauthority</CODE>, you
+will have to transfer the cookie to the client host, <CODE>dark.matt.er</CODE>.  There are several ways to do this.
+<P>
+<H3>Shared Home Directories</H3>
+
+<P>The easiest is when your home directories on light and dark are
+shared. The <CODE>~/.Xauthority</CODE> files are the same, so the
+cookie is transported instantaneously.  However, there's a catch: when
+you put a cookie for <CODE>:0</CODE> in <CODE>~/.Xauthority</CODE>, dark will
+think it's a cookie for itself instead of for light.  You must use an
+explicit host name when you create the cookie; you can't leave it out.
+You can install the same cookie for both <CODE>:0</CODE> and <CODE>light:0</CODE> with
+this little piece of sed wizardry:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+#!/bin/sh
+mcookie|sed -e 's/^/add :0 . /' -e p -e "s/:/$HOST&amp;/"|xauth -q
+exec /usr/X11R6/bin/X "$@" -auth "$HOME/.Xauthority"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>By the Remote Shell, <CODE>rsh</CODE></H3>
+
+<P>If the home directories aren't shared, you can transport the cookie by
+means of rsh, the remote shell:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+light$ xauth nlist "${HOST}:0" | rsh dark.matt.er xauth nmerge -
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<OL>
+<LI> Extract the cookie from your local <CODE>~/.Xauthority</CODE>
+(<CODE>xauth nlist :0</CODE>).
+</LI>
+<LI> Transfer it to dark.matt.er (<CODE>| rsh dark.matt.er</CODE>).
+</LI>
+<LI> Put it in the <CODE>~/.Xauthority</CODE> there (<CODE>xauth nmerge -</CODE>).
+</LI>
+</OL>
+<P>
+<P>Notice the use of <CODE>${HOST}</CODE>.  You need to transport the cookie that is
+explicitly associated with the local host.  A remote X application would
+interpret a display value of <CODE>:0</CODE> as referring to the remote machine,
+which is not what you want!
+<P>
+<H3>Manually, by Telnet</H3>
+
+<P>It's possible that rsh doesn't work for you. Besides that, rsh also has a
+security drawback (spoofed host names again, if I remember correctly). If
+you can't or don't want to use rsh, you can also transfer the cookie
+manually, like:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+light$ echo $DISPLAY
+:0
+light$ xauth list $DISPLAY
+light/unix:0 MIT-MAGIC-COOKIE-1 076aaecfd370fd2af6bb9f5550b26926
+light$ rlogin dark.matt.er
+Password:
+dark% setenv DISPLAY light.uni.verse:0
+dark% xauth
+Using authority file /home/zweije/.Xauthority
+xauth> add light.uni.verse:0 . 076aaecfd370fd2af6bb9f5550b26926
+xauth> exit
+Writing authority file /home/zweije/.Xauthority
+dark% xfig &amp;
+[15332]
+dark% logout
+light$
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>See also rsh(1) and xauth(1x) for more information.
+<P>
+<H3>Automating the Telnet Way</H3>
+
+<P>It may be possible to piggyback the cookie on the <CODE>TERM</CODE> or
+<CODE>DISPLAY</CODE> variable when you do a telnet to the remote host.  This would
+go the same way as piggybacking the <CODE>DISPLAY</CODE> variable on the <CODE>TERM</CODE>
+variable.  See section 5: Telling the Client.  You're on own here from
+my point of view, but I'm interested if anyone can confirm or deny this.
+<P>Notice, however, that environment variables can be observed by others on
+some unices, and you won't be able to prevent the cookie in <CODE>$TERM</CODE>
+from showing up if people are looking for it.
+<P>
+<H3>Using the Cookie</H3>
+
+<P>An X application on dark.matt.er, such as xfig above, will automatically
+look in <CODE>~/.Xauthority</CODE> there for the cookie to authenticate
+itself with.
+<P>
+<P>There's a little wrinkle when using <CODE>localhost:D</CODE>.  X client
+applications translate <CODE>localhost:D</CODE> into <CODE>host/unix:D</CODE> for
+the purpose of cookie retrieval.  Effectively, this means that a cookie
+for <CODE>localhost:D</CODE> in your <CODE>~/.Xauthority</CODE> has <EM>no</EM> effect.
+<P>If you think about it, it's only logical.  The interpretation of
+<CODE>localhost</CODE> depends entirely on the machine on which it's interpreted.
+It would give a horrible mess when you have a shared home directory,
+such as through NFS, with several hosts all interfering with each
+other's cookies.
+<P>
+<H2><A NAME="ss6.3">6.3 Ssh</A>
+</H2>
+
+<P>Authority records are transmitted over the network with no encryption.
+If you're even worried someone might snoop on your connections, use ssh,
+the secure shell. It can do X forwarding over encrypted connections.
+<P>To turn on X forwarding over ssh, use the command line switch <CODE>-X</CODE>
+or write the following in your local ssh configuration file:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+Host remote.host.name
+    ForwardX11 yes
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The ssh server (<CODE>sshd</CODE>) at the remote end automatically sets
+<CODE>DISPLAY</CODE> to point to its end of the X forwarding tunnel.  The remote
+tunnel end gets its own cookie; the remote ssh server generates it for
+you and puts it in <CODE>~/.Xauthority</CODE> there.  So, X authorisation
+with ssh is fully automatic.
+<P>By the way, ssh is great in other ways too.  It's a good structural
+improvement to your system.  For more information, visit 
+<A HREF="http://www.ssh.org/">http://www.ssh.org/</A>, the ssh home page.
+<P>
+<P>Who knows anything else on authentication schemes or encrypting X
+connections?  Maybe kerberos?
+<P>
+<HR>
+<A HREF="Remote-X-Apps-7.html">Next</A>
+<A HREF="Remote-X-Apps-5.html">Previous</A>
+<A HREF="Remote-X-Apps.html#toc6">Contents</A>
+</BODY>
+</HTML>

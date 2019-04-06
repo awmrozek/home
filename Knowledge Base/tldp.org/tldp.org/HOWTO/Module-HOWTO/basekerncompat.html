@@ -1,0 +1,564 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Unresolved Symbols</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Loadable Kernel Module HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="How To Insert And Remove LKMs"
+HREF="x197.html"><LINK
+REL="NEXT"
+TITLE="How To Boot Without A Disk Device Driver"
+HREF="x589.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Loadable Kernel Module HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x197.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x589.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="BASEKERNCOMPAT"
+></A
+>6. Unresolved Symbols</H1
+><P
+>The most common and most frustrating failure in loading an LKM is a bunch
+of error messages about unresolved symbols, like this:
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>  msdos.o: unresolved symbol fat_date_unix2dos
+  msdos.o: unresolved symbol fat_add_cluster1
+  msdos.o: unresolved symbol fat_put_super
+  ...</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+There are actually a bunch of different problems that result in this
+symptom.  In any case, you can get closer to the problem by looking at
+<TT
+CLASS="FILENAME"
+>/proc/ksyms</TT
+> and confirming that the symbols in the
+message are indeed not in the list.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN502"
+></A
+>6.1. Some LKMs Prerequire Other LKMs</H2
+><P
+>One reason you get this is because you have not loaded another
+LKM that contains instructions or data that your LKM needs to access.
+A primary purpose of <B
+CLASS="COMMAND"
+>modprobe</B
+> is to avoid this
+failure.  See <A
+HREF="x197.html#INTELLIGENT"
+>Section 5.3</A
+>.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN507"
+></A
+>6.2. An LKM Must Match The Base Kernel</H2
+><P
+>The designers of loadable kernel modules realized there would be a
+problem with having the kernel in multiple files, possibly distributed
+independently of one another.  What if the LKM
+<TT
+CLASS="FILENAME"
+>mydriver.o</TT
+> was written and compiled to work with
+the Linux 1.2.1 base kernel, and then someone tried to load it into a
+Linux 1.2.2 kernel?  What if there was a change between 1.2.1 and
+1.2.2 in the way a kernel subroutine that
+<TT
+CLASS="FILENAME"
+>mydriver.o</TT
+> calls works?  These are internal
+kernel subroutines, so what's to stop them from changing from one
+release to the next?  You could end up with a broken kernel.</P
+><P
+>To address this problem, the creators of LKMs endowed them with a
+kernel version number.  The special <TT
+CLASS="LITERAL"
+>.modinfo</TT
+>
+section of the <TT
+CLASS="FILENAME"
+>mydriver.o</TT
+> object file in this example has
+"1.2.1" in it because it was compiled using header files from Linux
+1.2.1.  Try to load it into a 1.2.2 kernel and
+<B
+CLASS="COMMAND"
+>insmod</B
+> notices the mismatch and fails,
+telling you you have a kernel version mismatch.</P
+><P
+>But wait.  What's the chance that there really is an incompatibility
+between Linux 1.2.1 and 1.2.2 that will affect
+<TT
+CLASS="FILENAME"
+>mydriver.o</TT
+>?  <TT
+CLASS="FILENAME"
+>mydriver.o</TT
+> only
+calls a few subroutines and accesses a few data structures.  Surely
+they don't change with every minor release.  Must we recompile every
+LKM against the header files for the particular kernel into which we
+want to insert it?</P
+><P
+>To ease this burden, <B
+CLASS="COMMAND"
+>insmod</B
+> has a
+<TT
+CLASS="PARAMETER"
+><I
+>-f</I
+></TT
+> option that "forces"
+<B
+CLASS="COMMAND"
+>insmod</B
+> to ignore the kernel version
+mismatch and insert the module anyway.  Because it is so unusual for
+there to be a significant difference between any two kernel versions,
+I recommend you always use <TT
+CLASS="PARAMETER"
+><I
+>-f</I
+></TT
+>.  You will, however,
+still get a warning message about the mismatch.  There's no way to
+shut that off.</P
+><P
+>But LKM designers still wanted to address the problem of incompatible
+changes that do occasionally happen.  So they invented a very clever
+way to allow the LKM insertion process to be sensitive to the actual
+content of each kernel subroutine the LKM uses.  It's called symbol
+versioning (or sometimes less clearly, "module versioning.").  It's
+optional, and you select it when you configure the kernel via the
+"CONFIG_MODVERSIONS" kernel configuration option.  </P
+><P
+>When you build a base kernel or LKM with symbol versioning, the
+various symbols exported for use by LKMs get defined as macros.  The
+definition of the macro is the same symbol name plus a hexadecimal
+hash value of the parameter and return value types for the subroutine
+named by the symbol (based on an analysis by the program
+<B
+CLASS="COMMAND"
+>genksyms</B
+> of the source code for the subroutine).
+So let's look at the <TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+> subroutine.
+<TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+> is a subroutine in the base
+kernel that device driver LKMs often call.  With symbol versioning,
+there is a C macro definition like</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>  #define register_chrdev register_chrdev_Rc8dc8350</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This macro definition is in effect both in the C source file that
+defines <TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+> and in any C source file
+that refers to <TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+>, so while your
+eyes see <TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+> as you read the code,
+the C preprocessor knows that the function is really called
+<TT
+CLASS="FUNCTION"
+>register_chrdev_Rc8dc8350</TT
+>.</P
+><P
+>What is the meaning of that garbage suffix?  It is a hash of the data
+types of the parameters and return value of
+<TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+>.  No two combinations of
+parameter and return value types have the same hash value.</P
+><P
+>So let's say someone adds a paramater to
+<TT
+CLASS="FUNCTION"
+>register_chrdev</TT
+> between Linux 1.2.1 and Linux
+1.2.2.  In 1.2.1, <TT
+CLASS="LITERAL"
+>register_chrdev</TT
+> is a macro for
+<TT
+CLASS="LITERAL"
+>register_chrdev_Rc8dc8350</TT
+>, but in 1.2.2, it is a
+macro for <TT
+CLASS="LITERAL"
+>register_chrdev_R12f8dc01</TT
+>.  In
+<TT
+CLASS="FILENAME"
+>mydriver.o</TT
+>, compiled with Linux 1.2.1 header
+files, there is an external reference to
+<TT
+CLASS="VARNAME"
+>register_chrdev_Rc8dc8350</TT
+>, but there is no such
+symbol exported by the 1.2.2 base kernel.  Instead, the 1.2.2 base
+kernel exports a symbol <TT
+CLASS="VARNAME"
+>register_chrdev_R12f8dc01</TT
+>.</P
+><P
+>So if you try to insmod this 1.2.1 <TT
+CLASS="FILENAME"
+>mydriver.o</TT
+>
+into this 1.2.2 base kernel, you will fail.  And the error message
+isn't one about mismatched kernel versions, but simply "unresolved
+symbol reference."</P
+><P
+>As clever as this is, it actually works against you sometimes.  The
+way <B
+CLASS="COMMAND"
+>genksyms</B
+> works, it often generates different
+hash values for parameter lists that are essentially the same.</P
+><P
+>And symbol versioning doesn't even guarantee compatibility.  It
+catches only a small subset of the kinds of changes in the definition
+of a function that can make it not backward compatible.  If the way
+<TT
+CLASS="LITERAL"
+>register_chrdev</TT
+> interprets one of its parameters
+changes in a non-backward-compatible way, its version suffix won't
+change -- the parameter still has the same C type.</P
+><P
+>And there's no way an option like <TT
+CLASS="PARAMETER"
+><I
+>-f</I
+></TT
+> on
+<B
+CLASS="COMMAND"
+>insmod</B
+> can get around this.</P
+><P
+>So it is generally not wise to use symbol versioning.</P
+><P
+>Of course, if you have a base kernel that was compiled with symbol
+versioning, then you must have all your LKMs compiled likewise, and
+vice versa.  Otherwise, you're guaranteed to get those "unresolved
+symbol reference" errors.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="MULTIPLEKERNELS"
+></A
+>6.3. If You Run Multiple Kernels</H2
+><P
+>Now that we've seen how you often have different versions of an LKM
+for different base kernels, the question arises as to what to do 
+about a system that has multiple kernel versions (i.e. you can 
+choose a kernel at boot time).  You want to make sure that the
+LKMs built for Kernel A get inserted when you boot Kernel A, but
+the LKMs built for Kernel B get inserted when you boot Kernel B.</P
+><P
+>In particular, whenever you upgrade your kernel, if you're smart,
+you keep both the new kernel and the old kernel on the system 
+until you're sure the new one works.</P
+><P
+>The most common way to do this is with the LKM-hunting feature of
+<B
+CLASS="COMMAND"
+>modprobe</B
+>.  <B
+CLASS="COMMAND"
+>modprobe</B
+> 
+understands the conventional LKM file organization described in 
+<A
+HREF="x197.html#MODLOCATION"
+>Section 5.6</A
+> and loads LKMs from the appropriate
+subdirectory depending on the kernel that is running.</P
+><P
+>You set the <B
+CLASS="COMMAND"
+>uname --release</B
+> value, which is the
+name of the subdirectory in which <B
+CLASS="COMMAND"
+>modprobe</B
+> looks,
+by editing the main kernel makefile when you build the kernel and
+setting the VERSION, PATCHLEVEL, SUBLEVEL, and EXTRAVERSION variables
+at the top.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN567"
+></A
+>6.4. SMP symbols</H2
+><P
+>Besides the checksum mentioned above, the symbol version prefix contains
+"smp" if the symbol is defined in or referenced by code that was
+built for symmetric multiprocessing (SMP) machines.  That means it was
+built for use on a system that may have more than one CPU.  You choose
+whether to build in SMP capability or not via the Linux kernel configuration
+process (<B
+CLASS="COMMAND"
+>make config</B
+>, etc.), to wit with the
+CONFIG_SMP configuration option.</P
+><P
+>So if you use symbol versioning, you will get unresolved symbols if the
+base kernel was built with SMP capability and the LKM you're inserting was
+not, or vice versa.</P
+><P
+>If you don't use symbol versioning, never mind.</P
+><P
+>Note that there's generally no reason to omit SMP capability from a
+kernel, even if you have only one CPU.  Just because the capability is
+there doesn't mean you have to have multiple CPUs.  However, there are
+some machines on which the SMP-capable kernel will not boot because it
+reaches the conclusion that there are zero CPUs!</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN574"
+></A
+>6.5. You Are Not Licensed To Access The Symbol</H2
+><P
+>The copyright owners of some kernel code license their programs to the
+public to make and use copies, but only in restricted ways.  For
+example, the license may say you may only call your copy of the
+program from a program which is similarly licensed to the public.</P
+><P
+>(Is that confusing?  Here's an example:  Bob writes an LKM that provides
+data compression subroutines to other LKMs.  He licenses his program
+to the public under the GNU Public License (GPL).  According to some
+interpretations, that license says if you make a copy of Bob's LKM,
+you can't allow Mary's LKM to call its compression subroutines 
+if Mary does not supply her source code to the world too.  The idea is to
+encourage Mary to open up her source code).</P
+><P
+>To support and enforce such a license, the licensor can cause his
+program to export symbols under a special name that is the real name
+of the symbol plus the prefix "GPLONLY".  A naive loader 
+of a client LKM would not be able to resolve those symbols.  Example:
+Bob's LKM provides the service bobsService() and declares it to be
+a GPL symbol.  The LKM consequently exports bobsService() under the
+name GPLONLY_bobsService.  If Mary's LKM refers to bobsService, the
+naive loader will not be able to find it, so will fail to load Mary's
+LKM.</P
+><P
+>However, a modern version of <B
+CLASS="COMMAND"
+>insmod</B
+> knows to check
+for GPLONLY_bobsService if it can't find bobsService.  But the modern
+<B
+CLASS="COMMAND"
+>insmod</B
+> will refuse to do so unless Mary's LKM
+declares that it is licensed to the public under GPL.</P
+><P
+>The purpose of this appears to be to prevent anyone from accidentally
+violating a license (or from credibly claiming that he accidentally
+violated the license).  It is not difficult to circumvent the
+restriction if you want to.</P
+><P
+>If you see this failure, it is probably because you're using an old
+loader (<B
+CLASS="COMMAND"
+>insmode</B
+>) that doesn't know about GPLONLY.</P
+><P
+>The only other cause would be that the LKM author wrote the source
+code in such a way that it will never load into any Linux kernel, so
+there would be no point in the author distributing it.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN586"
+></A
+>6.6. An LKM Must Match Prerequisite LKMs</H2
+><P
+>The same ways an LKM must be compatible with the base kernel, it must
+be compatible with any LKMs which it accesses (e.g. the first LKM calls a
+subroutine in the second).  The preceding sections limit their discussions
+to the base kernel just to keep it simple.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x197.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x589.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>How To Insert And Remove LKMs</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>How To Boot Without A Disk Device Driver</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

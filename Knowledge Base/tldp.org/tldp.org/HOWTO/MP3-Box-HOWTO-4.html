@@ -1,0 +1,334 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>MP3 Player Box HOWTO: Server side software</TITLE>
+ <LINK HREF="MP3-Box-HOWTO-5.html" REL=next>
+ <LINK HREF="MP3-Box-HOWTO-3.html" REL=previous>
+ <LINK HREF="MP3-Box-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="MP3-Box-HOWTO-5.html">Next</A>
+<A HREF="MP3-Box-HOWTO-3.html">Previous</A>
+<A HREF="MP3-Box-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. Server side software</A></H2>
+
+<P>Before you proceed with installing the server-software, it would be beneficial to review the following HOWTO's (in the listed order):
+<UL>
+<LI>
+<A HREF="htttp://metalab.unc.edu/pub/Linux/docs/HOWTO/Net-HOWTO">Net-HOWTO</A></LI>
+<LI>
+<A HREF="http://metalab.unc.edu/pub/Linux/docs/HOWTO/Ethernet-HOWTO">Ethernet-HOWTO</A></LI>
+<LI>
+<A HREF="http://metalab.unc.edu/pub/Linux/docs/HOWTO/Diskless-HOWTO">Diskless-HOWTO</A></LI>
+<LI>
+<A HREF="http://metalab.unc.edu/pub/Linux/docs/HOWTO/NFS-HOWTO">NFS-HOWTO</A></LI>
+</UL>
+<P>Particularly, the <B>
+<A HREF="http://metalab.unc.edu/pub/Linux/docs/HOWTO/Diskless-HOWTO">Diskless-HOWTO</A> </B> contains a wealth of information useful for this project.
+<P>The required software are  mostly already installed on a stock Linux distribution, but some might be missing. The ones that are usually not found (dhcpd, pxe, etc) are included in the 
+<A HREF="http://darnok.dhs.org/~konrad/projects/mpeg-box/data/mpeg-box-project.tgz">mpeg-box-project.tgz</A> file. 
+<UL>
+<LI>NFS server. Also called <B>nfs-server</B> or just <B>nfs</B></LI>
+<LI>TFTP server. Called <B>tftpd</B>.</LI>
+<LI>DHCPd server. There are two versions. The latest one supports natively PXE extension (which my network card uses), but doesn't support menu based booting - something I needed during the development. I'm using v2.0 and for PXE extensions I'm using an DHCP proxy (all these strange terms will be explained later on).</LI>
+<LI>DHCP Proxy server - PXE. Not needed if you are using the latest version of DHCP. The package is called <B>pxe</B>. Make sure you pick the latest one, or just use the one that's included in my file.</LI>
+</UL>
+<P>
+<H2><A NAME="ss4.1">4.1 NFS server installation.</A>
+</H2>
+
+<P>
+<P>I presume you have read the <B>
+<A HREF="http://metalab.unc.edu/pub/Linux/docs/HOWTO/NFS-HOWTO">NFS-HOWTO</A> </B>. If you haven't, do yourself a favor and pick it up. Most of these information are straight from that HOWTO.
+<P>Before you start setting NFS, make sure you have <B>nfs-utils</B> or <B>nfs-server</B> package installed. If you don't have them, the dhcpd-2.0pl2 source code is included in the 
+<A HREF="http://darnok.dhs.org/~konrad/projects/mpeg-box/data/mpeg-box-project.tgz">mpeg-box-project.tgz</A> file.
+<P>
+<UL>
+<LI>Extract the file - 
+<PRE>
+tar -zxvf mpeg-box-project.tgz
+</PRE>
+</LI>
+<LI>go into <EM>1st Step - configuring server/01 - dhcpd</EM>. 
+<PRE>
+cd "1st Step - configuring server/01 - dhcp"
+</PRE>
+</LI>
+<LI>From there run: 
+<PRE>
+./configure
+make
+make install
+</PRE>
+
+</LI>
+</UL>
+<P>Setting up the server will be done in two steps: Setting up the configuration files for NFS, and then starting the NFS services.
+<P>
+<H3>Setting up the Configuration Files</H3>
+
+<P>There are three main configuration files you will need to edit to set up an
+NFS server: <EM>/etc/exports</EM>, <EM>/etc/hosts.allow</EM>, and <EM>/etc/hosts.deny</EM>. Strictly
+speaking, you only need to edit <EM>/etc/exports</EM> to get NFS to work, but you
+would be left with an extremely insecure setup. You may also need to edit
+your startup scripts.
+<P>
+<H3>/etc/exports</H3>
+
+<P>This file contains a list of entries; each entry indicates a volume that is
+shared and how it is shared. Check the man pages (<EM>man exports</EM>) for a complete
+description of all the setup options for the file, although the description
+here will probably satisfy most people's needs.
+<P>An entry in <EM>/etc/exports</EM> will typically look like this:
+<P>directory machine1(option11,option12) machine2(option21,option22)           
+<P>
+<P>where
+<DL>
+<DT><B>directory</B><DD><P>the directory that you want to share. It may be an entire volume though it need not be. If you share a directory, then all directories under it within the same file system will be shared as well. For example it might be: <EM>/exports</EM>
+<DT><B>machine1 and machine2</B><DD><P>client machines that will have access to the directory. The machines may be listed by their IP address or their DNS address (e.g., machine.company.com or 192.168.0.8). Using IP addresses is more reliable and more secure.
+<DT><B>optionxx </B><DD><P>the option listing for each machine will describe what kind of access that machine will have. Important options are:
+<UL>
+<LI>ro: The directory is shared read only; the client machine will not be
+able to write to it. This is the default.       </LI>
+<LI> rw: The client machine will have read and write access to the
+directory.</LI>
+<LI> and many more ...</LI>
+</UL>
+</DL>
+<P>For our MP3-box, we just need to read-only access to the directory with mp3's. Suppose the MP3-box IP will be 10.0.0.8 and the directory with our music files is <EM>/exports/media</EM>. The <EM>/etc/exports</EM> would look like this:
+<BLOCKQUOTE><CODE>
+<PRE>
+/exports/media     10.0.0.8(ro)
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<H3>/etc/hosts.allow and /etc/hosts.deny</H3>
+
+<P>These two files specify which computers on the network can use services on
+your machine. Each line of the file is an entry listing a service and a set
+of machines. When the server gets a request from a machine, it does the
+following:
+<UL>
+<LI>It first checks hosts.allow to see if the machine matches a description
+listed in there. If it does, then the machine is allowed access.</LI>
+<LI>f the machine does not match an entry in hosts.allow, the server then
+checks hosts.deny to see if the client matches a listing in there. If it
+does then the machine is denied access.</LI>
+<LI>If the client matches no listings in either file, then it is allowed
+access.</LI>
+</UL>
+<P>
+<P>In general, it is a good idea with NFS (as with most internet services) to
+explicitly deny access to hosts that you don't need to allow access to.
+<P>
+<P>The first step in doing this is to add the following entry to <EM>/etc/hosts.deny</EM>:
+<BLOCKQUOTE><CODE>
+<PRE>
+   portmap:ALL    
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Next, we need to add an entry to hosts.allow to give any hosts access that we
+want to have access. (If we just leave the above lines in <EM>hosts.deny</EM> then
+nobody will have access to NFS.) Entries in <EM>hosts.allow</EM> follow the 
+format:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    service: host [or network/netmask] , host [or network/netmask]           
+</PRE>
+</CODE></BLOCKQUOTE>
+                                                                             
+Here, host is IP address of a potential client; it may be possible in some
+versions to use the DNS name of the host, but it is strongly deprecated.
+<P>Suppose we have the setup above and we just want to allow access to 
+huh.com and arakis.dune.com, and suppose that the IP addresses of these
+machines are 10.0.0.8 and.10.0.0.1, respectively. We could add the
+following entry to <EM>/etc/hosts.allow</EM>:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+   portmap: 10.0.0.8, 10.0.0.1
+</PRE>
+</CODE></BLOCKQUOTE>
+                                                                             
+For recent nfs-utils versions, we would also add the following (again, these
+entries are harmless even if they are not supported):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+    lockd:  10.0.0.8, 10.0.0.1                                       
+    rquotad: 10.0.0.8, 10.0.0.1                                      
+    mountd:  10.0.0.8, 10.0.0.1                                       
+    statd:  10.0.0.8, 10.0.0.1                                       
+</PRE>
+</CODE></BLOCKQUOTE>
+                                                                             
+<H3>Starting the NFS server.</H3>
+
+<P>The shell scripts which start the NFS server are usually in <EM>/etc/init.d</EM> or <EM>/etc/rc.d</EM>. Depending on your Linux distribution, you either need to run: <EM>netconfig</EM>, <EM>setup</EM> (RedHat) ; <EM>YaSt2</EM>(SuSe); <EM>turbo-config</EM> (TurboLinux); or you are stuck editing <EM>/etc/init.d/nfs-server</EM> files manually. If you run those programs, look for options that list <B>NFS</B> or <B>nfs-serveR</B> and start those services.
+<P>
+<P>
+<H2><A NAME="ss4.2">4.2 DHCPd server installation.</A>
+</H2>
+
+<P>DHCP (Dynamic Host Configuration Protocol) is a protocol for computers to find out their IP address, gateway settings, netmask, and a lot more. Its a quite nice off-load for the system administrator. The reason why you want to use it is because when the MP3-box comes up, as said before, it doesn't have a harddrive, nor floppy drive - therefore it can't boot an operating system. But with a card that supports PXE, the following happens: 
+<UL>
+<LI>The network card starts sending a DHCP request to the network</LI>
+<LI>The DHCP server offers a IP for the MP3-box.</LI>
+<LI>The MP3-box gets the IP address and then procceds to send PXE extension DHCP request - an extension to the DHCP, which is not covered in the RFC.</LI>
+<LI> The PXE extension daemon issues the NBP (Network Boot Program) to the card on the MP3-box.</LI>
+<LI>The NBP contacts the TFTP server and downloads the Linux kernel, and the initrd.gz file. After that it runs the Linux kernel.</LI>
+<LI>The Linux kernel does what it has been programmed to.</LI>
+</UL>
+
+Without the IP address, the system wouldn't be able to get the NBP, neither the Linux kernel.
+<P>Setting up the DHCP daemon is a two stage process - installing the binaries, and setting up the configuration file for DHCP.
+<P>
+<H3>Installing DHCPd</H3>
+
+<P>The version of DHCP I'm using comes from 
+<A HREF="http://www.isc.org/products/DHCP/">Internet Software Consortium</A>, the version is 2.0.  You might already have the binaries installed, if that's the case - skip this section. 
+<P>The source code is <EM>1st Step - configuring server/01 - dhcpd/dhcp-2.0pl2</EM>, go into that directory and issue the following commands:
+<PRE>
+./configure
+make
+make install
+</PRE>
+<P>
+<P>The shell scripts which start the DHCP server are usually in <EM>/etc/init.d</EM> or <EM>/etc/rc.d</EM>. Depending on your Linux distribution, you either need to run: <EM>netconfig</EM>, <EM>setup</EM> (RedHat) ; <EM>YaSt2</EM>(SuSe); <EM>turbo-config</EM> (TurboLinux); or you are stuck editing <EM>/etc/init.d/dhcpd</EM> files manually. 
+<P>
+<H3>Setting up the configuration files for DHCPd</H3>
+
+<P>The most important part of the <EM>/etc/dhcpd.conf</EM> file are the option fields and the host field. For the v2.0 of ISC-dhcpd its necessary to specify 
+<BLOCKQUOTE><CODE>
+<PRE>
+option dhcp-class-identifier "PXEClient";
+option vendor-encapsulated-options ff;
+</PRE>
+</CODE></BLOCKQUOTE>
+
+This will enable the DHCP server to recognize the network cards with PXE as valid. Make sure you also have the host section filled out. For example, for the MP3-box called <EM>swallow.eoh</EM> the host entry would look like: 
+<BLOCKQUOTE><CODE>
+<PRE>
+host swallow {
+        hardware ethernet 00:90:27:c1:dc:db;
+        fixed-address swallow.eoh;
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This is allow the DHCP server to give the box with that MAC address (which the network card displays during boot-up), the IP address associated with the host <EM>swallow</EM>. How is the host associated with 10.0.0.8 - that's the job of DNS server (which you hopefully have installed). If you don't have DNS, you can use flat-host resolution and add into <EM>/etc/hosts</EM> the following line (replace the 00:90:27. .. with your MAC address):
+<BLOCKQUOTE><CODE>
+<PRE>
+10.0.0.8       swallow.eoh    swallow
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Back to the program ...
+<P>Following is my <EM>/etc/dhcpd.conf</EM> file:
+<BLOCKQUOTE><CODE>
+<PRE>
+
+option domain-name "eoh";
+option dhcp-class-identifier "PXEClient";
+option vendor-encapsulated-options ff;
+
+option subnet-mask 255.255.255.0;
+default-lease-time 600;
+max-lease-time 7200;
+
+subnet 10.0.0.0 netmask 255.255.255.0 {
+        range 10.0.0.20 10.0.0.40;
+}
+host swallow {
+        hardware ethernet 00:90:27:c1:dc:db;
+        fixed-address swallow.eoh;
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You can check your DHCP server by booting up a Windows workstation, and change its IP address to <EM>Obtain an IP address automatically</EM>.
+<P>
+<H2><A NAME="ss4.3">4.3 PXE daemon</A>
+</H2>
+
+<P>PXE is standard for remote booting. The following information is taken from <EM>1st Step - configuring server/02 - pxe/pxe-README</EM>:
+<P>
+<P>PXE is an extension to DHCP and also method of remotely booting. The specs for PXE can be found at 
+<A HREF="ftp://download.intel.com/ial/wfm/pxespec.pdf">ftp://download.intel.com/ial/wfm/pxespec.pdf</A>. The PXE daemon provides two capabilities: <EM>proxyDHCP</EM> and <EM>PXE Bootserver</EM>. The PXE daemon can be set up to provide either or obth of the capabilities. Both capabilities are required.
+<P>proxyDHCP works in parallel with DHCP and provides the booting client with a remote boot configuration options. ProxyDHCP provides the PXE client(s) with the following information: remote boot prompt with optional timeout, remote boot menu and PXE Bootserver discovery options.
+<P>The PXE Bootserver is a capability provided by the PXE daemon. The PXE Bootserver is the capability that provides the booting client with boot images for a particular boot environment. 
+<P>PXE Bootserver serves up requested NBPs (Network Boot Programs) to PXE clients. PXE Clients locate
+PXE Bootservers using discovery information provided to the client by
+proxyDHCP.  The discovery method used by the PXE client (multicast, broadcast
+or unicast) and the list of available bootserver types is controlled by
+proxyDHCP.  PXE Bootservers always listen for all three types of discovery
+requests and will respond to all valid requests.
+<P>
+<H3>Installing PXE software.</H3>
+
+<P>If you have RedHat or SuSE, pxe is available as an RPM - download it and install it. Unfortunately, you are still going to need the sources - you will have to recompile the NBP (Network Boot Program).
+<P>
+<P>All the paths mentioned below refer to the contents of the 
+<A HREF="http://darnok.dhs.org/~konrad/projects/mpeg-box/data/mpeg-box-project.tgz">mpeg-box-project.tgz</A> file, which has all the source files and configuration files listed below.
+<P>The source file for PXE server are located in
+<P><EM>1st Step - configuring server/02 - pxe/pxe/pxe-linux/server</EM>. 
+<P>If you don't have PXE installed, just run:
+<EM>make</EM> and <EM>make install</EM>. The files will be installed in <EM>/usr/local</EM>. After that you should copy the <EM>1st Step - configuring server/02 - pxe/pxe/pxe.init</EM> file to <EM>/etc/rc.d</EM> or <EM>/etc/init.d</EM>. After that go into your <EM>/etc/rc2.d</EM> and link <EM>/etc/init.d/pxe.init</EM> file to <EM>S99pxe</EM>. The command is: 
+<PRE>
+ln -s ../init.d/pxe.init S99pxe
+</PRE>
+
+If you have no clue what I'm talking about, just enter 
+<PRE>
+pxe
+</PRE>
+
+that will start the PXE daemon (but do that after you have read the next section)
+<P>
+<H3>Setting up the PXE daemon.</H3>
+
+<P>To get the PXE daemon completely working, its necessary to setup a couple of configuration files/directories.
+<UL>
+<LI><EM>pxe.conf</EM> which is located in <EM>1st Step - configuring server/03 - etc files</EM> should be copied to <EM>/etc</EM>. The differences between this file and the one that comes with PXE software is small - the order of boot programs is changed. The original <EM>pxe.conf</EM> is located in <EM>1st Step - configuring server/02 - pxe/pxe/pxe-linux/server/services</EM>.</LI>
+<LI><EM>mtftpd.conf</EM> which lists multicast addresses and the files associated with it. Its better to leave the file alone. Copy it from <EM>1st Step - configuring server/03 - etc files</EM> into <EM>/etc</EM> directory.</LI>
+<LI>The file <EM>/etc/inetd.conf</EM> needs to be modified so that it will include support for TFTP (in case MTFTP doesn't work) and MTFTP. The lines that should be added are:
+<BLOCKQUOTE><CODE>
+<PRE>
+mtftp   dgram   udp     wait    root    /usr/sbin/tcpd in.mtftpd /tftpboot
+tftp    dgram   udp     wait    nobody  /usr/sbin/tcpd in.tftpd 
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>Add into <EM>/etc/services</EM>: 
+<BLOCKQUOTE><CODE>
+<PRE>
+mtftp           1759/udp
+pxe             67/udp
+pxe             4011/udp
+</PRE>
+</CODE></BLOCKQUOTE>
+ This will your life a little simpler when you are going to debug network problems.</LI>
+<LI>The last thing will be to create the <EM>/tftpboot</EM> directory with all the files in it. Do the following command:
+<BLOCKQUOTE><CODE>
+<PRE>
+mkdir -p /tftpboot/X86PC/UNDI/BStrap
+mkdir -p /tftpboot/X86PC/UNDI/linux-install
+</PRE>
+</CODE></BLOCKQUOTE>
+
+The copy the <EM>bstrap.0</EM> file (which is located in
+<EM>1st Step - configuring server/02 - pxe/pxe/pxe-linux/server/services</EM> into <EM> /tftpboot/X86PC/UNDI/BStrap</EM>. Do the same thing for <EM>linux.0</EM>, but copy it into <EM>/tftpboot/X86PC/UNDI/linux-install</EM>. If you don't like any of these patchs, modify the <EM>/etc/pxe.conf</EM>, <EM>/etc/mtftpd.conf</EM> accordingly.</LI>
+</UL>
+<P>After all these steps, make sure you have a DHCP daemon running and working (look in the section about DHCP to find out how). Start the pxe daemon by typing 
+<PRE>
+pxe
+</PRE>
+ The debug information for PXE is piped into <EM>/PxeServiceLog.txt</EM>. To turn this debug-feature off, edit the <EM>/etc/pxe.conf</EM> - search for <EM>DebugOutToFile</EM>.
+<P>Turn on your system with a network card that supports PXE. You should see the card getting an IP from the DHCP server, and then showing up a menu. If that's the case, you have successfully configured the server system, and its time to get configure the Linux kernel and initrd file for the MP3-box in the next section.
+<P>
+<HR>
+<A HREF="MP3-Box-HOWTO-5.html">Next</A>
+<A HREF="MP3-Box-HOWTO-3.html">Previous</A>
+<A HREF="MP3-Box-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,242 @@
+<HTML
+><HEAD
+><TITLE
+>Rate limit ICMP to prevent dDoS</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Cookbook"
+HREF="lartc.cookbook.html"><LINK
+REL="PREVIOUS"
+TITLE="Protecting your host from SYN floods"
+HREF="lartc.cookbook.synflood-protect.html"><LINK
+REL="NEXT"
+TITLE="Prioritizing interactive traffic"
+HREF="lartc.cookbook.interactive-prio.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.synflood-protect.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 15. Cookbook</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.cookbook.interactive-prio.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.COOKBOOK.ICMP-RATELIMIT"
+></A
+>15.3. Rate limit ICMP to prevent dDoS</H1
+><P
+>Recently, distributed denial of service attacks have become a major nuisance
+on the Internet. By properly filtering and rate limiting your network, you can
+both prevent becoming a casualty or the cause of these attacks.</P
+><P
+>You should filter your networks so that you do not allow non-local IP source
+addressed packets to leave your network. This stops people from anonymously
+sending junk to the Internet. </P
+><P
+>Rate limiting goes much as shown earlier. To refresh your memory, our
+ASCIIgram again:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[The Internet] ---&#60;E3, T3, whatever&#62;--- [Linux router] --- [Office+ISP]
+                                      eth1          eth0</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>We first set up the prerequisite parts:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc qdisc add dev eth0 root handle 10: cbq bandwidth 10Mbit avpkt 1000
+# tc class add dev eth0 parent 10:0 classid 10:1 cbq bandwidth 10Mbit rate \
+  10Mbit allot 1514 prio 5 maxburst 20 avpkt 1000</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>If you have 100Mbit, or more, interfaces, adjust these numbers. Now you need
+to determine how much ICMP traffic you want to allow. You can perform
+measurements with tcpdump, by having it write to a file for a while, and
+seeing how much ICMP passes your network. Do not forget to raise the
+snapshot length!</P
+><P
+>If measurement is impractical, you might want to choose 5% of your available
+bandwidth. Let's set up our class:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc class add dev eth0 parent 10:1 classid 10:100 cbq bandwidth 10Mbit rate \
+  100Kbit allot 1514 weight 800Kbit prio 5 maxburst 20 avpkt 250 \
+  bounded</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This limits at 100Kbit. Now we need a filter to assign ICMP traffic to this
+class:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth0 parent 10:0 protocol ip prio 100 u32 match ip
+  protocol 1 0xFF flowid 10:100&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.synflood-protect.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.interactive-prio.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Protecting your host from SYN floods</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.cookbook.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Prioritizing interactive traffic</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

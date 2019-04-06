@@ -1,0 +1,278 @@
+<HTML
+><HEAD
+><TITLE
+>Prompt Beeps After Long-Running Commands</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Bash Prompt HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Prompt Code Snippets"
+HREF="c679.html"><LINK
+REL="PREVIOUS"
+TITLE="New Mail"
+HREF="x806.html"><LINK
+REL="NEXT"
+TITLE="Example Prompts"
+HREF="c816.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Bash Prompt HOWTO: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x806.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 11. Prompt Code Snippets</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c816.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN810"
+></A
+>11.14. Prompt Beeps After Long-Running Commands</H1
+><P
+>Robb Matzke (matzke at llnl dot gov) sent me this a long time ago (sorry
+Robb, should have put it in sooner!).  This prompt uses Perl and the
+builtin <B
+CLASS="COMMAND"
+>times</B
+> command to determine if the program that
+just finished running has used more than a certain amount of time.  The
+assumption is that you might have changed desktops by then and notification
+would be nice, so it rings a bell.  I've tried to avoid using Perl because
+the overhead is fairly high, but this is a good use for it.&#13;</P
+><P
+>I haven't tested this prompt myself.  I like the idea though.  Robb
+includes instructions in the comments.&#13;</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>#!/usr/bin/perl
+require 5.003;
+use strict;
+
+###############################################################################
+# prompt_bell -- execute arbitrary commands contingent upon CPU time
+#
+# Copyright (C) 2000 Robb Matzke
+#
+#    This program is free software; you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the
+#    Free Software Foundation; either version 2 of the License, or (at your
+#    option) any later version.
+#
+#    This program is distributed in the hope that it will be useful, but
+#    WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+#    Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; see the file COPYING.  If not, write to the Free
+#    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+#    02111-1307, USA.
+#
+# Purpose:
+#
+#    This program is intended to be called each time a shell prompt is
+#    displayed. It looks at current CPU times (user+system) for the shell and
+#    its children, and if the CPU time is more than some user-specified amount
+#    then user-specified commands are executed.  The author uses it to provide
+#    an audio indication of when a long-running command completes.
+#
+# Usage:
+#
+#    The prompt_bell command takes two arguments: the name of a file
+#    containing the latest CPU usage information for the shell and its
+#    children, and some optional state information from the environment
+#    variable $PROMPT_BELL_STATE.
+#
+#    The times file simply contains one or more times, zero or more to a line,
+#    each of the form `#h#m#.#s' where `#' is a sequence of one or more
+#    decimal digits and `#h' is the optional number of hours, `#m' is the
+#    required number of minutes, and `#.#s' is the number of seconds and
+#    fractions thereof. The total time is the sum of all the times in this
+#    file. Example:
+#
+#        0m0.050s 0m0.060s
+#        0m15.790s 0m0.220s
+#
+#    The output from this command is one or more semicolon-separated shell
+#    commands which should be eval'd by the caller. If the difference between
+#    the current CPU times and the previous CPU times (stored in environment
+#    variable PROMPT_BELL_STATE) is more than $PROMPT_BELL_TIME seconds
+#    (default 10) then the commands printed include the value of environment
+#    variable PROMPT_BELL_CMD (default is "echo -ne '\a'").
+#
+#    Typical usage is:
+#        eval "`prompt_bell $TIMES_FILE $PROMPT_BELL_STATE`"
+#
+#    and this command is usually part of the bash PROMPT_COMMAND. The author's
+#    .bashrc contains the following:
+#
+#        PROMPT_BELL_TIME=15
+#        PROMPT_BELL_CMD="echo -e 'done.\a'"
+#
+#        COMMAND_PROMPT='TIMES_FILE=/tmp/times.$$;
+#                        times &#62;$TIMES_FILE;
+#                        eval "`prompt_bell $TIMES_FILE $PROMPT_BELL_STATE`";
+#                        /bin/rm -f $TIMES_FILE'
+#        export PROMPT_BELL_TIME PROMPT_BELL_CMD COMMAND_PROMPT
+#
+#    Note: the output of `times' is stored in a temporary file to prevent it
+#    from being executed in a subshell whose CPU times are always nearly zero.
+#
+##############################################################################
+
+# Convert #h#m#s to seconds.
+sub seconds {
+  my($hms) = @_;
+  my($h,$m,$s) = $hms =~ /^(?:(\d+)h)?(\d+)m(\d+\.\d+)s/;
+  return $h*3600 + $m*60 + $s;
+}
+
+# Obtain processor times in seconds
+my $times_file = shift;
+my $ptime_cur = 0;
+open TIMES_FILE, $times_file or die "prompt_bell: $times_file: $!\n";
+while (&#60;TIMES_FILE&#62;) {
+  s/(?:(\d+)h)?(\d+)m(\d+(?:\.\d+)?)s/$ptime_cur+=$1*3600+$2*60+$3/eg;
+}
+close TIMES_FILE;
+
+
+# Obtain previous state to compute deltas.
+my $ptime_prev = shift;
+
+# If the processor time was more than $PROMPT_BELL_TIME or 10 seconds
+# then beep.
+my $beep;
+my $limit = exists $ENV{PROMPT_BELL_TIME}?$ENV{PROMPT_BELL_TIME}:10;
+if ($ptime_cur-$ptime_prev&#62;$limit) {
+  $beep = ";" . ($ENV{PROMPT_BELL_CMD} || "echo -ne '\\a'");
+}
+
+# Generate the shell commands
+print "PROMPT_BELL_STATE=$ptime_cur$beep\n";
+exit 0;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x806.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c816.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>New Mail</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c679.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Example Prompts</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

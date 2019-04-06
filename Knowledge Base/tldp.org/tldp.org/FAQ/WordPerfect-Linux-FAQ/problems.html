@@ -1,0 +1,395 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Technical Problems.</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="WordPerfect on Linux FAQ"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Taxonomy and History"
+HREF="taxonomy.html"><LINK
+REL="NEXT"
+TITLE="Downloadable WP 8"
+HREF="downloadwp8.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>WordPerfect on Linux FAQ</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="taxonomy.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="downloadwp8.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="PROBLEMS"
+></A
+>3. Technical Problems.</H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="WONTINSTALL"
+></A
+>3.1. WP 8.0 DPE for Linux installs but won't start on my Linux distribution.  How do I fix that?</H2
+><P
+>WP 8.0 for Linux was distributed as a dynamically linked ELF binary, linked against libc5 (C library), libm (the related math library), a set of five X11 libraries for libc5-based software, and ld-linux.so.1.9.* (aka ld.so 1.9.*), the dynamic-linker/loader software current on Linux at that time.  Those old libraries are often omitted from current Linux distributions.  In such cases, you need to retrofit those libraries.  (You can see the exact library links by running "ldd" = list library dependencies against the WordPerfect "xwp" main executable file.)  Specifically:  Prior to running the WP 8.0 installer, you must install ld-linux.so.1.9.* (usually in an ld.so package), libc of some version from 5.3.12 through 5.4.46, and libm.so.5.* (both usually in the libc5 package), and a set of X11 backward-compatibility libraries compiled against libc5 (libXt.so.6, libX11.so.6, libXpm.so.4, libSM.so.6, and libICE.so.6).  Don't forget to ensure the libraries' directories are listed in /etc/ld.so.conf, and then re-run /sbin/ldconfig.</P
+><P
+>What binary packages these libs and dynamic linker/loader will occupy differs between distributions.  If in doubt, documents linked from <A
+HREF="http://linux-sxs.org/utilities/wp_index.html"
+TARGET="_top"
+>http://linux-sxs.org/utilities/wp_index.html</A
+> may give details for your distribution.  (Also, FAQ section "After I locate WP 8.0 DPE for Linux, how do I install it, and what can I do to improve and fix it?" has more details and remedies for installation problems.)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="ACCELERATEDX"
+></A
+>3.2. WP 8.0 DPE for Linux installs perfectly, and runs fine for the root user, but quits with a segmentation fault if any non-root user starts it.  What's the cause?</H2
+><P
+>You installed Accelerated-X, a proprietary X11 server, and included in your installation its version of the X11 libraries, which were compiled with glibc.  You need the more-traditional XFree86 versions of those libraries (libXt.so.6, libX11.so.6, libXpm.so.4, libSM.so.6, and libICE.so.6), specifically ones that were compiled for libc5 X11 clients.  Remove Accelerated-X completely, reinstall the XFree86 shared libraries for libc5 clients (which may have any of various package names, such as xlib-compat, oldlibs/xlib6, etc.), and then reinstall the Accelerated-X server only (minimal installation).  WordPerfect should then run correctly.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="LIBSAFE"
+></A
+>3.3. How do I stop the WP 8.x installer from getting diagnostic message "../install.wp: [: 18-10: integer expression expected" followed a short while later by termination with a Segmentation Fault error?</H2
+><P
+>You are running with "libsafe" enabled, a wrapper library that aims to protect system security by blocking library calls that are known to be vulnerable to buffer overflows.  Unfortunately, that technique blocks execution of any binary that attempts a dynamic library call to libc5.x.  Both the WP 8.x installer and WP 8.0's runtime binary were compiled as libc5 executables.</P
+><P
+>To confirm that libsafe is the culprit, type "echo $LD_PRELOAD | grep libsafe".  You can turn off that setting by typing "unset LD_PRELOAD".  Then, remove the libsafe reference in /etc/ld.so.preload, if this exists.  You should now be able to successfully run the installer, and can call the main "xwp" binary using a shell script that runs "unset LD_PRELOAD" just prior to executing xwp.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="NFS"
+></A
+>3.4. How do I fix the WP 8.x installer's failures resulting from errors copying files onto my NFS network drive?</H2
+><P
+>You're probably using one of the personal editions of WP 8.x.  Only the server editions include code required to enable support of NFS file locking (which in server editions you can enable via the WPadmin login facility).  Otherwise, neither the installer nor the WP program binary will run if any components are on (or will be installed to) any NFS mounted drive, including user settings in users' home directories and temporary files in /tmp.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="FITRIX"
+></A
+>3.5. How do I fix MS-Word import / export filters (the Filtrix module) on WP 8.x for Linux?</H2
+><P
+>The third-party Filtrix module, because of a programming oversight concerning date-handling, doesn't work on systems whose current date is set later than September 9, 2001:  On attempts to import / export MS-Word files, it fails with error message "Filtrix unable to convert this file".  The problem can be fixed by installing a wrapper by Valentijn Sessink, available at <A
+HREF="http://olivier.pk.wau.nl/~valentyn/wp8fix/"
+TARGET="_top"
+>http://olivier.pk.wau.nl/~valentyn/wp8fix/</A
+>.  (This fix isn't necessary for the 2003-4 "pilot project" re-release, which includes an equivalent fix.)</P
+><P
+>Note:  Reportedly, the Filtrix module will not process MS-Word .doc files that were saved in MS-Word with password-protection applied.  This is not a bug:  Filtrix never handled such files.  (Nor can Filtrix handle MS-Word documents with embedded non-MS-Word COM objects such as spreadsheet tables from MS-Excel.)</P
+><P
+>Import will also fail on any file saved in a post-Word97 version of Microsoft's .doc format.  This is not a bug, just an inevitable result of the program's age and lack of maintenance.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="CORELFITRIX"
+></A
+>3.6. Why didn't Corel itself release any fix for the MS-Word / Filtrix problem, especially given its obligations to purchasers of boxed-set versions?</H2
+><P
+>Good question.  By the time the problem cropped up, Corel had discontinued all involvement in Linux.  Just before that, Microsoft Corporation made a major investment in Corel, preventing the latter firm's collapse.  It's possible that lack of Linux-competent staffing was an issue, that Corel didn't wish to displease its investor, that the firm perceived inexpensive Linux versions to be impairing sales of its US $500 versions for other Unixes (especially given increasingly common support for Linux-native binaries on those Unixes), or that corporate inertia after liquidating the entire Linux division accounted for this lapse.  (Corel was later passed to Vector Capital, Microsoft co-founder Paul Allen's venture-capital firm, which took Corel private.)</P
+><P
+>Corel's only comment (November 5, 2001) was "The corporation is not prepared to make any comment", and to post a comment on http://linux.corel.com/support/updates.htm#wp8, unchanged since late 2001, that "Corel is currently working with the filter manufacturer to resolve this issue." (That claim was still present when Corel took down the linux.corel.com machine on Feb. 26, 2003.)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="KAB"
+></A
+>3.7. How do I make WP for Linux's integration with KDE Address Book ("kab") work with KDE2 / KDE3?</H2
+><P
+>You don't.  WP is compatible with the "kab" version in KDE 1.1, only, that being the KDE version shipped with CLOS.  For unexplained reasons, this feature also doesn't work on Linux 2.4.x or later kernels.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="RENDER"
+></A
+>3.8. I get rendering problems with icons and other graphical objects when running WP for Linux at greater than 16 bits per pixel.  How do I fix that?</H2
+><P
+>This is a frequent symptom of colour palette exhaustion.  The only real cure is to run X11 at a lower colour depth.  32 bpp will sometimes work where 24 bpp doesn't, but 16 bpp always works (assuming hardware support).</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="TRUETYPE"
+></A
+>3.9. Can I make WP for Linux use TrueType fonts?</H2
+><P
+>No.  WP can use PostScript Type 1 fonts, only.  The issue is covered comprehensively by Rod Smith, here (including describing a utility for generating PostScript Type 1 fonts from TrueType ones -- with, no doubt, inevitable loss of detail resulting from "hinting"-routine omission and other conversion artifacts): <A
+HREF="http://www.rodsbooks.com/wpfonts/"
+TARGET="_top"
+>http://www.rodsbooks.com/wpfonts/</A
+></P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="PRINTING"
+></A
+>3.10. How do I get printing to work?</H2
+><P
+>By default, WP for Linux (uniquely) ignores Linux's system printing facilities, and uses its own print engine and drivers.  (The latter are the same as for WP on MS-DOS, giving the program very broad printer support.  More are available at <A
+HREF="http://www.columbia.edu/~em36/wpdos/"
+TARGET="_top"
+>http://www.columbia.edu/~em36/wpdos/</A
+>, which should be reachable as <A
+HREF="http://www.wpdos.org/"
+TARGET="_top"
+>http://www.wpdos.org/</A
+>.)  You need to configure the printing subsystem.  As the root user, start xwp with the -admin (or -adm) command-line option, then select and install an appropriate printer driver, using the Add Printer Driver widget.  (In such cases but not the Passthru Postscript option discussed next, specify "-oraw" in the WP8 Printer Setup dialogue's Lpr options box on the Select Destination sub-page, or define a "raw" printing destination in your system print daemon, e.g., CUPS.) Alternatively, select "Passthru Postscript" to hand off jobs to the system printing daemon, and use the latter's print drivers, instead.</P
+><P
+>The 2003-4 "WordPerfect 8 for Linux" pilot-project offering retains this print engine, except that it defaults to Passthru Postscript using print destination WPSpool, a reasonable default for compatiblity with modern Linux systems' existing system print regimes, which mostly use CUPS.  (You can still alternatively use WP's own print drivers, and either specify "raw" printing in your system print spooler or "-oraw" in WP's print options as described above.)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="INSTALLER"
+></A
+>3.11. How do I keep the "WordPerfect 8 for
+Linux" re-release's installer from crashing?</H2
+><P
+>Because of a bug in the install script, the 2003-4 "WordPerfect 8 for Linux" pilot-project release's installer must be run setting US English option initially as default, or it will fail.  You can then choose one of the other installed language options after installation.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="LANGUAGE"
+></A
+>3.12. Can my language's absence from the
+"WordPerfect 8 for Linux" re-release be fixed?</H2
+><P
+>Yes.  The "pilot project" re-release included language modules for English (UK, US, CA and OZ) and French (CA and National), but not Dutch, German, Italian, or Spanish.  Those modules can be installed from separate downloads mentioned elsewhere in this FAQ.  After installing them, you'll need to add  "/usr/i386-compat-gnulibc1/lib" (or as appropriate, if you didn't install WP to the /usr/wplinux default) as a new line to /etc/ld.so.conf and re-run "ldconfig".  (Otherwise, you'll see an error about inability to find libm.so.5, when you execute the language module's ./Runme script.)</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="FONTSWP"
+></A
+>3.13. Why aren't the PostScript Type 1 fonts I've
+installed available in WP?</H2
+><P
+>You haven't yet run the xwpfi font-installer, to inform WP of their presence.  (A Readme explains how to use it.)  Note that xwpfi is intentionally omitted from WP 8.0 DPE.  Please see FAQ section "How do I add fonts to WP 8.1?" for more details.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="FONTSX11"
+></A
+>3.14. Why aren't the PostScript Type 1 fonts I've
+installed available to applications other than WP?</H2
+><P
+>You haven't yet configured X11 to know about them, though perhaps you've run xwpfi to inform WP about their existence.  The two are distinct, WP's font integration being incomplete relative to that of standard Linux apps.  Please see FAQ section "How do I add fonts to WP 8.1?" for more details.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="WPEXC"
+></A
+>3.15. I see the process "wpexc" still running in my system process table, even after quitting WordPerfect.  If the WordPerfect program is "xwp", what's "wpexc", and why does it need to remain running?</H2
+><P
+>Tests by Valentijn Sessink have confirmed that this process must have something to do with printing:  If you rename the wpexc binary, then start WP, printing will malfunction but no other program features will.  The fact that it's left running even after you quit WP appears to be a bug.  You can safely kill it, when not running WP.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="XWPPMGR"
+></A
+>3.16. What is the "xwppmgr" process?</H2
+><P
+>It's the WordPerfect Print Manager.  WordPerfect by default manages its own printing, and only optionally hands off jobs to the system printing facility, if so configured.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="XWP"
+></A
+>3.17. How do I prevent "xwp" from starting the
+wrong version of WordPerfect?</H2
+><P
+>(This problem obviously applies only to the minority who keep multiple editions of WP for Linux on tap.)  "xwp" in some editions, such as 2003-4's "pilot project" re-release and WP 8.1 PE, is a symbolic link pointing to a launcher script.  (Thus, you should rename any existing /usr/bin/xwp, before installing, as the installer will overwrite it.)  In others, it's a binary:  Run "file" on it to tell.  You may have to do some debugging and creation of your own symlinks to untangle multiple editions' startup mechanisms.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="WHEELMOUSE"
+></A
+>3.18. How do I get WP to support my wheelmouse?</H2
+><P
+>You need to run "imwheel -k" (which utility must, of course, be installed) just prior to launching WP.  This can be added as a line near the top of WP's startup script (which you can create, if none such exists).</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="GLIBC"
+></A
+>3.19. WP9 stopped working / won't install, even with the upgraded support packages and installer.  How do I fix that?</H2
+><P
+>Check the version of libc, which should be in /lib.  If it's 2.3.2 or above (as it is in essentially all current Linux distributions), and you're using either the original bundled version of Corelwine or Michael Torrie's corelwine-cvs-20010613-1.i386.rpm upgrade (or Andreas von Heydwolff's corelwine-cvs_0.1-2_i386.deb <A
+HREF="http://web.archive.org/web/20040225112645/http://members.chello.at/hrdisk/corelwine.html"
+TARGET="_top"
+>conversion</A
+> to .deb format of Torrie's release), that's why:  There's a libc-support problem, which will necessitate fixing and re-releasing Corelwine.  (A <A
+HREF="http://sources.redhat.com/ml/bug-glibc/2003-05/msg00047.html"
+TARGET="_top"
+>bug</A
+> in ld.so's dynamic linker/loader prevents solving this using a wrapper to use an older libc and the existing Corelwine libs.)  However, in September 2004, Torrie graciously provided his <A
+HREF="http://linuxmafia.com/pub/linux/apps/"
+TARGET="_top"
+>Corelwine source code</A
+>.  It's hoped some volunteer will soon code the patch required.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="taxonomy.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="downloadwp8.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Taxonomy and History</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Downloadable WP 8</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

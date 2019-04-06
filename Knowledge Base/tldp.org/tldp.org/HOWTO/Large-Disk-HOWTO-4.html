@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Large Disk HOWTO: History of BIOS and IDE limits</TITLE>
+ <LINK HREF="Large-Disk-HOWTO-5.html" REL=next>
+ <LINK HREF="Large-Disk-HOWTO-3.html" REL=previous>
+ <LINK HREF="Large-Disk-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Large-Disk-HOWTO-5.html">Next</A>
+<A HREF="Large-Disk-HOWTO-3.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. History of BIOS and IDE limits</A></H2>
+
+<P>
+<DL>
+<DT><B>ATA Specification (for IDE disks) - the 137 GB limit</B><DD><P>At most 65536 cylinders (numbered 0-65535), 16 heads (numbered 0-15),
+255 sectors/track (numbered 1-255), for a maximum total capacity of
+267386880 sectors (of 512 bytes each), that is, 136902082560 bytes (137 GB).
+In Sept 2001, the first drives larger than this (160 GB Maxtor Diamondmax)
+appeared.
+<P>
+<DT><B>BIOS Int 13 - the 8.5 GB limit</B><DD><P>At most 1024 cylinders (numbered 0-1023), 256 heads (numbered 0-255),
+63 sectors/track (numbered 1-63) for a maximum total capacity of
+8455716864 bytes (8.5 GB). This is a serious limitation today.
+It means that DOS cannot use present day large disks.
+<P>
+<DT><B>The 528 MB limit</B><DD><P>If the same values for c,h,s are used for the BIOS Int 13 call and
+for the IDE disk I/O, then both limitations combine, and one can
+use at most 1024 cylinders, 16 heads, 63 sectors/track, for a
+maximum total capacity of 528482304 bytes (528MB), the infamous
+504 MiB limit for DOS with an old BIOS.
+This started being a problem around 1993, and people resorted to all kinds
+of trickery, both in hardware (LBA), in firmware (translating BIOS),
+and in software (disk managers).
+The concept of `translation' was invented (1994): a BIOS could use
+one geometry while talking to the drive, and another, fake, geometry
+while talking to DOS, and translate between the two.
+<P>
+<DT><B>The 2.1 GB limit (April 1996)</B><DD><P>Some older BIOSes only allocate 12 bits for the field in CMOS RAM that
+gives the number of cylinders. Consequently, this number can be at most
+4095, and only 4095<CODE>*</CODE>16<CODE>*</CODE>63<CODE>*</CODE>512=2113413120 bytes are accessible.
+The effect of having a larger disk would be a hang at boot time.
+This made disks with geometry 4092/16/63 rather popular. And still today
+many large disk drives come with a jumper to make them appear 4092/16/63.
+See also 
+<A HREF="http://www.firmware.com/support/bios/over2gb.htm">over2gb.htm</A>. 
+<A HREF="http://www.asus.com/Products/Techref/Ide/Intel/intel-ide-001.html">Other BIOSes</A>
+would not hang but just detect a much smaller disk, like 429 MB instead of 2.5 GB.
+<P>
+<DT><B>The 3.2 GB limit</B><DD><P>There was a bug in the Phoenix 4.03 and 4.04 BIOS firmware that would
+cause the system to lock up in the CMOS setup for drives with a capacity
+over 3277 MB. See 
+<A HREF="http://www.firmware.com/support/bios/over3gb.htm">over3gb.htm</A>.
+<P>
+<DT><B>The 4.2 GB limit (Feb 1997)</B><DD><P>Simple BIOS translation (ECHS=Extended CHS, sometimes called `Large 
+disk support' or just `Large')
+works by repeatedly doubling the number of heads and halving the number
+of cylinders shown to DOS, until the number of cylinders is at most 1024.
+Now DOS and Windows 95 cannot handle 256 heads,
+and in the common case that the disk reports 16 heads, this means that
+this simple mechanism only works up to 8192<CODE>*</CODE>16<CODE>*</CODE>63<CODE>*</CODE>512=4227858432
+bytes (with a fake geometry with 1024 cylinders, 128 heads, 63 sectors/track).
+Note that ECHS does not change the number of sectors per track, so if
+that is not 63, the limit will be lower.
+See 
+<A HREF="http://www.firmware.com/support/bios/over4gb.htm">over4gb.htm</A>.
+<P>
+<DT><B>The 7.9 GB limit</B><DD><P>Slightly smarter BIOSes avoid the previous problem by first adjusting the
+number of heads to 15 (`revised ECHS'), so that a fake geometry with
+240 heads can be obtained, good for
+1024<CODE>*</CODE>240<CODE>*</CODE>63<CODE>*</CODE>512=7927234560 bytes.
+<P>
+<DT><B>The 8.4 GB limit</B><DD><P>
+<A NAME="The 8.4 GB limit"></A> 
+Finally, if the BIOS does all it can to make this translation a success,
+and uses 255 heads and 63 sectors/track (`assisted LBA' or just `LBA')
+it may reach 1024<CODE>*</CODE>255<CODE>*</CODE>63<CODE>*</CODE>512=8422686720 bytes, slightly less
+than the earlier 8.5 GB limit because the geometries with 256 heads must be
+avoided.
+(This translation will use for the number of heads the first value H
+in the sequence 16, 32, 64, 128, 255 for which the total disk capacity
+fits in 1024<CODE>*</CODE>H<CODE>*</CODE>63<CODE>*</CODE>512, and then computes the number of
+cylinders C as total capacity divided by (H<CODE>*</CODE>63<CODE>*</CODE>512).)
+<P>
+<DT><B>The 33.8 GB limit (August 1999)</B><DD><P>
+<A NAME="biosupgrades"></A> 
+The next hurdle comes with a size over 33.8 GB.
+The problem is that with the default 16 heads and 63 sectors/track
+this corresponds to a number of cylinders of more than 65535, which
+does not fit into a short. Many BIOSes couldn't handle such disks.
+(See, e.g., 
+<A HREF="http://www.asus.com/Products/Motherboard/bios_slot1.html">Asus upgrades</A>
+for new flash images that work.)
+Linux kernels older than 2.2.14 / 2.3.21 need a patch.
+See 
+<A HREF="Large-Disk-HOWTO-12.html#verylarge">IDE problems with 34+ GB disks</A> below.
+<P>
+<DT><B>The 137 GB limit (Sept 2001)</B><DD><P>As mentioned above, the old ATA protocol uses 16+4+8 = 28 bits
+to specify the sector number, and hence cannot address more than
+2^28 sectors. ATA-6 describes an extension that allows the addressing
+of 2^48 sectors, a million times as much.
+There is support in very recent kernels.
+<P>
+<DT><B>The 2 TiB limit</B><DD><P>With 32-bit sector numbers, one can address 2 TiB.
+A lot of software will have to be rewritten once disks get larger.
+</DL>
+<P>Hard drives over 8.4 GB are supposed to report their geometry as 16383/16/63.
+This in effect means that the `geometry' is obsolete, and the total disk
+size can no longer be computed from the geometry, but is found in the
+LBA capacity field returned by the 
+<A HREF="Large-Disk-HOWTO-10.html#identify">IDENTIFY command</A>.
+Hard drives over 137.4 GB are supposed to report an LBA capacity of
+0xfffffff = 268435455 sectors (137438952960 bytes). Now the actual
+disk size is found in the new 48-capacity field.
+<P>
+<HR>
+<A HREF="Large-Disk-HOWTO-5.html">Next</A>
+<A HREF="Large-Disk-HOWTO-3.html">Previous</A>
+<A HREF="Large-Disk-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

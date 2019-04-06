@@ -1,0 +1,934 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Networking-HOWTO (Previously the Net-3 Howto): IP- and Ethernet-Related Information</TITLE>
+ <LINK HREF="NET3-4-HOWTO-7.html" REL=next>
+ <LINK HREF="NET3-4-HOWTO-5.html" REL=previous>
+ <LINK HREF="NET3-4-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="NET3-4-HOWTO-7.html">Next</A>
+<A HREF="NET3-4-HOWTO-5.html">Previous</A>
+<A HREF="NET3-4-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. IP- and Ethernet-Related Information</A></H2>
+
+<P>This section covers information specific to Ethernet and IP. These
+subsections have been grouped together because I think they are the
+most interesting ones in the formerly-called ``Technology Specific''
+Section. Anyone with a LAN should be able to benefit from these
+goodies.
+<H2><A NAME="ss6.1">6.1 Ethernet</A>
+</H2>
+
+<P>Ethernet device names are `<CODE>eth0</CODE>', `<CODE>eth1</CODE>', `<CODE>eth2</CODE>' etc. The first
+card detected by the kernel is assigned `<CODE>eth0</CODE>' and the rest are assigned
+sequentially in the order they are detected.
+<P>By default, the Linux kernel only probes for one Ethernet device, you
+need to pass command line arguments to the kernel in order to force detection
+of furter boards.
+<P>To learn how to make your ethernet card(s) working under Linux you
+should refer to the 
+<A HREF="Ethernet-HOWTO.html">Ethernet-HOWTO</A>.
+<P>Once you have your kernel properly built to support your ethernet card then
+configuration of the card is easy.
+<P>Typically you would use something like (which most distributions already
+do for you, if you configured them to support your ethernet):
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# ifconfig eth0 192.168.0.1 netmask 255.255.255.0 up
+        root# route add -net 192.168.0.0 netmask 255.255.255.0 eth0
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>Most of the ethernet drivers were developed by Donald Becker,
+<CODE>becker@CESDIS.gsfc.nasa.gov</CODE>.
+
+<H2><A NAME="ss6.2">6.2 EQL - multiple line traffic equaliser</A>
+</H2>
+
+<P>The EQL device name is `<CODE>eql</CODE>'. With the standard kernel source you may have
+only one EQL device per machine. EQL provides a means of utilizing multiple
+point to point lines such as PPP, slip or plip as a single logical link to
+carry tcp/ip. Often it is cheaper to use multiple lower speed lines than to
+have one high speed line installed.
+<P><B>Kernel Compile Options</B>:
+<BLOCKQUOTE><CODE>
+<PRE>
+        Network device support  --->
+            [*] Network device support
+            &lt;*> EQL (serial line load balancing) support
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>To support this mechanism the machine at the other end of the lines must also
+support EQL. Linux, Livingstone Portmasters and newer dial-in servers support
+compatible facilities.
+<P>To configure EQL you will need the eql tools which are available from:
+<A HREF="ftp://metalab.unc.edu/pub/linux/system/Serial/eql-1.2.tar.gz">metalab.unc.edu</A>.
+<P>Configuration is fairly straightforward. You start by configuring the eql
+interface. The eql interface is just like any other network device. You
+configure the IP address and mtu using the <EM>ifconfig</EM> utility, so something
+like:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# ifconfig eql 192.168.10.1 mtu 1006
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>Next you need to manually initiate each of the lines you will use. These may
+be any combination of point to point network devices. How you initiate the
+connections will depend on what sort of link they are, refer to the
+appropriate sections for further information.
+<P>Lastly you need to associate the serial link with the EQL device, this is
+called `enslaving' and is done with the <EM>eql_enslave</EM> command as shown:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# eql_enslave eql sl0 28800
+        root# eql_enslave eql ppp0 14400
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>The `<EM>estimated speed</EM>' parameter you supply <EM>eql_enslave</EM> doesn't
+do anything directly. It is used by the EQL driver to determine what share of
+the datagrams that device should receive, so you can fine tune the balancing of
+the lines by playing with this value.
+<P>To disassociate a line from an EQL device you use the <EM>eql_emancipate</EM>
+command as shown:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# eql_emancipate eql sl0
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>You add routing as you would for any other point to point link, except your
+routes should refer to the <CODE>eql</CODE> device rather than the actual serial
+devices themselves, typically you would use:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# route add default eql
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>The EQL driver was developed by Simon Janes, <CODE>simon@ncm.com</CODE>.
+<H2><A NAME="ss6.3">6.3 IP Accounting (for Linux-2.0)</A>
+</H2>
+
+<P>The IP accounting features of the Linux kernel allow you to collect and
+analyze some network usage data. The data collected comprises the number
+of packets and the number of bytes accumulated since the figures were
+last reset. You may specify a variety of rules to categorize the
+figures to suit whatever purpose you may have. This option has been
+removed in kernel 2.1.102, because the old ipfwadm-based firewalling
+was replaced by ``ipfwchains''.
+<P><B>Kernel Compile Options</B>:
+<BLOCKQUOTE><CODE>
+<PRE>
+        Networking options  --->
+            [*] IP: accounting
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>After you have compiled and installed the kernel you need to use the
+<EM>ipfwadm</EM> command to configure IP accounting. There are many different
+ways of breaking down the accounting information that you might choose.
+I've picked a simple example of what might be useful to use, you should
+read the <EM>ipfwadm</EM> man page for more information.
+<P>Scenario: You have a ethernet network that is linked to the internet via
+a PPP link. On the ethernet you have a machine that offers a number of
+services and that you are interested in knowing how much traffic is generated
+by each of  ftp and world wide web traffic, as well as total tcp and udp
+traffic.
+<P>You might use a command set that looks like the following, which is shown as a
+shell script:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        #!/bin/sh
+        #
+        # Flush the accounting rules
+        ipfwadm -A -f
+        #
+        # Set shortcuts
+        localnet=44.136.8.96/29
+        any=0/0
+        # Add rules for local ethernet segment
+        ipfwadm -A in  -a -P tcp -D $localnet ftp-data
+        ipfwadm -A out -a -P tcp -S $localnet ftp-data
+        ipfwadm -A in  -a -P tcp -D $localnet www
+        ipfwadm -A out -a -P tcp -S $localnet www
+        ipfwadm -A in  -a -P tcp -D $localnet
+        ipfwadm -A out -a -P tcp -S $localnet
+        ipfwadm -A in  -a -P udp -D $localnet
+        ipfwadm -A out -a -P udp -S $localnet
+        #
+        # Rules for default
+        ipfwadm -A in  -a -P tcp -D $any ftp-data
+        ipfwadm -A out -a -P tcp -S $any ftp-data
+        ipfwadm -A in  -a -P tcp -D $any www
+        ipfwadm -A out -a -P tcp -S $any www
+        ipfwadm -A in  -a -P tcp -D $any
+        ipfwadm -A out -a -P tcp -S $any
+        ipfwadm -A in  -a -P udp -D $any
+        ipfwadm -A out -a -P udp -S $any
+        #
+        # List the rules
+        ipfwadm -A -l -n
+        #
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>The names ``ftp-data'' and ``www'' refer to lines in
+<CODE>/etc/services</CODE>.  The last command lists each of the Accounting
+rules and displays the collected totals.
+<P>An important point to note when analyzing IP accounting is that
+<B>totals for all rules that match will be incremented</B> so that to
+obtain differential figures you need to perform appropriate maths. For
+example if I wanted to know how much data was not ftp nor www I would
+substract the individual totals from the rule that matches all ports.
+
+<BLOCKQUOTE><CODE>
+<PRE>
+root# ipfwadm -A -l -n
+IP accounting rules
+ pkts bytes dir prot source               destination          ports
+    0     0 in  tcp  0.0.0.0/0            44.136.8.96/29       * -> 20
+    0     0 out tcp  44.136.8.96/29       0.0.0.0/0            20 -> *
+   10  1166 in  tcp  0.0.0.0/0            44.136.8.96/29       * -> 80
+   10   572 out tcp  44.136.8.96/29       0.0.0.0/0            80 -> *
+  252 10943 in  tcp  0.0.0.0/0            44.136.8.96/29       * -> *
+  231 18831 out tcp  44.136.8.96/29       0.0.0.0/0             * -> *
+    0     0 in  udp  0.0.0.0/0            44.136.8.96/29       * -> *
+    0     0 out udp  44.136.8.96/29       0.0.0.0/0            * -> *
+    0     0 in  tcp  0.0.0.0/0            0.0.0.0/0            * -> 20
+    0     0 out tcp  0.0.0.0/0            0.0.0.0/0            20 -> *
+   10  1166 in  tcp  0.0.0.0/0            0.0.0.0/0            * -> 80
+   10   572 out tcp  0.0.0.0/0            0.0.0.0/0            80 -> *
+  253 10983 in  tcp  0.0.0.0/0            0.0.0.0/0            * -> *
+  231 18831 out tcp  0.0.0.0/0            0.0.0.0/0            * -> *
+    0     0 in  udp  0.0.0.0/0            0.0.0.0/0            * -> *
+    0     0 out udp  0.0.0.0/0            0.0.0.0/0            * -> *
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<H2><A NAME="ss6.4">6.4 IP Accounting (for Linux-2.2)</A>
+</H2>
+
+<P>The new accounting code is accessed via ``IP Firewall Chains''.
+See 
+<A HREF="http://www.adelaide.net.au/~rustcorp/ipfwchains/ipfwchains.html">the IP chains home page</A> for more information.  Among other
+things, you'll now need to use <EM>ipchains</EM> instead of <CODE>ipfwadm</CODE>
+to configure your filters. (From <CODE>Documentation/Changes</CODE> in the
+latest kernel sources).
+<H2><A NAME="ss6.5">6.5 IP Aliasing</A>
+</H2>
+
+<P>There are some applications where being able to configure multiple
+IP addresses to a single network device is useful. Internet Service
+Providers often use this facility to provide a `customized' to their
+World Wide Web and ftp offerings for their customers. You can refer to
+the ``IP-Alias mini-HOWTO'' for more information than you find here.
+<P><B>Kernel Compile Options</B>:
+<BLOCKQUOTE><CODE>
+<PRE>
+        Networking options  --->
+            ....
+            [*] Network aliasing
+            ....
+            &lt;*> IP: aliasing support
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>After compiling and installing your kernel with IP_Alias support
+configuration is very simple. The aliases are added to virtual network
+devices associated with the actual network device. A simple naming
+convention applies to these devices being <CODE>&lt;devname>:&lt;virtual
+dev num></CODE>, e.g. <CODE>eth0:0</CODE>, <CODE>ppp0:10</CODE> etc. Note that the the
+ifname:number device can only be configured <EM>after</EM> the main
+interface has been set up.
+<P>For example, assume you have an ethernet network that supports two different
+IP subnetworks simultaneously and you wish your machine to have direct access
+to both, you could use something like:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# ifconfig eth0 192.168.1.1 netmask 255.255.255.0 up
+        root# route add -net 192.168.1.0 netmask 255.255.255.0 eth0
+
+        root# ifconfig eth0:0 192.168.10.1 netmask 255.255.255.0 up
+        root# route add -net 192.168.10.0 netmask 255.255.255.0 eth0:0
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>To delete an alias you simply add a `<CODE>-</CODE>' to the end of its name and refer
+to it and is as simple as:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# ifconfig eth0:0- 0
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>All routes associated with that alias will also be deleted automatically.
+<H2><A NAME="ss6.6">6.6 IP Firewall (for Linux-2.0)</A>
+</H2>
+
+<P>IP Firewall and Firewalling issues are covered in more depth in the
+<A HREF="Firewall-HOWTO.html">Firewall-HOWTO</A>. IP Firewalling allows
+you to secure your machine against unauthorized network access by filtering
+or allowing datagrams from or to IP addresses that you nominate. There are
+three different classes of rules, incoming filtering, outgoing filtering and
+forwarding filtering. Incoming rules are applied to datagrams that are
+received by a network device. Outgoing rules are applied to datagrams that
+are to be transmitted by a network device. Forwarding rules are applied to
+datagrams that are received and are not for this machine, ie datagrams that
+would be routed.
+<P><B>Kernel Compile Options</B>:
+<BLOCKQUOTE><CODE>
+<PRE>
+        Networking options  --->
+            [*] Network firewalls
+            ....
+            [*] IP: forwarding/gatewaying
+            ....
+            [*] IP: firewalling
+            [ ] IP: firewall packet logging
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>Configuration of the IP firewall rules is performed using the <EM>ipfwadm</EM>
+command. As I mentioned earlier, security is not something I am expert at,
+so while I will present an example you can use, you should do your own
+research and develop your own rules if security is important to you.
+<P>Probably the most common use of IP firewall is when you are using your
+linux machine as a router and firewall gateway to protect your local
+network from unauthorized access from outside your network.
+<P>The following configuration is based on a contribution from Arnt Gulbrandsen,
+<CODE>&lt;agulbra@troll.no&gt;</CODE>.
+<P>The example describes the configuration of the firewall rules on the Linux
+firewall/router machine illustrated in this diagram:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+-                                   -
+ \                                  | 172.16.37.0
+  \                                 |   /255.255.255.0
+   \                 ---------      |
+    |  172.16.174.30 | Linux |      |
+NET =================|  f/w  |------|    ..37.19
+    |    PPP         | router|      |  --------
+   /                 ---------      |--| Mail |
+  /                                 |  | /DNS |
+ /                                  |  --------
+-                                   -
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>The following commands would normally be placed in an <CODE>rc</CODE> file
+so that they were automatically started each time the system
+boots. For maximum security they would be performed after the network
+interfaces are configured, but before the interfaces are actually
+brought up to prevent anyone gaining access while the firewall machine
+is rebooting.
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        #!/bin/sh
+
+        # Flush the 'Forwarding' rules table
+        # Change the default policy to 'accept'
+        #
+        /sbin/ipfwadm -F -f
+        /sbin/ipfwadm -F -p accept
+        #
+        # .. and for 'Incoming'
+        #
+        /sbin/ipfwadm -I -f
+        /sbin/ipfwadm -I -p accept
+
+        # First off, seal off the PPP interface
+        # I'd love to use '-a deny' instead of '-a reject -y' but then it
+        # would be impossible to originate connections on that interface too.
+        # The -o causes all rejected datagrams to be logged. This trades
+        # disk space against knowledge of an attack of configuration error.
+        #
+        /sbin/ipfwadm -I -a reject -y -o -P tcp -S 0/0 -D 172.16.174.30
+
+        # Throw away certain kinds of obviously forged packets right away:
+        # Nothing should come from multicast/anycast/broadcast addresses
+        #
+        /sbin/ipfwadm -F -a deny -o -S 224.0/3 -D 172.16.37.0/24
+        #
+        # and nothing coming from the loopback network should ever be
+        # seen on a wire
+        #
+        /sbin/ipfwadm -F -a deny -o -S 127.0/8 -D 172.16.37.0/24
+        
+        # accept incoming SMTP and DNS connections, but only
+        # to the Mail/Name Server
+        #
+        /sbin/ipfwadm -F -a accept -P tcp -S 0/0 -D 172.16.37.19 25 53
+        #
+        # DNS uses UDP as well as TCP, so allow that too
+        # for questions to our name server
+        #
+        /sbin/ipfwadm -F -a accept -P udp -S 0/0 -D 172.16.37.19 53
+        #
+        # but not "answers" coming to dangerous ports like NFS and
+        # Larry McVoy's NFS extension.  If you run squid, add its port here.
+        #
+        /sbin/ipfwadm -F -a deny -o -P udp -S 0/0 53 \
+                -D 172.16.37.0/24 2049 2050
+        
+        # answers to other user ports are okay
+        #
+        /sbin/ipfwadm -F -a accept -P udp -S 0/0 53 \
+                -D 172.16.37.0/24 53 1024:65535
+        
+        # Reject incoming connections to identd
+        # We use 'reject' here so that the connecting host is told
+        # straight away not to bother continuing, otherwise we'd experience
+        # delays while ident timed out.
+        #
+        /sbin/ipfwadm -F -a reject -o -P tcp -S 0/0 -D 172.16.37.0/24 113
+
+        # Accept some common service connections from the 192.168.64 and
+        # 192.168.65 networks, they are friends that we trust.
+        #
+        /sbin/ipfwadm -F -a accept -P tcp -S 192.168.64.0/23 \
+                -D 172.16.37.0/24 20:23
+        
+        # accept and pass through anything originating inside
+        #
+        /sbin/ipfwadm -F -a accept -P tcp -S 172.16.37.0/24 -D 0/0
+        
+        # deny most other incoming TCP connections and log them
+        # (append 1:1023 if you have problems with ftp not working)
+        #
+        /sbin/ipfwadm -F -a deny -o -y -P tcp -S 0/0 -D 172.16.37.0/24
+        
+        # ... for UDP too
+        #
+        /sbin/ipfwadm -F -a deny -o -P udp -S 0/0 -D 172.16.37.0/24
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>Good firewall configurations are a little tricky. This example
+should be a reasonable starting point for you. The <EM>ipfwadm</EM>
+manual page offers some assistance in how to use the tool. If
+you intend to configure a firewall, be sure to ask around and
+get as much advice from sources you consider reliable and get
+someone to test/sanity check your configuration from the outside.
+<H2><A NAME="ss6.7">6.7 IP Firewall (for Linux-2.2)</A>
+</H2>
+
+<P>The new firewalling code is accessed via ``IP Firewall Chains''.
+See 
+<A HREF="http://www.adelaide.net.au/~rustcorp/ipfwchains/ipfwchains.html">the IP chanins home page</A> for more information.  Among other
+things, you'll now need to use <EM>ipchains</EM> instead of <CODE>ipfwadm</CODE>
+to configure your filters. (From <CODE>Documentation/Changes</CODE> in the
+latest kernel sources).
+<P>We are aware that this is a sorely out of date statement and we are
+currently working on getting this section more current. You can expect a
+newer version in August of 1999.
+
+<H2><A NAME="ss6.8">6.8 IPIP Encapsulation</A>
+</H2>
+
+<P>Why would you want to encapsulate IP datagrams within IP datagrams? It must
+seem an odd thing to do if you've never seen an application of it before.
+Ok, here are a couple of common places where it is used: Mobile-IP and
+IP-Multicast. What is perhaps the most widely spread use of it though is
+also the least well known, Amateur Radio.
+<P><B>Kernel Compile Options</B>:
+<BLOCKQUOTE><CODE>
+<PRE>
+        Networking options  --->
+            [*] TCP/IP networking
+            [*] IP: forwarding/gatewaying
+            ....
+            &lt;*> IP: tunneling
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>IP tunnel devices are called `<CODE>tunl0</CODE>', `<CODE>tunl1</CODE>' etc.
+<P>"But why ?". Ok, ok. Conventional IP routing rules mandate that an IP network
+comprises a network address and a network mask. This produces a series of
+contiguous addresses that may all be routed via a single routing entry.
+This is very convenient, but it means that you may only use any particular
+IP address while you are connected to the particular piece of network to which
+it belongs. In most instances this is ok, but if you are a mobile netizen then
+you may not be able to stay connected to the one place all the time. IP/IP
+encapsulation (IP tunneling) allows you to overcome this restriction by
+allowing datagrams destined for your IP address to be wrapped up and redirected
+to another IP address. If you know that you're going to be operating from some
+other IP network for some time you can set up a machine on your home network
+to accept datagrams to your IP address and redirect them to the address that
+you will actually be using temporarily.
+<H3>A tunneled network configuration.</H3>
+
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ 192.168.1/24                          192.168.2/24
+
+     -                                     -
+     |      ppp0 =            ppp0 =       |
+     |  aaa.bbb.ccc.ddd  fff.ggg.hhh.iii   |
+     |                                     |
+     |   /-----\                 /-----\   |
+     |   |     |       //        |     |   |
+     |---|  A  |------//---------|  B  |---|
+     |   |     |     //          |     |   |
+     |   \-----/                 \-----/   |
+     |                                     |
+     -                                     -
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+The diagram illustrates another possible reason to use IPIP encapsulation,
+virtual private networking. This example presupposes that you have two machines
+each with a simple dial up internet connection. Each host is allocated just
+a single IP address. Behind each of these machines are some private local area
+networks configured with reserved IP network addresses. Suppose that you want
+to allow any host on network A to connect to any host on network B, just as
+if they were properly connected to the Internet with a network route. IPIP
+encapsulation will allow you to do this. Note, encapsulation does not solve
+the problem of how you get the hosts on networks A and B to talk to any
+other on the Internet, you still need tricks like IP Masquerade for that.
+Encapsulation is normally performed by machine functioning as routers.
+<P>Linux router `<CODE>A</CODE>' would be configured with a script like the following:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        #!/bin/sh
+        PATH=/sbin:/usr/sbin
+        mask=255.255.255.0
+        remotegw=fff.ggg.hhh.iii
+        #
+        # Ethernet configuration
+        ifconfig eth0 192.168.1.1 netmask $mask up
+        route add -net 192.168.1.0 netmask $mask eth0
+        #
+        # ppp0 configuration (start ppp link, set default route)
+        pppd
+        route add default ppp0
+        #
+        # Tunnel device configuration
+        ifconfig tunl0 192.168.1.1 up
+        route add -net 192.168.2.0 netmask $mask gw $remotegw tunl0
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>Linux router `<CODE>B</CODE>' would be configured with a similar script:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        #!/bin/sh
+        PATH=/sbin:/usr/sbin
+        mask=255.255.255.0
+        remotegw=aaa.bbb.ccc.ddd
+        #
+        # Ethernet configuration
+        ifconfig eth0 192.168.2.1 netmask $mask up
+        route add -net 192.168.2.0 netmask $mask eth0
+        #
+        # ppp0 configuration (start ppp link, set default route)
+        pppd
+        route add default ppp0
+        #
+        # Tunnel device configuration
+        ifconfig tunl0 192.168.2.1 up
+        route add -net 192.168.1.0 netmask $mask gw $remotegw tunl0
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>The command:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        route add -net 192.168.1.0 netmask $mask gw $remotegw tunl0
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+reads: `Send any datagrams destined for <CODE>192.168.1.0/24</CODE> inside an
+IPIP encap datagram with a destination address of <CODE>aaa.bbb.ccc.ddd</CODE>'.
+<P>Note that the configurations are reciprocated at either end. The tunnel device
+uses the `<CODE>gw</CODE>' in the route as the <EM>destination</EM> of the IP datagram
+in which it will place the datagram it has received to route. That machine
+must know how to decapsulate IPIP datagrams, that is, it must also be
+configured with a tunnel device.
+<H3>A tunneled host configuration.</H3>
+
+<P>It doesn't have to be a whole network you route. You could for example route
+just a single IP address. In that instance you might configure the <CODE>tunl</CODE>
+device on the `remote' machine with its home IP address and at the A end just
+use a host route (and Proxy Arp) rather than a network route via the tunnel
+device. Let's redraw and modify our configuration appropriately. Now we
+have just host `<CODE>B</CODE>' which to want to act and behave as if it is both
+fully connected to the Internet and also part of the remote network supported
+by host `<CODE>A</CODE>':
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+ 192.168.1/24
+
+     -
+     |      ppp0 =                ppp0 =
+     |  aaa.bbb.ccc.ddd      fff.ggg.hhh.iii
+     |
+     |   /-----\                 /-----\
+     |   |     |       //        |     |
+     |---|  A  |------//---------|  B  |
+     |   |     |     //          |     |
+     |   \-----/                 \-----/
+     |                      also: 192.168.1.12
+     -
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Linux router `<CODE>A</CODE>' would be configured with:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        #!/bin/sh
+        PATH=/sbin:/usr/sbin
+        mask=255.255.255.0
+        remotegw=fff.ggg.hhh.iii
+        #
+        # Ethernet configuration
+        ifconfig eth0 192.168.1.1 netmask $mask up
+        route add -net 192.168.1.0 netmask $mask eth0
+        #
+        # ppp0 configuration (start ppp link, set default route)
+        pppd
+        route add default ppp0
+        #
+        # Tunnel device configuration
+        ifconfig tunl0 192.168.1.1 up
+        route add -host 192.168.1.12 gw $remotegw tunl0
+        #
+        # Proxy ARP for the remote host
+        arp -s 192.168.1.12 xx:xx:xx:xx:xx:xx pub
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>Linux host `<CODE>B</CODE>' would be configured with:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        #!/bin/sh
+        PATH=/sbin:/usr/sbin
+        mask=255.255.255.0
+        remotegw=aaa.bbb.ccc.ddd 
+        #
+        # ppp0 configuration (start ppp link, set default route)
+        pppd
+        route add default ppp0
+        #
+        # Tunnel device configuration
+        ifconfig tunl0 192.168.1.12 up
+        route add -net 192.168.1.0 netmask $mask gw $remotegwtunl0
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>This sort of configuration is more typical of a Mobile-IP application. Where
+a single host wants to roam around the Internet and maintain a single usable
+IP address the whole time. You should refer to the Mobile-IP section for more
+information on how that is handled in practice.
+<H2><A NAME="ss6.9">6.9 IP Masquerade</A>
+</H2>
+
+<P>Many people have a simple dialup account to connect to the Internet. Nearly
+everybody using this sort of configuration is allocated a single IP address
+by the Internet Service Provider. This is normally enough to allow only one
+host full access to the network. IP Masquerade is a clever trick that enables
+you to have many machines make use of that one IP address, by causing the
+other hosts to look like, hence the term masquerade, the machine supporting
+the dialup connection. There is a small caveat and that is that the
+masquerade function nearly always works only in one direction, that is the
+masqueraded hosts can make calls out, but they cannot accept or receive
+network connections from remote hosts. This means that some network services
+do not work such as <EM>talk</EM> and others such as <EM>ftp</EM> must be configured
+to operate in passive (PASV) mode to operate. Fortunately the most common
+network services such as <EM>telnet</EM>, World Wide Web and <EM>irc</EM> do work
+just fine.
+<P><B>Kernel Compile Options</B>:
+<BLOCKQUOTE><CODE>
+<PRE>
+        Code maturity level options  --->
+            [*] Prompt for development and/or incomplete code/drivers
+        Networking options  --->
+            [*] Network firewalls
+            ....
+            [*] TCP/IP networking
+            [*] IP: forwarding/gatewaying
+            ....
+            [*] IP: masquerading (EXPERIMENTAL)
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>Normally you have your linux machine supporting a slip or PPP dialup line
+just as it would if it were a standalone machine. Additionally it would have
+another network device configured, perhaps an ethernet, configured with one
+of the reserved network addresses. The hosts to be masqueraded would be on
+this second network. Each of these hosts would have the IP address of the
+ethernet port of the linux machine set as their default gateway or router.
+<P>A typical configuration might look something like this:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+-                                   -
+ \                                  | 192.168.1.0
+  \                                 |   /255.255.255.0
+   \                 ---------      |
+    |                | Linux | .1.1 |
+NET =================| masq  |------|
+    |    PPP/slip    | router|      |  --------
+   /                 ---------      |--| host |
+  /                                 |  |      |
+ /                                  |  --------
+-                                   -
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+<EM>Masquerading with IPFWADM</EM>
+<P>The most relevant commands for this configuration are:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        # Network route for ethernet
+        route add -net 192.168.1.0 netmask 255.255.255.0 eth0
+        #
+        # Default route to the rest of the internet.
+        route add default ppp0
+        #
+        # Cause all hosts on the 192.168.1/24 network to be masqueraded.
+        ipfwadm -F -a m -S 192.168.1.0/24 -D 0.0.0.0/0 
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+<P><EM>Masquerading with IPCHAINS</EM>
+<P>This is similar to using IPFWADM but the command structure has changed:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        # Network route for ethernet
+        route add -net 192.168.1.0 netmask 255.255.255.0 eth0
+        #
+        # Default route to the rest of the internet.
+        route add default ppp0
+        #
+        # Cause all hosts on the 192.168.1/24 network to be masqueraded.
+        ipchains -A forward -s 192.168.1.0/24 -j MASQ
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>You can get more information on the Linux IP Masquerade feature from the
+<A HREF="http://www.hwy401.com/achau/ipmasq/">IP Masquerade Resource Page</A>. Also, a <EM>very</EM>
+detailed document about masquesrading is the ``IP-Masquerade mini-HOWTO''
+(which also intructs to configure other OS's to run with a Linux
+masquerade server).
+<P>
+<H2><A NAME="ss6.10">6.10 IP Transparent Proxy</A>
+</H2>
+
+<P>IP transparent proxy is a feature that enables you to redirect servers or
+services destined for another machine to those services on this machine.
+Typically this would be useful where you have a linux machine as a router
+and also provides a proxy server. You would redirect all connections destined
+for that service remotely to the local proxy server.
+<P><B>Kernel Compile Options</B>:
+<BLOCKQUOTE><CODE>
+<PRE>
+        Code maturity level options  --->
+                [*] Prompt for development and/or incomplete code/drivers
+        Networking options  --->
+                [*] Network firewalls
+                ....
+                [*] TCP/IP networking
+                ....
+                [*] IP: firewalling
+                ....
+                [*] IP: transparent proxy support (EXPERIMENTAL)
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>Configuration of the transparent proxy feature is performed using the
+<EM>ipfwadm</EM> command
+<P>An example that might be useful is as follows:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# ipfwadm -I -a accept -D 0/0 telnet -r 2323
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>This example will cause any connection attempts to port <CODE>telnet</CODE>
+(23) on any host to be redirected to port 2323 on this host. If you
+run a service on that port, you could forward telnet connections, log
+them or do whatever fits your need.
+<P>A more interesting example is redirecting all <CODE>http</CODE> traffic
+through a local cache. However, the protocol used by proxy servers is
+different from native http: where a client connects to
+<CODE>www.server.com:80</CODE> and asks for <CODE>/path/page</CODE>, when it
+connects to the local cache it contacts <CODE>proxy.local.domain:8080</CODE>
+and asks for <CODE>www.server.com/path/page</CODE>.
+<P>To filter an <CODE>http</CODE> request through the local proxy, you need to
+adapt the protocol by inserting a small server, called
+<CODE>transproxy</CODE> (you can find it on the world wide web). You can choose
+to run <CODE>transproxy</CODE> on port 8081, and issue this command:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        root# ipfwadm -I -a accept -D 0/0 80 -r 8081
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+
+The <CODE>transproxy</CODE> program, then, will receive all connections meant
+to reach external servers and will pass them to the local proxy
+after fixing protocol differences.
+
+<H2><A NAME="ss6.11">6.11 IPv6</A>
+</H2>
+
+<P>Just when you thought you were beginning to understand IP networking the
+rules get changed! IPv6 is the shorthand notation for version 6 of the Internet
+Protocol. IPv6 was developed primarily to overcome the concerns in the Internet
+community that there would soon be a shortage of IP addresses to allocate. IPv6
+addresses are 16 bytes long (128 bits). IPv6 incorporates a number of other
+changes, mostly simplifications, that will make IPv6 networks more managable
+than IPv4 networks.
+<P>Linux already has a working, but not complete, IPv6 implementation in
+the <CODE>2.2.*</CODE> series kernels.
+<P>If you wish to experiment with this next generation Internet technology, or
+have a requirement for it, then you should read the 
+IPv6-FAQ which is available from 
+<A HREF="http://www.terra.net/ipv6/">www.terra.net</A>.
+<H2><A NAME="ss6.12">6.12 Mobile IP</A>
+</H2>
+
+<P>The term "IP mobility" describes the ability of a host that is able to
+move its network connection from one point on the Internet to another without
+changing its IP address or losing connectivity. Usually when an IP host
+changes its point of connectivity it must also change its IP address.
+IP Mobility overcomes this problem by allocating a fixed IP address to the
+mobile host and using IP encapsulation (tunneling) with automatic routing
+to ensure that datagrams destined for it are routed to the actual IP address
+it is currently using.
+<P>A project is underway to provide a complete set of IP mobility tools for Linux.
+The Status of the project and tools may be obtained from the: 
+<A HREF="http://anchor.cs.binghamton.edu/~mobileip/">Linux Mobile IP Home Page</A>.
+<H2><A NAME="ss6.13">6.13 Multicast</A>
+</H2>
+
+<P>IP Multicast allows an arbitrary number of IP hosts on disparate IP networks
+to have IP datagrams simultaneously routed to them. This mechanism is exploited
+to provide Internet wide "broadcast" material such as audio and video
+transmissions and other novel applications.
+<P><B>Kernel Compile Options</B>:
+<BLOCKQUOTE><CODE>
+<PRE>
+Networking options  --->
+        [*] TCP/IP networking
+        ....
+        [*] IP: multicasting
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>A suite of tools and some minor network configuration is required.
+Please check the 
+<A HREF="Multicast-HOWTO.html">Multicast-HOWTO</A>
+for more information on Multicast support in Linux.
+<H2><A NAME="ss6.14">6.14 NAT - Network Address Translation</A>
+</H2>
+
+<P>The IP Network Address Translation facility is pretty much the standardized
+big brother of the Linux IP Masquerade facility. It is specified in some detail
+in RFC-1631 at your nearest RFC archive. NAT provides features that
+IP-Masquerade does not that make it eminently more suitable for use in
+corporate firewall router designs and larger scale installations.
+<P>An alpha implementation of NAT for Linux 2.0.29 kernel has been developed by
+Michael.Hasenstein, <CODE>Michael.Hasenstein@informatik.tu-chemnitz.de</CODE>. Michaels
+documentation and implementation are available from:
+
+<A HREF="http://www.csn.tu-chemnitz.de/HyperNews/get/linux-ip-nat.html">Linux IP Network Address Web Page</A><P>Newer Linux 2.2.x kernels also include some NAT functionality in the routing
+algorithm.
+<H2><A NAME="ss6.15">6.15 Traffic Shaper - Changing allowed bandwidth</A>
+</H2>
+
+<P>The traffic shaper is a driver that creates new interface devices,
+those devices are traffic-limited in a user-defined way, they rely
+on physical network devices for actual transmission and can be used as
+outgoing routed for network traffic.
+<P>The shaper was introduced in Linux-2.1.15 and was backported to
+Linux-2.0.36 (it appeared in <CODE>2.0.36-pre-patch-2</CODE> distributed by Alan
+Cox, the author of the shaper device and maintainer of Linux-2.0).
+<P>The traffic shaper can only be compiled as a module and is
+configured by the <EM>shapecfg</EM> program with commands like the following:
+
+<BLOCKQUOTE><CODE>
+<PRE>
+        shapecfg attach shaper0 eth1
+        shapecfg speed shaper0 64000
+        
+</PRE>
+</CODE></BLOCKQUOTE>
+
+<P>The shaper device can only control the bandwidth of outgoing
+traffic, as packets are transmitted via the shaper only according to
+the routing tables; therefore, a ``route by source address''
+functionality could help in limiting the overall bandwidth of specific
+hosts using a Linux router.
+<P>Linux-2.2 already has support for such routing, if you need it for
+Linux-2.0 please check the patch by Mike McLagan, at
+<CODE>ftp.invlogic.com</CODE>. Refer to
+<CODE>Documentation</CODE>networking/shaper.txt for further information about
+the shaper.
+<P>If you want to try out a (tentative) shaping for incoming packets,
+try out <CODE>rshaper-1.01</CODE> (or newer), from 
+<A HREF="ftp://ftp.systemy.it/pub/develop">ftp.systemy.it</A>.
+<H2><A NAME="ss6.16">6.16 Routing in Linux-2.2</A>
+</H2>
+
+<P>The latest versions of Linux, 2.2 offer a lot of flexibility in routing
+policy. Unfortunately, you have to wait for the next version of this howto,
+or go read the kernel sources.
+<P>
+<HR>
+<A HREF="NET3-4-HOWTO-7.html">Next</A>
+<A HREF="NET3-4-HOWTO-5.html">Previous</A>
+<A HREF="NET3-4-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,615 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Automatic key exchange (IKE)</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IPv6 HOWTO (en)"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Encryption and Authentication"
+HREF="chapter-encryption-authentication.html"><LINK
+REL="PREVIOUS"
+TITLE="Support in kernel (ESP and AH)"
+HREF="x2418.html"><LINK
+REL="NEXT"
+TITLE="Additional informations:"
+HREF="x2490.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IPv6 HOWTO (en)</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x2418.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 20. Encryption and Authentication</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x2490.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN2428"
+></A
+>20.3. Automatic key exchange (IKE)</H1
+><P
+>IPsec requires a key exchange of a secret. This is mostly done automatically by so called IKE daemons. They also handle the authentication of the peers, either by a common known secret (so called &#8220;pre-shared secret&#8221;) or by RSA keys (which can also be used from X.509 certificates).</P
+><P
+>Currently, two different IKE daemons are available for Linux, which totally differ in configuration and usage.</P
+><P
+>I prefer &#8220;pluto&#8221; from the *S/WAN implementation because of the easier and one-config-only setup.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2433"
+></A
+>20.3.1. IKE daemon &#8220;racoon&#8221;</H2
+><P
+>The IKE daemon &#8220;racoon&#8221; is taken from the KAME project and ported to Linux. Modern Linux distributions contain this daemon in the package &#8220;ipsec-tools&#8221;. Two executables are required for a proper IPsec setup. Take a look on <A
+HREF="http://lartc.org/howto/lartc.ipsec.html"
+TARGET="_top"
+>Linux Advanced Routing &#38; Traffic Control HOWTO / IPSEC</A
+>, too.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2437"
+></A
+>20.3.1.1. Manipulation of the IPsec SA/SP database with the tool &#8220;setkey&#8221;</H3
+><P
+>&#8220;setkey&#8221; is important to define the security policy (SP) for the kernel.</P
+><P
+>File: /etc/racoon/setkey.sh</P
+><P
+></P
+><UL
+><LI
+><P
+>Example for an end-to-end encrypted connection in transport mode</P
+></LI
+></UL
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/sbin/setkey -f
+flush;
+spdflush;
+spdadd 2001:db8:1:1::1 2001:db8:2:2::2 any -P out ipsec esp/transport//require;
+spdadd 2001:db8:2:2::2 2001:db8:1:1::1 any -P in  ipsec esp/transport//require;&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+><UL
+><LI
+><P
+>Example for a end-to-end encrypted connection in tunnel mode</P
+></LI
+></UL
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>#!/sbin/setkey -f
+flush;
+spdflush;
+spdadd 2001:db8:1:1::1 2001:db8:2:2::2 any -P out ipsec
+¬ esp/tunnel/2001:db8:1:1::1-2001:db8:2:2::2/require;
+spdadd 2001:db8:2:2::2 2001:db8:1:1::1 any -P in  ipsec
+¬ esp/tunnel/2001:db8:2:2::2-2001:db8:1:1::1/require;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>For the other peer, you have to replace &#8220;in&#8221; with &#8220;out&#8221;.</P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2450"
+></A
+>20.3.1.2. Configuration of the IKE daemon &#8220;racoon&#8221;</H3
+><P
+>&#8220;racoon&#8221; requires a configuration file for proper execution. It includes the related settings to the security policy, which should be set up previously using &#8220;setkey&#8221;.</P
+><P
+>File: /etc/racoon/racoon.conf</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># Racoon IKE daemon configuration file.
+# See 'man racoon.conf' for a description of the format and entries.
+path include "/etc/racoon";
+path pre_shared_key "/etc/racoon/psk.txt";
+
+listen
+{
+        isakmp 2001:db8:1:1::1;
+}
+
+remote 2001:db8:2:2::2
+{
+        exchange_mode main;
+        lifetime time 24 hour;
+        proposal
+        {
+                encryption_algorithm 3des;
+                hash_algorithm md5;
+                authentication_method pre_shared_key;
+                dh_group 2;
+        }
+}
+
+# gateway-to-gateway
+sainfo address 2001:db8:1:1::1 any address 2001:db8:2:2::2 any
+{
+        lifetime time 1 hour;
+        encryption_algorithm 3des;
+        authentication_algorithm hmac_md5;
+        compression_algorithm deflate;
+}
+
+sainfo address 2001:db8:2:2::2 any address 2001:db8:1:1::1 any
+{
+        lifetime time 1 hour;
+        encryption_algorithm 3des;
+        authentication_algorithm hmac_md5;
+        compression_algorithm deflate;
+} </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Also set up the pre-shared secret:</P
+><P
+>File: /etc/racoon/psk.txt</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># file for pre-shared keys used for IKE authentication
+# format is: 'identifier' 'key'
+
+2001:db8:2:2::2 verysecret </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2458"
+></A
+>20.3.1.3. Running IPsec with IKE daemon &#8220;racoon&#8221;</H3
+><P
+>At least the daemon needs to be started. For the first time, use debug and foreground mode. The following example shows a successful IKE phase 1 (ISAKMP-SA) and 2 (IPsec-SA) negotiation:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># racoon -F -v -f /etc/racoon/racoon.conf
+Foreground mode. 
+2005-01-01 20:30:15: INFO: @(#)ipsec-tools 0.3.3
+¬ (http://ipsec-tools.sourceforge.net)
+2005-01-01 20:30:15: INFO: @(#)This product linked
+¬ OpenSSL 0.9.7a Feb 19 2003 (http://www.openssl.org/)
+2005-01-01 20:30:15: INFO: 2001:db8:1:1::1[500] used as isakmp port (fd=7)
+2005-01-01 20:31:06: INFO: IPsec-SA request for 2001:db8:2:2::2
+¬ queued due to no phase1 found.
+2005-01-01 20:31:06: INFO: initiate new phase 1 negotiation:
+¬ 2001:db8:1:1::1[500]&#60;=&#62;2001:db8:2:2::2[500]
+2005-01-01 20:31:06: INFO: begin Identity Protection mode.
+2005-01-01 20:31:09: INFO: ISAKMP-SA established
+¬ 2001:db8:1:1::1[500]-2001:db8:2:2::2[500] spi:da3d3693289c9698:ac039a402b2db401
+2005-01-01 20:31:09: INFO: initiate new phase 2 negotiation:
+¬ 2001:6f8:900:94::2[0]&#60;=&#62;2001:db8:2:2::2[0]
+2005-01-01 20:31:10: INFO: IPsec-SA established:
+¬ ESP/Tunnel 2001:db8:2:2::2-&#62;2001:db8:1:1::1 spi=253935531(0xf22bfab) 
+2005-01-01 20:31:10: INFO: IPsec-SA established:
+¬ ESP/Tunnel 2001:db8:1:1::1-&#62;2001:db8:2:2::2 spi=175002564(0xa6e53c4) </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Each direction got its own IPsec-SA (like defined in the IPsec standard). With &#8220;tcpdump&#8221; on the related interface, you will see as result of an IPv6 ping:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>20:35:55.305707 2001:db8:1:1::1 &#62; 2001:db8:2:2::2: ESP(spi=0x0a6e53c4,seq=0x3)
+20:35:55.537522 2001:db8:2:2::2 &#62; 2001:db8:1:1::1: ESP(spi=0x0f22bfab,seq=0x3)</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>As expected, the negotiated SPIs are being used here.</P
+><P
+>And using &#8220;setkey&#8221;, current active parameters are shown:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># setkey -D
+2001:db8:1:1::1 2001:db8:2:2::2
+        esp mode=tunnel spi=175002564(0x0a6e53c4) reqid=0(0x00000000)
+        E: 3des-cbc  bd26bc45 aea0d249 ef9c6b89 7056080f 5d9fa49c 924e2edd
+        A: hmac-md5  60c2c505 517dd8b7 c9609128 a5efc2db
+        seq=0x00000000 replay=4 flags=0x00000000 state=mature
+        created: Jan  1 20:31:10 2005   current: Jan  1 20:40:47 2005
+        diff: 577(s)    hard: 3600(s)   soft: 2880(s)
+        last: Jan  1 20:35:05 2005      hard: 0(s)      soft: 0(s)
+        current: 540(bytes)     hard: 0(bytes)  soft: 0(bytes)
+        allocated: 3    hard: 0 soft: 0
+        sadb_seq=1 pid=22358 refcnt=0
+2001:db8:2:2::2 2001:db8:1:1::1
+        esp mode=tunnel spi=253935531(0x0f22bfab) reqid=0(0x00000000)
+        E: 3des-cbc  c1ddba65 83debd62 3f6683c1 20e747ac 933d203f 4777a7ce
+        A: hmac-md5  3f957db9 9adddc8c 44e5739d 3f53ca0e
+        seq=0x00000000 replay=4 flags=0x00000000 state=mature
+        created: Jan  1 20:31:10 2005   current: Jan  1 20:40:47 2005
+        diff: 577(s)    hard: 3600(s)   soft: 2880(s)
+        last: Jan  1 20:35:05 2005      hard: 0(s)      soft: 0(s)
+        current: 312(bytes)     hard: 0(bytes)  soft: 0(bytes)
+        allocated: 3    hard: 0 soft: 0
+        sadb_seq=0 pid=22358 refcnt=0 </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2467"
+></A
+>20.3.2. IKE daemon &#8220;pluto&#8221;</H2
+><P
+>The IKE daemon &#8220;pluto&#8221; is included in distributions of the *S/WAN projects. *S/WAN project starts at the beginning as <A
+HREF="http://www.freeswan.org/"
+TARGET="_top"
+>FreeS/WAN</A
+>. Unfortunately, the FreeS/WAN project stopped further development in 2004. Because of the slow pace of development in the past, two spin-offs started: <A
+HREF="http://www.strongswan.org/"
+TARGET="_top"
+>strongSwan</A
+> and <A
+HREF="http://www.openswan.org/"
+TARGET="_top"
+>Openswan</A
+>. Today, readily installable packages are available for at least Openswan (included in Fedora Core 3).</P
+><P
+>A major difference to &#8220;racoon&#8221;, only one configuration file is required. Also, an initscript exists for automatic setup after booting.</P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2474"
+></A
+>20.3.2.1. Configuration of the IKE daemon &#8220;pluto&#8221;</H3
+><P
+>The configuration is very similar to the IPv4 one, only one important option is necessary.</P
+><P
+>File: /etc/ipsec.conf</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># /etc/ipsec.conf - Openswan IPsec configuration file
+#
+# Manual:     ipsec.conf.5
+version 2.0     # conforms to second version of ipsec.conf specification
+
+# basic configuration
+config setup
+        # Debug-logging controls:  "none" for (almost) none, "all" for lots.
+        # klipsdebug=none
+        # plutodebug="control parsing"
+
+#Disable Opportunistic Encryption
+include /etc/ipsec.d/examples/no_oe.conf
+
+conn ipv6-p1-p2
+        connaddrfamily=ipv6       # Important for IPv6!
+        left=2001:db8:1:1::1
+        right=2001:db8:2:2::2
+        authby=secret
+        esp=aes128-sha1
+        ike=aes128-sha-modp1024
+        type=transport
+        #type=tunnel
+        compress=no
+        #compress=yes
+        auto=add
+        #auto=start&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Don't forget to define the pre-shared secret here also.</P
+><P
+>File: /etc/ipsec.secrets</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>2001:db8:1:1::1 2001:db8:2:2::2 : PSK      "verysecret"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN2482"
+></A
+>20.3.2.2. Running IPsec with IKE daemon &#8220;pluto&#8221;</H3
+><P
+>If installation of Openswan was successfully, an initscript should exist for starting IPsec, simply run (on each peer):</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># /etc/rc.d/init.d/ipsec start</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Afterwards, start this connection on one peer. If you saw the line &#8220;IPsec SA established&#8221;, all worked fine.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ipsec auto --up ipv6-peer1-peer2
+104 "ipv6-p1-p2" #1: STATE_MAIN_I1: initiate
+106 "ipv6-p1-p2" #1: STATE_MAIN_I2: sent MI2, expecting MR2
+108 "ipv6-p1-p2" #1: STATE_MAIN_I3: sent MI3, expecting MR3
+004 "ipv6-p1-p2" #1: STATE_MAIN_I4: ISAKMP SA established
+112 "ipv6-p1-p2" #2: STATE_QUICK_I1: initiate
+004 "ipv6-p1-p2" #2: STATE_QUICK_I2: sent QI2,
+¬ IPsec SA established {ESP=&#62;0xa98b7710 &#60;0xa51e1f22} </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Because *S/WAN and setkey/racoon do use the same IPsec implementation in Linux 2.6.x kernel, &#8220;setkey&#8221; can be used here too to show current active parameters:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># setkey -D
+2001:db8:1:1::1 2001:db8:2:2::2
+        esp mode=transport spi=2844489488(0xa98b7710) reqid=16385(0x00004001)
+        E: aes-cbc  082ee274 2744bae5 7451da37 1162b483
+        A: hmac-sha1  b7803753 757417da 477b1c1a 64070455 ab79082c
+        seq=0x00000000 replay=64 flags=0x00000000 state=mature
+        created: Jan  1 21:16:32 2005   current: Jan  1 21:22:20 2005
+        diff: 348(s)    hard: 0(s)      soft: 0(s)
+        last:                           hard: 0(s)      soft: 0(s)
+        current: 0(bytes)       hard: 0(bytes)  soft: 0(bytes)
+        allocated: 0    hard: 0 soft: 0
+        sadb_seq=1 pid=23825 refcnt=0
+2001:db8:2:2::2 2001:db8:1:1::1
+        esp mode=transport spi=2770214690(0xa51e1f22) reqid=16385(0x00004001)
+        E: aes-cbc  6f59cc30 8d856056 65e07b76 552cac18
+        A: hmac-sha1  c7c7d82b abfca8b1 5440021f e0c3b335 975b508b
+        seq=0x00000000 replay=64 flags=0x00000000 state=mature
+        created: Jan  1 21:16:31 2005   current: Jan  1 21:22:20 2005
+        diff: 349(s)    hard: 0(s)      soft: 0(s)
+        last:                           hard: 0(s)      soft: 0(s)
+        current: 0(bytes)       hard: 0(bytes)  soft: 0(bytes)
+        allocated: 0    hard: 0 soft: 0
+        sadb_seq=0 pid=23825 refcnt=0 </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x2418.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x2490.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Support in kernel (ESP and AH)</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="chapter-encryption-authentication.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Additional informations:</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

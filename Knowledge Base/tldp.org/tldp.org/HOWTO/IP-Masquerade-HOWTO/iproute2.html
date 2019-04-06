@@ -1,0 +1,269 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>( Source Routing ) - I need different internal MASQed networks to exit 
+on different external IP addresses</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux IP Masquerade HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Frequently Asked Questions"
+HREF="faq.html"><LINK
+REL="PREVIOUS"
+TITLE="( SMTP Relay ) - Internal MASQed computers cannot send SMTP or POP-3 mail!"
+HREF="smtp.html"><LINK
+REL="NEXT"
+TITLE="( IPCHAINS rulesets on 2.4.x kernels ) - What the ipchains.o module can 
+do on 2.4.x kernels"
+HREF="ipchains-on-2.4.x.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux IP Masquerade HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="smtp.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 7. Frequently Asked Questions</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="ipchains-on-2.4.x.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="IPROUTE2"
+></A
+>7.39. ( Source Routing ) - I need different internal MASQed networks to exit 
+on different external IP addresses</H1
+><P
+>Say you have the following setup:  You have multiple internal networks and also 
+multiple external IP addresses and/or networks.  What you want to do is have 
+LAN #1 to only use External IP #1 but you wan LAN #2 to use External IP #2.</P
+><P
+>Internal LAN ----------&#62; official IP</P
+><P
+>LAN #1                 External IP #1
+192.168.0.x      --&#62;     123.123.123.11</P
+><P
+>LAN #2                 External IP #2
+192.168.1.x      --&#62;     123.123.123.12</P
+><P
+>Basically, what we have described here is routing NOT only on the destination 
+address (typical IP routing) but also routing based upon the SOURCE address 
+as well.  This is typically called "policy-based routing" or "source routing".  
+This functionality is NOT available in 2.0.x kernels, it *IS* available for 
+2.2.x kernels via the IPROUTE2 package, and it is built into the new 2.4.x 
+kernels using IPTABLES.</P
+><P
+>First, you have to understand that both IPFWADM and IPCHAINS get involved 
+*AFTER* the routing system has decided where to send a given packet.  This 
+statement really ought to be stamped in big red letters on all 
+IPFWADM/IPCHAINS/IPMASQ documentation.  The reason for this is that users 
+MUST first have their routing setup correct, then start adding 
+IPFWADM/IPCHAINS and/or Masq features.  </P
+><P
+>Anyways, for the example case shown above, you will need to persuade the routing 
+system to direct packets from 192.168.0.x via 123.123.1233.11 and packets from 
+192.168.1.x via 123.123.123.12.  That is the hardest part and adding Masq on 
+top of correct routing is easy.</P
+><P
+>To do this fancy routing, you will use IPROUTE2.  Because this functionality has 
+NOTHING to do with IPMASQ, this HOWTO does not cover this topic in great detail.  
+Please see <A
+HREF="kernel-2.2.x-requirements.html"
+>Section 2.7</A
+> for complete URLs and 
+documentation for this topic.</P
+><P
+>The "iprule" and "iproute" commands are the same as "ip rule" and "ip route" 
+commands (I prefer the former since it is easier to search for.)  All the 
+commands below are completely untested, if they do not work, please let 
+David Ranch know about it but please contact the IPROUTE2 email list for 
+help.  This function has NOTHING to do with IP Masquerading.</P
+><P
+>2.4.x. kernels:  </P
+><P
+> The following would be integrated into the END of your rc.firewall-iptables ruleset
+
+ <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+> EXTIF="eth0"
+ INTNET1="192.168.0.0/24"
+ INTNET2="192.168.1.0/24"
+ EXTIP1="123.123.123.11"
+ EXTIP2="123.123.123.12"
+
+ iptables -t nat -A POSTROUTING -o $EXTIF -s $INTNET1 -j SNAT --to $EXTIP1
+ iptables -t nat -A POSTROUTING -o $EXTIF -s $INTNET2 -j SNAT --to $EXTIP2
+ </PRE
+></FONT
+></TD
+></TR
+></TABLE
+></P
+><P
+>2.2.x. kernels:  </P
+><P
+>The first few commands only need to be done once at boot, say in 
+/etc/rc.d/rc.local file.</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>&#13;# Allow internal LANs to route to each other, no masq.
+  /sbin/iprule add from 192.168.0.0/16 to 192.168.0.0/16 table main pref 100
+# All other traffic from 192.168.1.x is external, handle by table 101
+  /sbin/iprule add from 192.168.1.0/24 to 0/0 table 101 pref 102
+# All other traffic from 192.168.2.x is external, handle by table 102
+  /sbin/iprule add from 192.168.2.0/24 to 0/0 table 102 pref 102
+
+These commands need to be issued when eth0 is configured, perhaps in 
+/etc/sysconfig/network-scripts/ifup-post (for Redhat systems).  Be sure to
+do them by hand first to make sure they work.
+
+# Table 101 forces all assigned packets out via 123.123.123.11
+  /sbin/iproute add table 101 via 123.123.123.11
+# Table 102 forces all assigned packets out via 123.123.123.12
+  /sbin/iproute add table 102 via 123.123.123.12
+
+At this stage, you should find that packets from 192.168.1.x to the
+outside world are being routed via 123.123.123.11, packets from
+192.168.2.x are routed via 123.123.123.12.
+
+It is IMPORTANT that these IPROUTE2 rules be run /BEFORE/ the rc.firewall-*
+ruleset is run.  
+
+If everything hangs together, the masq code will see packets being
+routed out on 123.123.123.11 and 123.123.123.12 and will use those addresses
+as the masq source address.&#13;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="smtp.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="ipchains-on-2.4.x.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>( SMTP Relay ) - Internal MASQed computers cannot send SMTP or POP-3 mail!</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="faq.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>( IPCHAINS rulesets on 2.4.x kernels ) - What the ipchains.o module can 
+do on 2.4.x kernels</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

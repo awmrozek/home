@@ -1,0 +1,403 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Framebuffer HOWTO: Using multi-headed framebuffers</TITLE>
+ <LINK HREF="Framebuffer-HOWTO-15.html" REL=next>
+ <LINK HREF="Framebuffer-HOWTO-13.html" REL=previous>
+ <LINK HREF="Framebuffer-HOWTO.html#toc14" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Framebuffer-HOWTO-15.html">Next</A>
+<A HREF="Framebuffer-HOWTO-13.html">Previous</A>
+<A HREF="Framebuffer-HOWTO.html#toc14">Contents</A>
+<HR>
+<H2><A NAME="s14">14. Using multi-headed framebuffers</A></H2>
+
+<P>
+<P>This part of the document was very kindly donated by Frederick A. Niles,
+who retains all rights to the information contained herewith this section of 
+the HOWTO. 
+<P>
+<H2><A NAME="ss14.1">14.1 Introduction</A>
+</H2>
+
+<P>The main goal of this document is to get you started with running a
+dual head configuration of Linux.  While this process is pretty
+straight forward there are numerous things that one can do wrong
+along the way.
+<P>The example I concentrate on is getting an X-server running on a
+second monitor.  I find this nice as you can usually find old large
+19" to 21" fixed frequency monitors around that people are giving
+away because they can't use them.  This way you can boot off a small
+multisync and then use X on a nice big monitor.
+<P>Please understand dual head support is currently developing so this
+information changes rapidly.  Anything in this document could be out
+of date or just plain incorrect by the time you are reading this.
+<P>** WARNING ** This document was written before any XFree86 4.0
+release.  If you are reading this and XFree86 4.0 is already
+released many things may have changed.  Try getting a newer version
+of this document if it's available.
+<P>
+<H2><A NAME="ss14.2">14.2 Feedback</A>
+</H2>
+
+<P>Feedback is most certainly welcome for this document. Without your
+submissions and input, this document wouldn't exist. So, please post
+your additions, comments and criticisms to:
+Frederick.A.Niles@gsfc.nasa.gov.
+<P>
+<H2><A NAME="ss14.3">14.3 Contributors</A>
+</H2>
+
+<P>The following people have contributed to this mini-HOWTO.
+<P>*  Petr Vandrovec <CODE>vandrove@vc.cvut.cz</CODE>
+<P>*  Andreas Ehliar <CODE>ehliar@lysator.liu.se</CODE> (x2x)
+<P>*  Marco Bizzarri <CODE>m.bizzarri@icube.it</CODE> (multiple X servers)
+<P>
+<H2><A NAME="ss14.4">14.4 Standard Disclaimer</A>
+</H2>
+
+<P>No liability for the contents of this document can be accepted.  Use
+the concepts, examples and other content at your own risk.  As this
+is a new edition of this document, there may be errors and
+inaccuracies that could be damaging to your system.  Proceed with
+caution, and although this is highly unlikely, I don't take any
+responsibility for that.
+<P>
+<H2><A NAME="ss14.5">14.5 Copyright Information</A>
+</H2>
+
+<P>This section of the document is copyrighted (c)1999 Frederick Niles and distributed
+under the following terms:
+<P>*  Linux HOWTO documents may be reproduced and distributed in whole or
+in part, in any medium physical or electronic, as long as this
+copyright notice is retained on all copies. Commercial
+redistribution is allowed and encouraged; however, the author would
+like to be notified of any such distributions.
+<P>*  All translations, derivative works, or aggregate works
+incorporating any Linux HOWTO documents must be covered under this
+copyright notice.  That is, you may not produce a derivative work
+from a HOWTO and impose additional restrictions on its
+distribution. Exceptions to these rules may be granted under
+certain conditions; please contact the Linux HOWTO coordinator at
+the address given below.
+<P>*  If you have questions, please contact, the Linux HOWTO coordinator,
+at linux-howto@sunsite.unc.edu
+<P>
+<H2><A NAME="ss14.6">14.6 What hardware is supported?</A>
+</H2>
+
+<P>Most video cards assume they will be the only one in the system and are
+permanently set with the addressing of the primary display adapter.  There
+are a few exceptions.
+<P>*  Matrox cards: This includes Matrox Millennium, Matrox Millennium II,
+Matrox Mystique, Matrox Mystique 220, Matrox Productiva G100, Matrox
+Mystique G200, Matrox Millennium G200 and Matrox Marvel G200
+video cards
+<P>*  MDA: This includes monochrome Hercules graphics adapter among others.
+This for text only second head support.
+<P>Note: it's only the second adapter that has to be one of the above.
+<P>
+<H2><A NAME="ss14.7">14.7 Commercial support</A>
+</H2>
+
+<P>This mini-HOWTO in primarily concerned with free software.  However,
+there are commercial X servers with multi-head support.  These
+include Metro Link's (www.metrolink.com) Metro-X and Xi Graphics'
+(www.xig.com) Accelerated-X.
+<P>
+<H2><A NAME="ss14.8">14.8 Getting all the stuff.</A>
+</H2>
+
+<P>You'll need the following patches and programs:
+<P>* "fbset" program
+try: 
+<PRE>
+http://www.cs.kuleuven.ac.be/~geert/bin/
+</PRE>
+
+(note: this program comes with RedHat 6.0) 
+<P>* "fbaddon" Matrox dual head patches for Linux kernel
+try: 
+<PRE>
+ftp://platan.vc.cvut.cz/pub/linux/matrox-latest/
+</PRE>
+<P>* "con2fb" program
+try: 
+<PRE>
+ftp://platan.vc.cvut.cz/pub/linux/matrox-latest/
+</PRE>
+<P>* The X11 frame buffer server XF86_FBDev.  This is a standard
+part of XFree86 3.3.1.
+<P>
+<H2><A NAME="ss14.9">14.9 Getting Started</A>
+</H2>
+
+<P>The first thing you'll need to do is to patch a copy of the Linux
+source with the "fbaddon" patch.  Then you need to configure the
+kernel and turn on frame buffer support.  If you have Matrox cards
+turn on Matrox unified accelerated driver support as well as the
+particular type of card you have.  Don't turn on VESA frame buffer
+support. It can cause a conflict.  Do turn on multi-head support
+(obviously).  Build the kernel and reboot.
+<P>Now you need to install the "fbset" program and carefully read all
+the documentation on how to adjust the settings.  Using a
+"/etc/fb.modes" file is highly recommended once you've decided on
+your settings.  The fbset program includes a Perl script to convert
+your XF86Config file to fb.modes settings.  I've included my
+octave/Borne shell script to convert your XF86Config file in
+Appendix A &amp; B.
+<P>You need to get comfortable with using the frame buffer device on
+one monitor, understanding any issues that can arise from your set
+up that have nothing to do with multi-head support.  This can save
+a lot of head scratching later.
+<P>I'm going to concentrate my explanation on getting X running on the
+second monitor as doing most other configurations will just be a
+obvious subset of the procedure.
+<P>
+<H3>Move a console over...</H3>
+
+<P>Compile the "con2fb" program.  If you run it without any arguments
+you'll get the following usage message: 
+<P>"usage: con2fb fbdev console".
+<P>Thus, an example command would be "con2fb /dev/fb1 /dev/tty6" to
+move virtual console number six over to the second monitor.  Use
+Ctrl-Alt-F6 to move over to that console and see that it does indeed
+show up on the second monitor.
+<P>
+<H3>Use "fbset" to adjust the setting on this second monitor</H3>
+
+<P>Only set the "fbset" settings on the monitor you run the "fbset"
+command on.  Therefore, you must be careful to use the "-fb" flag on
+the second monitor.  In particular, if you do nothing else you'll
+probably want to at least set the virtual vertical resolution to
+your actually vertical resolution.  
+<P>e.g. "fbset -fb /dev/fb1 -vyres 600"
+<P>This will seriously slow down text mode, but X will be obnoxious
+without it.
+<P>
+<H3>Set up X for Frame Buffer support.</H3>
+
+<P>The framebuffer.txt file explains this better than I can, but here's 
+the two important points.
+<P>Make sure you set the link for "X" to point to "XF86_FBDev".
+<P>Next you need to add a monitor section to your XF86Config file
+for the frame buffer device.  Here's an example:
+<P>
+<PRE>
+# The Frame Buffer server
+
+Section "Screen"
+    Driver      "fbdev"
+    Device      "Millennium"
+    Monitor     "NEC MultiSync 5FGp"
+    Subsection "Display"
+        Depth       8
+        Modes       "default"
+        ViewPort    0 0
+    EndSubsection
+    Subsection "Display"
+        Depth       16
+        Modes       "default"
+        ViewPort    0 0
+    EndSubsection
+    Subsection "Display"
+        Depth       24
+        Modes       "default"
+        ViewPort    0 0
+    EndSubsection
+    Subsection "Display"
+        Depth       32
+        Modes       "default"
+        ViewPort    0 0
+    EndSubsection
+EndSection
+</PRE>
+<P>Use the "default" modes as I don't think any other one will work with
+the Matrox frame buffer.
+<P>
+<H3>Try starting the X server on the second monitor.</H3>
+
+<P>Set the variable FRAMEBUFFER to the second frame buffer.
+<P>"export FRAMEBUFFER=/dev/fb1"
+<P>or
+<P>"setenv FRAMEBUFFER /dev/fb1"
+<P>You need to start the X server so that it both matches the selected
+color depth and it appears on the same monitor you start the X server
+from.  
+<P>e.g. "startx -- :0 -bpp 16 vt06"
+<P>This example will start the "zeroth" X server on virtual console six
+with 16 bit color.  Using ":1" when launching another X server for
+the other frame buffer will allow you to have two X servers running.
+<P>
+<H2><A NAME="ss14.10">14.10 Summary</A>
+</H2>
+
+<P>The steps involved in getting an X server running on a second monitor
+can be summarized as follows:
+<P>* Get the kernel patch, fbset, and con2fb.
+<P>* Patch the kernel, configure, rebuild, and reboot.
+<P>* Add XF86_FBDev section to XF86Config file and set X link.
+<P>Then each time you reboot:
+<P>* Move a console over.  e.g. "con2fb /dev/fb1 /dev/tty6"
+<P>* Adjust the settings   e.g. "fbset -fb /dev/fb1 1280x1024"
+<P>* Set the FRAMEBUFFER.  e.g. "export FRAMEBUFFER=/dev/fb1"
+<P>* Start the X server.   e.g. "startx -- -bpp 16 vt06"
+<P>You can automate this each time you reboot via a shell alias.  It 
+must be an alias and not a shell script since it needs to detect the
+current console number.  This is my C-shell alias to start up X on
+a second fixed frequency monitor:
+<P>
+<PRE>
+alias startxfb = "
+setenv FRAMEBUFFER /dev/fb\!*;    # Set the env var to the cmd arg.
+con2fb $FRAMEBUFFER /dev/$tty;    # Move the fb to the current tty.
+fbset -fb $FRAMEBUFFER 1280x1024@62;  # Favorite from /etc/fb.modes
+startx -- :\!* -bpp 16 vt0`echo $tty | cut -dy f 2`' # X on this tty.
+"
+</PRE>
+<P>In my .cshrc file these are all on the same line together without
+the comments, but it's easier to read here with line breaks and
+comments inserted.  I just give the number of the frame buffer as an
+argument and it starts right up.
+<P>I'm not sure how to do this same alias in bash.  I don't know how to
+determine the current tty or get the arguments to an alias in bash.
+If someone lets me know I'll insert it here.  However, you can use
+the "tty" command to get the name of the current VT and just make
+two separate aliases for each X server.
+<P>
+<H2><A NAME="ss14.11">14.11 Other Notes and Problems</A>
+</H2>
+
+<P>* Both "fbset" and "startx" MUST be run from the same frame buffer
+as the one being affected.  This places serious limits on how much
+of these commands can be automated via scripts.
+<P>* XFree86 4.0 will have "proper" multi-head support, but 3.3.1 does
+not.  You can run two servers with 3.3.1 and use x2x to switch
+between them however...(see the next bullet)
+<P>* The inactive frame buffer will just hold the last image of when it
+was active, no updates with occur.
+<P>* The monitor that's not selected doesn't always preseve it's state
+when not active. (But it usually does.)
+<P>* Geert Uytterhoeven (the frame buffer maintainer) and Linus
+Torvalds don't agree with the current "frame buffer per VT"
+multi-head console support changes (i.e. fbaddon) so it may never
+be in the mainstream kernel tree.  (This was heard third hand and
+may be wildly untrue.)
+<P>* If you "break the rules" and start the X server (run "startx")
+from a different monitor, the machine can eventually crash badly
+with the keyboard and mouse input all mixed together.
+<P>* The documentation framebuffer.txt in the kernel source explains
+that you can use the Modeline settings in your XF86Config file
+directly when running X.  Using the Matrox frame buffer seems to
+force the X server to drop all of those.  So you can only have the
+one ("default") setting at at time (the same one you had in text
+mode).
+<P>* The XF86_FBDev is unaccelerated.  However, there are patches for
+accelerated Matrox support at
+<PRE>
+http://www.in-berlin.de/User/kraxel/xfree86/
+</PRE>
+<P>
+<H3>Getting "init level five" (i.e. xdm/gdm) to work</H3>
+
+<P>I have not yet figured out a way to boot with init level 5 with a
+dual monitor configuration (and actually have the server on either
+the second montior or both).  While it seems easy enough to add a
+line to the gdm/xdm Xservers file, the constrain that you must start
+the X server from the same frame buffer prevents the obvious
+solution from working.  If anyone finds a way please e-mail me and
+I'll add it here.
+<P>
+<H3>Using the x2x program.</H3>
+
+<P>There's a nice little program called x2x that will switch X servers
+for you when you get to the edge of the screen.  Last known home for
+this program was: 
+<PRE>
+http://ftp.digital.com/pub/DEC/SRC/x2x/
+</PRE>
+ It's
+also an optional Debian package.  I haven't tried it yet but some
+users have reported success.
+<P>
+<H3>Other useful commands</H3>
+
+<P>These are existing linux commands that are worth remembering when
+dealing with a multi-head configuration (especially in writing
+scripts).
+<P>* "chvt" will allow you to switch between virtual terminals.
+<P>* "openvt" start a program on a new virtual terminal (VT).
+<P>* "tty" will report the name of the current terminal.
+<P>
+<H3>Appendix A.  Octave cvtmode.m script </H3>
+
+<P>(note the bpp setting)
+<PRE>
+#!/usr/bin/octave -q
+bpp = 16;
+DCF = sscanf(argv(1,:), "%f");
+HR  = sscanf(argv(2,:), "%f");
+SH1 = sscanf(argv(3,:), "%f");
+SH2 = sscanf(argv(4,:), "%f");
+HFL = sscanf(argv(5,:), "%f");
+VR  = sscanf(argv(6,:), "%f");
+SV1 = sscanf(argv(7,:), "%f");
+SV2 = sscanf(argv(8,:), "%f"); 
+VFL = sscanf(argv(9,:), "%f");
+pixclock = 1000000 / DCF;
+left_margin = HFL - SH2;
+right_margin = SH1 - HR;
+hsync_len = SH2 - SH1;
+
+# 3) vertical timings:
+upper_margin = VFL - SV2;
+lower_margin = SV1 - VR;
+vsync_len = SV2 - SV1;
+
+RR = DCF / (HFL * VFL) *1e6;
+HSF = DCF / HFL * 1e3;
+
+printf("mode \"%dx%d\"\n",HR,VR);
+printf("   # D: %3.2f MHz, H: %3.2f kHz, V: %2.2f Hz\n", DCF, HSF, RR);
+printf("   geometry %d %d %d %d %d\n", HR, VR, HR, VR, bpp);
+printf("   timings %d %d %d %d %d %d %d\n", ...
+                                 pixclock, left_margin, right_margin, ...
+                                 upper_margin, lower_margin, ...
+                                 hsync_len, vsync_len);
+printf("endmode\n");
+</PRE>
+<P>
+<H3>Appendix B.  Borne Shell script "cvtfile" </H3>
+
+<P>(This calls the octave script "cvtmode")
+<PRE>
+#!/bin/sh
+
+# Shell script to convert XF86Config file to fb.modes file.
+# Uses octave script cvtmode.m
+
+if [ -z $1 ]; then
+  FILE=/etc/X11/XF86Config
+else
+  FILE=$1
+fi
+
+i=1
+LEN=`grep Modeline $FILE | wc -l`
+while expr $i \&lt; $LEN > /dev/null ;
+do
+  CURLINE=`grep Modeline $FILE | cut -d'"' -f 3-20 | head -$i | tail -1 `
+  ./cvtmode.m $CURLINE
+  echo " "
+  i=`expr $i + 1`
+done
+</PRE>
+<P>
+<HR>
+<A HREF="Framebuffer-HOWTO-15.html">Next</A>
+<A HREF="Framebuffer-HOWTO-13.html">Previous</A>
+<A HREF="Framebuffer-HOWTO.html#toc14">Contents</A>
+</BODY>
+</HTML>

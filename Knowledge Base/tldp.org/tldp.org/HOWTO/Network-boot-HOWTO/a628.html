@@ -1,0 +1,209 @@
+<HTML
+><HEAD
+><TITLE
+>Determining the size and speed of EPROMs to plug in a NIC</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Network Boot and Exotic Root HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Non-Volatile Memory chips"
+HREF="a610.html"><LINK
+REL="NEXT"
+TITLE="Companies selling diskless computers"
+HREF="a645.html"></HEAD
+><BODY
+CLASS="APPENDIX"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Network Boot and Exotic Root HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="a610.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="a645.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="APPENDIX"
+><H1
+CLASS="APPENDIX"
+><A
+NAME="AEN628">B. Determining the size and speed of EPROMs to plug in a NIC</H1
+><P
+>This section comes from the etherboot project's documentation version 5.0. It provides tips to determine the size and speed of EPROMs  to use with a particular NIC</P
+><P
+>The smallest EPROM that is accepted by network cards is an 8k EPROM (2764). 16 kB (27128) or 32 kB (27256) are the norm. Some cards will even go up to 64 kB EPROMs (27512). (You will often see a C after the 27, e.g. 27C256. This indicates a CMOS EPROM, which is equivalent to the non-C version and is a good thing because of lower power consumption.) You want to use the smallest EPROM you can so that you don't take up more of the upper memory area than needed as other extensions BIOSes may need the space. However you also want to get a good price for the EPROM. Currently the 32 kB and 64 kB EPROMs (27256 and 27512) seem to be the cheapest per unit. Smaller EPROMs appear to be more expensive because they are out of mainstream production.</P
+><P
+>If you cannot find out from the documentation what capacity of EPROM your card takes, for ISA NICs only, you could do it by trial and error. (PCI NICs do not enable the EPROM until the BIOS tells the NIC to.) Take a ROM with some data on it (say a character generator ROM) and plug it into the socket. Be careful not to use an extension BIOS for this test because it may be detected and activated and prevent you from booting your computer. Using the debug program under DOS, dump various regions of the memory space. Say you discover that you can see the data in a memory window from CC00:0 to CC00:3FFF (= 4000 hex = 16384 decimal locations). This indicates that a 16 kB EPROM is needed. However if you see an alias in parts of the memory space, say the region from CC00:0 to CC00:1FFF is duplicated in CC00:2000 to CC00:3FFF, then you have put an 8 kB EPROM into a 16 kB slot and you need to try a larger EPROM.</P
+><P
+>Note that because pinouts for 28 pin EPROMs are upward compatible after a fashion, you can probably use a larger capacity EPROM in a slot intended for a smaller one. The higher address lines will probably be held high so you will need to program the image in the upper half or upper quarter of the larger EPROM, as the case may be. However you should double check the voltages on the pins armed with data sheet and a meter because CMOS EPROMs don't like floating pins.</P
+><P
+>If the ROM is larger than the size of the image, for example, a 32 kB ROM containing a 16 kB image, then you can put the image in either half of the ROM. You will sometimes see advice to put two copies of the image in the ROM. This will work but is not recommended because the ROM will be activated twice if it's a legacy ROM and may not work at all if it's a PCI/PnP ROM. It is tolerated by Etherboot because the code checks to see if it's been activated already and the second activation will do nothing. The recommended method is to fill the unused half with blank data. All ones data is recommended because it is the natural state of the EPROM and involves less work for the PROM programmer. Here is a Unix command line that will generate 16384 bytes of 0xFF and combine it with a 16 kB ROM into a 32 kB image for your PROM programmer.
+
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>      <TT
+CLASS="PROMPT"
+># </TT
+>(perl -e 'print "\xFF" x 16384'; cat bin32/3c509.lzrom) &#62; 32kbimage
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+  </P
+><P
+>The speed of the EPROM needed depends on how it is connected to the computer bus. If the EPROM is directly connected to the computer bus, as in the case of many cheap NE2000 clones, then you will probably have to get an EPROM that is at least as fast as the ROMs used for the main BIOS. This is typically 120-150 ns. Some network cards mediate access to the EPROM via circuitry and this may insert wait states so that slower EPROMs can be used. Incidentally the slowness of the EPROM doesn't affect Etherboot execution speed much because Etherboot copies itself to RAM before executing. I'm told Netboot does the same thing.</P
+><P
+>If you have your own EPROM programming hardware, there is a nice collection of EPROM file format conversion utilities at <A
+HREF="http://www.canb.auug.org.au/~millerp/srecord.html"
+TARGET="_top"
+>http://www.canb.auug.org.au/~millerp/srecord.html</A
+>. The files produced by the Etherboot build process are plain binary. A simple binary to Intel hex format converter can be found at the Etherboot web site at <A
+HREF="http://etherboot.sourceforge.net/bin2intelhex.c"
+TARGET="_top"
+>http://etherboot.sourceforge.net/bin2intelhex.c</A
+>. You may alternatively use the objcopy utility, included in the binutils package:
+
+    <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>      <TT
+CLASS="PROMPT"
+># </TT
+>objcopy --input-target binary --output-target ihex binary.file intelhex.file
+      <TT
+CLASS="PROMPT"
+># </TT
+>objcopy --input-target ihex --output-target binary intelhex.file binary.file
+    </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+  </P
+><P
+>Etherboot is believed to make PnP compliant ROMs for PCI NICs. A long-standing bug in the headers has been tracked down. However some faulty old BIOSes are out there so I have written a Perl script swapdevids.pl to switch the header around if necessary. You'll have to experiment with it both ways to find out which works. Or you could dump a ROM image that works (e.g. RPL, PXE ROM) using the Perl script disrom.pl. The fields to look at are Device (base, sub, interface) Type. It should be 02 00 00, but some BIOSes want 00 00 02 due to ambiguity in the original specification.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="a610.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="a645.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Non-Volatile Memory chips</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Companies selling diskless computers</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

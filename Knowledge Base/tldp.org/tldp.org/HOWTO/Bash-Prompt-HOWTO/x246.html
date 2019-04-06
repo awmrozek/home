@@ -1,0 +1,265 @@
+<HTML
+><HEAD
+><TITLE
+>Functions, Aliases, and the Environment</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Bash Prompt HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Bash Programming and Shell Scripts"
+HREF="c189.html"><LINK
+REL="PREVIOUS"
+TITLE="Sourcing a File"
+HREF="x237.html"><LINK
+REL="NEXT"
+TITLE="External Commands"
+HREF="c262.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Bash Prompt HOWTO: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x237.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. Bash Programming and Shell Scripts</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="c262.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="AEN246"
+></A
+>3.6. Functions, Aliases, and the Environment</H1
+><P
+>As mentioned earlier, PS1, PS2, PS3, PS4, and PROMPT_COMMAND are all stored
+in the Bash environment.  For those of us coming from a DOS background, the
+idea of tossing big hunks of code into the environment is horrifying, 
+because that DOS environment was small, and didn't exactly grow well.
+There are probably practical limits to what you can and should put in the
+environment, but I don't know what they are, and we're probably talking a
+couple of orders of magnitude larger than what DOS users are used to.  As
+Dan put it:&#13;</P
+><A
+NAME="AEN249"
+></A
+><BLOCKQUOTE
+CLASS="BLOCKQUOTE"
+><P
+>"In my interactive shell I have 62 aliases and 25 functions.  My rule
+of thumb is that if I need something solely for interactive use and
+can handily write it in bash I make it a shell function (assuming
+it can't be easily expressed as an alias).  If these people are
+worried about memory they don't need to be using bash.  Bash is one
+of the largest programs I run on my linux box (outside of Oracle).
+Run top sometime and press 'M' to sort by memory - see how close
+bash is to the top of the list.  Heck, it's bigger than sendmail!
+Tell 'em to go get ash or something."&#13;</P
+></BLOCKQUOTE
+><P
+>I guess he was using console only the day he tried that: running X and X
+apps, I have a lot of stuff larger than Bash.  But the idea is the same:
+the environment is something to be used, and don't worry about overfilling
+it.&#13;</P
+><P
+>I risk censure by Unix gurus when I say this (for the crime of
+over-simplification), but functions are basically small shell scripts that
+are loaded into the environment for the purpose of efficiency.  Quoting Dan
+again: <SPAN
+CLASS="QUOTE"
+>"Shell functions are about as efficient as they can be.  It is the
+approximate equivalent of sourcing a bash/bourne shell script save that no
+file I/O need be done as the function is already in memory.  The shell
+functions are typically loaded from [.bashrc or .bash_profile] depending on
+whether you want them only in the initial shell or in subshells as well.
+Contrast this with running a shell script: Your shell forks, the child does
+an exec, potentially the path is searched, the kernel opens the file and
+examines enough bytes to determine how to run the file, in the case of a
+shell script a shell must be started with the name of the script as its
+argument, the shell then opens the file, reads it and executes the
+statements.  Compared to a shell function, everything other than executing
+the statements can be considered unnecessary overhead."</SPAN
+>&#13;</P
+><P
+>Aliases are simple to create:&#13;</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>alias d="ls --color=tty --classify"
+alias v="d --format=long"
+alias rm="rm -i"</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Any arguments you pass to the alias are passed to the command line of the
+aliased command (ls in the first two cases).  Note that aliases can be
+nested, and they can be used to make a normal unix command behave in a
+different way.  (I agree with the argument that you shouldn't use the
+latter kind of aliases - if you get in the habit of relying on "rm *" to
+ask you if you're sure, you may lose important files on a system that
+doesn't use your alias.)&#13;</P
+><P
+>Functions are used for more complex program structures.  As a general rule,
+use an alias for anything that can be done in one line.  Functions differ
+from shell scripts in that they are loaded into the environment so that
+they work more quickly.  As a general rule again, you would want to
+keep functions relatively small, and any shell script that gets relatively
+large should remain a shell script rather than turning it into a function.
+Your decision to load something as a function is also going to depend on
+how often you use it.  If you use a small shell script infrequently, leave
+it as a shell script.  If you use it often, turn it into a function.&#13;</P
+><P
+>To modify the behaviour of <TT
+CLASS="USERINPUT"
+><B
+>ls</B
+></TT
+>, you could do
+something like the following:&#13;</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>function lf
+{ 
+    ls --color=tty --classify $*
+    echo "$(ls -l $* | wc -l) files"
+}</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>This could readily be set as an alias, but for the sake of example, we'll
+make it a function.  If you type the text shown into a text file and then
+source that file, the function will be in your environment, and be
+immediately available at the command line without the overhead of a shell
+script mentioned previously.  The usefulness of this becomes more obvious
+if you consider adding more functionality to the above function, such as
+using an if statement to execute some special code when links are found in
+the listing.&#13;</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x237.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c262.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Sourcing a File</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c189.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>External Commands</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

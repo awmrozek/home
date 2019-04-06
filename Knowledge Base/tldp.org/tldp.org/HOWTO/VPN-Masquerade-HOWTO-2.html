@@ -1,0 +1,291 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux VPN Masquerade HOWTO: Background Knowledge</TITLE>
+ <LINK HREF="VPN-Masquerade-HOWTO-3.html" REL=next>
+ <LINK HREF="VPN-Masquerade-HOWTO-1.html" REL=previous>
+ <LINK HREF="VPN-Masquerade-HOWTO.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="VPN-Masquerade-HOWTO-3.html">Next</A>
+<A HREF="VPN-Masquerade-HOWTO-1.html">Previous</A>
+<A HREF="VPN-Masquerade-HOWTO.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Background Knowledge</A></H2>
+
+<P>
+<P>
+<H2><A NAME="ss2.1">2.1 What is a VPN?</A>
+</H2>
+
+<P>A 
+<A HREF="http://foldoc.doc.ic.ac.uk/foldoc/foldoc.cgi?VPN">Virtual Private Network</A>, or &quot;VPN&quot;, is a tunnel that carries
+private network traffic from one endpoint system to another over a public
+network (such as the Internet) without the traffic being aware that there
+are intermediate hops between the endpoints, or the intermediate hops being
+aware they are carrying the network packets that are traversing the tunnel.
+The tunnel may optionally compress and/or encrypt the data, providing
+enhanced performance and some measure of security.
+<P>The &quot;Virtual&quot; part stems from the fact that you are constructing
+a private link over a public network, rather than actually buying a direct
+hardwired link over leased lines. The VPN allows you to pretend you are
+using a leased line or direct telephone call to communicate between the endpoints.
+<P>You may find the VPN FAQ at
+<A HREF="http://kubarb.phsx.ukans.edu/~tbird/vpn/FAQ.html">http://kubarb.phsx.ukans.edu/~tbird/vpn/FAQ.html</A>
+informative.
+<P>
+<P>
+<H2><A NAME="ss2.2">2.2 What is IPsec?</A>
+</H2>
+
+<P><B>
+<A HREF="http://foldoc.doc.ic.ac.uk/foldoc/foldoc.cgi?IPsec">IPsec</A></B>
+is a set of standard protocols for implementing secure communications
+and encryption key exchange between computers. It can be used to implement
+a VPN.
+<P>An IPsec VPN generally consists of two communications channels between the
+endpoint hosts: a key-exchange channel over which authentication and
+encryption key information is passed, and one or more data channels over
+which private network traffic is carried.
+<P>The key-exchange channel is a standard UDP connection to and from port 500. The
+data channels carrying the traffic between the client and server use IP
+protocol number 50 (ESP).
+<P>More information is available in F-Secure's IPsec FAQ at
+<A HREF="http://www.Europe.F-Secure.com/support/vpn+/faq/techfaq.html">http://www.Europe.F-Secure.com/support/vpn+/faq/techfaq.html</A>,
+and in
+<A HREF="http://andrew2.andrew.cmu.edu/rfc/rfc2402.html">RFC2402</A>
+(the AH protocol, IP protocol number 51),
+<A HREF="http://andrew2.andrew.cmu.edu/rfc/rfc2406.html">RFC2406</A>
+(the ESP protocol, IP protocol number 50),
+and
+<A HREF="http://andrew2.andrew.cmu.edu/rfc/rfc2408.html">RFC2408</A>
+(the ISAKMP key-exchange protocol).
+<P>IPsec is a peer-to-peer protocol. However, since most people will be
+exposed to it in the form of an originate-only Windows client being used to
+access a central network security gateway, &quot;client&quot; will be used to
+refer to the endpoint host that the user is sitting in front of and
+&quot;server&quot; will be used to refer to the central network security
+gateway.
+<P>Important note: If your VPN is based on the AH protocol (including AH+ESP), it
+cannot be masqueraded. The AH protocol specifies a cryptographic checksum
+across portions of the IP header, including the IP addresses. IP Masquerade is
+implemented by modifying the source IP address for outbound packets and the
+destination IP address for inbound packets. Since the masquerading gateway
+cannot participate in the encryption key exchange, it cannot generate the
+correct cryptographic checksums for the modified IP headers. Thus the
+modified IP packets will be discarded by the recipient as invalid, because
+they fail the cryptographic checksum test.
+<P>
+<P>
+<H2><A NAME="ss2.3">2.3 What is PPTP?</A>
+</H2>
+
+<P><B>
+<A HREF="http://foldoc.doc.ic.ac.uk/foldoc/foldoc.cgi?PPTP">PPTP</A></B>
+stands for <EM><B>P</B></EM>oint-to-<EM><B>P</B></EM>oint
+<EM><B>T</B></EM>unnelling <EM><B>P</B></EM>rotocol. It is a
+Microsoft-proposed protocol for implementing a VPN.
+<P>The PPTP VPN protocol consists of two communications channels between the
+client and server: a control channel over which link-management information
+is passed, and a data channel over which (possibly encrypted) private network
+traffic is carried.
+<P>The control channel is a standard TCP connection to port 1723 on the
+server. The data channel carrying the private network traffic uses IP
+protocol number 47 (GRE), a generic encapsulation protocol described in
+<A HREF="http://andrew2.andrew.cmu.edu/rfc/rfc1701.html">RFC1701</A>. The transparent transmission of data over the data channel
+is achieved by negotiating a standard PPP connection over it, just as if it
+were a dialup connection directly from the client to the server. The
+options negotiated over the tunnel by PPP control whether the data is
+compressed and/or encrypted, thus PPTP itself has nothing to do with
+encryption.
+<P>The details of the PPTP protocol are documented in
+<A HREF="http://andrew2.andrew.cmu.edu/rfc/rfc2637.html">RFC2637</A>.
+<P>Microsoft's implementation of the PPTP protocol is not considered very
+secure. If you're interested in the details, here are three separate analyses:
+<P>
+<A HREF="http://www.counterpane.com/pptp.html">http://www.counterpane.com/pptp.html</A><P>
+<A HREF="http://www.geek-girl.com/bugtraq/1999_1/0664.html">http://www.geek-girl.com/bugtraq/1999_1/0664.html</A><P>
+<A HREF="http://oliver.efri.hr/~crv/security/bugs/NT/pptp2.html">http://oliver.efri.hr/~crv/security/bugs/NT/pptp2.html</A><P>
+<P>
+<H2><A NAME="ss2.4">2.4 What is FWZ?</A>
+</H2>
+
+<P><B>FWZ</B> is a proprietary encryption protocol developed by 
+<A HREF="http://www.checkpoint.com/">Check Point Software Technologies</A>.
+It is used in VPNs that are built around their Firewall-1 product.
+<P>A Checkpoint-based firewall can be configured in several modes. The
+&quot;FWZ Encapsulation&quot; mode <EM>cannot</EM> be masqueraded. The
+&quot;IKE&quot; mode, which uses standard IPsec protocols, can be
+masqueraded with minor configuration changes on the VPN gateway.
+<P>
+<P>
+<H2><A NAME="ss2.5">2.5 Why masquerade a VPN client?</A>
+</H2>
+
+<P>Most current VPN clients assume you will be connecting the client computer
+directly to the internet. Doing this when you have only a single connection
+for internet access bypasses your Linux firewall and the security and
+access-sharing capabilities that it provides. Extending the Linux firewall
+to also masquerade VPN traffic allows you to retain the firewalling
+security provided by the Linux firewall as well as permitting the other
+systems on your local network to access the internet regardless of whether
+or not the VPN network connection is active.
+<P>If your firewall is being used in a corporate setting you may also wish to
+require your VPN client users to go through that firewall for security
+reasons, rather than providing them with modems so they can dial out on
+their own when they need to use VPN. VPN Masquerade allows you to do so
+even if the desktops do not have registered IP addresses.
+<P>
+<P>
+<H2><A NAME="ss2.6">2.6 Can several clients on my local network use IPsec simultaneously?</A>
+</H2>
+
+<P>Yes, though there may occasionally be minor problems.
+<P>The IPsec protocols define a method for identifying the traffic streams
+called the <EM>Security Parameters Index</EM> (&quot;SPI&quot;).
+Unfortunately the SPI used by outbound traffic is different from the SPI
+used by inbound traffic, and there is no other identifying information
+available that is not encrypted, so association of the inbound and outbound
+data streams is difficult and not perfectly reliable.
+<P>IPsec Masquerade attempts to associate inbound and outbound ESP traffic by
+serializing new connections. While this has worked well in testing, it
+cannot be guaranteed to be perfectly reliable, and the serialization of new
+traffic may result in some timeouts if the link is saturated or if many
+local IPsec hosts attempt to initiate communications or rekey with the same
+remote IPsec host simultaneously. 
+<P>It is also assumed that should this association scheme fail to associate
+the traffic streams correctly, the IPsec hosts themselves will discard the
+incorrectly routed traffic because it will have the wrong SPI values. This
+is required by the IPsec RFCs.
+<P>These problems could be eliminated if there was some way to sniff the new
+SPI values from the ISAKMP key exchange before any ESP traffic appears, but
+unfortunately that portion of the key exchange is encrypted.
+<P>To minimize the problems associated with this, it is recommended that you
+open a command window on your masqueraded IPsec host and run the
+&quot;ping&quot; program pinging a host on the remote network for as long
+as you have the tunnel up.
+<P>See the IPsec technical notes at the end of the document for more details.
+<P>
+<P>
+<A NAME="multiclientpptp"></A> <H2><A NAME="ss2.7">2.7 Can several clients on my local network use PPTP simultaneously?</A>
+</H2>
+
+<P>Yes.
+<P>You must enable PPTP Call ID masquerade when configuring your kernel in
+order to distinguish between multiple data streams from the same server.
+PPTP masq with Call ID masq enabled will support many concurrent masqueraded
+sessions with no restrictions on which server a client can call.
+<P>
+<A HREF="http://andrew2.andrew.cmu.edu/rfc/rfc2637.html">The PPTP RFC</A>
+specifies in section 3.1.3 that there may only be one control channel
+connection between two systems. This <EM>should</EM> mean that you can only
+masquerade one PPTP session at a time with a given remote server, but in
+practice the MS implementation of PPTP does not enforce this, at least not as
+of NT 4.0 Service Pack 4. If the PPTP server you're trying to connect to only
+permits one connection at a time, it's following the protocol rules properly.
+Note that this does not affect a masqueraded server, only multiple masqueraded
+clients attempting to contact the same remote server.
+<P>For another alternative, see the next question...
+<P>
+<P>
+<H2><A NAME="ss2.8">2.8 Can I access the remote network from my entire local network?</A>
+</H2>
+
+<P>Yes. However, your VPN client must be able to forward IP traffic.
+<P>This means that you'll either have to use a Linux VPN client or a MS NT VPN
+client. The IP stack in W'95 and W'98 does not support IP forwarding. NT
+Workstation will work for this, and is less expensive than NT Server if
+you're only using it to route encrypted traffic.
+<P>If you cannot install a Linux or NT-based VPN client, then you'll have to
+enable PPTP Call-ID masquerade if you are using PPTP, and install VPN
+client software on every system you want to provide access for. This is
+inefficient, aesthetically revolting, a security weakness, and may not work
+if the PPTP server correctly implements the protocol, but it's cheaper
+than licensing NT.
+<P>Network-to-network routing this way works very well. This is how I have my
+home network set up for telecommuting. It does require a little more
+networking knowhow than simply giving everybody their own VPN client.
+<P>In my experience, network-to-network routing in a pure-MS environment
+requires RRAS be installed at both ends of the tunnel.
+<P>
+<P>
+<H2><A NAME="ss2.9">2.9 Why masquerade the VPN server?</A>
+</H2>
+
+<P>If your VPN server has a registered IP address you do not need to
+masquerade it, simply configure your firewall to route the VPN traffic
+properly as described below.
+<P>If your VPN server has a Private-Network IP address you will need to
+redirect the inbound traffic to it and masquerade the outbound traffic from
+it. Masquerading allows you to make a VPN server available to the internet
+even if you only have one assigned IP address. This should work even if
+your IP address is dynamically assigned: you would publicize the IP address
+for clients through the use of a third-party dynamic DNS service such as
+that provided by 
+<A HREF="http://www.ddns.org/">DDNS.ORG</A>
+or 
+<A HREF="http://www.cjb.net/">CJB.NET</A>
+and configure the clients to connect to a system named
+<CODE>our-company.ddns.org</CODE> or something similar. Note that this is a
+security risk, because it is possible for an incorrect IP address to be
+retrieved from the dynamic DNS server through timing problems, a failure to
+properly register the current dynamic IP address, or a third party
+registering a different IP address under the system name.
+<P>
+<P>
+<H2><A NAME="ss2.10">2.10 Why patch the Linux kernel?</A>
+</H2>
+
+<P>The largest problem in masquerading VPN traffic is that the stock 
+Linux IP masquerade has no special awareness of IP protocols other than
+TCP, UDP and ICMP.
+<P>All IP traffic may be forwarded and filtered by IP address, but
+masquerading IP protocols other than TCP, UDP and ICMP requires modifying the
+kernel.
+<P>The PPTP control channel is plain TCP and requires no special setup beyond
+letting it through the firewall and masquerading it.
+<P>Masquerading the IPsec and PPTP data channels requires a modification that
+adds support for the ESP and GRE protocols to the masquerading code, and
+masquerading the ISAKMP key exchange protocol requires a modification that
+prevents masquerade from altering the UDP source port number and adds
+tracking of the ISAKMP cookie values instead of the port number.
+<P>
+<P>
+<H2><A NAME="ss2.11">2.11 Current Status</A>
+</H2>
+
+<P>The 2.0.x kernel patch works on kernel 2.0.36 and is incorporated into the
+standard 2.0.37 and higher kernel releases. It may work on earlier kernels but
+I have not tested it, and I recommend you upgrade to kernel 2.0.38 anyway
+for security reasons if you are running an older kernel.
+<P>The 2.2.x kernel patch works on kernels from 2.2.5 to 2.2.17 and may work
+on earlier kernels, but that has not been tested. It has been submitted for
+inclusion in the standard 2.2.18 release.
+<P>I don't have the resources to follow the development kernels, so at this
+time no work on VPN Masquerade for 2.3.x or 2.4.x has taken place. If you
+know someone who <EM>is</EM> working on this, please let me know.
+<P>The 2.0.x kernel patch has been tested and works on x86 and Sparc systems,
+and the 2.2.x kernel patch has been tested and works on x86 and PowerPC systems,
+but there should be no major problems in porting to other architectures. I
+believe the architecture dependencies would only be in endian-ness within the
+bitmaps in the GRE header definition used to format debugging log messages.
+If anyone ports this to a non-Intel architecture I'd appreciate hearing
+about it so I can merge any changes into the master copy.
+<P>A PPTP-only kernel patch for the 2.1.105+ and early 2.2.x kernels is
+available at 
+<A HREF="http://bmrc.berkeley.edu/people/chaffee/linux_pptp.html">http://bmrc.berkeley.edu/people/chaffee/linux_pptp.html</A>.
+<P>See the VPN Masquerade home page at
+<A HREF="http://www.impsec.org/linux/masquerade/ip_masq_vpn.html">http://www.impsec.org/linux/masquerade/ip_masq_vpn.html</A> for the status of
+the VPN Masq patches, and
+<A HREF="http://bmrc.berkeley.edu/people/chaffee/linux_pptp.html">http://bmrc.berkeley.edu/people/chaffee/linux_pptp.html</A> for the
+status of the 2.1.105+/2.2.x PPTP-only Masq patch.
+<P>
+<P>
+<P>
+<HR>
+<A HREF="VPN-Masquerade-HOWTO-3.html">Next</A>
+<A HREF="VPN-Masquerade-HOWTO-1.html">Previous</A>
+<A HREF="VPN-Masquerade-HOWTO.html#toc2">Contents</A>
+</BODY>
+</HTML>

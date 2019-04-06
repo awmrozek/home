@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>Samba Authenticated Gateway HOWTO: Windows workstation setup</TITLE>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO-7.html" REL=next>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO-5.html" REL=previous>
+ <LINK HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-7.html">Next</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-5.html">Previous</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6.</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6">Windows workstation setup</A></H2>
+
+<H2><A NAME="ss6.1">6.1</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6.1">Introduction</A>
+</H2>
+
+<P>We will stick to setting up the network, user management and
+policies on the Windows workstations.</P>
+
+<P>I will not go through all those steps, naming each dialog box.
+I will presume that if you can read and understand this document
+you can find your way through that mess.</P>
+
+<H2><A NAME="ss6.2">6.2</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6.2">Network protocols</A>
+</H2>
+
+<P>First, unless you really need, remove all network protocols but
+TCP/IP. Even without their own protocol, Windows machines like to
+broadcast a lot, and this doesn't please anyone. Anyway, with TCP/IP
+who needs anything else?</P>
+
+<H2><A NAME="ss6.3">6.3</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6.3">DHCP setup</A>
+</H2>
+
+<P>If you setup a DHCP server on your Linux box, remember that Windows
+workstations can get the nameservers and gateway's address besides
+its own IP address from it. So, you don't need to set all these items
+on each workstation.</P>
+
+<H2><A NAME="ss6.4">6.4</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6.4">Join your Linux server domain</A>
+</H2>
+
+<P>Configure the Windows workstation to log in a Domain, and give
+the domain name of your Linux server. This is essential to the gateway
+work.</P>
+
+<P>You must know that in order to join some versions of Windows
+to a SAMBA domain controller, you must create machine accounts in
+your Linux PDC. Check the SAMBA documentation on how to setup your
+PDC to the specific version of Windows which you have.</P>
+
+<H3>Windows fo workgroups</H3>
+
+<P>This version seems to need no special configuration to join the
+Linux PDC domain.</P>
+
+<P>The netlogon script shall be named "WfWg.bat" so when %a
+is translated the right script is chosen.</P>
+
+<P>Example:</P>
+
+<P>
+<PRE>
+REM WFWG.BAT
+net use z: \\linux\samba /yes
+</PRE>
+</P>
+<H3>Windows 95/98/ME</H3>
+
+<P>These versions also seems to need no special configuration to
+join the Linux PDC domain.</P>
+
+<P>The netlogon script shall be named "Win95.bat" so when %a
+is translated the right script is chosen.</P>
+
+<P>Example:</P>
+
+<P>
+<PRE>
+REM WIN95.BAT
+net use z: \\linux\samba /yes
+</PRE>
+</P>
+<H3>Windows NT</H3>
+
+<P>This version requires machine accounts at the Linux box. Check
+the SAMBA documentation.</P>
+
+<P>The netlogon script shall be named "WinNT.bat" so when %a
+is translated the right script is chosen.</P>
+
+<P>Example:</P>
+
+<P>
+<PRE>
+REM WINNT.BAT
+net use z: \\linux\samba /yes /persistent:no
+</PRE>
+</P>
+<H3>Windows 2000</H3>
+
+<P>This version requires machine accounts at the Linux box. Again,
+check the SAMBA documentation.</P>
+
+<P>The netlogon script shall be named "Win2K.bat" so when %a
+is translated the right script is chosen.</P>
+
+<P>Example:</P>
+
+<P>
+<PRE>
+REM WIN2K.BAT
+net use z: \\linux\samba /yes /persistent:no
+</PRE>
+</P>
+<H3>Windows XP</H3>
+
+<P>This version needs a machine account at the Linux box and a tweak
+at the registry, as follows.</P>
+
+<P>Locate the key "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireSignOrSeal".
+The default value is 1. Set it to 0 and it will no more complain
+about joining the domain.</P>
+
+<P>If you have many workstation to configure create a file named
+anything.reg with the following content and use it to modify the
+"faulty" registry.</P>
+
+<P>
+<PRE>
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters]
+&quot;requiresignorseal&quot;=dword:00000000
+</PRE>
+</P>
+<P>This version also needs an adjust at the logon script. Sometimes
+it insists on making the mounting persistent. The netlogon script
+shall be named "WinXP.bat" so when %a is translated the right
+script is chosen.</P>
+
+<P>Example:</P>
+
+<P>
+<PRE>
+REM WINXP.BAT
+net use z: \\linux\samba /yes /persistent:no
+</PRE>
+</P>
+<H2><A NAME="ss6.5">6.5</A> <A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6.5">Policy editor</A>
+</H2>
+
+<P>There is a utility named policy editor bundled on the Windows
+CD. The file name is poledit.exe. This tool, as the name suggest,
+allows to create a user and system policy file.</P>
+
+<P>Unfortunately, this tool does not generate a plain text configuration
+file, so I can't place an example here.</P>
+
+<P>Use the policy editor to create a policy to your workstations
+and users. You should disable the local password cache and domain
+cache in order to get some security. Save the policy file as config.pol
+and place it at the netlogon share of your Linux server. In this
+way, your Windows workstations will download and use the config.pol
+file to set their policy. Of course this task must be done on a Windows
+machine.</P>
+
+<P>If you don't use a config.pol file, your Windows workstations
+will annoy you asking for a Windows password and you will become
+nuts trying to synchronize and manage your Domain and Windows passwords.
+It seems that the OS doesn't know that it joined a domain. You must
+tell it and then you have to slap it in the face so it will believe
+you.</P>
+
+<HR>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-7.html">Next</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO-5.html">Previous</A>
+<A HREF="Samba-Authenticated-Gateway-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,641 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>The SMTP Transaction</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Background"
+HREF="background.html"><LINK
+REL="PREVIOUS"
+TITLE="The Good, The Bad, The Ugly"
+HREF="goodbadugly.html"><LINK
+REL="NEXT"
+TITLE="Techniques"
+HREF="techniques.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="goodbadugly.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 1. Background</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="techniques.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="smtpintro"
+></A
+>1.3. The SMTP Transaction</H1
+><P
+>&#13;      SMTP is the protocol that is used for mail delivery on the
+      Internet.  For a detailed description of the protocol, please
+      refer to <A
+HREF="http://www.ietf.org/rfc/rfc2821.txt"
+TARGET="_top"
+>RFC
+      2821</A
+>, as well as Dave Crocker's introduction to
+      <A
+HREF="http://www.brandenburg.com/specifications/draft-crocker-mail-arch-00.htm"
+TARGET="_top"
+>Internet Mail Architecture</A
+>.
+    </P
+><P
+>&#13;      Mail deliveries involve an SMTP transaction between the
+      connecting host (client) and the receiving host (server).  For
+      this discussion, the connecting host is the peer, and the
+      receiving host is your server.
+    </P
+><P
+>&#13;      In a typical SMTP transaction, the client issues SMTP commands
+      such as <B
+CLASS="command"
+>EHLO</B
+>, <B
+CLASS="command"
+>MAIL FROM:</B
+>,
+      <B
+CLASS="command"
+>RCPT TO:</B
+>, and <B
+CLASS="command"
+>DATA</B
+>.  Your
+      server responds to each command with a 3-digit numeric code
+      indicating whether the command was accepted
+      (<B
+CLASS="command"
+>2<TT
+CLASS="parameter"
+><I
+>xx</I
+></TT
+></B
+>), was subject to
+      a temporary failure or restriction
+      (<B
+CLASS="command"
+>4<TT
+CLASS="parameter"
+><I
+>xx</I
+></TT
+></B
+>), or failed
+      definitively/permanently
+      (<B
+CLASS="command"
+>5<TT
+CLASS="parameter"
+><I
+>xx</I
+></TT
+></B
+>), followed by
+      some human readable explanation.  A full description of these
+      codes is included in
+      <A
+HREF="http://www.ietf.org/rfc/rfc2821.txt"
+TARGET="_top"
+>RFC 2821</A
+>.
+    </P
+><P
+>&#13;      A best case scenario SMTP transaction typically consists of the
+      following relevant steps:
+    </P
+><DIV
+CLASS="table"
+><A
+NAME="smtpdialogue"
+></A
+><P
+><B
+>Table 1-1. Simple SMTP dialogue</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Client</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Server</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Initiates a TCP connection to server.
+	      </P
+>
+	    </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Presents an SMTP banner - that is, a greeting that
+		starts with the code <B
+CLASS="command"
+>220</B
+> to indicate
+		that it is ready to speak SMTP (or usually ESMTP, a
+		superset of SMTP):
+
+		<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>220 <TT
+CLASS="parameter"
+><I
+>your.f.q.d.n</I
+></TT
+> ESTMP...</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	      </P
+>
+	    </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Introduces itself by way of an Hello command, either
+		<B
+CLASS="command"
+>HELO</B
+> (now obsolete) or
+		<B
+CLASS="command"
+>EHLO</B
+>, followed by its own <A
+HREF="gloss.html#fqdn"
+><I
+CLASS="glossterm"
+>Fully Qualified Domain Name</I
+></A
+>:
+		<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>EHLO <TT
+CLASS="parameter"
+><I
+>peers.f.q.d.n</I
+></TT
+></PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	      </P
+>
+	    </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Accepts this greeting with a <B
+CLASS="command"
+>250</B
+>
+		response.  If the client used the
+		<EM
+>extended</EM
+> version of the Hello
+		command (<B
+CLASS="command"
+>EHLO</B
+>), your server knows
+		that it is capable of handling multi-line responses,
+		and so will normally send back several lines
+		indicating the capabilities offered by your server:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;250-<TT
+CLASS="parameter"
+><I
+>your.f.q.d.n</I
+></TT
+> Hello ...
+250-SIZE 52428800
+250-8BITMIME
+250-PIPELINING
+250-STARTTLS
+250-AUTH
+250 HELP
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	      </P
+>
+
+	      <P
+>&#13;		If the <B
+CLASS="command"
+>PIPELINING</B
+> capability is
+		included in this response, the client can from this point
+		forward issue several commands at once, without waiting
+		for the response to each one.
+	      </P
+>
+	    </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Starts a new mail transaction by specifying the
+		<A
+HREF="gloss.html#envfrom"
+><I
+CLASS="glossterm"
+>Envelope Sender</I
+></A
+>:
+
+		<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>MAIL FROM:&#60;<TT
+CLASS="parameter"
+><I
+>sender</I
+></TT
+>@<TT
+CLASS="parameter"
+><I
+>address</I
+></TT
+>&#62;
+		</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	      </P
+>
+	    </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Issues a <B
+CLASS="command"
+>250</B
+> response to indicate
+		that the sender is accepted.
+	      </P
+>
+	    </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Lists the <A
+HREF="gloss.html#envto"
+><I
+CLASS="glossterm"
+>Envelope Recipient</I
+></A
+>s of the message, one
+		at a time, using the command:
+
+		<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>RCPT TO:&#60;<TT
+CLASS="parameter"
+><I
+>receiver</I
+></TT
+>@<TT
+CLASS="parameter"
+><I
+>address</I
+></TT
+>&#62;</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+	      </P
+>
+	    </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Issues a response to each command
+		(<B
+CLASS="command"
+>2<TT
+CLASS="parameter"
+><I
+>xx</I
+></TT
+></B
+>,
+		<B
+CLASS="command"
+>4<TT
+CLASS="parameter"
+><I
+>xx</I
+></TT
+></B
+>, or
+		<B
+CLASS="command"
+>5<TT
+CLASS="parameter"
+><I
+>xx</I
+></TT
+></B
+>,
+		depending on whether delivery to this recipient was
+		accepted, subject to a temporary failure, or
+		rejected).
+	      </P
+>
+	    </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Issues a <B
+CLASS="command"
+>DATA</B
+> command to indicate
+		that it is ready to send the message.
+	      </P
+>
+	    </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Responds <B
+CLASS="command"
+>354</B
+> to indicate that the
+		command has been provisionally accepted.
+	      </P
+>
+	    </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Transmits the message, starting with RFC 2822
+		compliant header lines (such as:
+		<TT
+CLASS="option"
+>From:</TT
+>, <TT
+CLASS="option"
+>To:</TT
+>,
+		<TT
+CLASS="option"
+>Subject:</TT
+>, <TT
+CLASS="option"
+>Date:</TT
+>,
+		<TT
+CLASS="option"
+>Message-ID:</TT
+>).  The header and the
+		body are separated by an empty line.  To indicate the
+		end of the message, the client sends a single period
+		(".") on a separate line.
+	      </P
+>
+	    </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Replies <B
+CLASS="command"
+>250</B
+> to indicate that the
+		message has been accepted.
+	      </P
+>
+	    </TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		If there are more messages to be delivered, issues the
+		next <B
+CLASS="command"
+>MAIL FROM:</B
+> command.
+		Otherwise, it says <B
+CLASS="command"
+>QUIT</B
+>, or in rare
+		cases, simply disconnects.
+	      </P
+>
+	    </TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>&#13;	      <P
+>&#13;		Disconnects.
+	      </P
+>
+	    </TD
+></TR
+></TBODY
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="goodbadugly.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="techniques.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>The Good, The Bad, The Ugly</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="background.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Techniques</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

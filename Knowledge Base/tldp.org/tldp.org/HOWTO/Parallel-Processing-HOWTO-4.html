@@ -1,0 +1,578 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Parallel Processing HOWTO: SIMD Within A Register (e.g., using MMX)</TITLE>
+ <LINK HREF="Parallel-Processing-HOWTO-5.html" REL=next>
+ <LINK HREF="Parallel-Processing-HOWTO-3.html" REL=previous>
+ <LINK HREF="Parallel-Processing-HOWTO.html#toc4" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Parallel-Processing-HOWTO-5.html">Next</A>
+<A HREF="Parallel-Processing-HOWTO-3.html">Previous</A>
+<A HREF="Parallel-Processing-HOWTO.html#toc4">Contents</A>
+<HR>
+<H2><A NAME="s4">4. SIMD Within A Register (e.g., using MMX)</A></H2>
+
+<P>
+<P>SIMD (Single Instruction stream, Multiple Data stream) Within A
+Register (SWAR) isn't a new idea.  Given a machine with <EM>k</EM>-bit
+registers, data paths, and function units, it has long been known that
+ordinary register operations can function as SIMD parallel operations
+on <EM>n</EM>, <EM>k</EM>/<EM>n</EM>-bit, integer field values.
+However, it is only with the recent push for multimedia that the 2x to
+8x speedup offered by SWAR techniques has become a concern for
+mainstream computing.  The 1997 versions of most microprocessors
+incorporate hardware support for SWAR:
+<P>
+<UL>
+<LI>
+<A HREF="http://www.amd.com/html/products/pcd/techdocs/appnotes/20726a.pdf">AMD K6 MMX (MultiMedia eXtensions)</A>
+</LI>
+<LI>
+<A HREF="http://www.cyrix.com:80/process/SUPPORT/isv.htm">Cyrix M2 MMX (MultiMedia eXtensions)</A>
+</LI>
+<LI>
+<A HREF="http://ftp.digital.com/pub/Digital/info/semiconductor/literature/alphahb2.pdf">Digital Alpha MAX (MultimediA eXtensions)</A>
+</LI>
+<LI>
+<A HREF="http://hpcc997.external.hp.com:80/wsg/strategies/pa2go3/pa2go3.html">Hewlett-Packard PA-RISC MAX (Multimedia Acceleration eXtensions)</A>
+</LI>
+<LI>
+<A HREF="http://developer.intel.com/drg/mmx/">Intel Pentium II &amp; Pentium with MMX (MultiMedia eXtensions)</A>
+</LI>
+<LI>
+<A HREF="http://www.microunity.com/www/mediaprc.htm">Microunity Mediaprocessor SIGD (Single Instruction on Groups of Data)</A>
+</LI>
+<LI>
+<A HREF="http://www.mips.com/arch/ISA5/">MIPS Digital Media eXtension (MDMX, pronounced Mad Max)</A>
+</LI>
+<LI>
+<A HREF="http://www.sun.com/sparc/vis/index.html">Sun SPARC V9 VIS (Visual Instruction Set)</A></LI>
+</UL>
+<P>There are a few holes in the hardware support provided by the new
+microprocessors, quirks like only supporting some operations for some
+field sizes.  It is important to remember, however, that you don't
+need any hardware support for many SWAR operations to be efficient.
+For example, bitwise operations are not affected by the logical
+partitioning of a register.
+<P>
+<H2><A NAME="ss4.1">4.1 SWAR: What Is It Good For?</A>
+</H2>
+
+<P>
+<P>Although <EM>every</EM> modern processor is capable of executing with
+at least some SWAR parallelism, the sad fact is that even the best
+SWAR-enhanced instruction sets do not support very general-purpose
+parallelism.  In fact, many people have noticed that the performance
+difference between Pentium and "Pentium with MMX technology" is often
+due to things like the larger L1 cache that coincided with appearance
+of MMX.  So, realistically, what is SWAR (or MMX) good for?
+<P>
+<UL>
+<LI>Integers only, the smaller the better.  Two 32-bit values fit in
+a 64-bit MMX register, but so do eight one-byte characters or even an
+entire chess board worth of one-bit values.
+
+Note: there <EM>will be a floating-point version of MMX</EM>, although
+very little has been said about it at this writing.  Cyrix has posted
+a set of slides, 
+<A HREF="ftp://ftp.cyrix.com/developr/mpf97rm.pdf">ftp://ftp.cyrix.com/developr/mpf97rm.pdf</A>,
+that includes a few comments about <B>MMFP</B>.  Apparently, MMFP
+will support two 32-bit floating-point numbers to be packed into a
+64-bit MMX register; combining this with two MMFP pipelines will yield
+four single-precision FLOPs per clock.
+</LI>
+<LI>SIMD or vector-style parallelism.  The same operation is applied
+to all fields simultaneously.  There are ways to nullify the effects on
+selected fields (i.e., equivalent to SIMD enable masking), but they
+complicate coding and hurt performance.
+</LI>
+<LI>Localized, regular (preferably packed), memory reference
+patterns.  SWAR in general, and MMX in particular, are terrible at
+randomly-ordered accesses; gathering a vector <CODE>x[y]</CODE> (where
+<CODE>y</CODE> is an index array) is prohibitively expensive.</LI>
+</UL>
+<P>These are serious restrictions, but this type of parallelism occurs in
+many parallel algorithms - not just multimedia applications.  For the
+right type of algorithm, SWAR is more effective than SMP or cluster
+parallelism...  and it doesn't cost anything to use it.
+<P>
+<H2><A NAME="ss4.2">4.2 Introduction To SWAR Programming</A>
+</H2>
+
+<P>
+<P>The basic concept of SWAR, SIMD Within A Register, is that operations
+on word-length registers can be used to speed-up computations by
+performing SIMD parallel operations on <EM>n</EM>
+<EM>k</EM>/<EM>n</EM>-bit field values.  However, making use of
+SWAR technology can be awkward, and some SWAR operations are actually
+more expensive than the corresponding sequences of serial operations
+because they require additional instructions to enforce the field
+partitioning.
+<P>To illustrate this point, let's consider a greatly simplified SWAR
+mechanism that manages four 8-bit fields within each 32-bit register.
+The values in two registers might be represented as:
+<P>
+<HR>
+<PRE>
+         PE3     PE2     PE1     PE0
+      +-------+-------+-------+-------+
+Reg0  | D 7:0 | C 7:0 | B 7:0 | A 7:0 |
+      +-------+-------+-------+-------+
+Reg1  | H 7:0 | G 7:0 | F 7:0 | E 7:0 |
+      +-------+-------+-------+-------+
+</PRE>
+<HR>
+<P>This simply indicates that each register is viewed as essentially a
+vector of four independent 8-bit integer values.  Alternatively, think
+of <CODE>A</CODE> and <CODE>E</CODE> as values in Reg0 and Reg1 of processing
+element 0 (PE0), <CODE>B</CODE> and <CODE>F</CODE> as values in PE1's
+registers, and so forth.
+<P>The remainder of this document briefly reviews the basic classes of
+SIMD parallel operations on these integer vectors and how these
+functions can be implemented.
+<P>
+<H3>Polymorphic Operations</H3>
+
+<P>
+<P>Some SWAR operations can be performed trivially using ordinary 32-bit
+integer operations, without concern for the fact that the operation is
+really intended to operate independently in parallel on these 8-bit
+fields.  We call any such SWAR operation <EM>polymorphic</EM>, since
+the function is unaffected by the field types (sizes).
+<P>Testing if any field is non-zero is polymorphic, as are all bitwise
+logic operations.  For example, an ordinary bitwise-and operation (C's
+<CODE>&amp;</CODE> operator) performs a bitwise and no matter what the
+field sizes are.  A simple bitwise and of the above registers yields:
+<P>
+<HR>
+<PRE>
+          PE3       PE2       PE1       PE0
+      +---------+---------+---------+---------+
+Reg2  | D&amp;H 7:0 | C&amp;G 7:0 | B&amp;F 7:0 | A&amp;E 7:0 |
+      +---------+---------+---------+---------+
+</PRE>
+<HR>
+<P>Because the bitwise and operation always has the value of result bit
+<EM>k</EM> affected only by the values of the operand bit <EM>k</EM>
+values, all field sizes are supported using the same single
+instruction.
+<P>
+<H3>Partitioned Operations</H3>
+
+<P>
+<P>Unfortunately, lots of important SWAR operations are not polymorphic.
+Arithmetic operations such as add, subtract, multiply, and divide are
+all subject to carry/borrow interactions between fields.  We call such
+SWAR operations <EM>partitioned</EM>, because each such operation must
+effectively partition the operands and result to prevent interactions
+between fields.  However, there are actually three different methods
+that can be used to achieve this effect.
+<P>
+<H3>Partitioned Instructions</H3>
+
+<P>
+<P>Perhaps the most obvious approach to implementing partitioned
+operations is to provide hardware support for "partitioned parallel
+instructions" that cut the carry/borrow logic between fields.  This
+approach can yield the highest performance, but it requires a change
+to the processor's instruction set and generally places many
+restrictions on field size (e.g., 8-bit fields might be supported, but
+not 12-bit fields).
+<P>The AMD/Cyrix/Intel MMX, Digital MAX, HP MAX, and Sun VIS all
+implement restricted versions of partitioned instructions.
+Unfortunately, these different instruction set extensions have
+significantly different restrictions, making algorithms somewhat
+non-portable between them.  For example, consider the following
+sampling of partitioned operations:
+<P>
+<HR>
+<PRE>
+  Instruction           AMD/Cyrix/Intel MMX   DEC MAX   HP MAX   Sun VIS
++---------------------+---------------------+---------+--------+---------+
+| Absolute Difference |                     |       8 |        |       8 |
++---------------------+---------------------+---------+--------+---------+
+| Merge Maximum       |                     |   8, 16 |        |         |
++---------------------+---------------------+---------+--------+---------+
+| Compare             |           8, 16, 32 |         |        |  16, 32 |
++---------------------+---------------------+---------+--------+---------+
+| Multiply            |                  16 |         |        |    8x16 |
++---------------------+---------------------+---------+--------+---------+
+| Add                 |           8, 16, 32 |         |     16 |  16, 32 |
++---------------------+---------------------+---------+--------+---------+
+</PRE>
+<HR>
+<P>In the table, the numbers indicate the field sizes, in bits, for which
+each operation is supported.  Even though the table omits many
+instructions including all the more exotic ones, it is clear that
+there are many differences.  The direct result is that high-level
+languages (HLLs) really are not very effective as programming models,
+and portability is generally poor.
+<P>
+<H3>Unpartitioned Operations With Correction Code</H3>
+
+<P>
+<P>Implementing partitioned operations using partitioned instructions can
+certainly be efficient, but what do you do if the partitioned
+operation you need is not supported by the hardware?  The answer is
+that you use a series of ordinary instructions to perform the operation
+with carry/borrow across fields, and then correct for the undesired
+field interactions.
+<P>This is a purely software approach, and the corrections do introduce
+overhead, but it works with fully general field partitioning.  This
+approach is also fully general in that it can be used either to fill
+gaps in the hardware support for partitioned instructions, or it can
+be used to provide full functionality for target machines that have no
+hardware support at all.  In fact, by expressing the code sequences in
+a language like C, this approach allows SWAR programs to be fully
+portable.
+<P>The question immediately arises:  precisely how inefficient is it to
+simulate SWAR partitioned operations using unpartitioned operations
+with correction code?  Well, that is certainly the $64k question...
+but many operations are not as difficult as one might expect.
+<P>Consider implementing a four-element 8-bit integer vector add of two
+source vectors, <CODE>x</CODE>+<CODE>y</CODE>, using ordinary 32-bit
+operations.
+<P>An ordinary 32-bit add might actually yield the correct result, but
+not if any 8-bit field carries into the next field.  Thus, our goal is
+simply to ensure that such a carry does not occur.  Because adding two
+<EM>k</EM>-bit fields generates an at most <EM>k</EM>+1 bit
+result, we can ensure that no carry occurs by simply "masking out" the
+most significant bit of each field.  This is done by bitwise anding
+each operand with <CODE>0x7f7f7f7f</CODE> and then performing an
+ordinary 32-bit add.
+<P>
+<HR>
+<PRE>
+t = ((x &amp; 0x7f7f7f7f) + (y &amp; 0x7f7f7f7f));
+</PRE>
+<HR>
+<P>That result is correct...  except for the most significant bit within
+each field.  Computing the correct value for each field is simply a
+matter of doing two 1-bit partitioned adds of the most significant
+bits from <CODE>x</CODE> and <CODE>y</CODE> to the 7-bit carry result
+which was computed for <CODE>t</CODE>.  Fortunately, a 1-bit
+partitioned add is implemented by an ordinary exclusive or operation.
+Thus, the result is simply:
+<P>
+<HR>
+<PRE>
+(t ^ ((x ^ y) &amp; 0x80808080))
+</PRE>
+<HR>
+<P>Ok, well, maybe that isn't so simple.  After all, it is six operations
+to do just four adds.  However, notice that the number of operations
+is not a function of how many fields there are...  so, with more
+fields, we get speedup.  In fact, we may get speedup anyway simply
+because the fields were loaded and stored in a single (integer vector)
+operation, register availability may be improved, and there are fewer
+dynamic code scheduling dependencies (because partial word references
+are avoided).
+<P>
+<H3>Controlling Field Values</H3>
+
+<P>
+<P>While the other two approaches to partitioned operation implementation
+both center on getting the maximum space utilization for the registers,
+it can be computationally more efficient to instead control the field
+values so that inter-field carry/borrow events should never occur.
+For example, if we know that all the field values being added are such
+that no field overflow will occur, a partitioned add operation can be
+implemented using an ordinary add instruction; in fact, given this
+constraint, an ordinary add instruction appears polymorphic, and is
+usable for any field sizes without correction code.  The question
+thus becomes how to ensure that field values will not cause
+carry/borrow events.
+<P>One way to ensure this property is to implement partitioned
+instructions that can restrict the range of field values.  The Digital
+MAX vector minimum and maximum instructions can be viewed as hardware
+support for clipping field values to avoid inter-field carry/borrow.
+<P>However, suppose that we do not have partitioned instructions that can
+efficiently restrict the range of field values...  is there a
+sufficient condition that can be cheaply imposed to ensure
+carry/borrow events will not interfere with adjacent fields?  The
+answer lies in analysis of the arithmetic properties.  Adding two
+<EM>k</EM>-bit numbers generates a result with at most
+<EM>k</EM>+1 bits; thus, a field of <EM>k</EM>+1 bits can safely
+contain such an operation despite using ordinary instructions.
+<P>Thus, suppose that the 8-bit fields in our earlier example are now
+7-bit fields with 1-bit "carry/borrow spacers":
+<P>
+<HR>
+<PRE>
+              PE3          PE2          PE1          PE0
+      +----+-------+----+-------+----+-------+----+-------+
+Reg0  | D' | D 6:0 | C' | C 6:0 | B' | B 6:0 | A' | A 6:0 |
+      +----+-------+----+-------+----+-------+----+-------+
+</PRE>
+<HR>
+<P>A vector of 7-bit adds is performed as follows.  Let us assume that,
+prior to the start of any partitioned operation, all the carry spacer
+bits (<CODE>A'</CODE>, <CODE>B'</CODE>, <CODE>C'</CODE>, and <CODE>D'</CODE>) have the
+value 0.  By simply executing an ordinary add operation, all the
+fields obtain the correct 7-bit values; however, some spacer bit
+values might now be 1.  We can correct this by just one more
+conventional operation, masking-out the spacer bits.  Our 7-bit
+integer vector add, <CODE>x</CODE>+<CODE>y</CODE>, is thus:
+<P>
+<HR>
+<PRE>
+((x + y) &amp; 0x7f7f7f7f)
+</PRE>
+<HR>
+<P>This is just two instructions for four adds, clearly yielding good
+speedup.
+<P>The sharp reader may have noticed that setting the spacer bits to 0
+does not work for subtract operations.  The correction is, however,
+remarkably simple.  To compute <CODE>x</CODE>-<CODE>y</CODE>, we simply
+ensure the initial condition that the spacers in <CODE>x</CODE> are all
+1, while the spacers in <CODE>y</CODE> are all 0.  In the worst case,
+we would thus get:
+<P>
+<HR>
+<PRE>
+(((x | 0x80808080) - y) &amp; 0x7f7f7f7f)
+</PRE>
+<HR>
+<P>However, the additional bitwise or operation can often be optimized
+out by ensuring that the operation generating the value for
+<CODE>x</CODE> used <CODE>| 0x80808080</CODE> rather than <CODE>&amp;
+0x7f7f7f7f</CODE> as the last step.
+<P>Which method should be used for SWAR partitioned operations?  The
+answer is simply "whichever yields the best speedup."  Interestingly,
+the ideal method to use may be different for different field sizes
+within the same program running on the same machine.
+<P>
+<H3>Communication &amp; Type Conversion Operations</H3>
+
+<P>
+<P>Although some parallel computations, including many operations on image
+pixels, have the property that the <EM>i</EM>th value in a vector is
+a function only of values that appear in the <EM>i</EM>th position
+of the operand vectors, this is generally not the case.  For example,
+even pixel operations such as smoothing require values from adjacent
+pixels as operands, and transformations like FFTs require more complex
+(less localized) communication patterns.
+<P>It is not difficult to efficiently implement 1-dimensional nearest
+neighbor communication for SWAR using unpartitioned shift operations.
+For example, to move a value from <CODE>PE</CODE><EM>i</EM> to
+<CODE>PE</CODE>(<EM>i</EM>+1), a simple shift operation suffices.
+If the fields are 8-bits in length, we would use:
+<P>
+<HR>
+<PRE>
+(x &lt;&lt; 8)
+</PRE>
+<HR>
+<P>Still, it isn't always quite that simple.  For example, to move a
+value from <CODE>PE</CODE><EM>i</EM> to
+<CODE>PE</CODE>(<EM>i</EM>-1), a simple shift operation might
+suffice...  but the C language does not specify if shifts right
+preserve the sign bit, and some machines only provide signed shift
+right.  Thus, in the general case, we must explicitly zero the
+potentially replicated sign bits:
+<P>
+<HR>
+<PRE>
+((x >> 8) &amp; 0x00ffffff)
+</PRE>
+<HR>
+<P>Adding "wrap-around connections" is also reasonably efficient using
+unpartitioned shifts.  For example, to move a value from
+<CODE>PE</CODE><EM>i</EM> to <CODE>PE</CODE>(<EM>i</EM>+1) with
+wraparound:
+<P>
+<HR>
+<PRE>
+((x &lt;&lt; 8) | ((x >> 24) &amp; 0x000000ff))
+</PRE>
+<HR>
+<P>The real problem comes when more general communication patterns must
+be implemented.  Only the HP MAX instruction set supports arbitrary
+rearrangement of fields with a single instruction, which is called
+<CODE>Permute</CODE>.  This <CODE>Permute</CODE> instruction is really
+misnamed; not only can it perform an arbitrary permutation of the
+fields, but it also allows repetition.  In short, it implements an
+arbitrary <CODE>x[y]</CODE> operation.
+<P>Unfortunately, <CODE>x[y]</CODE> is very difficult to implement without
+such an instruction.  The code sequence is generally both long and
+inefficient; in fact, it is sequential code.  This is very
+disappointing.  The relatively high speed of <CODE>x[y]</CODE>
+operations in the MasPar MP1/MP2 and Thinking Machines CM1/CM2/CM200
+SIMD supercomputers was one of the key reasons these machines performed
+well.  However, <CODE>x[y]</CODE> has always been slower than nearest
+neighbor communication, even on those supercomputers, so many
+algorithms have been designed to minimize the need for
+<CODE>x[y]</CODE> operations.  In short, without hardware support, it
+is probably best to develop SWAR algorithms as though
+<CODE>x[y]</CODE> wasn't legal...  or at least isn't cheap.
+<P>
+<H3>Recurrence Operations (Reductions, Scans, etc.)</H3>
+
+<P>
+<P>A recurrence is a computation in which there is an apparently
+sequential relationship between values being computed.  However, if
+these recurrences involve associative operations, it may be possible
+to recode the computation using a tree-structured parallel algorithm.
+<P>The most common type of parallelizable recurrence is probably the
+class known as associative reductions.  For example, to compute the
+sum of a vector's values, one commonly writes purely sequential C code
+like:
+<P>
+<HR>
+<PRE>
+t = 0;
+for (i=0; i&lt;MAX; ++i) t += x[i];
+</PRE>
+<HR>
+<P>However, the order of the additions is rarely important.  Floating
+point and saturation math can yield different answers if the order of
+additions is changed, but ordinary wrap-around integer additions will
+yield the same results independent of addition order.  Thus, we can
+re-write this sequence into a tree-structured parallel summation in
+which we first add pairs of values, then pairs of those partial sums,
+and so forth, until a single final sum results.  For a vector of four
+8-bit values, just two addition steps are needed; the first step does
+two 8-bit adds, yielding two 16-bit result fields (each containing a
+9-bit result):
+<P>
+<HR>
+<PRE>
+t = ((x &amp; 0x00ff00ff) + ((x >> 8) &amp; 0x00ff00ff));
+</PRE>
+<HR>
+<P>The second step adds these two 9-bit values in 16-bit fields to
+produce a single 10-bit result:
+<P>
+<HR>
+<PRE>
+((t + (t >> 16)) &amp; 0x000003ff)
+</PRE>
+<HR>
+<P>Actually, the second step performs two 16-bit field adds...  but the
+top 16-bit add is meaningless, which is why the result is masked to a
+single 10-bit result value.
+<P>Scans, also known as "parallel prefix" operations, are somewhat harder
+to implement efficiently.  This is because, unlike reductions, scans
+produce partitioned results.  For this reason, scans can be implemented
+using a fairly obvious sequence of partitioned operations.
+<P>
+<H2><A NAME="ss4.3">4.3 MMX SWAR Under Linux</A>
+</H2>
+
+<P>
+<P>For Linux, IA32 processors are our primary concern.  The good news is
+that AMD, Cyrix, and Intel all implement the same MMX instructions.
+However, MMX performance varies; for example, the K6 has only one MMX
+pipeline - the Pentium with MMX has two.  The only really bad news is
+that Intel is still running those stupid MMX commercials....  ;-)
+<P>There are really three approaches to using MMX for SWAR:
+<P>
+<OL>
+<LI>Use routines from an MMX library.  In particular, Intel has
+developed several "performance libraries," 
+<A HREF="http://developer.intel.com/drg/tools/ad.htm">http://developer.intel.com/drg/tools/ad.htm</A>, that offer a
+variety of hand-optimized routines for common multimedia tasks.  With
+a little effort, many non-multimedia algorithms can be reworked to
+enable some of the most compute-intensive portions to be implemented
+using one or more of these library routines.  These libraries are not
+currently available for Linux, but could be ported.
+</LI>
+<LI>Use MMX instructions directly.  This is somewhat complicated by
+two facts.  The first problem is that MMX might not be available on
+the processor, so an alternative implementation must also be
+provided.  The second problem is that the IA32 assembler generally
+used under Linux does not currently recognize MMX instructions.
+</LI>
+<LI>Use a high-level language or module compiler that can directly
+generate appropriate MMX instructions.  Such tools are currently under
+development, but none is yet fully functional under Linux.  For
+example, at Purdue University (
+<A HREF="http://dynamo.ecn.purdue.edu/~hankd/SWAR/">http://dynamo.ecn.purdue.edu/~hankd/SWAR/</A>) we are currently
+developing a compiler that will take functions written in an
+explicitly parallel C dialect and will generate SWAR modules that are
+callable as C functions, yet make use of whatever SWAR support is
+available, including MMX.  The first prototype module compilers were
+built in Fall 1996, however, bringing this technology to a usable
+state is taking much longer than was originally expected.</LI>
+</OL>
+<P>In summary, MMX SWAR is still awkward to use.  However, with a little
+extra effort, the second approach given above can be used now.  Here
+are the basics:
+<P>
+<OL>
+<LI>You cannot use MMX if your processor does not support it.  The
+following GCC code can be used to test if MMX is supported on your
+processor.  It returns 0 if not, non-zero if it is supported.
+
+<HR>
+<PRE>
+inline extern
+int mmx_init(void)
+{
+        int mmx_available;
+
+        __asm__ __volatile__ (
+                /* Get CPU version information */
+                "movl $1, %%eax\n\t"
+                "cpuid\n\t"
+                "andl $0x800000, %%edx\n\t"
+                "movl %%edx, %0"
+                : "=q" (mmx_available)
+                : /* no input */
+        );
+        return mmx_available;
+}
+</PRE>
+<HR>
+
+</LI>
+<LI>An MMX register essentially holds one of what GCC would call an
+<CODE>unsigned long long</CODE>.  Thus, memory-based variables of this type
+become the communication mechanism between your MMX modules and the C
+programs that call them.  Alternatively, you can declare your MMX data
+as any 64-bit aligned data structure (it is convenient to ensure
+64-bit alignment by declaring your data type as a <CODE>union</CODE> with
+an <CODE>unsigned long long</CODE> field).
+</LI>
+<LI>If MMX is available, you can write your MMX code using
+the <CODE>.byte</CODE> assembler directive to encode each instruction.
+This is painful stuff to do by hand, but not difficult for a compiler
+to generate.  For example, the MMX instruction <CODE>PADDB MM0,MM1</CODE>
+could be encoded as the GCC in-line assembly code:
+
+<HR>
+<PRE>
+__asm__ __volatile__ (".byte 0x0f, 0xfc, 0xc1\n\t");
+</PRE>
+<HR>
+
+
+Remember that MMX uses some of the same hardware that is used for
+floating point operations, so code intermixed with MMX code must not
+invoke any floating point operations.  The floating point stack also
+should be empty before executing any MMX code; the floating point
+stack is normally empty at the beginning of a C function that does not
+use floating point.
+</LI>
+<LI>Exit your MMX code by executing the <CODE>EMMS</CODE> instruction,
+which can be encoded as:
+
+<HR>
+<PRE>
+__asm__ __volatile__ (".byte 0x0f, 0x77\n\t");
+</PRE>
+<HR>
+</LI>
+</OL>
+<P>If the above looks very awkward and crude, it is.  However, MMX is
+still quite young....  future versions of this document will offer
+better ways to program MMX SWAR.
+<P>
+<HR>
+<A HREF="Parallel-Processing-HOWTO-5.html">Next</A>
+<A HREF="Parallel-Processing-HOWTO-3.html">Previous</A>
+<A HREF="Parallel-Processing-HOWTO.html#toc4">Contents</A>
+</BODY>
+</HTML>

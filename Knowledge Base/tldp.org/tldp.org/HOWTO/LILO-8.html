@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE>LILO mini-HOWTO: Booting from a Rescue Floppy</TITLE>
+ <LINK HREF="LILO-9.html" REL=next>
+ <LINK HREF="LILO-7.html" REL=previous>
+ <LINK HREF="LILO.html#toc8" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="LILO-9.html">Next</A>
+<A HREF="LILO-7.html">Previous</A>
+<A HREF="LILO.html#toc8">Contents</A>
+<HR>
+<H2><A NAME="s8">8.</A> <A HREF="LILO.html#toc8">Booting from a Rescue Floppy</A></H2>
+
+<P>Next, I installed Windows-95 on my office system.  It blew away my nice
+Lilo MBR, but it left my Linux partitions alone.  Kernels take a long
+time to load from floppy, so I made a floppy with a working Lilo setup
+on it, which could boot my kernel from the IDE.</P>
+<P>I made the lilo floppy like so:
+<PRE>
+  fdformat /dev/fd0H1440      #  lay tracks on virgin diskette
+  mkfs -t minix /dev/fd0 1440 #  make file system of type minix
+  mount /dev/fd0 /mnt         #  mount in the standard tmp mount point
+  cp -p /boot/chain.b /mnt    #  copy the chain loader over
+  lilo -C /etc/lilo.flop      #  install Lilo and the map on the diskette.
+  umount /mnt
+</PRE>
+</P>
+
+<P>Notice that the diskette <B>must be mounted when you run the
+installer</B> so that Lilo can write its map file properly.</P>
+
+<P>This file is /etc/lilo.flop.  It's almost the same as the last one:</P>
+<P>
+<PRE>
+#  Makes a floppy that can boot kernels from HD.
+boot = /dev/fd0
+map = /mnt/lilo-map
+delay = 100
+ramdisk = 0
+timeout = 100
+prompt
+disk = /dev/hda     # 1 GB IDE, BIOS only sees first 500 MB.
+   bios=0x80
+   sectors = 63
+   heads = 16
+   cylinders = 2100
+image = /vmlinuz
+  append = "hd=2100,16,63"
+  root = /dev/hda2
+  label = linux
+  read-only
+  vga = extended
+other = /dev/hda1
+  label = msdos
+  table = /dev/hda
+  loader = /mnt/chain.b
+</PRE>
+</P>
+
+<P>Finally, I needed MS-DOS 6.2 on my office system, but I didn't
+want to touch the first drive.  I added a SCSI controller and
+drive, made an msdos file system on it with Linux' mkdosfs, and
+Windows-95 sees it as "D:".   But of course MSDOS will not boot 
+off of D:.  This is not a problem when you have Lilo.  I added
+the following to the <CODE>lilo.conf</CODE> in Example 2.  </P>
+<P>
+<PRE>
+other = /dev/sda1
+  label = d6.2
+  table = /dev/sda
+  loader = /boot/any_d.b
+</PRE>
+</P>
+<P>With this modification MSDOS-6.2 runs, and it thinks it is on C: and
+Windows-95 is on D:.</P>
+
+
+<HR>
+<A HREF="LILO-9.html">Next</A>
+<A HREF="LILO-7.html">Previous</A>
+<A HREF="LILO.html#toc8">Contents</A>
+</BODY>
+</HTML>

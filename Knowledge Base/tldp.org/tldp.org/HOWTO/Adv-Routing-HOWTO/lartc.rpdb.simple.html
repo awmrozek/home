@@ -1,0 +1,250 @@
+<HTML
+><HEAD
+><TITLE
+>Simple source policy routing</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Rules - routing policy database"
+HREF="lartc.rpdb.html"><LINK
+REL="PREVIOUS"
+TITLE="Rules - routing policy database"
+HREF="lartc.rpdb.html"><LINK
+REL="NEXT"
+TITLE="Routing for multiple uplinks/providers"
+HREF="lartc.rpdb.multiple-links.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.rpdb.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 4. Rules - routing policy database</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.rpdb.multiple-links.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.RPDB.SIMPLE"
+></A
+>4.1. Simple source policy routing</H1
+><P
+>Let's take a real example once again, I have 2 (actually 3, about time I
+returned them) cable modems, connected to a Linux NAT ('masquerading')
+router. People living here pay me to use the Internet. Suppose one of my
+house mates only visits hotmail and wants to pay less. This is fine with me,
+but they'll end up using the low-end cable modem.</P
+><P
+>The 'fast' cable modem is known as 212.64.94.251 and is a PPP link to
+212.64.94.1. The 'slow' cable modem is known by various ip addresses,
+212.64.78.148 in this example and is a link to 195.96.98.253.</P
+><P
+>The local table:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[ahu@home ahu]$ ip route list table local
+broadcast 127.255.255.255 dev lo  proto kernel  scope link  src 127.0.0.1 
+local 10.0.0.1 dev eth0  proto kernel  scope host  src 10.0.0.1 
+broadcast 10.0.0.0 dev eth0  proto kernel  scope link  src 10.0.0.1 
+local 212.64.94.251 dev ppp0  proto kernel  scope host  src 212.64.94.251 
+broadcast 10.255.255.255 dev eth0  proto kernel  scope link  src 10.0.0.1 
+broadcast 127.0.0.0 dev lo  proto kernel  scope link  src 127.0.0.1 
+local 212.64.78.148 dev ppp2  proto kernel  scope host  src 212.64.78.148 
+local 127.0.0.1 dev lo  proto kernel  scope host  src 127.0.0.1 
+local 127.0.0.0/8 dev lo  proto kernel  scope host  src 127.0.0.1 </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Lots of obvious things, but things that need to be specified somewhere.
+Well, here they are. The default table is empty.</P
+><P
+>Let's view the 'main' table:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[ahu@home ahu]$ ip route list table main 
+195.96.98.253 dev ppp2  proto kernel  scope link  src 212.64.78.148 
+212.64.94.1 dev ppp0  proto kernel  scope link  src 212.64.94.251 
+10.0.0.0/8 dev eth0  proto kernel  scope link  src 10.0.0.1 
+127.0.0.0/8 dev lo  scope link 
+default via 212.64.94.1 dev ppp0 </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>We now generate a new rule which we call 'John', for our hypothetical
+house mate. Although we can work with pure numbers, it's far easier if we add
+our tables to /etc/iproute2/rt_tables.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># echo 200 John &#62;&#62; /etc/iproute2/rt_tables
+# ip rule add from 10.0.0.10 table John
+# ip rule ls
+0:	from all lookup local 
+32765:	from 10.0.0.10 lookup John
+32766:	from all lookup main 
+32767:	from all lookup default</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now all that is left is to generate John's table, and flush the route cache:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># ip route add default via 195.96.98.253 dev ppp2 table John
+# ip route flush cache</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>And we are done. It is left as an exercise for the reader to implement this
+in ip-up.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.rpdb.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.rpdb.multiple-links.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Rules - routing policy database</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.rpdb.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Routing for multiple uplinks/providers</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

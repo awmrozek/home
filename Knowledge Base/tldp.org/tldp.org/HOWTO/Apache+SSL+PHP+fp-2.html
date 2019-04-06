@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Apache SSL PHP/FI frontpage mini-HOWTO: Component installation</TITLE>
+ <LINK HREF="Apache+SSL+PHP+fp-3.html" REL=next>
+ <LINK HREF="Apache+SSL+PHP+fp-1.html" REL=previous>
+ <LINK HREF="Apache+SSL+PHP+fp.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Apache+SSL+PHP+fp-3.html">Next</A>
+<A HREF="Apache+SSL+PHP+fp-1.html">Previous</A>
+<A HREF="Apache+SSL+PHP+fp.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Component installation</A></H2>
+
+<H2><A NAME="ss2.1">2.1 Preparations</A>
+</H2>
+
+<P>You will need:
+<UL>
+<LI>Apache 1.2.6 
+<A HREF="http://www.apache.org/dist/apache_1_2_6.tar.gz">http://www.apache.org/dist/apache_1_2_6.tar.gz</A></LI>
+<LI>PHP/FI Extensions 
+<A HREF="http://php.iquest.net/files/download.phtml?/files/php-2.01.tar.gz">http://php.iquest.net/files/download.phtml?/files/php-2.01.tar.gz</A></LI>
+<LI>GD Library 
+<A HREF="http://siva.cshl.org/gd/gd.html">http://siva.cshl.org/gd/gd.html</A></LI>
+<LI>SSL 0.8.0 
+<A HREF="ftp://ftp.ox.ac.uk/pub/crypto/SSL/SSLeay-0.8.0.tar.gz">ftp://ftp.ox.ac.uk/pub/crypto/SSL/SSLeay-0.8.0.tar.gz</A></LI>
+<LI>SSL patch for Apache 1.2.6
+<A HREF="ftp://ftp.ox.ac.uk/pub/crypto/SSL/apache_1.2.6+ssl_1.17.tar.gz">ftp://ftp.ox.ac.uk/pub/crypto/SSL/apache_1.2.6+ssl_1.17.tar.gz</A></LI>
+<LI>frontpage 98 server extensions and install script
+<A HREF="http://www.rtr.com/fpsupport/download.htm">http://www.rtr.com/fpsupport/download.htm</A></LI>
+</UL>
+<P>Get the sources you want. Untar apche, php, gd and ssl to
+<CODE>/usr/src</CODE>. Untar the SSL patch to <CODE>/usr/src/apache_1.2.6</CODE>.
+<P>
+<H2><A NAME="ss2.2">2.2 Adding PHP</A>
+</H2>
+
+<P><CODE>cd</CODE> to /usr/src/gd1.2 and type make. This will build the GD
+library <CODE>libgd.a</CODE>, that should be copied to <CODE>/usr/lib</CODE>.
+Now <CODE>cd</CODE> to <CODE>php-2.0.1</CODE> and run <CODE>./install</CODE>.
+<P>The relevant questions are:
+<PRE>
+Would you like to compile PHP/FI as an Apache module? [yN] y
+Are you compiling for an Apache 1.1 or later server? [Yn] y
+Are you using Apache-Stronghold? [yN] y
+Does your Apache server support ELF dynamic loading? [yN] y
+Apache include directory (which has httpd.h)? [/usr/local/include/apache] /usr/src/apache_1.2.6/src
+Would you like to build an ELF shared library? [yN] y
+Additional directories to search for .h files []: /usr/src/gd1.2
+Would you like the bundled regex library? [yN] n
+</PRE>
+<P>Like the frontpage extensions, phtml includes a security problem
+because it is run under the uid of the webserver. Be sure to turn on safe
+mode in src/php.h and restrict the search path to a save value. There are some
+other options in php.h you may want to edit. If you are very concerned
+about security, compile php as a cgi. However, this will be a performance
+loss and not as smart as the module version.
+<P>Type <CODE>make</CODE> to build all files. When the compilation is done,
+copy <CODE>mod_php.*</CODE> and <CODE>libphp.a</CODE> to
+<CODE>/usr/src/apache_1.2.6/src</CODE> Add a line
+<PRE>
+Module php_module mod_php.o 
+</PRE>
+
+to the end of <CODE>/usr/src/apache_1.2.6/src/Configuration</CODE>, add 
+<PRE>
+-lphp -lm -lgdbm -lgd    
+</PRE>
+
+to the <CODE>EXTRA_LIBS</CODE> in the same file,
+<PRE>
+application/x-httpd-php phtml 
+</PRE>
+
+to Apache's <CODE>mime.types</CODE> and
+<PRE>
+AddType  application/x-httpd-php .phtml
+</PRE>
+
+to Apache's <CODE>srm.conf</CODE>. 
+<P>You may also want to add <CODE>index.phtml</CODE> to <CODE>DirectoryIndex</CODE> in
+that file so that a file index.phtml is automatically loaded when its
+directory is requested.
+<P>
+<H2><A NAME="ss2.3">2.3 Adding SSL</A>
+</H2>
+
+<P><CODE>cd /usr/src/SSL-0.8.0; ./Configure linux-elf; make; make rehash</CODE>
+This will create libraries needed by apache. You may issue <CODE>make test</CODE>
+to verify the compilation.
+You have to apply a patch to apache. It is important that you apply it
+before the frontpage patch, otherwise frontpage will not work. 
+<CODE>cd</CODE> to <CODE>/usr/src/apache_1.2.6/src</CODE> and issue 
+<CODE>patch &lt; /usr/src/apache_1.2.6/SSLpatch</CODE>.
+Set <CODE>SSL_BASE=/usr/src/SSLeay-0.8.0</CODE> in <CODE>Configuration</CODE>. Make
+sure that <CODE>Module proxy_module</CODE> is disabled otherwise Apache won't
+compile. If you are in need of a proxy, go for Squid
+<A HREF="http://squid.nlanr.net/">http://squid.nlanr.net/</A><P>Now <CODE>make certificate</CODE> to generate <CODE>SSLconf/conf/httpsd.pem</CODE>.
+<P>
+<H2><A NAME="ss2.4">2.4 Adding frontpage</A>
+</H2>
+
+<P>Rename the <CODE>fp30.linux.tar.Z</CODE> file to <CODE>fp30.linux.tar.gz</CODE>,
+otherwise the install script will not find it. Run <CODE>./fp_install</CODE>
+to copy the extension files to <CODE>/usr/local/frontpage</CODE>. zcat can
+usually be invoked as /usr/bin/zcat.
+<P>You now have to apply the FP patch. <CODE>cd</CODE> to
+<CODE>/usr/src/apache_1.2.6/src</CODE> and type
+<CODE>patch &lt; /usr/src/frontpage/version3.0/apache-fp/fp-patch-apache_1.2.5</CODE>
+This will create the <CODE>mod_frontpage.*</CODE> files and do some modifications
+to <CODE>Configuration</CODE> etc. The 1.2.5 patch will work with both
+apache 1.2.5 and 1.2.6. Skip the part about installing webs, you can do
+that later
+<P>
+<HR>
+<A HREF="Apache+SSL+PHP+fp-3.html">Next</A>
+<A HREF="Apache+SSL+PHP+fp-1.html">Previous</A>
+<A HREF="Apache+SSL+PHP+fp.html#toc2">Contents</A>
+</BODY>
+</HTML>

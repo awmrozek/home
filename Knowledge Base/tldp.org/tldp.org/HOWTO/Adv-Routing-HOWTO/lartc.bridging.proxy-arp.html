@@ -1,0 +1,295 @@
+<HTML
+><HEAD
+><TITLE
+>Pseudo-bridges with Proxy-ARP</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Building bridges, and pseudo-bridges with Proxy ARP"
+HREF="lartc.bridging.html"><LINK
+REL="PREVIOUS"
+TITLE="Bridging and shaping"
+HREF="lartc.bridging.shaping.html"><LINK
+REL="NEXT"
+TITLE="Dynamic routing - OSPF and BGP"
+HREF="lartc.dynamic-routing.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.bridging.shaping.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 16. Building bridges, and pseudo-bridges with Proxy ARP</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.dynamic-routing.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.BRIDGING.PROXY-ARP"
+></A
+>16.3. Pseudo-bridges with Proxy-ARP</H1
+><P
+>If you just want to implement a Pseudo-bridge, skip down a few sections 
+to 'Implementing it', but it is wise to read a bit about how it works in
+practice.</P
+><P
+>A Pseudo-bridge works a bit differently. By default, a bridge passes packets
+unaltered from one interface to the other. It only looks at the hardware
+address of packets to determine what goes where. This in turn means that you
+can bridge traffic that Linux does not understand, as long as it has an
+hardware address it does.</P
+><P
+>A 'Pseudo-bridge' works differently and looks more like a hidden router than
+a bridge, but like a bridge, it has little impact on network design.</P
+><P
+>An advantage of the fact that it is not a bridge lies in the fact that
+packets really pass through the kernel, and can be filtered, changed,
+redirected or rerouted. </P
+><P
+>A real bridge can also be made to perform these feats, but it needs special
+code, like the Ethernet Frame Diverter, or the above mentioned patch.</P
+><P
+>Another advantage of a pseudo-bridge is that it does not pass packets it
+does not understand - thus cleaning your network of a lot of cruft. In cases
+where you need this cruft (like SAP packets, or Netbeui), use a real bridge.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2041"
+></A
+>16.3.1. ARP &#38; Proxy-ARP</H2
+><P
+>When a host wants to talk to another host on the same physical network
+segment, it sends out an Address Resolution Protocol packet, which, somewhat
+simplified, reads like this 'who has 10.0.0.1, tell 10.0.0.7'. In response
+to this, 10.0.0.1 replies with a short 'here' packet.</P
+><P
+>10.0.0.7 then sends packets to the hardware address mentioned in the 'here' 
+packet. It caches this hardware address for a relatively long time, and
+after the cache expires, it re-asks the question.</P
+><P
+>When building a Pseudo-bridge, we instruct the bridge to reply to these ARP
+packets, which causes the hosts in the network to send its packets to the
+bridge. The bridge then processes these packets, and sends them to the
+relevant interface.</P
+><P
+>So, in short, whenever a host on one side of the bridge asks for the
+hardware address of a host on the other, the bridge replies with a packet
+that says 'hand it to me'.</P
+><P
+>This way, all data traffic gets transmitted to the right place, and always
+passes through the bridge.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN2048"
+></A
+>16.3.2. Implementing it</H2
+><P
+>In the bad old days, it used to be possible to instruct the Linux Kernel to
+perform 'proxy-ARP' for just any subnet. So, to configure a pseudo-bridge,
+you would have to specify both the proper routes to both sides of the bridge
+AND create matching proxy-ARP rules. This is bad in that it requires a lot
+of typing, but also because it easily allows you to make mistakes which make
+your bridge respond to ARP queries for networks it does not know how to
+route.</P
+><P
+>With Linux 2.4/2.5 (and possibly 2.2), this possibility has been withdrawn and
+has been replaced by a flag in the /proc directory, called 'proxy_arp'. The
+procedure for building a pseudo-bridge is then:</P
+><P
+>&#13;<P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>Assign an IP address to both interfaces, the 'left' and the 'right'
+one</P
+></LI
+><LI
+><P
+>Create routes so your machine knows which hosts reside on the left,
+and which on the right</P
+></LI
+><LI
+><P
+>Turn on proxy-ARP on both interfaces, echo 1 &#62;
+/proc/sys/net/ipv4/conf/ethL/proxy_arp, echo 1 &#62;
+/proc/sys/net/ipv4/conf/ethR/proxy_arp, where L and R stand for the numbers
+of your interfaces on the left and on the right side</P
+></LI
+></OL
+>&#13;</P
+><P
+>Also, do not forget to turn on the ip_forwarding flag! When converting from
+a true bridge, you may find that this flag was turned off as it is not
+needed when bridging.</P
+><P
+>Another thing you might note when converting is that you need to clear the
+arp cache of computers in the network - the arp cache might contain old
+pre-bridge hardware addresses which are no longer correct.</P
+><P
+>On a Cisco, this is done using the command 'clear arp-cache', under
+Linux, use 'arp -d ip.address'. You can also wait for the cache to expire
+manually, which can take rather long.</P
+><P
+>You can speed this up using the wonderful 'arping' tool, which on many
+distributions is part of the 'iputils' package. Using 'arping' you can send
+out unsolicited ARP messages so as to update remote arp caches. </P
+><P
+>This is a very powerful technique that is also used by 'black hats' to
+subvert your routing!</P
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>On Linux 2.4, you may need to execute 
+'echo 1 &#62; /proc/sys/net/ipv4/ip_nonlocal_bind' before being able to send
+out unsolicited ARP messages!</P
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>You may also discover that your network was misconfigured if you are/were of
+the habit of specifying routes without netmasks. To explain, some versions
+of route may have guessed your netmask right in the past, or guessed wrong
+without you noticing. When doing surgical routing like described above, it
+is *vital* that you check your netmasks! </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.bridging.shaping.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.dynamic-routing.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Bridging and shaping</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.bridging.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Dynamic routing - OSPF and BGP</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

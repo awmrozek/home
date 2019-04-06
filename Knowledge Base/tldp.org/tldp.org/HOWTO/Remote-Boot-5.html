@@ -1,0 +1,1183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Remote-Boot mini-HOWTO:  Configuring Remote-Boot Workstations         with Linux, DOS, Windows 95/98 and Windows NT: Remote-Boot Tools Reference Manual</TITLE>
+ <LINK HREF="Remote-Boot-6.html" REL=next>
+ <LINK HREF="Remote-Boot-4.html" REL=previous>
+ <LINK HREF="Remote-Boot.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Remote-Boot-6.html">Next</A>
+<A HREF="Remote-Boot-4.html">Previous</A>
+<A HREF="Remote-Boot.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Remote-Boot Tools Reference Manual</A></H2>
+
+<P>This section provides detailled informations on the use of the tools
+we developped at the CUI, University of Geneva for this remote-boot
+configuration.
+<P>
+<H2><A NAME="ss5.1">5.1 BpBatch, MrBatch and MrZip</A>
+</H2>
+
+<P>These three names stand for three variants of the same program,
+with the following characteristics:
+<UL>
+<LI><CODE>BpBatch</CODE> is a special program that can be started from the
+BootProm before the operating system is loaded. It is made
+of two parts: <CODE>bpbatch.P</CODE>, the dynamic loader, and
+<CODE>bpbatch.ovl</CODE>, the program itself. <CODE>BpBatch</CODE> has
+full disk I/O capabilities through our own implementation
+of FAT16, FAT32 and Ext2fs, as well as remote network I/O
+capabilities through the BootProm TFTP API.
+<CODE>BpBatch</CODE> was compiled under DOS using 
+Borland C 5.0 and Turbo Assembler 3.2.</LI>
+<LI><CODE>MrBatch</CODE> is the DOS/Linux version of <CODE>BpBatch</CODE>.
+All commands recognized by <CODE>BpBatch</CODE> are recognized by
+<CODE>MrBatch</CODE> and vice versa. This is very usefull if you
+want to test your batch scripts from a DOS/Linux session.
+Under DOS, <CODE>MrBatch</CODE> emulates remote I/O by OS-based file
+access if the bootprom is not available. Under Linux,
+the bootprom cannot be seen anymore but <CODE>MrBatch</CODE>
+can emulate it using Linux IP support, or use OS-based file
+access.
+<CODE>MrBatch</CODE> was compiled under Linux using GCC 2.7.2.1
+and under DOS using Borland C 5.0 and Turbo Assembler 3.2.</LI>
+<LI><CODE>MrZip</CODE> is an interpreter that recognizes a superset of
+<CODE>MrBatch</CODE> language, and that serves to build disk images.
+In <CODE>MrZip</CODE>, the limited remote file I/O is replaced by a 
+full-featured OS-based file access. <CODE>MrZip</CODE> does not
+include VESA support.
+<CODE>MrZip</CODE> was compiled under Linux using GCC 2.7.2.1
+and under DOS using Borland C 5.0 and Turbo Assembler 3.2.</LI>
+</UL>
+<P>
+<H3>Command Line Arguments</H3>
+
+<P>All programs accept the same syntax of arguments. <CODE>MrBatch</CODE> and
+<CODE>MrZip</CODE> take them from the command line, while <CODE>BpBatch</CODE>
+look for them in the BOOTP option 155 (decimal). Here is the
+syntax of the arguments:
+<PRE>
+        [-x] [-l] [-b] [-v] [-w] [-i] [script-basename]
+</PRE>
+
+where:
+<UL>
+<LI><CODE>-x</CODE> disable the use of extended memory</LI>
+<LI><CODE>-l</CODE> disable the use of ISO-latin-8859-1 as default character
+set</LI>
+<LI><CODE>-b</CODE> cancel the bootprom detection (which cause a floppy
+seek under DOS)</LI>
+<LI><CODE>-v</CODE> cancel the VESA detection (which cause a switch to full
+screen under Windows 95)</LI>
+<LI><CODE>-w</CODE> enable direct disk write access (disabled by default
+under DOS and Linux)</LI>
+<LI><CODE>-i</CODE> enable interactive mode even if a script name is provided</LI>
+</UL>
+
+The <CODE>script-basename</CODE> is optional. If provided, <CODE>MrBatch</CODE> and
+<CODE>BpBatch</CODE> load the file with the <CODE>.bpb</CODE> extension, and <CODE>MrZip</CODE>
+loads the file with the <CODE>.mrz</CODE> extension. If not provided,
+<CODE>MrBatch</CODE> and <CODE>MrZip</CODE> run in interactive mode while <CODE>BpBatch</CODE>
+loads the file with the same basename as the BOOTP Boot file and
+a <CODE>.bpb</CODE> extension.
+<P>
+<H3>Syntax rules</H3>
+
+<P>The following rules apply when <CODE>BpBatch</CODE> parses an input line.
+<UL>
+<LI>Commands are parsed line by line. Lines are separated by CR and/or LF.</LI>
+<LI>The maximal line length is currently 255 characters.</LI>
+<LI>Keywords and variable names are case-insensitive.</LI>
+<LI>" is interpreted as the special string delimiter</LI>
+<LI>When ${variable} or $variable is encountred, it is substituted by 
+the value
+of the variable, or by an empty string if the variable is undefined.
+The substitution also occurs within a string. Moreover, the resulting
+substituted value must be explicitely enclosed between double quotes
+if used as a string value (ie. one should merely speak of macro expansion
+than of a variables).</LI>
+<LI>
+<UL>
+<LI><CODE>\a</CODE> is substituted by the audible-bell character (ASCII 7)</LI>
+<LI><CODE>\b</CODE> is substituted by the backspace character (ASCII 8)</LI>
+<LI><CODE>\n</CODE> is substituted by the newline character (ASCII 10)</LI>
+<LI><CODE>\r</CODE> is substituted by the return character (ASCII 13)</LI>
+<LI><CODE>\t</CODE> is substituted by the tabulation character (ASCII 9)</LI>
+<LI><CODE>\v</CODE> is substituted by the vertical-tab character (ASCII ...)</LI>
+<LI><CODE>\nnn</CODE> where n is a 3-digit octal number between 000 and 377
+is substituted by the character with ascii code specified</LI>
+<LI><CODE>\X</CODE> where X is any other character not listed above
+is substituted by X itself. In particular,
+<UL>
+<LI><CODE>\"</CODE> is substituted by a regular double-quote (not a string-delimiter)</LI>
+<LI><CODE>\$</CODE> is substituted by a regular dollar sign (not variable substitution)</LI>
+<LI><CODE>\\</CODE> is substituted by a regular backslash (not a special character)</LI>
+</UL>
+</LI>
+</UL>
+</LI>
+<LI>The character "end of string" (ASCII code 0) CANNOT be used anywhere
+as it is used internally as end-of-string delimiter</LI>
+<LI>The character "floating diaeresis" (ASCII code dec 249, hex F9, 
+octal 371)
+CANNOT be used in any string as it is used internally as string delimiter
+in the input parsing routine.</LI>
+<LI>The character "block space" (ASCII code dec 255, hex FF, octal 377)
+CANNOT be used in any variable value as it is used internally as
+variable delimiter.</LI>
+</UL>
+<P>Empty lines are ignored.
+Lines starting with a sharp (<CODE>#</CODE>) are treated as comments and are 
+not interpreted.
+Lines starting with a column (<CODE>:</CODE>) are treated as labels and are 
+not interpreted.
+<P>
+<DL>
+<DT><B>String expressions</B><DD><P>Strings are delimited by opening and closing double-quotes:
+<PRE>
+        "Hello world"
+</PRE>
+
+To include double-quotes within a string, quote them using a backslash:
+<PRE>
+        "I said: \"Hello world\""
+</PRE>
+
+Strings can be postfixed with a few operators.
+<UL>
+<LI>The character substitution operator:
+<PRE>
+        "Hello world"/o=u/      ==      "Hellu wurld"
+        "198.76.54.32"/.= /     ==      "198 76 54 32"
+</PRE>
+</LI>
+<LI>The word selection operator (zero-based):
+<PRE>
+        "Hello world"{0}        ==      "Hello"
+        "198 76 54 32"{1-3}     ==      "76 54 32"
+</PRE>
+</LI>
+<LI>The substring selection operator (zero-based):
+<PRE>
+        "Hello world"[4]        ==      "o"
+        "Hello world"[4-7]      ==      "o wo"
+</PRE>
+</LI>
+</UL>
+
+Operators can be chained by postfixing one after the other.
+For informations about the string length and word count operators,
+see under "Numerical expressions".
+<P>
+<DT><B>Numerical expressions</B><DD><P>Numerical expressions work on 32-bits integer numbers
+(from -2,147,483,646 to 2,147,483,647). Hexadecimal octal and
+binary numbers are not understood.
+Whenever a numerical expression is expected, the following
+are recognized:
+<UL>
+<LI>A positive or negative integer number</LI>
+<LI>An expression in the form (<EM>expr1 op expr2</EM>) 
+where <EM>op</EM> can be 
+either +, -, * (multiply), / (divide) or <CODE>%</CODE> (modulo)
+and <CODE>expr</CODE> is a numerical expression.
+Note that EACH operation MUST be enclosed between parenthesis :
+<PRE>
+        ((3 * 5)+2)             == 17
+</PRE>
+</LI>
+<LI>The string-length operator (@), followed by a string :
+<PRE>
+        @"Hello world"          == 11
+</PRE>
+</LI>
+<LI>The word-count operator (#) followed by a string :
+<PRE>
+        #"Hello world"          == 2
+</PRE>
+</LI>
+</UL>
+<P>
+<DT><B>Durations</B><DD><P>A few commands expect durations as arguments. Durations are measured
+in seconds, with a precision of up to a tenth of second:
+<PRE>
+        Delay 3                 waits for 3 seconds
+        Delay 0.3               waits for 3/10 seconds
+</PRE>
+<P>
+<DT><B>Colors</B><DD><P>Whenever a color is expected, you can either use the numeric value
+of the color or its symbolic name (case-insensitive).
+The following colors are recognized
+<PRE>
+        Black           0
+        Blue            1
+        Green           2
+        Cyan            3
+        Red             4
+        Magenta         5
+        Brown           6
+        LightGray       7
+        DarkGray        8
+        LightBlue       9
+        LightGreen     10
+        LightCyan      11
+        LightRed       12
+        LightMagenta   13
+        Yellow         14
+        White          15
+</PRE>
+<P>
+<DT><B>File References</B><DD><P>File names are strings. They must therefore always be enclosed between
+double-quotes. File names are case-sensitive on case-sensitive
+filesystems, case-insensitive on case-insensitive filesystems.
+Slash and backslash can be freely used one in place of the other.
+Do not forget to double backslash since a single backslash
+is an escape character.
+<P>There are two kinds of file references:
+<UL>
+<LI>Direct disk files</LI>
+<LI>Foreign files</LI>
+</UL>
+<P>Direct disk files are referenced using the following notation:
+<PRE>
+        "{disk:partition}/absolute/filename"
+</PRE>
+
+The disk number can be omitted and defaults to zero.
+For instance, <CODE>"{:1}/usr/bin"</CODE> points to <CODE>/usr/bin</CODE> 
+assuming there is
+such a directory on the first partition. Direct file I/O is
+solely based on our own file access routines (we do not use the
+operating system).
+<P>There are two <EM>special</EM> partitions. Partition zero corresponds to
+the hard disk master boot record (MBR) and has a pseudo file-system
+which let you access the boot code. Partition minus-one (-1) corresponds
+to the cache filesystem (see below).
+<P>Under BpBatch/MrBatch, foreign files correspond to remote files on the
+TFTP server when the BootProm is available:
+<PRE>
+        "help.bpb"           is the file help.bpb in the /tftpboot directory
+        "gifs/MyImage.gif"   is a file in /tftpboot/gifs
+</PRE>
+
+Other TFTP servers can be referenced :
+<PRE>
+        "198.76.54.32:help.bpb" 
+</PRE>
+
+If the other server is behind a gateway :
+<PRE>
+        "198.70.0.1/198.76.54.31:help.bpb"
+</PRE>
+
+One can also specify a specific port for the TFTP connection :
+<PRE>
+        "198.76.54.32@89:getpasswd/smith"
+</PRE>
+
+There can be only one open remote file at a time.
+If the BootProm is not available, remote files are emulated using
+the operating system file I/O, but the same restriction apply.
+<P>Under MrZip, foreign files correspond to files as seen by the operating
+system. There is no limitation, and foreign files can be used wherever
+direct disk files can be. Foreign files are usually faster than direct
+disk files, because the operating system has more buffers. Foreign
+files can refer to network files if supported by the operating system.
+<PRE>
+        "C:\\autoexec.bat"
+        "C:/config.sys"
+        "/mnt/net/usr"
+</PRE>
+</DL>
+<P>
+<H3>The Cache Filesystem</H3>
+
+<P>In order to reduce network load and to fasten the boot process,
+disk archives, linux kernels and possibly other files are cached
+on the hard disk. This disk cache is located at the end of the
+hard disk, between the last cylinder allocated in the partition
+table and the last physical cylinder of the disk (out of any
+allocated partition). There MUST be room between the last partition
+and the end of the disk if you want the cache filesystem to work.
+The cache filesystem MUST work if you want to restore a disk image.
+<P>The disk cache is organised in a volatile, CRC-validated filesystem :
+Each directory entry and each 32 KB data block is validated by a
+32-bits CRC. Whenever a directory entry or a data block unexpectedly
+changes, the file is automatically removed from the cache and
+downloaded again upon the next request.
+<P>You can freely access the cache filesystem from within BpBatch, MrBatch
+and MrZip using direct disk access on the special partition 
+<CODE>"{:-1}"</CODE>.
+To see the content of the cache, just type :
+<PRE>
+        logdir "{:-1}"
+</PRE>
+
+If the cache ever gets corrupted and is not automatically cleaned (which
+should never occurs), you can either type : 
+<PRE>
+        clean -1
+</PRE>
+
+(in interactive mode) or hold both shifts down when BpBatch access
+the cache for the first time.
+<P>
+<H3>Special variables</H3>
+
+<P>Some variable are initially set and/or have special meanings.
+Some of them exist within all programs, other are only available
+under MrZip and other are only available when a BOOTP/DHCP
+reply has been received.
+<P>
+<DL>
+<DT><B>General variables</B><DD><P>
+<UL>
+<LI><CODE>$Program</CODE> is set to "BpBatch" within BpBatch, "MrBatch" within
+MrBatch and "MrZip" within MrZip</LI>
+<LI><CODE>$Basename</CODE> is set to the basename of the script on which the
+batch interpreter was started</LI>
+<LI><CODE>$HelpFile</CODE> is the name of the file loaded when
+<CODE>Help</CODE> is invoked. 
+Default: <CODE>"${Basename}.hlp"</CODE></LI>
+<LI><CODE>$BOOTP-...</CODE> are variables set from the BOOTP/DHCP reply (see the
+paragraph on BOOTP/DHCP variables for more details)</LI>
+<LI><CODE>$DHCP-...</CODE> are variables set from the DHCP reply (see the
+paragraph on BOOTP/DHCP variables for more details)</LI>
+<LI><CODE>$Disks</CODE> is set to the space-separated list of sizes for each disk.
+That means, <CODE>#"$Disks"</CODE> represent the number of disks
+and <CODE>"$Disks"{0}</CODE> is the size of the first disk</LI>
+<LI><CODE>$Keypressed</CODE> is set to the next ready-to-read key available in the
+keyboard buffer (if available)</LI>
+<LI><CODE>$LBA</CODE>    controls the use of LBA to access disks > 2Gb.
+Default: "ON"</LI>
+<LI><CODE>$FDA</CODE>    controls the use of fast disk access (write accross cylinders).
+Default: "ON"</LI>
+<LI><CODE>$VESA</CODE>   controls the use of VESA graphics.
+Default: "ON" if available</LI>
+<LI><CODE>$VESA-Modes</CODE> gives the list of all available VESA modes. 
+The first entry of the list is the default mode, which is used
+when no parameter is given to InitGraph.
+Note: if VESA="OFF", this variable is blank</LI>
+<LI><CODE>$APM</CODE>    is set to "ON" if your computer supports Avanced Power
+Management. If $APM is "ON", you can use the command PowerOff
+to turn your computer off.
+Default: depends on your hardware</LI>
+<LI><CODE>$Trace</CODE> controls the display of each command before execution. It also controls the display of file names when creating new archives.
+Default: "OFF"</LI>
+<LI><CODE>$AutoShowLog</CODE> controls the automatic switch to the text log whenever
+the ESC key is pressed.
+Default: "ON"</LI>
+<LI><CODE>$PauseLog</CODE> controls the pause between each page of log when the log
+is visible.
+Default: "ON"</LI>
+<LI><CODE>$CacheDisk</CODE> is set to the disk used for caching remote files.
+Default: empty == 0, the first hard disk</LI>
+<LI><CODE>$CacheAlways</CODE> controls the automatic caching of remote files copied,
+patched or drawn as GIF.
+Default: "OFF"</LI>
+<LI><CODE>$CacheNever</CODE> prevents any file from being cached.
+Turn this variable on for diskless Linux boot.
+Default: "OFF"</LI>
+<LI><CODE>$CacheReserve</CODE> controls the preventive allocation
+of 25 percent more space than necessary in the cache partition,
+to let the files grow. Turn this variable off if you are short
+of disk space.
+Default: "ON"</LI>
+<LI><CODE>$ExtMemory</CODE> controls the use of Extended Memory (or XMS).
+Once deactivated, extended memory cannot be reactivated.
+Default: "ON" if available</LI>
+<LI><CODE>$IsoLatin</CODE> controls the interpretation of upper ASCII codes in
+included and patched files. The IsoLatin settings are
+processed at the time the file is loaded, not at the
+time the file is processed.
+Default: "ON"</LI>
+<LI><CODE>$ProgressX</CODE> and <CODE>$ProgressY</CODE> controls the position of the progress
+window displayed in VESA graphics during archive download
+and decompression.
+Default: 200 200</LI>
+<LI><CODE>$EXT2-Backup</CODE> controls the update of superblock backups in Linux
+ext2 filesystem. Superblock backups take a few seconds to
+do and are never used by current kernels (only by e2fsck).</LI>
+<LI><CODE>$Security-Gateway</CODE> controls the gateway-server used for user
+authentication. Our special authentication gateway must be running
+on the target computer.
+Default: <CODE>"${BOOTP-Server-IP}@89"</CODE>
+(ie. the TFTP server, on port 89)</LI>
+<LI><CODE>$Security-Check</CODE> contains the answer of the security server for the last
+check performed, either PASSED or FAILED.
+Default: "FAILED"</LI>
+<LI><CODE>$Security-Passwd, $HelpTopic, $OnExit, $OnKey-...</CODE>  
+are used internally.</LI>
+</UL>
+<P>See also BOOTP variables and MrZip-specific variables.
+<P>
+<DT><B>MrZip-specific variables</B><DD><P>The following variables are only used within MrZip.
+<UL>
+<LI><CODE>$TempPath</CODE> controls the directory where temporary files will be stored.
+Default: &lt;empty&gt; == current directory</LI>
+<LI><CODE>$DumpFormat</CODE> controls the way archives are dumped to the log when requested.
+It is a string containing
+<UL>
+<LI>"h"/"H" to display the archive header</LI>
+<LI>"b"/"B" to summarize/dump boot sectors</LI>
+<LI>"s"/"S" to display a short/long allocation summary</LI>
+<LI>"d"/"D" to display a short/long directory listing</LI>
+<LI>"f"/"F" to summarize/dump files</LI>
+</UL>
+
+Default: "hbD"</LI>
+<LI><CODE>$FragmentSize</CODE> controls the size of archive pieces. 
+If you do not use InCom's extended TFTP server, you should
+set this to "30 MB".
+Default: "87 MB"</LI>
+<LI><CODE>$SourceArchive, $DestArchive, $Filter...</CODE> are used internally.</LI>
+</UL>
+<P>
+<DT><B>BOOTP variables</B><DD><P>The following BOOTP-... and DHCP-... variables are recognized, as long
+as a BOOTP/DHCP reply has been received (TCP/IP Bootprom must be reported
+as detected):
+<PRE>
+        $BOOTP-Client-ID
+        $BOOTP-Your-IP
+        $BOOTP-Server-IP
+        $BOOTP-Gateway-IP
+        $BOOTP-Bootfile
+        $BOOTP-Server-Name
+        $BOOTP-Subnet-Mask
+        $BOOTP-Time-Offset
+        $BOOTP-Routers
+        $BOOTP-Time-Servers
+        $BOOTP-Name-Servers
+        $BOOTP-Domain-name-Servers
+        $BOOTP-BOOTP-Log-Servers
+        $BOOTP-Cookie-Servers
+        $BOOTP-Lpr-Servers
+        $BOOTP-Impress-Servers
+        $BOOTP-Resource-Location-Servers
+        $BOOTP-Host-Name
+        $BOOTP-Boot-Size
+        $BOOTP-Merit-Dump
+        $BOOTP-Domain-Name
+        $BOOTP-Swap-Servers
+        $BOOTP-Root-Path
+        $BOOTP-Extensions-Path
+        $BOOTP-IP-Forwarding
+        $BOOTP-Interface-MTU
+        $BOOTP-All-Subnets-Are-Local
+        $BOOTP-Broadcast-Address
+        $BOOTP-NIS-Domain
+        $BOOTP-NIS-Servers
+        $BOOTP-NTP-Servers
+        $BOOTP-Font-Servers
+        $BOOTP-X-Display-Manager
+        $DHCP-IP-Address-Lease-Time
+        $DHCP-Message-Type
+        $DHCP-Server-Identifier
+        $DHCP-Message
+        $DHCP-Renewal-Time
+        $DHCP-Rebinding-Time
+        $BOOTP-NIS+-Domain
+        $BOOTP-NIS+-Servers
+        $BOOTP-Server-Name
+        $BOOTP-Bootfile
+        $BOOTP-Mobile-IP-Agent
+        $BOOTP-SMTP-Servers
+        $BOOTP-POP3-Servers
+        $BOOTP-NNTP-Servers
+        $BOOTP-WWW-Servers
+        $BOOTP-Finger-Servers
+        $BOOTP-IRC-Servers
+        $BOOTP-StreetTalk-Servers
+        $BOOTP-STDA-Servers
+</PRE>
+<P>Other BOOTP/DHCP parameters can be used under the name
+<PRE>
+        $BOOTP-Option-n
+</PRE>
+
+where n is the decimal representation of the BOOTP option number.
+<P>Do not mix-up <CODE>BOOTP-Gateway-IP</CODE>, which is the gateway to use for TFTP
+and should be 0.0.0.0 if the TFTP server is in the same subnet, and 
+<CODE>BOOTP-Routers</CODE>, which contains the default IP gateway(s). The
+TCP/IP Bootprom sometimes seems to set the value of <CODE>BOOTP-Gateway-IP</CODE>
+from the value in <CODE>BOOTP-Routers</CODE>, causing each TFTP ack packet to
+be sent to the router first. To avoid such behaviour, if your TFTP server
+is in the same subnet as the client, force <CODE>BOOTP-Gateway-IP</CODE> to
+<CODE>0.0.0.0</CODE> (thanks to Maciek Uhlig for having pointed out this problem).
+</DL>
+<P>
+<H3>Monitoring commands</H3>
+
+<P>This section lists commands for monitoring the system state.
+Optional arguments are listed between parenthesis (I would have prefered
+square brackets, but LaTeX do not like them at this place...)
+<DL>
+<DT><B>Interact</B><DD><P>Show the log and turn to interactive mode until QUIT or EXIT is entered.
+Type HideLog before quitting if you want to avoid disturbing log messages
+during batch execution.
+<P>
+<DT><B>Help (topic)</B><DD><P>Load the on-line help file (<CODE>bpbatch.hlp</CODE>) and display the description
+of the given topic. If no topic is provided, or if the topic is unknown,
+display the help index.
+<P>
+<DT><B>Log "text"</B><DD><P>Display the string on the log. No return/linefeed is implicitely added.
+<P>
+<DT><B>Echo "text"</B><DD><P>Display the string on the log and go to the next line.
+Equivalent to 
+<PRE>
+        Log "text\r\n".
+</PRE>
+<P>
+<DT><B>LogVars ("pattern")</B><DD><P>Log (ie. display on the log) all variables matching the given pattern.
+The pattern can contain wildcards (? and *).
+<PRE>
+Example: LogVars "BOOTP-*"              list all BootP variables
+</PRE>
+<DT><B>LogDir "path/pattern"</B><DD><P>Log (ie. display on the log) all files from the given path that
+match the pattern. The pattern can contain wildcards (? and *).
+<PRE>
+Example: LogDir "/usr/g*p"              list files names like g...p
+</PRE>
+<DT><B>LogTree "path"</B><DD><P>Log the directory tree starting with the given path as root.
+<P>
+<DT><B>LogFile "filename"</B><DD><P>Log the content of the file. The file must be no more than 64 KB big.
+<P>
+<DT><B>ShowLog</B><DD><P>Make the log visible if it was hidden.
+Automatically performed when ESC is pressed with "$AutoShowLog" == "ON"
+and when entering interactive mode.
+<P>
+<DT><B>HideLog</B><DD><P>Prevent log messages to appear on the screen. Default state when BpBatch,
+MrBatch and MrZip are started on a script file.
+<P>
+<DT><B>CaptureLog</B><DD><P>Record all log output to a 64 KB buffer until EndCapture is issued.
+Wrap around buffer if the log output is more than 64 KB big.
+This command can be used to create a text file with an arbitrary content.
+The EndCapture MUST occurs within the same batch file.
+<P>
+<DT><B>EndCapture ("filename")</B><DD><P>End up the capture of the log. If a filename is given, store the
+captured text to a file. Otherwise, discard it.
+<P>
+<DT><B>Beep</B><DD><P>Make a sound. This command is equivalent to Echo "\007".
+</DL>
+<P>
+<H3>Control commands</H3>
+
+<P>This section lists commands that control the batch execution.
+Optional arguments are listed between parenthesis.
+<DL>
+<DT><B>Include "filename"</B><DD><P>Load the given file and start up the parser on it. Go back to
+the current point when the include file processing is done.
+The interpretation of characters above ASCII 127 within the
+include file depends on the value of $IsoLatin at the time
+the file is included.
+<P>
+<DT><B>OnExit <EM>command</EM></B><DD><P>Setup an exit-handler that will automatically be evaluated at the
+end of current batch file.
+<P>
+<DT><B>Goto <EM>label</EM></B><DD><P>Move the execution cursor to the given label (ie. the line starting with
+:<EM>label</EM>)
+<P>
+<DT><B>Eval "command"</B><DD><P>Perform all substitutions on the "command" and run the parser on it.
+<P>
+<DT><B>If ...</B><DD><P>
+<PRE>
+  If (not) &lt;expr1> (==|!=|&lt;|>|>=|&lt;=|=>|=&lt;|&lt;>) &lt;expr2> &lt;command>
+  If (not) (ci) "str1" (==|!=|&lt;|>|>=|&lt;=|=>|=&lt;|&lt;>) "str2" &lt;command>
+  If (not) (ci) "str1" Match-Expr "pattern" &lt;command>
+  If (not) (ci) "str1" Match-Passwd "unix-passwd" &lt;command>
+  If (not) (ci) "str1" in "wordlist" &lt;command>
+  If (not) (ci) "str1" in-file "filename" &lt;command>
+  If (not) exist "filename" &lt;command>
+  If (not) valid &lt;disk>:&lt;partition> &lt;command>
+</PRE>
+<P>These commands execute <EM>command;</EM> if the test succeeds.
+The 1st form compares two numerical expressions.
+The 2nd form compares two strings, optionally case-insensitive.
+The 3rd form tests if "str1" matches the given pattern (wildcards allowed).
+The 4th form tests if the clear password "str1" matches the Unix-crypted
+password.
+The 5th form tests if "str1" is included in the word list.
+The 6th form tests if "str1" is included in the word file.
+The 7th form tests if the given file exists.
+The 8th form tests if the given partition is valid (i.e. formatted). This
+form is only supported by BpBatch versions after February 1999.
+<P>
+<DT><B>Set ...</B><DD><P>
+<PRE>
+  Set variable = "string-value"
+  Set variable = &lt;expr>
+</PRE>
+<P>Setup a value for the given variable. If the given value is a numerical
+expresison, it will be implicitely converted to a string.
+A variable can be used anywhere by refering it as $variable or 
+${variable}.
+If the resulting reference is to be interpreted as a string, it
+should be enclosed between double quotes: "$variable" or "${variable}".
+<P>
+<DT><B>Delay <EM>duration</EM></B><DD><P>Waits until the specified duration (expressed in seconds) expired.
+See also the paragraph on the format of durations.
+<P>
+<DT><B>GetTime <EM>variable</EM>, GetDate <EM>variable</EM></B><DD><P>Get the CMOS time and store it into <EM>variable</EM>in the form HH:MM:SS.
+Get the CMOS date and store it into <EM>variable</EM>in the form YY/MM/DD.
+This can be used to customize the behavior of your boot scripts
+depending on the time of day or on the date.
+<P>
+<DT><B>SetTime "HH:MM:SS", SetDate "YY/MM/DD"</B><DD><P>Set the computer CMOS time or date to the given value. 
+If you have a security gateway (our special TFTP server) running, you
+can automatically adjust the CMOS time and date of the client computers
+at each boot by evaluating the following command:
+<PRE>
+        include "$Security-Gateway:gettime"
+</PRE>
+
+If you want to understand what this command does, just type:
+<PRE>
+        logfile "$Security-Gateway:gettime"
+</PRE>
+<P>
+<DT><B>Poweroff</B><DD><P>Turn off the computer.
+This command only works if the computer is Advanced Power Management (APM)
+compatible.
+</DL>
+<P>
+<H3>Keyboard-related commands</H3>
+
+<P>This section lists commands that let you monitor the keyboard input.
+Optional arguments are listed between parenthesis. 
+See also under <EM>National Language Support</EM>.
+<DL>
+<DT><B>GetKey (<EM>variable</EM>)</B><DD><P>Indefinitely wait until a key is pressed and store it in the <EM>variable</EM>.
+<P>
+<DT><B>WaitForKey <EM>duration</EM> (<EM>command</EM>)</B><DD><P>Wait until a key is pressed for no more than <EM>duration</EM> seconds.
+If no key has been pressed after the given time, evaluate the <EM>command</EM>.
+Otherwise, leave the key in the keyboard buffer.
+See also the paragraph on the format of durations.
+<P>
+<DT><B>Input (<EM>variable</EM> (<EM>max-length</EM>))</B><DD><P>Read a return-terminated string from the keyboard and store the result
+string in <EM>variable</EM> (without the terminating return). If <EM>max-length</EM>
+is given, do not allow the user to enter more than this number
+of characters.
+<P>See also <CODE>GetPasswd</CODE> under <EM>Security-related commands</EM>.
+<P>
+<DT><B>OnKey "c" <EM>command</EM></B><DD><P>Setup a key handler that will automatically evaluate the given <EM>command</EM>
+when the key "c" is pressed (except is explicitely waited by a GetChar
+or an Input command). If the string <CODE>"default"</CODE> is used instead of
+a single character, the command is executed if any other key is pressed.
+</DL>
+<P>
+<H3>Text output commands</H3>
+
+<P>This section lists commands used to perform regular text output.
+All these commands can be used in graphic mode also, with
+the same behaviour (except that text mode provides 80x25 characters
+while graphic mode provides 100x37, because graphic mode
+characters are of size 8x16).
+Optional arguments are listed between parenthesis.
+See also under <EM>National Language Support</EM>.
+<DL>
+<DT><B>Print <EM>"text"/expr</EM></B><DD><P>Print the specified string/expression at current cursor position
+and using current text attributes, then move the cursor.
+Add "\r\n" to the end of the string to go to the next line.
+<P>
+<DT><B>TextAttr <EM>fg-color</EM> <EM>bg-color</EM></B><DD><P>Setup the text attributes. One can also put a single numeric value
+representing both colors and defined as 16*<EM>bg-color</EM>+<EM>fg-color</EM>.
+<P>If you need more fantasy, you can use <CODE>LoadFont</CODE>. See under
+<EM>National Language Support</EM>.
+<P>
+<DT><B>At <EM>line</EM>,<EM>col</EM> (<EM>command</EM>)</B><DD><P>Move the cursor position to the specified position and evaluate
+the command if provided.
+<PRE>
+Example: At 10,20 Print "Gnats and rats !"
+</PRE>
+<DT><B>Clear (<EM>color</EM> (<EM>pattern-char</EM> (<EM>top</EM>,<EM>left</EM>,<EM>bottom</EM>,<EM>right</EM>)))</B><DD><P>Fill the given text area with the given <EM>pattern-char</EM> (either a string
+or the decimal ascii code). The area defaults to the full screen,
+the pattern char defaults to the full block (ASCII dec 219) and the
+color defaults to black (clear screen). Move the cursor to the upper left
+corner of the cleared area.
+<DT><B>BpMenu backward compatibility commands</B><DD><P>
+<PRE>
+  .ATT (&lt;attribute>)
+  .CLS (&lt;attribute>)
+  .DEF &lt;key> (&lt;timeout_val>)
+  .KEY &lt;key> &lt;filename>
+  .POS ((&lt;x>) &lt;y>)
+  .PWD &lt;key> &lt;cpasswd>
+  .WLN (&lt;text>)
+  .WRT &lt;text>
+</PRE>
+<P>See InCom's manual for more infos. We wrote some time ago a 
+<A HREF="soft/menuedit.zip">program</A> program for editing menu files
+using this syntax, but it is preferable to make your menus using the
+new explicit syntax.
+Note that the .PWD command is not implemented because we do not now the
+password crypting algorithm used by InCom GmbH.
+</DL>
+<P>
+<H3>Graphics output commands</H3>
+
+<P>This section lists commands used to perform graphic-mode output.
+For the functions listed in this section, coordinates are given
+in pixels. You can also use all text output commands (see above)
+in graphic mode.
+Optional arguments are listed between parenthesis.
+<P>Note that the graphic mode is automatically turned on whenever a graphic
+command is used, unless the variable <CODE>VESA</CODE> is set to <CODE>"OFF"</CODE>.
+<DL>
+<DT><B>InitGraph ("mode")</B><DD><P>Turn on VESA graphics.
+The origin is on the upper-left corner of the screen (0 0).
+VESA graphics may hang some computers under Windows 95. Run MrBatch
+with the -v option to avoid such problems.
+<P>You can request a specific video mode if you use the parameter "mode"
+This parameter is optional: if you do not specify any value, the video
+mode will be taken from the first field of the VESA-Modes variable.
+<P>Valid modes are :
+<UL>
+<LI>640x480    =>  640 by 480 pixels, 256 colors</LI>
+<LI>800x600    =>  800 by 600 pixels, 256 colors (default mode)</LI>
+<LI>1024x768   =>  1024 by 768 pixels, 256 colors</LI>
+<LI>1280x1024  =>  1280 by 1024 pixels, 256 colors</LI>
+</UL>
+<P>The VESA-Modes variable lists the video modes supported by your hardware.
+<P>Example: <CODE>InitGraph "640x480"</CODE>
+<P>
+<DT><B>CloseGraph</B><DD><P>Close VESA graphic mode and go back to text mode.
+<P>
+<DT><B>DrawBar <EM>x-pos</EM> <EM>y-pos</EM> <EM>width</EM> <EM>height</EM> <EM>color</EM></B><DD><P>VESA graphics. Draw a filled bar of the given size and colors.
+<P>
+<DT><B>DrawWindow <EM>x-pos</EM> <EM>y-pos</EM> <EM>width</EM> <EM>height</EM> (<EM>bg-color</EM> (<EM>bar-color</EM>)) ("title" (<EM>title-color</EM>))</B><DD><P>VESA graphics. Draw a window of the given size and colors. The background
+color defaults to LightGray and the title-bar color defaults to Blue.
+If you include a title string and a color, this text will be displayed in
+the title bar.
+<P>
+<DT><B>Drawtext <EM>x-pos</EM> <EM>y-pos</EM> "text" (<EM>fg-color</EM>)</B><DD><P>VESA graphics. Draw the text string at the given position with a
+transparent background. The color defaults to text foreground color.
+<P>
+<DT><B>DrawGif "gif-filename" (<EM>x-pos</EM> <EM>y-pos</EM> (<EM>color-strategy</EM>))</B><DD><P>VESA graphics. Load the given GIF-87a file and draw it on the screen.
+The file can be interlaced, but must be in GIF-87a (not GIF-89a).
+The image size should fit in the selected video mode. You cannot load a 
+1024x768 GIF file when you selected a 640x480 mode.
+The GIF position defaults to the top left corner of the screen (0 0).
+<P>The <EM>color-strategy</EM> defines the allocation of colors in the palette
+when more than 256 colors are needed (for instance when two 256 colors
+GIF files are displayed simultaneously):
+<UL>
+<LI><CODE>Best-Colors</CODE>  use best possible colors for the most recent GIF</LI>
+<LI><CODE>Spare-Colors</CODE> try to avoid allocating colors, change existing colors</LI>
+<LI><CODE>Share-Colors</CODE> try to avoid allocating colors, use existing colors</LI>
+<LI><CODE>Reuse-Colors</CODE> allocate no new color, only use existing colors</LI>
+</UL>
+
+The default strategy is <CODE>Best-Colors</CODE>.
+</DL>
+<P>
+<H3>Security-related commands</H3>
+
+<P>This section lists commands that help you authenticate a user.
+Optional arguments are listed between parenthesis.
+<P>Some of these functions cooperate with a <EM>Security gateway</EM>,
+that you should first install. See the section on <EM>Special
+TFTP servers</EM> for more infos.
+<DL>
+<DT><B>GetPasswd (<EM>variable</EM> (<EM>max-length</EM>))</B><DD><P>Same as Input, but echo stars instead of the typed characters.
+<P>
+<DT><B>Crypt "text" "salt" <EM>variable</EM></B><DD><P>Apply the Unix crypt function to the given 8-chars text and store the
+resulting crypted string into <EM>variable</EM>. The "salt" is usually a
+two-character string that will be found as the first two characters
+of the crypted string.
+<P>Note that Unix crypt is a one-way function. It is not possible to
+decode the crypted string. One can only try to crypt another string
+with the same salt and compre the resulting crypted string.
+<P>
+<DT><B>DESCrypt "text" "key" <EM>variable</EM></B><DD><P>Crypt the given text using the given 8-chars key and store the result
+as an hexadecimal string in <EM>variable</EM>.
+<P>
+<DT><B>DESDecrypt "hexcode" "key" <EM>variable</EM></B><DD><P>Decrypt the given hexadecimal string using the given 8-chars key and
+store the result in <EM>variable</EM>.
+<P>
+<DT><B>MD5 "text" <EM>variable</EM></B><DD><P>Compute the MD5 checksum of the given text and store it as an hexadecimal
+string in <EM>variable</EM>. Can be used as an alternative to the Unix crypt
+function to check for passwords bigger than 8 characters.
+<P>
+<DT><B>CheckUser "user" "password" "domain"</B><DD><P>Connect to the $Security-Gateway and check if the given user exist
+in the given radius domain and uses the specified password.
+If the domain is <CODE>"Unix"</CODE>, use the Unix user/password definition
+on the security gateway. For any other domain, use the security
+gateway domain definition file to determine the real Radius or NT
+domain to check.
+<P>Set the value of $Security-Check to "PASSED" or "FAILED".
+The password do not transit in clear on the network.
+</DL>
+<P>
+<H3>Disk-related commands</H3>
+
+<P>This section lists commands for preparing the hard-disk.
+Optional arguments are listed between parenthesis.
+<DL>
+<DT><B>GetPartitions <EM>variable</EM> (<EM>disk</EM>)</B><DD><P>Read the partition table(s) for the given disk and store it as a
+string into the given <EM>variable</EM>. The result string is a space-separated
+list of <EM>Type:Size</EM>, where
+<UL>
+<LI>  <EM>Type</EM> is FAT16, EXT, BIGDOS, NTFS, FAT32, FAT32-LBA,
+BIGDOS-LBA, EXT-LBA, LINUX-SWAP, LINUX-EXT2
+or the decimal filesystem id for unknown types.</LI>
+<LI>  <EM>Size</EM> is the size of the partition in megabytes.</LI>
+</UL>
+
+See SetPartitions for more informations about partitions.
+<P>
+<DT><B>SetPartitions "partitions" (<EM>disk</EM>)</B><DD><P>Setup the partition table(s) to the content of the string. The format
+used is the same that for GetPartitions. This command also
+reset all boot flags (hint: use SetBootPart).
+<P>The main partition table in the master boot record (MBR)
+has only four entries. Moreover, DOS and Windows accept
+only ONE FAT partition (called the Primary partition, C:)
+in the main partition table. Any supplemental FAT partition
+should be nested in an extended partition (and is thus
+called a Logical partition). If we give numbers 1-4 to
+the partitions described in the MBR partition table
+and numbers 5-8 to the partitions described in the
+first extended partition, the definition of two
+FAT partitions would work by defining partition 1
+as FAT, partition 2 as EXT and partition 5 as
+FAT. Partitions 3,4,6,7 and 8 should be marked
+as UNUSED. The same scheme can be used recursively
+to define more than two FAT partitions: nesting
+another extended partition in partition 6 and
+adding a logical FAT partition in partition 9.
+<P>In the most strict interpretation of DOS specifications,
+that means that entries 3 and 4 of the partition tables
+are never used. In practice, some versions of DOS and
+some other OS are able to use more than two partitions
+per partition table, but there is no clear rule.
+On this side, BpBatch is rather flexible in its
+interpretation of partition tables, it can often
+understands things that OSes cannot.
+<P>One universal rule is that there should never be more
+than one extended partition per partition table, otherwise
+the partition numbering scheme breaks down.
+<P>If you want to try funny configurations, make your own
+experiments, but don't complain if the OS does not
+recognize your partitions. The only way it is guarantee
+to work is to use the primary partition to store the
+OS boot partition, and to nest all other partitions,
+one at a time, in extended partitions.
+<P>Example of extended partitions :
+<PRE>
+        SetPartitions "BIGDOS:100 EXT:400 EMPTY EMPTY BIGDOS:400"
+</PRE>
+<P>
+<DT><B>GetBootPart <EM>variable</EM> (<EM>disk</EM>)</B><DD><P>Get the partition number with the boot flag turned on (DOS says:
+the activated primary partition) and store it to the <EM>variable</EM>.
+The first partition is numbered 1.
+If no partitions has the boot flag turned on, answers zero.
+<P>
+<DT><B>SetBootPart <EM>partition</EM> (<EM>disk</EM>)</B><DD><P>Set the boot flag to the given partition. The boot flag let the
+master boot record (MBR) choose which partition to boot on.
+The first partition is numbered 1.
+<P>
+<DT><B>Blank <EM>partition</EM> (<EM>disk</EM>)</B><DD><P>Fill the given partitions with zeroes. Can take quite a lot of time
+for big partitions. Do not format the partition for any operating
+system. See also <CODE>Clean</CODE>.
+<P>
+<DT><B>Clean <EM>partitions</EM> (<EM>disk</EM>) ("label")</B><DD><P>Fast-format the given partition(s) according to the type declared
+in the partition table. If a label is given and the filesystem
+supports it, setup the partition label. For a paranoiac full format,
+call <CODE>Blank</CODE> on the partition first.
+<P>Clean is supported for (FAT16) BIGDOS, FAT32, EXT, LINUX-EXT2 and LINUX-SWAP
+partitions. To clean the master boot record (MBR), use <CODE>Clean 0</CODE>.
+<P>Clean should be used on data partitions and on MBR/EXT partitions.
+It is totally useless to clean a partition before unzipping a filesystem
+on it using <CODE>FullUnzip</CODE>.
+<P>
+<DT><B>FullUnzip "full-archive" <EM>partition</EM> (<EM>disk</EM>)</B><DD><P>Decompress a full disk archive to the given partition, overwriting
+any existing file (clean-up on the fly).
+<P>FullUnzip is supported for (FAT16) BIGDOS, FAT32 and LINUX-EXT2.
+<P>This commands turn on VESA graphics to display a progress banner,
+unless <CODE>VESA</CODE> has been turned <CODE>OFF</CODE>.
+<P>
+<DT><B>IncrUnzip "incr-archive" "destpath"</B><DD><P>Decompress an incremental disk archive to the given path. Files
+in the archive replace those with the same name on the target path,
+but other files are not deleted.
+<P>IncrUnzip is supported for (FAT16) BIGDOS, FAT32 and LINUX-EXT2.
+This command is far less efficient than FullUnzip since the existing
+filesystem structure must be preserved. However, it avoids
+multiplying the number of different disk images by storing
+the differences only.
+<P>
+<DT><B>FileUnzip "source-filename" "dest-filename"</B><DD><P>Uncompress a file previously compressed with <CODE>MrZip</CODE> FileZip command.
+The file is validated by a 32-bits CRC.
+<P>
+<DT><B>Copy "source-filename" "dest-filename"</B><DD><P>Copy the source file to the destinaton file, byte-to-byte.
+Can be used after a FullUnzip for instance to update configuration
+files from the server without rebuilding the image.
+Better to use <CODE>FileUnzip</CODE> for big and easy-to-compress files.
+<P>
+<DT><B>Append "src-filename-1" "src-filename-2" "dest-filename"</B><DD><P>Copy the first, then the second file to the destination file, byte-to-byte.
+Can be used on arbitrary large files.
+The destination file cannot be one of the two source files.
+<P>
+<DT><B>Patch "source-filename" "dest-filename" ("prefix" ("postfix"))</B><DD><P>Read the source file and perform variable substitution before writing
+it to the destination file. The interpretation of characters above ASCII
+127 depends on the value of $IsoLatin.
+<P>By default, variables are recognized when prefixed by "${" and
+postfixed by "}". This can be changed to any other non-empty string.
+remember that if you want to use a dollar sign within the prefix or
+suffix, you must escape it or it will get macro-evaluated. For instance,
+if you want to explicitely use the default prefix and postfix, use:
+<PRE>
+        Patch "source-file" "dest-file" "\${" "}"
+</PRE>
+<P>
+<DT><B>MkDir "path"</B><DD><P>Recursively create directories from the root to the given full path.
+If the path already exists, this command has no effect.
+<P>
+<DT><B>Delete "filename", Del "filaname"</B><DD><P>Remove the given file. The file must exist.
+<P>
+<DT><B>DelTree "path"</B><DD><P>Recursively remove all files and directories under the given path,
+and remove the directory itself.
+</DL>
+<P>
+<H3>Boot commands</H3>
+
+<P>This section lists commands for continuing the boot process.
+Optional arguments are listed between parenthesis.
+<DL>
+<DT><B>HideBootProm</B><DD><P>Restore the memory and the interrupt vectors allocated by the bootprom.
+All attempts to make TFTP transfers will fail after calling this command.
+It is usually a good idea to call this command before HdBoot, or you
+might run short of memory under DOS/Windows. This command is
+implicitely called by FloppyBoot.
+<P>Note that although this function restore all vectors "officially" 
+rerouted by the BootProm, it does not seems to restore everything.
+But it works well enough for DOS and Windows.
+<P>
+<DT><B>LoadRamDisk "ramdisk-filename"</B><DD><P>Load a floppy disk image into the extended memory and redirect
+the BIOS Disk Services to make floppy disk calls use this image
+instead. This command implicitely calls <CODE>HideBootProm</CODE>. Call
+<CODE>FloppyBoot</CODE> to boot on the ramdisk you just loaded.
+<P>This kind of ramdisk may not be as robust as what you get when
+you use the TFTPBoot command. The only advantage is that it only
+steals a few hundred bytes of conventional memory instead of the
+&gt;64 KB reserved by the TCP/IP BootPROM. Warning, nothing secures the
+extended memory in which the ramdisk resides.
+There is no way to uninstall such a ramdisk.
+<P>
+<DT><B>LoadZRamDisk "ramdisk-filename"</B><DD><P>Do the same as <CODE>LoadRamDisk</CODE>, but for an image that has been
+compressed using <CODE>MrZip</CODE> FileZip command. Compressed ramdisks are
+protected against data corruption (and uncomplete download) by a
+byte count and a 32-bits CRC.
+<P>
+<DT><B>TFTPBoot "remote-bootfile"</B><DD><P>Chain to another boot file (for instance a floppy image made with
+InCom's BpShell program). See the file referencing conventions
+for accessing a file on another TFTP server.
+<P>
+<DT><B>FloppyBoot</B><DD><P>Hide the Boot ROM, load the floppy disk boot sector and boot on it.
+<P>
+<DT><B>HdBoot (<EM>disk</EM>)(:<EM>partition</EM>)</B><DD><P>Load the given boot sector and boot from it. The disk default to zero,
+the first hard disk, and the partition defaults to zero, ie. the
+master boot record. You can boot from any partition, but be warned that
+Windows 95 may not let you boot a partition that has not been
+set as the boot partition (hint: use SetBootPart).
+<P>This command does not implicitely call HideBootProm, so you might
+want to call it before.
+<P>
+<DT><B>LinuxBoot "kernelfile" ("command-line" ("ramdisk-file"))</B><DD><P>Load the given kernel and ramdisk into the high memory,
+setup the command line and boot the kernel. It is a good idea
+to put at least a minimal command line with the location of the
+root filesystem (like <CODE>"root=</CODE>dev/hda1"/). If you are using a linux
+system that heavily relies on <CODE>lilo</CODE> (like RedHat Linux 5.1), 
+it may be necessary to add to the command line something like 
+<CODE>BOOT_IMAGE=linux</CODE>. Note that the kernel
+can be loaded by TFTP (automatically cached on the hard disk)
+or directly from the target root partition.
+<P>This command works for small and big kernels (<CODE>zImage</CODE> and <CODE>bzImage</CODE>).
+</DL>
+<P>
+<H3>National language support</H3>
+
+<P>This section lists commands related not national language support.
+Optional arguments are listed between parenthesis.
+<DL>
+<DT><B>RemapKeys "original-keys" "remapped-keys"</B><DD><P>National keyboard support. Remap given keys to other characters.
+For instance, to swap the Y and Z keys, use
+<PRE>
+        Remapkeys "yzYZ" "zyZY"
+</PRE>
+
+It is a good idea to use the quoted octal notation when using characters
+not included in the minimal ASCII character set, in order to avoid a
+dependency to the iso-latin modal settings.
+<P>For international keyboards, there are two keys that produce a backslash
+in non-remapped (US) mode. Each of them can be independantly remapped,
+thanks to the fact that <CODE>BpBatch</CODE> sees one of them as a key answering
+ASCII code 252 (octal) or ASCII code 335 (octal) when shifted.
+<P>If you send me a sample script that does keyboard mapping for
+your national keyboard, I will make it available under <CODE>
+<A HREF="soft/sample-scripts">http://cuiwww.unige.ch/info/pc/remote-boot/soft/sample-scripts</A></CODE>
+To help you make your own keyboard mapping, I suggest pressing all <EM>special</EM>
+keys without remapping the keyboard and writing down the character they produce. 
+These will be the <CODE>original-keys</CODE>. The <CODE>remapped-keys</CODE> simply are
+the key you would have liked to see, in the same order. If some keys (either
+original or remapped) produce characters above ASCII dec 127, use the quoted
+octal notation. You can easily get the octal code for any given character by
+looking in the ASCII table of HelpPC for instance (HelpPC is a shareware
+hypertext on-line help program by David Jurgens).
+<P>
+<DT><B>RemapAltkeys "original-keys" "remapped-keys"</B><DD><P>National keyboard support. Remap the given keys when ALT is depressed
+For instance, to map Alt-2 to the ampersand sign, use
+<PRE>
+        RemapAltKeys "2" "@"
+</PRE>
+
+Note that dead keys are not supported.
+<P>
+<DT><B>LoadCodePage "cpxxx.bin"</B><DD><P>Load and activate the given binary Codepage file.
+Codepages are used for the translation of Unicode characters
+(present on VFAT valumes for instance) into 8-bits characters.
+If you do not have the right Codepage loaded, you will get FAT warnings
+while accessing the filesystem when special characters are encountred.
+<P>All binary codepage files are available at <CODE>
+<A HREF="soft/codepage.zip">http://cuiwww.unige.ch/info/pc/remote-boot/soft/codepage.zip</A></CODE>
+<P>The default codepage is 850, a reordered superset of ISO-Latin-1.
+If you load a more exotic codepage, you should usually turn the variable
+<CODE>$IsoLatin</CODE> to <CODE>"off"</CODE> or you might get meaningless
+implicit conversions. Moreover, if you want to display exotic characters,
+you should also load the proper screen font (use <CODE>"LoadFont"</CODE>).
+<P>
+<DT><B>LoadFont "fontfile"</B><DD><P>Load and activate a VGA/VESA font, both in text and graphic mode.
+The font file must be a binary file of 16 bztes/characters
+(8x16 bitmap). This command can be used for National Language Support
+as well as for Fantasy support.
+<P>An archive with several fantasy fonts is available at <CODE>
+<A HREF="soft/fonts.zip">http://cuiwww.unige.ch/info/pc/remote-boot/soft/fonts.zip</A></CODE>.
+This archive also contains a program to extract fonts for your codepage
+from the DOS <CODE>.CPI</CODE> file.
+</DL>
+<P>
+<H3>Commands specific to MrZip</H3>
+
+<P>
+<DL>
+<DT><B>Source...</B><DD><P>
+<PRE>
+  Source (i)archive "filename"
+  Source path "path"
+</PRE>
+<P>Set the source for the archive manipulation to the given (incremental)
+archive file or disk path.
+<P>
+<DT><B>Dest...</B><DD><P>
+<PRE>
+  Dest (i)archive "filename"
+  Dest (i)dump
+  Dest path "path"
+</PRE>
+<P>Set the destination for the archive manipulation to the given (incremental)
+archive file, dump or disk path. To control the quantity of data
+displayed during dump, use the $DumpFormat special variable.
+<P>
+<DT><B>FileZip "source-filename" "dest-filename"</B><DD><P>Compress a file for further decompression with FileUnzip or for
+using as ZRamDisk. The file is validated by a 32-bits CRC.
+<P>
+<DT><B>Filter...</B><DD><P>
+<PRE>
+  Filter -"pattern"
+  Filter +"pattern"
+</PRE>
+<P>Avoid/allow files and directories matching the given pattern (wildcards
+allowed) to be included in the archive. The pattern is matched agains the
+full pathname. By default, all files are included in the image.
+You only need to explicitely allow files that where cancelled by a filter.
+Each negative filter has its own positive filter (allowed) sublist.
+<P>For DOS/Windows images, you will typically use 
+<PRE>
+        Filter -"*.swp"
+        Filter -"temp/*"
+</PRE>
+
+and for Unix images, you will typically use
+<PRE>
+        Filter -"var/log/*"
+        Filter -"tmp/*"
+</PRE>
+<P>
+<DT><B>CopyArchive</B><DD><P>Start the archive manipulation operation, according to source, destination
+and filter settings. Except in a few circumstances, you will probably use
+the shortcut below instead of explicitely calling <CODE>CopyArchive</CODE>.
+One circumstance in which you will use <CODE>CopyArchive</CODE> explicitely is
+when you want to change the fragmentation of an image, as follow:
+<PRE>
+        set FragmentSize="30 MB"
+        Source archive "original.imz"
+        Dest archive "refragmented.imz"
+        CopyArchive
+</PRE>
+<P>
+<DT><B>FullZip "path" "full-archive"</B><DD><P>Shortcut for
+<PRE>
+                Source path "path"
+                Dest archive "full-archive"
+                CopyArchive
+</PRE>
+
+You should usually first setup filters.
+<P>
+<DT><B>IncrZip "path" "incr-archive"</B><DD><P>Shortcut for    
+<PRE>
+                Source path "path"
+                Dest iarchive "incr-archive"
+                CopyArchive
+</PRE>
+<P>
+<DT><B>FullDump "full-archive"</B><DD><P>Shortcut for    
+<PRE>
+                Source archive "full-archive"
+                Dest dump
+                CopyArchive
+</PRE>
+<P>
+<DT><B>IncrDump "incr-archive"</B><DD><P>Shortcut for   
+<PRE>
+                Source iarchive "incr-archive"
+                Dest dump
+                CopyArchive
+</PRE>
+<P>
+<DT><B>XCopy "srcpath" "dstpath"</B><DD><P>Shortcut for  
+<PRE>
+                Source path "srcpath"
+                Dest path "dstpath"
+                CopyArchive
+</PRE>
+</DL>
+<P>
+<H2><A NAME="ss5.2">5.2 NoBreak.sys</A>
+</H2>
+
+<P><CODE>Nobreak.sys</CODE> is a very small (about 350 bytes only) driver that
+you include at the beginning of your <CODE>config.sys</CODE>. Its goal is
+to secure the boot process, until the user is logged in.
+DOS provides a setting for this (namely <CODE>BREAK=OFF</CODE>), but it is not
+drastic enough, and has almost no effect in the <CODE>autoexec.bat</CODE>.
+Our driver works by modifying the scan-code of the key
+pressed when a break is requested, directly at the BIOS level.
+This way, no program at all can receive a break until break is
+enabled again.
+<P>The driver must be loaded from the <CODE>config.sys</CODE> (or using the <CODE>devlod</CODE>
+program from <EM>Undocumented DOS</EM>). Afterwards, break can be
+enabled by sending <CODE>Yes</CODE> to the <CODE>NOBRK</CODE> pseudo-device,
+and disabled again by sending <CODE>No</CODE> (in fact, only the first
+character, <CODE>Y</CODE> or <CODE>N</CODE> is significant).
+<P>As this driver relies on the BIOS, it does only work for DOS and Windows 3.1.
+Windows 95 has its own low-level keyboard handling routines.
+<P>Assembler source code is 
+<A HREF="soft/nobreak.zip">available</A>.
+<P>
+<HR>
+<A HREF="Remote-Boot-6.html">Next</A>
+<A HREF="Remote-Boot-4.html">Previous</A>
+<A HREF="Remote-Boot.html#toc5">Contents</A>
+</BODY>
+</HTML>

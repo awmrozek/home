@@ -1,0 +1,222 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux Ext2fs Undeletion mini-HOWTO: Recovering data blocks</TITLE>
+ <LINK HREF="Ext2fs-Undeletion-11.html" REL=next>
+ <LINK HREF="Ext2fs-Undeletion-9.html" REL=previous>
+ <LINK HREF="Ext2fs-Undeletion.html#toc10" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Ext2fs-Undeletion-11.html">Next</A>
+<A HREF="Ext2fs-Undeletion-9.html">Previous</A>
+<A HREF="Ext2fs-Undeletion.html#toc10">Contents</A>
+<HR>
+<H2><A NAME="sec-recover"></A> <A NAME="s10">10. Recovering data blocks</A></H2>
+
+<P>This part is either very easy or distinctly less so, depending on whether
+the file you are trying to recover is more than 12 blocks long.
+<P>
+<H2><A NAME="ss10.1">10.1 Short files</A>
+</H2>
+
+<P>If the file was no more than 12 blocks long, then the block numbers of all
+its data are stored in the inode: you can read them directly out of the
+<CODE>stat</CODE> output for the inode.  Moreover, <CODE>debugfs</CODE> has a command which
+performs this task automatically.  To take the example we had before, repeated
+here:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+debugfs:  stat &lt;148003>
+Inode: 148003   Type: regular    Mode:  0644   Flags: 0x0   Version: 1
+User:   503   Group:   100   Size: 6065
+File ACL: 0    Directory ACL: 0
+Links: 0   Blockcount: 12
+Fragment:  Address: 0    Number: 0    Size: 0
+ctime: 0x31a9a574 -- Mon May 27 13:52:04 1996
+atime: 0x31a21dd1 -- Tue May 21 20:47:29 1996
+mtime: 0x313bf4d7 -- Tue Mar  5 08:01:27 1996
+dtime: 0x31a9a574 -- Mon May 27 13:52:04 1996
+BLOCKS:
+594810 594811 594814 594815 594816 594817
+TOTAL: 6
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>This file has six blocks.  Since this is less than the limit of 12, we get
+<CODE>debugfs</CODE> to write the file into a new location, such as
+<CODE>/mnt/recovered.000</CODE>:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+debugfs:  dump &lt;148003> /mnt/recovered.000
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Of course, this can also be done with <CODE>fsgrab</CODE>; I'll present it here as an
+example of using it:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# fsgrab -c 2 -s 594810 /dev/hda5 > /mnt/recovered.000
+# fsgrab -c 4 -s 594814 /dev/hda5 >> /mnt/recovered.000
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>With either <CODE>debugfs</CODE> or <CODE>fsgrab</CODE>, there will be some garbage at the end
+of <CODE>/mnt/recovered.000</CODE>, but that's fairly unimportant.  If you want to
+get rid of it, the simplest method is to take the <CODE>Size</CODE> field from the
+inode, and plug it into the <CODE>bs</CODE> option in a <CODE>dd</CODE> command line:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# dd count=1 if=/mnt/recovered.000 of=/mnt/resized.000 bs=6065
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Of course, it is possible that one or more of the blocks that made up your file
+has been overwritten.  If so, then you're out of luck: that block is gone
+forever.  (But just imagine if you'd unmounted sooner!)
+<P>
+<H2><A NAME="ss10.2">10.2 Longer files</A>
+</H2>
+
+<P>The problems appear when the file has more than 12 data blocks.  It pays
+here to know a little of how UNIX file systems are structured.  The file's data
+is stored in units called `blocks'.  These blocks may be numbered sequentially.
+A file also has an `inode', which is the place where information such as owner,
+permissions, and type are kept.  Like blocks, inodes are numbered sequentially,
+although they have a different sequence.  A directory entry consists of the
+name of the file and an inode number.
+<P>But with this state of affairs, it is still impossible for the kernel to find
+the data corresponding to a directory entry.  So the inode also stores the
+location of the file's data blocks, as follows:
+<P>
+<UL>
+<LI>The block numbers of the first 12 data blocks are stored directly in the
+inode; these are sometimes referred to as the <EM>direct block</EM>s.
+</LI>
+<LI>The inode contains the block number of an <EM>indirect block</EM>.  An
+indirect block contains the block numbers of 256 additional data blocks.
+</LI>
+<LI>The inode contains the block number of a <EM>doubly indirect block</EM>.  A
+doubly indirect block contains the block numbers of 256 additional indirect
+blocks.
+</LI>
+<LI>The inode contains the block number of a <EM>triply indirect block</EM>.  A
+triply indirect block contains the block numbers of 256 additional doubly
+indirect blocks.</LI>
+</UL>
+<P>Read that again: I know it's complex, but it's also important.
+<P>Now, the kernel implementation for all versions up to and including 2.0.36
+unfortunately zeroes all indirect blocks (and doubly indirect blocks, and so
+on) when deleting a file.  So if your file was longer than 12 blocks, you
+have no guarantee of being able to find even the numbers of all the blocks
+you need, let alone their contents.
+<P>The only method I have been able to find thus far is to assume that the file
+was not fragmented: if it was, then you're in trouble.  Assuming that the file
+was not fragmented, there are several layouts of data blocks, according to how
+many data blocks the file used:
+<P>
+<DL>
+<DT><B>0 to 12</B><DD><P>The block numbers are stored in the inode, as described above.
+<P>
+<DT><B>13 to 268</B><DD><P>After the direct blocks, count one for the indirect block, and
+then there are 256 data blocks.
+<P>
+<DT><B>269 to 65804</B><DD><P>As before, there are 12 direct blocks, a (useless) indirect
+block, and 256 blocks.  These are followed by one (useless) doubly indirect
+block, and 256 repetitions of one (useless) indirect block and 256 data blocks.
+<P>
+<DT><B>65805 or more</B><DD><P>The layout of the first 65804 blocks is as above.  Then
+follow one (useless) triply indirect block and 256 repetitions of a `doubly
+indirect sequence'.  Each doubly indirect sequence consists of a (useless)
+doubly indirect block, followed by 256 repetitions of one (useless) indirect
+block and 256 data blocks.
+</DL>
+<P>Of course, even if these assumed data block numbers are correct, there is no
+guarantee that the data in them is intact.  In addition, the longer the file
+was, the less chance there is that it was written to the file system without
+appreciable fragmentation (except in special circumstances).
+<P>You should note that I assume throughout that your blocksize is 1024 bytes, as
+this is the standard value.  If your blocks are bigger, some of the numbers
+above will change.  Specifically: since each block number is 4 bytes long,
+blocksize/4 is the number of block numbers that can be stored in each indirect
+block.  So every time the number 256 appears in the discussion above, replace
+it with blocksize/4.  The `number of blocks required' boundaries will also have
+to be changed.
+<P>Let's look at an example of recovering a longer file.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+debugfs:  stat &lt;1387>
+Inode: 148004   Type: regular    Mode:  0644   Flags: 0x0   Version: 1
+User:   503   Group:   100   Size: 1851347
+File ACL: 0    Directory ACL: 0
+Links: 0   Blockcount: 3616
+Fragment:  Address: 0    Number: 0    Size: 0
+ctime: 0x31a9a574 -- Mon May 27 13:52:04 1996
+atime: 0x31a21dd1 -- Tue May 21 20:47:29 1996
+mtime: 0x313bf4d7 -- Tue Mar  5 08:01:27 1996
+dtime: 0x31a9a574 -- Mon May 27 13:52:04 1996
+BLOCKS:
+8314 8315 8316 8317 8318 8319 8320 8321 8322 8323 8324 8325 8326 8583
+TOTAL: 14
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>There seems to be a reasonable chance that this file is not fragmented:
+certainly, the first 12 blocks listed in the inode (which are all data blocks)
+are contiguous.  So, we can start by retrieving those blocks:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# fsgrab -c 12 -s 8314 /dev/hda5 > /mnt/recovered.001
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Now, the next block listed in the inode, 8326, is an indirect block, which we
+can ignore.  But we trust that it will be followed by 256 data blocks (numbers
+8327 through 8582).
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# fsgrab -c 256 -s 8327 /dev/hda5 >> /mnt/recovered.001
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The final block listed in the inode is 8583.  Note that we're still looking
+good in terms of the file being contiguous: the last data block we wrote out
+was number 8582, which is 8327 + 255.  This block 8583 is a doubly indirect
+block, which we can ignore.  It is followed by up to 256 repetitions of an
+indirect block (which is ignored) followed by 256 data blocks.  So doing the
+arithmetic quickly, we issue the following commands.  Notice that we skip the
+doubly indirect block 8583, and the indirect block 8584 immediately (we hope)
+following it, and start at block 8585 for data.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# fsgrab -c 256 -s 8585 /dev/hda5 >> /mnt/recovered.001
+# fsgrab -c 256 -s 8842 /dev/hda5 >> /mnt/recovered.001
+# fsgrab -c 256 -s 9099 /dev/hda5 >> /mnt/recovered.001
+# fsgrab -c 256 -s 9356 /dev/hda5 >> /mnt/recovered.001
+# fsgrab -c 256 -s 9613 /dev/hda5 >> /mnt/recovered.001
+# fsgrab -c 256 -s 9870 /dev/hda5 >> /mnt/recovered.001
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Adding up, we see that so far we've written 12 + (7 * 256) blocks, which is
+1804.  The `stat' results for the inode gave us a `blockcount' of 3616;
+unfortunately these blocks are 512 bytes long (as a hangover from UNIX), so we
+really want 3616/2 = 1808 blocks of 1024 bytes.  That means we need only four
+more blocks.  The last data block written was number 10125.  As we've been
+doing so far, we skip an indirect block (number 10126); we can then write those
+last four blocks.
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+# fsgrab -c 4 -s 10127 /dev/hda5 >> /mnt/recovered.001
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Now, with some luck the entire file has been recovered successfully.
+<P>
+<P>
+<HR>
+<A HREF="Ext2fs-Undeletion-11.html">Next</A>
+<A HREF="Ext2fs-Undeletion-9.html">Previous</A>
+<A HREF="Ext2fs-Undeletion.html#toc10">Contents</A>
+</BODY>
+</HTML>

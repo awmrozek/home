@@ -1,0 +1,280 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Configuration File Example</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="LDAP Linux HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Configuring the LDAP Server"
+HREF="config.html"><LINK
+REL="PREVIOUS"
+TITLE="Access Control Examples"
+HREF="accesscontrol.html"><LINK
+REL="NEXT"
+TITLE="Running the LDAP Server"
+HREF="runningldap.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>LDAP Linux HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="accesscontrol.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. Configuring the LDAP Server</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="runningldap.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="ConfigurationExample"
+></A
+>3.8. Configuration File Example</H1
+><P
+>The following is an example configuration file, interspersed with explanatory 
+text. It defines two databases to handle different parts of the X.500 tree; 
+both are BDB database instances. The line numbers shown are provided for 
+reference only and are not included in the actual file. First, the global 
+configuration section:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;1.    # example config file - global configuration section
+2.    include /usr/local/etc/schema/core.schema
+3.    referral ldap://root.openldap.org
+4.    access to * by * read</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Line 1 is a comment. Line 2 includes another config file which contains core 
+schema definitions. The referral directive on line 3 means that queries not 
+local to one of the databases defined below will be referred to the LDAP server
+ running on the standard port (389) at the host root.openldap.org.</P
+><P
+>Line 4 is a global access control. It applies to all entries (after any applicable 
+database-specific access controls).</P
+><P
+>The next section of the configuration file defines a BDB backend that will 
+handle queries for things in the "dc=example,dc=com" portion of the tree. The database 
+is to be replicated to two slave slapds, one on truelies, the other on judgmentday. Indexes 
+are to be maintained for several attributes, and the userPassword attribute is to be protected 
+from unauthorized access.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;5.     # BDB definition for the example.com
+6.     database bdb
+7.     suffix "dc=example,dc=com"
+8.     directory /usr/local/var/openldap-data
+9.     rootdn "cn=Manager,dc=example,dc=com"
+10.    rootpw secret
+11.    # replication directives
+12.    replogfile /usr/local/var/openldap/slapd.replog
+13.	   replica uri=ldap://slave1.example.com:389
+14.            binddn="cn=Replicator,dc=example,dc=com"
+15.            bindmethod=simple credentials=secret
+16.    replica uri=ldaps://slave2.example.com:636
+17.            binddn="cn=Replicator,dc=example,dc=com"
+18.            bindmethod=simple credentials=secret
+19.    # indexed attribute definitions
+20.    index uid pres,eq
+21.    index cn,sn,uid pres,eq,sub
+22.    index objectClass eq
+23.    # database access control definitions
+24.    access to attr=userPassword
+25.            by self write
+26.            by anonymous auth
+27.            by dn.base="cn=Admin,dc=example,dc=com" write
+28.            by * none
+29.    access to *
+30.            by self write
+31.            by dn.base="cn=Admin,dc=example,dc=com" write
+32.            by * read
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Line 5 is a comment. The start of the database definition is marked 
+by the database keyword on line 6. Line 7 specifies the DN suffix for queries 
+to pass to this database. Line 8 specifies the directory in which the database 
+files will live.</P
+><P
+>Lines 9 and 10 identify the database "super user" entry and associated 
+password. This entry is not subject to access control or size or time limit restrictions.
+Please remeber to encrypt the rootpw using slappasswd.</P
+><P
+><B
+CLASS="command"
+>Example: </B
+>rootpw {SSHA}Jq4xhhkGa7weT/0xKmaecT4HEXsdqiYA</P
+><P
+>Lines 11 through 18 are for replication. See the <A
+HREF="http://www.openldap.org/doc/admin22/replication.html"
+TARGET="_top"
+>Replication</A
+> link for more information on these directives.</P
+><P
+>Lines 20 through 22 indicate the indexes to maintain for various attributes.</P
+><P
+>Lines 24 through 32 specify access control for entries in the this database. 
+As this is the first database, the controls also apply to entries not held in any 
+database (such as the Root DSE). For all applicable entries, the userPassword 
+attribute is writable by the entry itself and by the "admin" entry. It may be used for 
+authentication/authorization purposes, but is otherwise not readable. All other attributes 
+are writable by the entry and the "admin" entry, but may be read by all users (authenticated or not).</P
+><P
+>The next section of the example configuration file defines another BDB database. 
+This one handles queries involving the dc=example,dc=net subtree but is managed by the same 
+entity as the first database. Note that without line 39, the read access would be allowed due 
+to the global access rule at line 4.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;33.    # BDB definition for example.net
+34.    database bdb
+35.    suffix "dc=example,dc=net"
+36.    directory /usr/local/var/openldap-data-net
+37.    rootdn "cn=Manager,dc=example,dc=com"
+38.    index objectClass eq
+39.    access to * by users read</PRE
+></FONT
+></TD
+></TR
+></TABLE
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="accesscontrol.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="runningldap.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Access Control Examples</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="config.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Running the LDAP Server</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

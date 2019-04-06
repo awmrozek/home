@@ -1,0 +1,1163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Partitioning with fdisk</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Partition HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Partitioning requirements"
+HREF="requirements.html"><LINK
+REL="NEXT"
+TITLE="Labels"
+HREF="labels.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Partition HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="requirements.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="labels.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="fdisk_partitioning"
+></A
+>5. Partitioning with fdisk</H1
+><P
+>&#13;This section shows you how to actually partition your hard drive with
+the <B
+CLASS="command"
+>fdisk</B
+> utility. Linux allows only 4 primary
+partitions. You can have a much larger number of logical partitions by
+sub-dividing one of the primary partitions. Only one of the primary
+partitions can be sub-divided.
+</P
+><P
+>&#13;<EM
+>Examples:</EM
+>
+<P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>&#13;	   		Four primary partitions (see <A
+HREF="fdisk_partitioning.html#primary-example"
+>Section 5.2</A
+>)
+	   </P
+></LI
+><LI
+><P
+>&#13;	  		 Mixed primary and logical partitions (see <A
+HREF="fdisk_partitioning.html#mixed"
+>Section 5.3</A
+>)
+	   </P
+></LI
+></OL
+>
+</P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="fdisk"
+></A
+>5.1. fdisk usage</H2
+><P
+>&#13;	<B
+CLASS="command"
+>fdisk</B
+> is started by typing (as root)
+	<TT
+CLASS="userinput"
+><B
+><B
+CLASS="command"
+>fdisk</B
+>
+	<TT
+CLASS="replaceable"
+><I
+>device</I
+></TT
+></B
+></TT
+> at the command prompt.
+	<TT
+CLASS="replaceable"
+><I
+>device</I
+></TT
+> might be something like <TT
+CLASS="filename"
+>/dev/hda</TT
+> or <TT
+CLASS="filename"
+>/dev/sda</TT
+> (see <A
+HREF="devices.html#NamingConvention"
+>Section 2.1.1</A
+>). The basic
+	<B
+CLASS="command"
+>fdisk</B
+> commands you need are:
+</P
+><P
+>&#13;	<TT
+CLASS="userinput"
+><B
+>p</B
+></TT
+>
+	print the partition table
+<P
+>&#13;	<TT
+CLASS="userinput"
+><B
+>n</B
+></TT
+>
+	create a new partition
+</P
+>
+<P
+>&#13;  <TT
+CLASS="userinput"
+><B
+>d</B
+></TT
+>
+  delete a partition
+</P
+>
+<P
+>&#13;	<TT
+CLASS="userinput"
+><B
+>q</B
+></TT
+>
+	quit without saving changes
+</P
+>
+<P
+>&#13;	<TT
+CLASS="userinput"
+><B
+>w</B
+></TT
+>
+	write the new partition table and exit
+</P
+>
+
+</P
+><P
+>&#13;Changes you make to the partition table do not take effect until you issue the write (w) command.
+Here is a sample partition table:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Disk /dev/hdb: 64 heads, 63 sectors, 621 cylinders
+Units = cylinders of 4032 * 512 bytes
+ 
+   Device Boot    Start       End    Blocks   Id  System
+/dev/hdb1   *         1       184    370912+  83  Linux
+/dev/hdb2           185       368    370944   83  Linux
+/dev/hdb3           369       552    370944   83  Linux
+/dev/hdb4           553       621    139104   82  Linux swap
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+The first line shows the geometry of your hard drive. It may not be
+physically accurate, but you can accept it as though it were. The hard
+drive in this example is made of 32 double-sided platters with one
+head on each side (probably not true). Each platter has 621 concentric
+tracks. A 3-dimensional track (the same track on all disks) is called
+a cylinder. Each track is divided into 63 sectors. Each sector
+contains 512 bytes of data. Therefore the block size in the partition
+table is 64 heads * 63 sectors * 512 bytes er...divided by 1024. (See
+<A
+HREF="recovering.html#BlockSize"
+>4</A
+> for discussion on
+problems with this calculation.) The start and end values are cylinders.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="primary-example"
+></A
+>5.2. Four primary partitions</H2
+><P
+>&#13;	<EM
+>The overview:</EM
+> 
+</P
+><P
+>&#13;	Decide on the size of your swap space (see <A
+HREF="requirements.html#SwapSize"
+>Section 4.4</A
+>) and where it ought to go (see <A
+HREF="requirements.html#SwapPlacement"
+>Section 4.4.3</A
+>).
+	Divide up the remaining space for the three other partitions.
+</P
+><P
+>&#13;Example:
+</P
+><P
+>&#13;I start fdisk from the shell prompt:
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;# <TT
+CLASS="userinput"
+><B
+><B
+CLASS="command"
+>fdisk</B
+> <TT
+CLASS="filename"
+>/dev/hdb</TT
+></B
+></TT
+> 
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+which indicates that I am using the second drive on my IDE controller.
+(See <A
+HREF="devices.html#names"
+>Section 2.1</A
+>.) When I print the (empty) partition table,
+I just get configuration information.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Command (m for help): <TT
+CLASS="userinput"
+><B
+>p</B
+></TT
+>
+
+Disk /dev/hdb: 64 heads, 63 sectors, 621 cylinders
+Units = cylinders of 4032 * 512 bytes
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+I knew that I had a 1.2Gb drive, but now I really know: 64 * 63 * 512
+* 621 = 1281982464 bytes. I decide to reserve 128Mb of that space for
+swap, leaving 1153982464. If I use one of my primary partitions for
+swap, that means I have three left for ext2 partitions. Divided
+equally, that makes for 384Mb per partition. Now I get to work.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Command (m for help): <TT
+CLASS="userinput"
+><B
+>n</B
+></TT
+>
+Command action
+   e   extended
+   p   primary partition (1-4)
+<TT
+CLASS="userinput"
+><B
+>p</B
+></TT
+>
+Partition number (1-4): <TT
+CLASS="userinput"
+><B
+>1</B
+></TT
+>
+First cylinder (1-621, default 1):<TT
+CLASS="userinput"
+><B
+>&#60;RETURN&#62;</B
+></TT
+>
+Using default value 1
+Last cylinder or +size or +sizeM or +sizeK (1-621, default 621): <TT
+CLASS="userinput"
+><B
+>+384M</B
+></TT
+>
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Next, I set up the partition I want to use for swap:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Command (m for help): <TT
+CLASS="userinput"
+><B
+>n</B
+></TT
+>
+Command action
+   e   extended
+   p   primary partition (1-4)
+p
+Partition number (1-4): <TT
+CLASS="userinput"
+><B
+>2</B
+></TT
+>
+First cylinder (197-621, default 197):<TT
+CLASS="userinput"
+><B
+>&#60;RETURN&#62;</B
+></TT
+>
+Using default value 197
+Last cylinder or +size or +sizeM or +sizeK (197-621, default 621): <TT
+CLASS="userinput"
+><B
+>+128M</B
+></TT
+>
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Now the partition table looks like this:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;   Device Boot    Start       End    Blocks   Id  System
+/dev/hdb1             1       196    395104   83  Linux
+/dev/hdb2           197       262    133056   83  Linux
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+I set up the remaining two partitions the same way I did the first.
+Finally, I make the first partition bootable:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Command (m for help): <TT
+CLASS="userinput"
+><B
+>a</B
+></TT
+>
+Partition number (1-4): <TT
+CLASS="userinput"
+><B
+>1</B
+></TT
+>
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+And I make the second partition of type swap:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Command (m for help): <TT
+CLASS="userinput"
+><B
+>t</B
+></TT
+>
+Partition number (1-4): <TT
+CLASS="userinput"
+><B
+>2</B
+></TT
+>
+Hex code (type L to list codes): <TT
+CLASS="userinput"
+><B
+>82</B
+></TT
+>
+Changed system type of partition 2 to 82 (Linux swap)      
+Command (m for help): <TT
+CLASS="userinput"
+><B
+>p</B
+></TT
+>
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+The end result:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Disk /dev/hdb: 64 heads, 63 sectors, 621 cylinders
+Units = cylinders of 4032 * 512 bytes
+ 
+   Device Boot    Start       End    Blocks   Id  System
+/dev/hdb1   *         1       196    395104+  83  Linux
+/dev/hdb2           197       262    133056   82  Linux swap
+/dev/hdb3           263       458    395136   83  Linux
+/dev/hdb4           459       621    328608   83  Linux          
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Finally, I issue the write command (w) to write the table on the disk.
+</P
+><P
+>&#13;Side topics:
+<P
+></P
+><UL
+><LI
+><P
+><A
+HREF="appendix.html#swap"
+>Section 10.2</A
+></P
+></LI
+><LI
+><P
+><A
+HREF="appendix.html#formating"
+>Section 10.1</A
+></P
+></LI
+><LI
+><P
+><A
+HREF="appendix.html#mounting"
+>Section 10.3</A
+></P
+></LI
+></UL
+>
+
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="mixed"
+></A
+>5.3. Mixed primary and logical partitions</H2
+><P
+>&#13;<EM
+>The overview:</EM
+> create one use one of the primary
+partitions to house all the extra partitions. Then create logical
+partitions within it. Create the other primary partitions before or
+after creating the logical partitions.
+</P
+><P
+>&#13;Example:
+</P
+><P
+>&#13;I start fdisk from the shell prompt:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;# fdisk /dev/sda
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+which indicates that I am using the first drive on my SCSI chain. 
+(See <A
+HREF="devices.html#names"
+>Section 2.1</A
+>.)
+</P
+><P
+>&#13;First I figure out how many partitions I want. I know my drive has a
+183Gb capacity and I want 26Gb partitions (because I happen to have
+back-up tapes that are about that size).
+</P
+><P
+>&#13;	<TT
+CLASS="literal"
+>183Gb / 26Gb = ~7</TT
+>
+</P
+><P
+>&#13;so I will need 7 partitions. Even though fdisk accepts partition sizes
+expressed in Mb and Kb, I decide to calculate the number of cylinders
+that will end up in each partition because fdisk reports start and
+stop points in cylinders.  I see when I enter fdisk that I have 22800
+cylinders.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;&#62; The number of cylinders for this disk is set to 22800.  There is
+&#62; nothing wrong with that, but this is larger than 1024, and could in
+&#62; certain setups cause problems with: 1) software that runs at boot
+&#62; time (e.g., LILO) 2) booting and partitioning software from other
+&#62; OSs  (e.g., DOS FDISK, OS/2 FDISK)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+So, 22800 total cylinders divided by seven partitions is 3258
+cylinders. Each partition will be about 3258 cylinders long. I ignore
+the warning msg because this is not my boot drive (<A
+HREF="requirements.html"
+>Section 4</A
+>).
+</P
+><P
+>&#13; Since I have 4 primary partitions, 3 of them can be 3258
+long. The extended partition will have to be (4 * 3258), or 13032,
+cylinders long in order to contain the 4 logical partitions.
+</P
+><P
+>&#13;I enter the following commands to set up the first of the 3 primary
+partitions (stuff I type is bold ):
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Command (m for help): <TT
+CLASS="userinput"
+><B
+>n</B
+></TT
+>
+Command action
+   e   extended
+   p   primary partition (1-4)
+<TT
+CLASS="userinput"
+><B
+>p</B
+></TT
+>
+Partition number (1-4): <TT
+CLASS="userinput"
+><B
+>1</B
+></TT
+>
+First cylinder (1-22800, default 1): <TT
+CLASS="userinput"
+><B
+>&#60;RETURN&#62;</B
+></TT
+>
+Using default value 1
+Last cylinder or +size or +sizeM or +sizeK (1-22800, default 22800): <TT
+CLASS="userinput"
+><B
+>3258</B
+></TT
+>
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+The last partition is the extended partition:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Partition number (1-4): <TT
+CLASS="userinput"
+><B
+>4</B
+></TT
+>
+First cylinder (9775-22800, default 9775): <TT
+CLASS="userinput"
+><B
+>&#60;RETURN&#62;</B
+></TT
+>
+Using default value 9775
+Last cylinder or +size or +sizeM or +sizeK (9775-22800, default 22800): <TT
+CLASS="userinput"
+><B
+>&#60;RETURN&#62;</B
+></TT
+>
+Using default value 22800
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+ The result, when I issue the print table command is:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;/dev/sda1             1      3258  26169853+  83  Linux
+/dev/sda2          3259      6516  26169885   83  Linux
+/dev/sda3          6517      9774  26169885   83  Linux
+/dev/sda4          9775     22800 104631345    5  Extended
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Next I segment the extended partition into 4 logical partitions,
+starting with the first logical partition, into 3258-cylinder
+segments.  The logical partitions automatically start from /dev/sda5.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Command (m for help):  <TT
+CLASS="userinput"
+><B
+>n</B
+></TT
+>
+First cylinder (9775-22800, default 9775): <TT
+CLASS="userinput"
+><B
+>&#60;RETURN&#62;</B
+></TT
+>
+Using default value 9775
+Last cylinder or +size or +sizeM or +sizeK (9775-22800, default 22800): 13032
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+The end result is:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;   Device Boot    Start       End    Blocks   Id  System
+/dev/sda1             1      3258  26169853+  83  Linux
+/dev/sda2          3259      6516  26169885   83  Linux
+/dev/sda3          6517      9774  26169885   83  Linux
+/dev/sda4          9775     22800 104631345    5  Extended
+/dev/sda5          9775     13032  26169853+  83  Linux
+/dev/sda6         13033     16290  26169853+  83  Linux
+/dev/sda7         16291     19584  26459023+  83  Linux
+/dev/sda8         19585     22800  25832488+  83  Linux
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Finally, I issue the write command (w) to write the table on the disk.
+To make the partitions usable, I will have to format (<A
+HREF="appendix.html#formating"
+>Section 10.1</A
+>)
+each partition and then mount (<A
+HREF="appendix.html#mounting"
+>Section 10.3</A
+>) it.
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="submitted"
+></A
+>5.4. Submitted Examples</H2
+><P
+>&#13; I'd like to submit my partition layout, because it works well with
+any distribution of Linux (even big RPM based ones).
+
+I have one hard drive that ... is 10 gigs, exactly. Windows 
+can't see above 9.3 gigs of it, but Linux can see it all, and use it 
+all. It also has much more than 1024 cylenders.
+
+<DIV
+CLASS="table"
+><A
+NAME="AEN711"
+></A
+><P
+><B
+>Table 7. Partition layout example</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Partition</TH
+><TH
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Mount point</TH
+><TH
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Size</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/dev/hda1</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/boot</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(15 megs)</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/dev/hda2</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>windows 98 partition</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(2 gigs)</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/dev/hda3</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>extended</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(N/A)</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/dev/hda5</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>swap space</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(64 megs)</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/dev/hda6</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/tmp</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(50 megs)</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/dev/hda7</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(150 megs)</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/dev/hda8</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/usr</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(1.5 gigs)</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/dev/hda9</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>/home</TD
+><TD
+WIDTH="33%"
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(rest of drive)</TD
+></TR
+></TBODY
+></TABLE
+></DIV
+>
+
+I test new kernels for the USB mass storage, so that explains the large 
+/boot partition.  I install LILO into the MBR, and by default I boot 
+windows (I'm not the only one to use this computer).
+</P
+><P
+>&#13;I also noticed that you don't have any REAL examples of partition 
+tables, and for newbies I HIGHLY suggest putting quite a few up. I'm 
+freshly out of the newbie stage, and partitioning was what messed me up 
+the most.
+</P
+><P
+>&#13; <A
+HREF="mailto:valkor@qx.net"
+TARGET="_top"
+>Valkor</A
+>
+</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="requirements.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="labels.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Partitioning requirements</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Labels</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

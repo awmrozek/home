@@ -1,0 +1,291 @@
+<HTML
+><HEAD
+><TITLE
+>Running the clone script</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="HOWTO Clone Disk Images on Linux Booted from a Network"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Booting from Grub floppy disk"
+HREF="booting.html"><LINK
+REL="NEXT"
+TITLE="Extending the solution"
+HREF="extending.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>HOWTO Clone Disk Images on Linux Booted from a Network</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="booting.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="extending.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="RUNNING">6. Running the clone script</H1
+><P
+>The clone script, shown in <A
+HREF="clonescript.html"
+>Appendix B</A
+>, is not essential. You can make <TT
+CLASS="PARAMETER"
+><I
+>init=/bin/bash</I
+></TT
+> as a kernel parameter and end up with a shell from where you can run the available commands and programs.</P
+><P
+>The script is presented here to show the commands in a formal way and to propose a way to reduce the possibility of damages resulting from mistyping. You have to change the variables <TT
+CLASS="VARNAME"
+>tftp_server</TT
+>, <TT
+CLASS="VARNAME"
+>nic_module</TT
+>, <TT
+CLASS="VARNAME"
+>major_a</TT
+>, <TT
+CLASS="VARNAME"
+>family_a</TT
+> and <TT
+CLASS="VARNAME"
+>image_a</TT
+> according to your environment and application.</P
+><P
+>Please note that the arrays <TT
+CLASS="VARNAME"
+>major_a</TT
+> and <TT
+CLASS="VARNAME"
+>family_a</TT
+> are corresponding. Wrong major number for a given family name will mislead the user. You can locate the major and minor numbers of the devices of interest (whole disks and partitions) by listing the <TT
+CLASS="FILENAME"
+>/dev</TT
+> directory. The major and minor number are where the size of a regular file is, in the output of the command <B
+CLASS="COMMAND"
+>ls -l</B
+>, separated by a comma.</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+><TT
+CLASS="PROMPT"
+># </TT
+>ls -l /dev/fd0 /dev/hda /dev/hda1 /dev/hdc
+brw-rw----    1 root     disk       2,   0 Apr 11 11:25 /dev/fd0
+brw-rw----    1 root     disk       3,   0 Apr 11 11:25 /dev/hda
+brw-rw----    1 root     disk       3,   1 Apr 11 11:25 /dev/hda1
+brw-rw----    1 root     disk      22,   0 Apr 11 11:25 /dev/hdc
+			</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The command <B
+CLASS="COMMAND"
+>set -e</B
+> instructs the shell to abort the script should any command return non-zero code. The message<SPAN
+CLASS="QUOTE"
+>"Kernel panic: Attempted to kill init!"</SPAN
+> will follow, as in case of normal end. Don't panic! This is normal, given the circumstances. Just turn off the computer. Press <SPAN
+CLASS="KEYSYM"
+>Ctrl</SPAN
+>-<SPAN
+CLASS="KEYSYM"
+>Alt</SPAN
+>-<SPAN
+CLASS="KEYSYM"
+>Del</SPAN
+> to have a smooth reboot <EM
+>before</EM
+> exiting the script to avoid this ugly message.</P
+><P
+>The command <B
+CLASS="COMMAND"
+>insmod</B
+> will load the network interface module and the command <B
+CLASS="COMMAND"
+>dhcpcd</B
+> will start DHCP client. Note that the fact that Grub used DHCP during its boot has nothing to do with Linux doing the same.</P
+><P
+>The script makes a big loop and, for each iteration, it asks for one of three operations: <B
+CLASS="COMMAND"
+>Copy from network to device</B
+>, <B
+CLASS="COMMAND"
+>Copy from device to network</B
+> or <B
+CLASS="COMMAND"
+>Run fdisk</B
+>. Then the script asks which block device to use. The array <TT
+CLASS="VARNAME"
+>major_a</TT
+> holds the major number for the block devices allowed to be used and the array <TT
+CLASS="VARNAME"
+>family_a</TT
+> the respective names for the device families. Next, the script asks the minor number of the block device to be used.</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN287">6.1. Saving and restoring disk images</H2
+><P
+>If one of the copy operations is selected, the script asks for the name of the image to be saved or restored. The image name is limited to the elements of the array <TT
+CLASS="VARNAME"
+>image_a</TT
+>. A named pipe with the same name as the image is created if doesn't exist. Finally, <B
+CLASS="COMMAND"
+>dd</B
+> and <B
+CLASS="COMMAND"
+>tftp</B
+> are invoked simultaneously to transfer the image. Unlike regular <B
+CLASS="COMMAND"
+>ftp</B
+>, <B
+CLASS="COMMAND"
+>tftp</B
+> puts and gets named pipes just like regular files.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN295">6.2. Using fdisk</H2
+><P
+>If <B
+CLASS="COMMAND"
+>fdisk</B
+> command is selected it is invoked for the block device. <B
+CLASS="COMMAND"
+>fdisk</B
+> is normally run for the whole disk as opposed to one partition. Note that what normally is called <TT
+CLASS="FILENAME"
+>/dev/hda</TT
+> will be called <TT
+CLASS="FILENAME"
+>/dev/hda0</TT
+> by the clone script. The input of <B
+CLASS="COMMAND"
+>fdisk</B
+> could be put in the script to make automatic creation of partitions if desired.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="booting.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="extending.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Booting from Grub floppy disk</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Extending the solution</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

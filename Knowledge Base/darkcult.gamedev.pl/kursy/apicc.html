@@ -1,0 +1,218 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Własne kontrolki, cz.1</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apitray.html">&lt;&lt; Tray</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apicc2.html">Własne kontrolki, cz. 2 &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>Własne kontrolki</H2>
+
+<P>
+Kontrolki standardowe wraz z <SPAN CLASS=Inglisz>Common Controls</SPAN> to może niezbyt pokaźny zbiorek, ale w zupełności wystarczają do stworzenia wielu aplikacji. Jednak często zdarza się, że chcielibyśmy w naszym programie czegoś jeszcze - skoro inne programy to mają, to my też możemy ;-). Jednym ze sposobów rozszerzenia możliwości naszych interfejsów graficznych (może nie najprostszym, ale za to dającym najwięcej satysfakcji) jest tworzenie własnych kontrolek. WinAPI daje tu kilka możliwości:
+</P>
+
+<UL>
+<LI>sub- i superclassing 
+<LI>kontrolki rysowane przez rodzica (<SPAN CLASS=Inglisz>owner-drawn controls</SPAN>)
+<LI>łączenie standardowych kontrolek
+<LI>tworzenie własnych kontrolek od podstaw
+</UL>
+
+<P>
+Pierwszą technikę już omówiliśmy we wcześniejszych odcinkach tego kursu. Pozostałymi zajmiemy się tutaj.
+</P>
+
+<H2>
+Łączenie istniejących kontrolek
+</H2>
+
+<P>
+Żeby nie zaczynać z pustymi rękami, warto czasem zastanowić się, co właściwie chcemy osiągnąć i co już zrobiono za nas. Jeśli na przykład chcemy mieć kontrolkę, która wygląda i działa jak zwykły przycisk, ale obok niego wyświetlana jest dodatkowo liczba "wciśnięć", to najwygodniej będzie wykorzystać w tym celu połączone siły kontrolek <SPAN CLASS=L>BUTTON</SPAN> i <SPAN CLASS=L>STATIC</SPAN>.
+</P>
+<P>
+Naszym celem jest stworzenie nowej kontrolki, czyli nowej klasy okien. Tak więc powinniśmy skorzystać z superclassingu. Klasą bazową może być dowolna z predefiniowanych klas kontrolek, na przykład <SPAN CLASS=L>STATIC</SPAN> (która zresztą chyba najlepiej się nadaje do tego celu). Pobieramy informacje o tej klasie i zmieniamy co trzeba:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+WNDCLASS wc;<BR>
+GetClassInfo(hThisInstance, <SPAN CLASS=L>"STATIC"</SPAN>, &wc);<BR>
+<BR>
+wc.lpszMenuName = NULL;<BR>
+wc.lpszClassName = <SPAN CLASS=L>"Nasza kontrolka"</SPAN>;<BR>
+wc.hInstance = hThisInstance;<BR>
+g_OldControlProc = wc.lpfnWndProc;<BR>
+wc.lpfnWndProc = ControlProc;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Ustaliliśmy między innymi nazwę naszej nowej klasy (<SPAN CLASS=L>"Nasza kontrolka"</SPAN>) oraz wskaźnik na nową procedurę okna. Ten ostatni jest oczywiście sednem całej operacji tworzenia nowej kontrolki. Wskaźnik na starą procedurę zachowujemy w globalnej zmiennej <SPAN CLASS=T>g_OldControlProc</SPAN>. Pora na napisanie nowej procedury, czyli <SPAN CLASS=T>ControlProc</SPAN>. Co powinna ona robić? Przede wszystkim - wywoływać starą procedurę okna, tę z klasy <SPAN CLASS=L>STATIC</SPAN>. Szczegóły omówiliśmy już przy superclassingu, więc już wiesz, o co chodzi.
+</P>
+<P>
+Drugą ważną rzeczą, którą będzie robić procedura <SPAN CLASS=T>ControlProc</SPAN>, jest stworzenie przycisku i etykietki (<SPAN CLASS=L>STATIC</SPAN>), na której będzie wyświetlana liczba kliknięć. Muszą one oczywiście być oknami potomnymi dla naszej nowej kontrolki i dlatego właśnie będą tworzone wewnątrz jej procedury okna. Będziemy potrzebować jakichś identyfikatorów dla przycisku i dla etykietki:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#define IDC_BUTTON 1000<BR>
+#define IDC_LABEL  1001<BR></SPAN>
+</TD></TR>
+</TABLE>
+
+<P>
+Pora napisać procedurę <SPAN CLASS=T>ControlProc</SPAN>. Tworzenie wspomnianych dwóch kontrolek potomnych umieszczamy w obsłudze komunikatu <SPAN CLASS=T>WM_CREATE</SPAN> - żeby zostały stworzone tuż po przyjściu na świat swego okna-rodzica.
+</P>
+<P>
+Warto wspomnieć, że nie będziemy się musieli martwić o zniszczenie tych dwóch okien, które tworzymy w <SPAN CLASS=T>WM_CREATE</SPAN>. System zrobi to za nas, ponieważ będą to okna potomne. A oto i procedura, o której tyle mówimy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LRESULT CALLBACK ControlProc(HWND hwnd, UINT mesg, WPARAM wParam, LPARAM lParam)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>switch</SPAN>(mesg)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> WM_CREATE:<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;CreateWindowEx(<SPAN CLASS=L>0, "BUTTON", "Wciśnij mnie"</SPAN>, WS_CHILD|WS_VISIBLE, <SPAN CLASS=L>0, 0, 100, 30</SPAN>, hwnd, (HMENU)IDC_BUTTON, GetModuleHandle(NULL), NULL);<BR>
+&nbsp;&nbsp;&nbsp;CreateWindowEx(<SPAN CLASS=L>0, "STATIC", "0",</SPAN> WS_CHILD|WS_VISIBLE|SS_CENTER, <SPAN CLASS=L>100, 0, 50, 30</SPAN>, hwnd, (HMENU)IDC_LABEL, GetModuleHandle(NULL), NULL);<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>break</SPAN>;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> CallWindowProc(g_OldControlProc, hwnd, mesg, wParam, lParam);<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Trudno może uwierzyć, ale nasza kontrolka jest już gotowa. Wystarczy teraz tylko wywołanie <SPAN CLASS=T>CreateWindowEx</SPAN> z nazwą klasy, którą przed chwilą zarejestrowaliśmy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HWND hControl = CreateWindowEx(<SPAN CLASS=L>0, "Nasza kontrolka"</SPAN>, NULL, WS_CHILD|WS_VISIBLE,<SPAN CLASS=L> 5, 5, 150, 30</SPAN>, hwnd, NULL, hThisInstance, NULL);<BR>
+</TD></TR>
+</TABLE>
+
+<h2>
+Dodatkowa funkcjonalność
+</h2>
+
+<P>
+Mało się napracowaliśmy, ale i mało w sumie osiągnęliśmy, ponieważ nasza kontrolka jeszcze nie działa dokładnie tak, jak sobie założyliśmy (a mianowicie nie liczy kliknięć). I tu mamy nieco większy problem. Żeby coś liczyć, musimy mieć zmienną. Gdzie ją wpakować? Moglibyśmy oczywiście,  zadeklarować ją jako zmienną globalną. Pamiętajmy jednak, że potencjalny użytkownik może stworzyć (a że wredny jest, to i pewnie kiedyś stworzy) kilka instancji naszej kontrolki, a przecież każda powinna sobie liczyć kliknięcia osobno... Wygląda więc na to, że jeśli chcemy przechowywać liczbę kliknięć "na zewnątrz" kontrolki, to musimy mieć do tego celu dynamiczną tablicę.
+</P>
+<P>
+Możemy też przechowywać te dane "wewnątrz". Będzie to o wiele bardziej eleganckie rozwiązanie, bo "prywatne" dane kontrolki powinny być oddzielone od reszty programu. Nie przypadkiem użyłem słowa "prywatne" - gdyby WinAPI było obiektowe, to nową kontrolkę tworzylibyśmy jako klasę w sensie C++, a licznik kliknięć umieścilibyśmy w sekcji <SPAN CLASS=K>private</SPAN> tej klasy. Jednak marzenia na bok - WinAPI obiektowe nie jest i musimy się męczyć w inny sposób :-) (chociaż oczywiście nikt ci nie zabroni opakowania tego, o czym tu mówimy, w klasy C++).
+</P>
+<P>
+Zapewne od pierwszego odcinka kursu WinAPI zastanawiasz się, po co te <SPAN CLASS=Inglisz>extra bytes</SPAN>, o które ciągle potykamy się przy rejestracji klasy okna. Otóż jest to miejsce, w którym możemy przechowywać dowolne dane. Coś jakby stworzonego specjalnie dla naszego licznika kliknięć :-). Najpierw musimy powiedzieć systemowi, ile tych dodatkowych bajtów chcemy. Nasze żądania nie mogą być zbyt wygórowane, bo system mamy wyjątkowo skąpy; sam pożera łapczywie RAM w każdej dostępnej ilości, ale jedno okno może mieć najwyżej <SPAN CLASS=L>40</SPAN> bajtów na własne potrzeby, w dodatku nie możemy użyć z tego ostatnich <SPAN CLASS=L>4</SPAN> bajtów, bo tak sobie życzy Microsoft. Oczywiście jeśli nasza kontrolka wymaga więcej dodatkowej pamięci, to możemy ją sobie zaalokować sami, a do owych <SPAN CLASS=L>40</SPAN> bajtów pamięci okna wrzucić sam wskaźnik. Do naszego zadania z liczeniem kliknięć jednak <SPAN CLASS=L>40</SPAN> bajtów to będzie aż nadto ;-). Dość gadania - dopisujemy do rejestracji naszej klasy nową linijkę:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+wc.cbWndExtra = <SPAN CLASS=K>sizeof</SPAN>(DWORD) + <SPAN CLASS=L>4</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Dzięki temu każde okno naszej klasy będzie miało do dyspozycji tyle bajtów, ile wynosi rozmiar typu <SPAN CLASS=T>DWORD</SPAN> (czyli <SPAN CLASS=L>4</SPAN> bajty).
+</P>
+
+<P class=UWAGA>
+Oprócz dodatkowej pamięci dla poszczególnych okien klasy możemy też zarezerwować dodatkowe bajty wspólne dla wszystkich okien tej klasy; w tym celu ustawiamy pole <SPAN CLASS=T>cbClsExtra</SPAN>.
+</P>
+<P>
+Mamy już pamięć zarezerwowaną, ale jak się tam dostać? Proste - dzięki funkcji <SPAN CLASS=T>SetWindowLong</SPAN>. Dotychczas używaliśmy jej do zmiany różnych parametrów okna, podając uchwyt tego okna, nazwę parametru, który chcemy zmienić (np. <SPAN CLASS=T>GWL_STYLE</SPAN>) oraz nową wartość tego parametru. Tym razem zamiast nazwy parametru podajemy offset. Zamierzamy przechowywać <SPAN CLASS=L>4</SPAN> bajty licznika kliknięć na samym początku obszaru dodatkowej pamięci okna, więc nasz offset wynosi <SPAN CLASS=L>0</SPAN>. Do dzieła więc - najpierw zadbajmy o to, by podczas tworzenia naszej kontrolki licznik był zerowany:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//to oczywiście powinno się znaleźć w ControlProc :-)</SPAN><BR>
+<SPAN CLASS=K>case</SPAN> WM_CREATE:<BR>
+{<BR>
+&nbsp;CreateWindowEx(<SPAN CLASS=L>0, "BUTTON", "Wciśnij mnie"</SPAN>, WS_CHILD|WS_VISIBLE,<SPAN CLASS=L> 0, 0, 100, 30</SPAN>, hwnd, (HMENU)IDC_BUTTON, GetModuleHandle(NULL), NULL);<BR>
+&nbsp;CreateWindowEx(<SPAN CLASS=L>0, "STATIC", "0"</SPAN>, WS_CHILD|WS_VISIBLE|SS_CENTER, <SPAN CLASS=L>100, 0, 50, 30</SPAN>, hwnd, (HMENU)IDC_LABEL, GetModuleHandle(NULL), NULL);<BR>
+&nbsp;SetWindowLong(hwnd, <SPAN CLASS=L>0, 0</SPAN>); <SPAN CLASS=C>//inicjalizacja licznika kliknięć</SPAN><BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Następnie sprawimy, że nasz licznik nareszcie zacznie działać. Musimy w tym celu obsłużyć komunikat <SPAN CLASS=T>WM_COMMAND</SPAN> (w procedurze <SPAN CLASS=T>ControlProc</SPAN>) oraz sprawdzić, jakie wieści niesie nam jego parametr <SPAN CLASS=T>wParam</SPAN>. Przypominam, że <SPAN CLASS=T>HIWORD(wParam)</SPAN> zawiera kod powiadomienia (dla kliknięcia przycisku jest on równy <SPAN CLASS=T>BN_CLICKED</SPAN>), natomiast <SPAN CLASS=T>LOWORD(wParam)</SPAN> zawiera identyfikator kontrolki, którą kliknięto (u nas powinien on być równy <SPAN CLASS=T>IDC_BUTTON</SPAN>). Żeby zwiększyć licznik o <SPAN CLASS=L>1</SPAN>, musimy najpierw pobrać "starą" jego wartość poprzez <SPAN CLASS=T>GetWindowLong</span>, zwiększyć ją, a na koniec uaktualnić wartość przez <SPAN CLASS=T>SetWindowLong</SPAN> i wyświetlić. Piszemy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>case</SPAN> WM_COMMAND:<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(LOWORD(wParam)==IDC_BUTTON && HIWORD(wParam)==BN_CLICKED)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;DWORD dwCounter = GetWindowLong(hwnd, <SPAN CLASS=L>0</SPAN>);<BR>
+&nbsp;&nbsp;++dwCounter;<BR>
+&nbsp;&nbsp;SetWindowLong(hwnd, <SPAN CLASS=L>0</SPAN>, (LONG)dwCounter);<BR>
+&nbsp;&nbsp;SetDlgItemInt(hwnd, IDC_LABEL, (UINT)dwCounter, FALSE);<BR>
+&nbsp;}<BR>
+}<BR>
+<SPAN CLASS=K>break</SPAN>;
+</TD></TR>
+</TABLE>
+
+<P>
+Gotowe. Licznik działa. Możemy teraz stworzyć kilka naszych kontrolek jednocześnie i sprawdzić, czy nasze wysiłki się opłaciły:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HWND<BR>
+hControl1 = CreateWindowEx(<SPAN CLASS=L>0, "Nasza kontrolka"</SPAN>, NULL, WS_CHILD|WS_VISIBLE, <SPAN CLASS=L>5, 5, 150, 30</SPAN>, hwnd, NULL, hThisInstance, NULL),<BR>
+hControl2 = CreateWindowEx(<SPAN CLASS=L>0, "Nasza kontrolka"</SPAN>, NULL, WS_CHILD|WS_VISIBLE, <SPAN CLASS=L>5, 40, 150, 30</SPAN>, hwnd, NULL, hThisInstance, NULL),<BR>
+hControl3 = CreateWindowEx(<SPAN CLASS=L>0, "Nasza kontrolka"</SPAN>, NULL, WS_CHILD|WS_VISIBLE, <SPAN CLASS=L>5, 75, 150, 30</SPAN>, hwnd, NULL, hThisInstance, NULL),<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Efekt powinien być (po paru kliknięciach na przyciski, rzecz jasna) następujący:
+</P>
+
+<P ALIGN=CENTER>
+<IMG SRC="../gfx/ctrl.gif" ALT="Nasze dzieło, sztuk 3">
+</P>
+
+<P>
+Aha - ktoś mógłby się czepić, że nie sprawdzamy, czy użytkownik nie przekręci przypadkiem licznika, klikając zbyt wiele razy. Otóż szanse są doprawdy znikome :-). Zakładając, że w ciągu <SPAN CLASS=L>1</SPAN> sekundy klikniemy <SPAN CLASS=L>4</SPAN> razy, czyniąc to przez całą dobę (<SPAN CLASS=L>86400</SPAN> sekund) uzyskamy zaledwie <SPAN CLASS=L>345&nbsp;600</SPAN> kliknięć (a nie sądzę, by się komuś chciało ;-)). Żeby przepełnić zmienną typu <SPAN CLASS=T>DWORD</SPAN>, musielibyśmy tak klikać przez około <SPAN CLASS=L>12427</SPAN> dni (<SPAN CLASS=L>34</SPAN> lata) bez przerwy. Ale przecież nie ma to jak poświęcić pół życia słusznej sprawie, prawda? ;-)
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apitray.html">&lt;&lt; Tray</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="apicc2.html">Własne kontrolki, cz. 2 &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+

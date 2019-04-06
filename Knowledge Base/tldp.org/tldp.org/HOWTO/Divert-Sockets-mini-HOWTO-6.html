@@ -1,0 +1,350 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Divert Sockets mini-HOWTO: Using Divert Sockets</TITLE>
+ <LINK HREF="Divert-Sockets-mini-HOWTO-7.html" REL=next>
+ <LINK HREF="Divert-Sockets-mini-HOWTO-5.html" REL=previous>
+ <LINK HREF="Divert-Sockets-mini-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Divert-Sockets-mini-HOWTO-7.html">Next</A>
+<A HREF="Divert-Sockets-mini-HOWTO-5.html">Previous</A>
+<A HREF="Divert-Sockets-mini-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Using Divert Sockets</A></H2>
+
+<P>This section will give you examples of how divert sockets can be used and
+how they are different of other packet interception mechanisms out there.
+<P>
+<H2><A NAME="ss6.1">6.1 Divert sockets vs. other stuff</A>
+</H2>
+
+<P>There are other mechanisms out there that have similar functionality. Here
+is why they are different:
+<P>
+<H3>Netlink sockets</H3>
+
+<P>Netlink sockets can intercept packets just like divert sockets by using firewall
+filter. They have a special type (AF_NETLINK) and on the surface seem to do the
+same thing. Two major differences are:
+<UL>
+<LI>Netlink sockets have no ports, so it is difficult to have multiple
+processes intercepting different things (divert sockets have a standard 16-bit
+port space, which means you can have 65535 processes diverting packets independently)</LI>
+<LI>Netlink sockets have no easy way of injecting the packets that are outbound
+(going on the wire) because no special precautions are taken not to reintercept
+the same packet over and over again as it is injected. Divert sockets do this
+automatically</LI>
+</UL>
+
+To be fair, the scope of netlink sockets is wider than this. In general, netlink
+mechanism is intended to allow communication between kernel and user space. There
+are, for instance, netlink routing sockets that allow you to communicate with
+the routing subsystem. However, as a packet interception mechanism, they are not as
+robust as divert sockets.
+<P>
+<H3>Raw sockets</H3>
+
+<P>RAW sockets can be a good way to listen in on traffic (especially under Linux, where
+RAW sockets can listen in on TCP and UDP traffic, although most other UNI*s do not 
+allow that) but a RAW socket can't stop a packet from propagating through the IP stack -
+it simply gives you a copy of the packet and there is no way to inject it inbound
+(on the way up the stack) - only outbound. Also, you can only filter pockets out by the protocol
+number, which you specify when you open a RAW socket. There is no link between the firewall
+and RAW sockets.
+<P>
+<H3>libpcap</H3>
+
+<P>More commonly known for the tool it facilitates - tcpdump, libpcap lets you listen in
+on traffic that hits your interface (whether it be ppp or eth or whatever). For 
+ethernet it can also put your NIC into a promiscuous mode, so that it will forward to
+IP the traffic that not only is link-layer addressed to it, but to others on the
+same segment. Of course, libpcap allows for no way of actually stopping packets
+from propagating and no way to inject. In fact, libpcap is in many ways orthogonal
+to divert sockets.
+<P>
+<H2><A NAME="ss6.2">6.2 Discussion on firewall chains</A>
+</H2>
+
+<P>Linux provides you with three default chains: input, output and forward. There
+are also accounting chains, but they are of no consequence here. Depending on the
+packet origin it traverses one or more of these chains:
+<DL>
+<DT><B>Input chain</B><DD><P>is traversed by all packets that come into the host - packets
+that are addressed to it and packets that will be forwarded by it.
+<DT><B>Output chain</B><DD><P>is traversed by all packets originating in the host and by
+all forwarded packets
+<DT><B>Forward chain</B><DD><P>is traversed only by the forwarded packets.
+</DL>
+<P>
+<P>The order in which a forwarded packet traverses the chains is:
+<OL>
+<LI>Input</LI>
+<LI>Forward</LI>
+<LI>Output</LI>
+</OL>
+
+This may sometimes create problems for the interception if you are interested in
+a certain type of packets that may or may not originate on your host. A lot of times
+it is not clear which chain to use.
+<P>
+<P>As a rule of thumb, forward chain should only be used to filter packets that
+are forwarded and are not originating and are not addressed to your host. If you
+are interested in a combination of both forwarded packets and packets that are
+originating or addressed to your host, then use input or output chain instead.
+Intercepting on forward and input or output chain for the same type of packet 
+at the same time will create problems in reinjection and, more importantly,
+is unnecessary.
+<P>
+<H2><A NAME="ss6.3">6.3 Using ipchains</A>
+</H2>
+
+<P>The patched version of ipchains that you will need to retrieve from the website, is
+the tool that allows you to modify firewall rules from a shell (most people want that).
+It is also possible to set up firewall rules programmatically. See the example code 
+for this - setting up a DIVERT rule would be similar to setting up a REDIRECT
+rule - specify DIVERT as a target and the divert port and you are set to go.
+<P>
+<P>The ipchains syntax for setting up firewall rules remains the same. To specify a 
+DIVERT rule you must specify <CODE>-j DIVERT &lt;port num&gt;</CODE> as a target, everything else
+remains the same. For instance
+<BLOCKQUOTE><CODE>
+<PRE>
+ipchains -A input -p ICMP -j DIVERT 1234
+</PRE>
+</CODE></BLOCKQUOTE>
+
+would set up a divert rule for ICMP packets to be diverted from input chain to a port 1234.
+<P>
+<P>The following section explains how to use ipchains in conjunction with an interceptor
+user-space program.
+<P>
+<H2><A NAME="ss6.4">6.4 Plain vanilla example</A>
+</H2>
+
+<H3>Example program</H3>
+
+<P>Here is an example program that reads packets from a divert socket, displays
+them and then reinjects them back. It requires that the divert port is specified
+on the command line.
+<BLOCKQUOTE><CODE>
+<PRE>
+#include &lt;stdio.h>
+#include &lt;errno.h>
+#include &lt;limits.h>
+#include &lt;string.h>
+#include &lt;stdlib.h>
+#include &lt;unistd.h>
+#include &lt;getopt.h>
+#include &lt;netdb.h>
+#include &lt;netinet/in.h>
+#include &lt;sys/types.h>
+#include &lt;signal.h>
+
+#include &lt;netinet/ip.h>
+#include &lt;netinet/tcp.h>
+#include &lt;netinet/udp.h>
+#include &lt;net/if.h>
+#include &lt;sys/param.h>
+
+#include &lt;linux/types.h>
+#include &lt;linux/icmp.h>
+#include &lt;linux/ip_fw.h>
+
+#define IPPROTO_DIVERT 254
+#define BUFSIZE 65535
+
+char *progname;
+
+#ifdef FIREWALL
+
+char *fw_policy="DIVERT";
+char *fw_chain="output";
+struct ip_fw fw;
+struct ip_fwuser ipfu;
+struct ip_fwchange ipfc;
+int fw_sock;
+
+/* remove the firewall rule when exit */
+void intHandler (int signo) {
+
+  if (setsockopt(fw_sock, IPPROTO_IP, IP_FW_DELETE, &amp;ipfc, sizeof(ipfc))==-1) {
+    fprintf(stderr, "%s: could not remove rule: %s\n", progname, strerror(errno));
+    exit(2);
+  }
+
+  close(fw_sock);
+  exit(0);
+}
+
+#endif
+
+int main(int argc, char** argv) {
+  int fd, rawfd, fdfw, ret, n;
+  int on=1;
+  struct sockaddr_in bindPort, sin;
+  int sinlen;
+  struct iphdr *hdr;
+  unsigned char packet[BUFSIZE];
+  struct in_addr addr;
+  int i, direction;
+  struct ip_mreq mreq;
+
+  if (argc!=2) {
+    fprintf(stderr, "Usage: %s &lt;port number>\n", argv[0]);
+    exit(1); 
+  }
+  progname=argv[0];
+
+  fprintf(stderr,"%s:Creating a socket\n",argv[0]);
+  /* open a divert socket */
+  fd=socket(AF_INET, SOCK_RAW, IPPROTO_DIVERT);
+
+  if (fd==-1) {
+    fprintf(stderr,"%s:We could not open a divert socket\n",argv[0]);
+    exit(1);
+  }
+
+  bindPort.sin_family=AF_INET;
+  bindPort.sin_port=htons(atol(argv[1]));
+  bindPort.sin_addr.s_addr=0;
+
+  fprintf(stderr,"%s:Binding a socket\n",argv[0]);
+  ret=bind(fd, &amp;bindPort, sizeof(struct sockaddr_in));
+
+  if (ret!=0) {
+    close(fd);
+    fprintf(stderr, "%s: Error bind(): %s",argv[0],strerror(ret));
+    exit(2);
+  }
+#ifdef FIREWALL
+  /* fill in the rule first */
+  bzero(&amp;fw, sizeof (struct ip_fw));
+  fw.fw_proto=1; /* ICMP */
+  fw.fw_redirpt=htons(bindPort.sin_port);
+  fw.fw_spts[1]=0xffff;
+  fw.fw_dpts[1]=0xffff;
+  fw.fw_outputsize=0xffff;
+
+  /* fill in the fwuser structure */
+  ipfu.ipfw=fw;
+  memcpy(ipfu.label, fw_policy, strlen(fw_policy));
+
+  /* fill in the fwchange structure */
+  ipfc.fwc_rule=ipfu;
+  memcpy(ipfc.fwc_label, fw_chain, strlen(fw_chain));
+
+  /* open a socket */
+  if ((fw_sock=socket(AF_INET, SOCK_RAW, IPPROTO_RAW))==-1) {
+    fprintf(stderr, "%s: could not create a raw socket: %s\n", argv[0], strerror(errno));
+    exit(2);
+  }
+
+  /* write a rule into it */
+  if (setsockopt(fw_sock, IPPROTO_IP, IP_FW_APPEND, &amp;ipfc, sizeof(ipfc))==-1) {
+    fprintf(stderr, "%s could not set rule: %s\n", argv[0], strerror(errno));
+    exit(2);
+  }
+ 
+  /* install signal handler to delete the rule */
+  signal(SIGINT, intHandler);
+#endif /* FIREWALL */
+  
+  printf("%s: Waiting for data...\n",argv[0]);
+  /* read data in */
+  sinlen=sizeof(struct sockaddr_in);
+  while(1) {
+    n=recvfrom(fd, packet, BUFSIZE, 0, &amp;sin, &amp;sinlen);
+    hdr=(struct iphdr*)packet;
+    
+    printf("%s: The packet looks like this:\n",argv[0]);
+        for( i=0; i&lt;40; i++) {
+                printf("%02x ", (int)*(packet+i));
+                if (!((i+1)%16)) printf("\n");
+        };
+    printf("\n"); 
+
+    addr.s_addr=hdr->saddr;
+    printf("%s: Source address: %s\n",argv[0], inet_ntoa(addr));
+    addr.s_addr=hdr->daddr;
+    printf("%s: Destination address: %s\n", argv[0], inet_ntoa(addr));
+    printf("%s: Receiving IF address: %s\n", argv[0], inet_ntoa(sin.sin_addr));
+    printf("%s: Protocol number: %i\n", argv[0], hdr->protocol);
+
+    /* reinjection */
+
+#ifdef MULTICAST 
+   if (IN_MULTICAST((ntohl(hdr->daddr)))) {
+        printf("%s: Multicast address!\n", argv[0]);
+        addr.s_addr = hdr->saddr;
+        errno = 0;
+        if (sin.sin_addr.s_addr == 0)
+            printf("%s: set_interface returns %i with errno =%i\n", argv[0], setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &amp;addr, sizeof(addr)), errno);
+    }
+#endif
+
+#ifdef REINJECT
+   printf("%s Reinjecting DIVERT %i bytes\n", argv[0], n);
+   n=sendto(fd, packet, n ,0, &amp;sin, sinlen);
+   printf("%s: %i bytes reinjected.\n", argv[0], n); 
+
+   if (n&lt;=0) 
+     printf("%s: Oops: errno = %i\n", argv[0], errno);
+   if (errno == EBADRQC)
+     printf("errno == EBADRQC\n");
+   if (errno == ENETUNREACH)
+     printf("errno == ENETUNREACH\n");
+#endif
+  }
+}
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>
+<P>You can simply cut-n-paste the code and compile it with your favorite compiler.
+If you want to enable reinjection - compile it with the -DREINJECT flag, otherwise
+it will only do the interception. 
+<P>
+<P>In order to get it to work, compile the kernel and ipchains-1.3.8 as described 
+<A HREF="Divert-Sockets-mini-HOWTO-5.html#kernel">above</A>. Insert a rule into any of the firewall chains: input,
+output or forward, then send the packets that would match the rule and watch
+them as they fly through the screen - your interceptor program will display
+them and then reinject them back, if appropriately compiled.
+<P>
+<P>For example:
+<BLOCKQUOTE><CODE>
+<PRE>
+ipchains -A output -p TCP -s 172.16.128.10 -j DIVERT 4321
+interceptor 4321
+</PRE>
+</CODE></BLOCKQUOTE>
+
+will divert and display all TCP packets originating on host 172.16.128.10 (for instance
+if your host is a gateway). It will intercept them on the output just before they
+go on the wire.
+<P>
+<P>If you did not compile the pass through option into the kernel, then inserting
+the rule effectively will create a DENY rule in the firewall for the packets
+you specified until you start the interceptor program. See more on that 
+<A HREF="Divert-Sockets-mini-HOWTO-5.html#passthru">above</A><P>
+<P>If you want to set a firewall rule through your program, compile it with -DFIREWALL
+option and it will divert all ICMP packets from the output chain. It will also
+remove the DIVERT rule from the firewall when you use Ctrl-C to exit the program.
+In this case using pass-through vs. non-pass-through divert sockets makes virtually
+no difference.
+<P>
+<H2><A NAME="ss6.5">6.5 The sky's the limit</A>
+</H2>
+
+<P>As far as what you can use divert sockets for - your imagination would
+be the limiting factor. I would be interested to hear about applications that
+utilize divert sockets.
+<P>
+<P>So, have fun!
+<P>
+<HR>
+<A HREF="Divert-Sockets-mini-HOWTO-7.html">Next</A>
+<A HREF="Divert-Sockets-mini-HOWTO-5.html">Previous</A>
+<A HREF="Divert-Sockets-mini-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

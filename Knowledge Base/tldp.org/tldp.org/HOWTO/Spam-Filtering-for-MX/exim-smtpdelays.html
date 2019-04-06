@@ -1,0 +1,687 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Adding SMTP transaction delays</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Spam Filtering for Mail Exchangers"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Exim Implementation"
+HREF="exim.html"><LINK
+REL="PREVIOUS"
+TITLE="Building the ACLs - First Pass"
+HREF="exim-firstpass.html"><LINK
+REL="NEXT"
+TITLE="Adding Greylisting Support"
+HREF="exim-greylisting.html"></HEAD
+><BODY
+CLASS="section"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Spam Filtering for Mail Exchangers: </TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="exim-firstpass.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix A. Exim Implementation</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="exim-greylisting.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="section"
+><H1
+CLASS="section"
+><A
+NAME="exim-smtpdelays"
+></A
+>A.5. Adding SMTP transaction delays</H1
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-smtpdelays-simple"
+></A
+>A.5.1. The simple way</H2
+><P
+>&#13;        The simplest way to add SMTP transaction delays is to append a
+        <TT
+CLASS="option"
+>delay</TT
+> control to the final
+        <TT
+CLASS="option"
+>accept</TT
+> statement in each of the ACLs we have
+        declared, as follows:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  accept
+    delay = 20s
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        In addition, you may want to add progressive delays in the
+        <TT
+CLASS="option"
+>deny</TT
+> statement pertaining to invalid
+        recipients (<SPAN
+CLASS="QUOTE"
+>"unknown user"</SPAN
+>) within <A
+HREF="exim-firstpass.html#acl_rcpt_to_1"
+>acl_rcpt_to</A
+>.  This is to slow down dictionary
+        attacks.  For instance:
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;  deny
+    message     = unknown user
+    !verify     = recipient/callout=20s,defer_ok,use_sender
+    delay       = ${eval:$rcpt_fail_count*10 + 20}s
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        It should be noted that there is no point in imposing a delay
+        in <A
+HREF="exim-firstpass.html#acl_data_1"
+>acl_data</A
+>, after the message data has
+        been received.  Ratware commonly disconnect at this point,
+        before even receiving a response from your server.  In any
+        case, whether or not the client disconnects at this point has
+        no bearing on whether Exim will proceed with the delivery of
+        the message.
+      </P
+></DIV
+><DIV
+CLASS="section"
+><H2
+CLASS="section"
+><A
+NAME="exim-smtpdelays-selective"
+></A
+>A.5.2. Selective Delays</H2
+><P
+>&#13;        If you are like me, you want to be a little bit more selective
+        about which hosts you subject to SMTP transaction delays.  For
+        instance, as described earlier in this document, you may
+        decide that a match from a DNS blacklist or a non-verifiable
+        EHLO/HELO greeting are not conditions that by themselves
+        warrant a rejection - but they may well be sufficient triggers
+        for transaction delays.
+      </P
+><P
+>&#13;        In order perform selective delays, we want move some of the
+        checks that we previously did in <A
+HREF="exim-firstpass.html#acl_rcpt_to_1"
+>acl_rcpt_to</A
+> to earlier points in the SMTP
+        transaction.  This is so that we can start imposing the delays
+        as soon as we see any sign of trouble, and thereby increase
+        the chance of causing synchronization errors and other trouble
+        for ratware.
+      </P
+><P
+>&#13;        Specifically, we want to:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;            Move the DNS checks to
+            <A
+HREF="exim-final.html#acl_connect_final"
+>acl_connect</A
+>.
+          </P
+></LI
+><LI
+><P
+>&#13;            Move the Hello checks to <A
+HREF="exim-final.html#acl_helo_final"
+>acl_helo</A
+>.
+            One exception: We cannot yet check for a missing Hello
+            greeting at this point, because this ACL is processed
+            <EM
+>in response</EM
+> to an EHLO or HELO
+            command.  We will do this check in the <A
+HREF="exim-final.html#acl_mail_from_final"
+>acl_mail_from</A
+> ACL.
+          </P
+></LI
+><LI
+><P
+>&#13;            Move the Sender Address Checks checks to <A
+HREF="exim-final.html#acl_mail_from_final"
+>acl_mail_from</A
+>.
+          </P
+></LI
+></UL
+><P
+>&#13;        However, for reasons described above, we do not want to
+        actually reject the mail until after the <B
+CLASS="command"
+>RCPT
+        TO:</B
+> command.  Instead, in the earlier ACLs, we
+        will convert the various <TT
+CLASS="option"
+>deny</TT
+> statements
+        into <TT
+CLASS="option"
+>warn</TT
+> statements, and use Exim's
+        general purpose ACL variables to store any error messages or
+        warnings until after the <B
+CLASS="command"
+>RCPT TO:</B
+>
+        command.  We do that as follows:
+      </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;            If we decide to reject the delivery, we store an error
+            message to be used in the forthcoming
+            <B
+CLASS="command"
+>550</B
+> response in
+            <TT
+CLASS="varname"
+>$acl_c0</TT
+> or <TT
+CLASS="varname"
+>$acl_m0</TT
+>:
+          </P
+><P
+></P
+><UL
+><LI
+><P
+>&#13;                If we identify the condition before a mail delivery
+                has started (i.e. in
+                <A
+HREF="exim-final.html#acl_connect_final"
+>acl_connect</A
+> or
+                <A
+HREF="exim-final.html#acl_helo_final"
+>acl_helo</A
+>), we use the
+                connection-persistent variable
+                <TT
+CLASS="varname"
+>$acl_c0</TT
+>
+              </P
+></LI
+><LI
+><P
+>&#13;                Once a mail transaction has started (i.e. after the
+                <B
+CLASS="command"
+>MAIL FROM:</B
+> command), we copy any
+                contents from <TT
+CLASS="varname"
+>$acl_c0</TT
+> into the
+                message-specific variable <TT
+CLASS="varname"
+>$acl_m0</TT
+>,
+                and use the latter from this point forward.  This
+                way, any conditions identified in this particular
+                message will not affect any subsequent messages
+                received in the same connection.
+              </P
+></LI
+></UL
+><P
+>&#13;            Also, we store a corresponding <EM
+>log
+            message</EM
+> in <TT
+CLASS="varname"
+>$acl_c1</TT
+> or
+            <TT
+CLASS="varname"
+>$acl_m1</TT
+>, in a similar manner.
+          </P
+></LI
+><LI
+><P
+>&#13;            If we come across a condition that does not warrant an
+            outright rejection, we only store a warning message in
+            <TT
+CLASS="varname"
+>$acl_c1</TT
+> or <TT
+CLASS="varname"
+>$acl_m1</TT
+>.
+            Once a mail transaction has started (i.e. in <A
+HREF="exim-final.html#acl_mail_from_final"
+>acl_mail_from</A
+>), we add any content in
+            this variable to the message header as well.
+          </P
+></LI
+><LI
+><P
+>&#13;            If we decide to <EM
+>accept</EM
+> a message
+            without regard to the results of any subsequent checks
+            (such as a SpamAssassin scan), we set a flag in
+            <TT
+CLASS="varname"
+>$acl_c0</TT
+> or <TT
+CLASS="varname"
+>$acl_m0</TT
+>, but
+            <TT
+CLASS="varname"
+>$acl_c1</TT
+> and <TT
+CLASS="varname"
+>$acl_m1</TT
+>
+            empty.
+          </P
+></LI
+><LI
+><P
+>&#13;            At the beginning of every ACL to and including <A
+HREF="exim-final.html#acl_mail_from_final"
+>acl_mail_from</A
+>, we record the current
+            timestamp in <TT
+CLASS="varname"
+>$acl_m2</TT
+>.  At the end of the
+            ACL, we use the presence of <TT
+CLASS="varname"
+>$acl_c1</TT
+> or
+            <TT
+CLASS="varname"
+>$acl_m1</TT
+> to trigger a SMTP transaction
+            delay until a total of 20 seconds has elapsed.
+          </P
+></LI
+></UL
+><P
+>&#13;        The following table summarizes our use of these variables:
+      </P
+><DIV
+CLASS="table"
+><A
+NAME="aclvarusage"
+></A
+><P
+><B
+>Table A-1. Use of ACL connection/message variables</B
+></P
+><TABLE
+BORDER="1"
+CLASS="CALSTABLE"
+><THEAD
+><TR
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Variables:</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>$acl_[cm]0 unset</TH
+><TH
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>$acl_[cm]0 set</TH
+></TR
+></THEAD
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>$acl_[cm]1 unset</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>(No decision yet)</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Accept the mail</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>$acl_[cm]1 set</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Add warning in header</TD
+><TD
+ALIGN="LEFT"
+VALIGN="MIDDLE"
+>Reject the mail</TD
+></TR
+></TBODY
+></TABLE
+></DIV
+><P
+>&#13;        As an example of this approach, let us consider two checks
+        that we do in response to the Hello greeting; one that will
+        reject mails if the peer greets with an IP address, and one
+        that will warn about an unverifiable name in the greeting.
+        Previously, we did both of these checks in <A
+HREF="exim-firstpass.html#acl_rcpt_to_1"
+>acl_rcpt_to</A
+> - now we move them to the <A
+HREF="exim-final.html#acl_helo_final"
+>acl_helo</A
+> ACL.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;acl_helo:
+  # Record the current timestamp, in order to calculate elapsed time
+  # for subsequent delays
+  warn
+    set acl_m2  = $tod_epoch
+
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP).  
+  # We do this by testing for an empty sending host field.
+  # Also accept mails received from hosts for which we relay mail.
+  #
+  accept
+    hosts       = : +relay_from_hosts
+
+
+  # If the remote host greets with an IP address, then prepare a reject
+  # message in $acl_c0, and a log message in $acl_c1.  We will later use
+  # these in a "deny" statement.  In the mean time, their presence indicate
+  # that we should keep stalling the sender.
+  # 
+  warn
+    condition   = ${if isip {$sender_helo_name}{true}{false}}
+    set acl_c0  = Message was delivered by ratware
+    set acl_c1  = remote host used IP address in HELO/EHLO greeting
+
+
+  # If HELO verification fails, we prepare a warning message in acl_c1.
+  # We will later add this message to the mail header.  In the mean time,
+  # its presence indicates that we should keep stalling the sender.
+  # 
+  warn
+    condition   = ${if !def:acl_c1 {true}{false}}
+    !verify     = helo
+    set acl_c1  = X-HELO-Warning: Remote host $sender_host_address \
+                  ${if def:sender_host_name {($sender_host_name) }}\
+                  incorrectly presented itself as $sender_helo_name
+    log_message = remote host presented unverifiable HELO/EHLO greeting.
+
+
+  #
+  # ... additional checks omitted for this example ...
+  # 
+
+
+  # Accept the connection, but if we previously generated a message in
+  # $acl_c1, stall the sender until 20 seconds has elapsed.
+  accept
+    set acl_m2  = ${if def:acl_c1 {${eval:20 + $acl_m2 - $tod_epoch}}{0}}
+    delay       = ${if &#62;{$acl_m2}{0}{$acl_m2}{0}}s
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        Then, in <A
+HREF="exim-final.html#acl_mail_from_final"
+>acl_mail_from</A
+> we transfer the
+        messages from <TT
+CLASS="option"
+>$acl_c{0,1}</TT
+> to
+        <TT
+CLASS="option"
+>$acl_m{0,1}</TT
+>.  We also add the contents of
+        <TT
+CLASS="varname"
+>$acl_c1</TT
+> to the message header.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;acl_mail_from:
+  # Record the current timestamp, in order to calculate elapsed time
+  # for subsequent delays
+  warn
+    set acl_m2  = $tod_epoch
+
+
+  # Accept mail received over local SMTP (i.e. not over TCP/IP). 
+  # We do this by testing for an empty sending host field.
+  # Also accept mails received from hosts for which we relay mail.
+  #
+  accept
+    hosts     = : +relay_from_hosts
+
+
+  # If present, the ACL variables $acl_c0 and $acl_c1 contain rejection
+  # and/or warning messages to be applied to every delivery attempt in
+  # in this SMTP transaction.  Assign these to the corresponding 
+  # $acl_m{0,1} message-specific variables, and add any warning message
+  # from $acl_m1 to the message header.  (In the case of a rejection,
+  # $acl_m1 actually contains a log message instead, but this does not
+  # matter, as we will discard the header along with the message).
+  #
+  warn
+    set acl_m0  = $acl_c0
+    set acl_m1  = $acl_c1
+    message     = $acl_c1
+
+
+  #
+  # ... additional checks omitted for this example ...
+  #
+
+  # Accept the sender, but if we previously generated a message in
+  # $acl_c1, stall the sender until 20 seconds has elapsed.
+  accept
+    set acl_m2  = ${if def:acl_c1 {${eval:20 + $acl_m2 - $tod_epoch}}{0}}
+    delay       = ${if &#62;{$acl_m2}{0}{$acl_m2}{0}}s
+
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      </P
+><P
+>&#13;        All the pertinent changes are incorporated in the <A
+HREF="exim-final.html"
+>Final ACLs</A
+>, to follow.
+      </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="exim-firstpass.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="exim-greylisting.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Building the ACLs - First Pass</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="exim.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Adding Greylisting Support</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

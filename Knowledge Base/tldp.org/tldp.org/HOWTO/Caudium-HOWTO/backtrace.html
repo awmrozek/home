@@ -1,0 +1,304 @@
+<HTML
+><HEAD
+><TITLE
+>How to use a backtrace</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Caudium HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Developing with Caudium"
+HREF="developing.html"><LINK
+REL="PREVIOUS"
+TITLE="Your first module"
+HREF="firstmodule.html"><LINK
+REL="NEXT"
+TITLE="How to print something to debug log file"
+HREF="printsomethingtodebuglogfile.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Caudium HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="firstmodule.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 6. Developing with Caudium</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="printsomethingtodebuglogfile.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="backtrace">6.5. How to use a backtrace</H1
+><P
+>&#13;      A backtrace is text that will show you where your program come before the 
+      error. This is very useful for developers when they debug.
+      The best is to take an example. Did you try the who module at the end of <A
+HREF="firstmodule.html"
+>Section 6.4</A
+>?
+      If so take it and check it works. Now change the line 
+      <TT
+CLASS="computeroutput"
+>string command = QUERY(path2who)+" "+QUERY(options2who);</TT
+> to <TT
+CLASS="computeroutput"
+>string command = 0;</TT
+>.
+      This will create an error because we put an int into a string. If we want to
+      do that, we have to cast it (for example, use (string) 0).
+      If you have not done it yet, press the <TT
+CLASS="option"
+>More options</TT
+> button in the <SPAN
+CLASS="abbrev"
+>CIF.</SPAN
+> and
+      reload the module. Check that the <TT
+CLASS="option"
+>Global Variables</TT
+> -&#62; <TT
+CLASS="option"
+>show_internals</TT
+> option
+      is set to yes, and try your module. You will have an error which should look like this:
+    </P
+><DIV
+CLASS="informalexample"
+><A
+NAME="AEN1017"><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Caudium version: Caudium (Caudium/1.2.0)
+Requested URL: /who
+
+Error: Sprintf: Wrong type for argument 2: expected string, got int.
+../local/modules/who.pike:76: 
+CaudiumModule(Who,My first virtual server)-&#62;find_file("",object)
+base_server/configuration.pike (version 1.91):1587: 
+Configuration(My first virtual server)-&#62;low_get_file(object,0)
+base_server/configuration.pike (version 1.91):1779: 
+Configuration(My first virtual server)-&#62;get_file(object,0)
+base_server/configuration.pike (version 1.91):1760: 
+Configuration(My first virtual server)-&#62;handle_request(object)
+protocols/http.pike (version 1.71):1549: unknown function()
+protocols/http.pike (version 1.71):1610: 
+unknown function(0,"GET /who HTTP/1.1\r\nHost: localhost\r\nUser-Agent:
+Mozilla/5.0 (X11; U; Linux i686; en-US; rv:0.9.8) 
+Gecko/20020214\r\nAccept: text/xml,application/xml,
+application/xhtml+xml,text/html;q=0.9,text/plain"+[246])
+/usr/local/pike/7.2.262/lib/modules/Stdio.pmod/module.pmod
+(version 1.114):683:
+Stdio.File("socket", "127.0.0.1 1260", 777 /* fd=-1 */)
+-&#62;__stdio_read_callback()
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+><P
+>&#13;      This seems awful but it is not. The first line is the error in itself:
+    <DIV
+CLASS="informalexample"
+><A
+NAME="AEN1020"><P
+></P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;"Error: Sprintf: Wrong type for argument 2: expected string, got int."
+The next line "../local/modules/who.pike:76: 
+CaudiumModule(Who,My first virtual server)-&#62;find_file("",object)"
+is the program (../local/modules/who.pike at line 76)
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+></P
+></DIV
+>
+      where the error occurred. <TT
+CLASS="function"
+>find_file</TT
+> is the name of the function where the
+      error occurred and you have also the arguments given to it.
+      If you use the source, you see mixed find_file(string path, object id). So
+      here path="" and id=object <A
+NAME="AEN1023"
+HREF="#FTN.AEN1023"
+>[1]</A
+>.
+      Next line is the function (<TT
+CLASS="function"
+>low_get_file</TT
+> in <TT
+CLASS="filename"
+>configuration.pike</TT
+>) that has 
+      called <TT
+CLASS="function"
+>find_file</TT
+> in <TT
+CLASS="filename"
+>who.pike</TT
+>. You also have its arguments and so on.
+      This backtrace is very useful when the error doesn't come directly 
+      from your code but from another code before.
+    </P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN1023"
+HREF="backtrace.html#AEN1023"
+>[1]</A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>Pike can't display contents of an object but can display any other types.</P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="firstmodule.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="printsomethingtodebuglogfile.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Your first module</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="developing.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>How to print something to debug log file</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

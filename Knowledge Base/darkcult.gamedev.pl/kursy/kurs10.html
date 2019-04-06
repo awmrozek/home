@@ -1,0 +1,356 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Wyjątki, cz.1</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs08a.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs10.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<h1>
+Wyjątki
+</h1>
+
+<H2>
+Po co to komu?
+</H2>
+
+<p>
+Im bardziej złożony jest program, który piszemy, tym trudniej jest nam przewidzieć wszystkie możliwe "scenariusze" jego wykorzystania przez potencjalnego użytkownika (nawet jeśli to my jesteśmy tym użytkownikiem!). Oczywiście, zawsze można napisać bardzo szczegółową instrukcję, gdzie punkt po punkcie wyjaśnimy, co można robić, a czego nie można, jednak nawet jeśli udałoby nam się taką instrukcję napisać w odpowiednio krótkim czasie, to nie możemy oczekiwać, że każdy user jest geniuszem, zdolnym taką instrukcję po pierwszym przeczytaniu od razu sobie przyswoić. W praktyce bywa zupełnie inaczej (co zresztą wiemy z własnych doświadczeń, choćby z naszym własnym IDE). Uczymy się obsługi programów (także gier) powoli, zwykle metodą prób i błędów. Jeśli błędy mają zbyt wiele bolesnych skutków (np. program ciągle się bezczelnie wykrzacza), to zniechęcamy się do dalszych prób.
+</p>
+<P>
+Tak więc jeśli chcemy, by ktokolwiek męczył się z naszymi programami, musimy uczynić je maksymalnie odpornymi na <SPAN CLASS=Wazne>wyjątkowe sytuacje</SPAN> (zarówno te, które są lub powinny być całkowicie przewidywalne, np. brak podanego przez użytkownika pliku lub wyczerpanie się zasobów systemowych, jak i te nieco bardziej "nietypowe", jak np. brak pliku DLL niezbędnego do działania naszego programu lub nagłe "zniknięcie" karty graficznej). Pytanie brzmi: co to znaczy "maksymalnie odpornymi"?
+</P>
+<P>
+Od strony użytkownika naszego programu znaczy to, że:
+</P>
+
+<UL>
+<LI>Program w sytuacjach wyjątkowych nie może tracić kontroli (co zwykle objawia się próbą wtargnięcia w "cudzy" obszar pamięci operacyjnej i - przynajmniej w systemie Windows - niesławnym komunikatem "Program wykonał niedozwoloną operację...")
+<LI>W przypadku wystąpienia sytuacji wyjątkowej program powinien spróbować jakoś z niej wybrnąć, a jeśli jest to niemożliwe, to przynajmniej pozwolić użytkownikowi zapisać wyniki jego dotychczasowej pracy (lub stanu gry) i zwolnić zarezerwowane zasoby systemowe (np. RAM)
+<LI>Wystąpienie sytuacji wyjątkowej (w skrócie: <SPAN CLASS=Wazne>wyjątku</SPAN>) musi być zakomunikowane użytkownikowi (niedopuszczalne jest pozwolenie programowi np. na zakończenie działania bez wyświetlenia jakiegoś komunikatu)
+<LI>Komunikat o wyjątku powinien zawierać maksymalną ilość informacji, która mogłaby ułatwić użytkownikowi usunięcie przyczyny powstania tego wyjątku (np. brak pliku DLL), a w ostateczności - ułatwić programiście naprawienie błędu w kodzie
+</UL>
+
+<P>
+Tłumacząc to na język programistyczny:
+</P>
+
+<UL>
+<LI>Musi istnieć sposób na przekazanie sterowania z miejsca w kodzie, gdzie wystąpił wyjątek, do innego miejsca, gdzie nastąpi obsługa tego wyjątku
+<LI>Sposób ten musi być taki, żeby istniał powrót do "głównej pętli" programu (np. do pętli komunikatów w WinAPI) lub przynajmniej wywołania dowolnej procedury (w domyśle: zapisującej efekty pracy użytkownika do pliku i/lub zwalniającej zasoby)
+<LI>Musi zostać wyświetlona wiadomość, mile widziany jest dziennik (w języku marynarzy: <SPAN CLASS=Inglisz>log)</SPAN>, zawierający listę najważniejszych zdarzeń, które mogły doprowadzić do sytuacji wyjątkowej
+<LI>Musi istnieć sposób przekazania wszelkich możliwych informacji o wyjątku z miejsca jego wystąpienia do miejsca obsługi wyjątku
+</UL>
+
+<P>
+Są różne sposoby spełnienia wszystkich powyższych postulatów (nie będziemy ich omawiać, ale od czasu do czasu pojawią się wzmianki o "tradycyjnych metodach obsługi błędów"). Każdy z tych sposobów ma jednak pewne wady, dlatego też wprowadzono do języka C++ specjalny mechanizm, który (przynajmniej w założeniach) wad tych nie posiada, a za to potrafi zrobić wszystkie wymienione rzeczy. Dyskusję o rzeczywistej przydatności tego mechanizmu w praktyce zostawiamy sobie na koniec tej części kursu, natomiast teraz zajmiemy się samym omówieniem obsługi wyjątków w C++.
+</P>
+
+<H2>
+Rzucanie wyjątków
+</h2>
+
+<p>
+Jak już wspomnieliśmy - wykrycie, że wystąpił wyjątek oraz zgłoszenie tego faktu należy do programisty, czyli do nas. Żeby to zrobić, najpierw musimy w specjalny sposób oznaczyć miejsce, gdzie może się wydarzyć coś nieprzyjemnego. Ten specjalny sposób to nowy rodzaj bloku - <SPAN CLASS=K>try</SPAN>. Robimy to mniej więcej tak:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+// "zwykłe" instrukcje<BR>
+</SPAN>
+<BR>
+<SPAN CLASS=K>
+try</SPAN><BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>// ...<BR>
+&nbsp;// strefa zagrożenia ;-)<BR>
+&nbsp;// ...</SPAN><BR>
+}<BR>
+<BR><SPAN CLASS=C>
+// dalszy ciąg "zwykłych" instrukcji</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W jaki sposób określić, które fragmenty naszego kodu należy objąć blokiem <SPAN CLASS=K>try</SPAN> - o tym powiemy sobie później. Na razie możemy przyjąć, że robi się to intuicyjnie :-).
+</P>
+<P>
+Następnym krokiem jest wykrycie, że nastąpił wyjątek oraz zgłoszenie go, czyli rzucenie wyjątku. Na przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>// "zwykłe" instrukcje</SPAN><BR>
+<BR>
+<SPAN CLASS=K>try</SPAN><BR>
+{<BR>
+&nbsp;wynik = zrob_cos();<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(wynik == <SPAN CLASS=L>0</SPAN>) <SPAN CLASS=K>throw</SPAN> wynik;<BR>
+}<BR>
+<BR><SPAN CLASS=C>
+// ciąg dalszy "zwykłych" instrukcji</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Rzucenie wyjątku wiąże się z przekazaniem sterowania innej części kodu, więc możemy sobie wyobrazić, że <SPAN CLASS=K>throw</SPAN> jest jakby inną wersją instrukcji <SPAN CLASS=K>return</SPAN>. Drugą analogią jest fakt, że <SPAN CLASS=K>throw</SPAN> również przekazuje pewną wartość jako parametr (w powyższym przykładzie jest nim wartość zmiennej <SPAN CLASS=T>wynik</SPAN>). Parametr ten z założenia służy przede wszystkim do przekazania (o czym wspomnieliśmy na początku) jak najpełniejszej informacji o wyjątku, np. rodzaj błędu, miejsce wystąpienia.
+</P>
+
+<h2>
+Łapanie wyjątków
+</h2>
+
+<P>
+Teraz zastanówmy się, co dzieje się z rzuconym wyjątkiem. O ile grawitacja funkcjonuje prawidłowo, to powinien gdzieś spaść ;-). Sęk w tym, że wyjątek to wielce delikatna rzecz i mógłby narobić niezłego bałaganu, gdyby tak po prostu walnął o podłoże, dlatego też należy zrobić wszystko, aby go przedtem złapać.
+</P>
+<P>
+Łapanie odbywa się w bloku <SPAN CLASS=K>catch</SPAN>. Każdy blok <SPAN CLASS=K>try</SPAN> powinien mieć odpowiadający mu przynajmniej jeden blok <SPAN CLASS=K>catch</SPAN>, umieszczony bezpośrednio (ważne!) za blokiem <SPAN CLASS=K>try</SPAN>. Jeśli kompilator takowego nie znajdzie, to odmówi dalszej kompilacji naszego programu. Blok <SPAN CLASS=K>catch</SPAN> może wyglądać następująco:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>int</SPAN> wynik;<BR>
+<BR><SPAN CLASS=C>
+// "zwykłe" instrukcje</SPAN><BR>
+<BR>
+<SPAN CLASS=K>try</SPAN><BR>
+{<BR>
+&nbsp;wynik = zrob_cos();<BR>
+&nbsp;<SPAN CLASS=K>if</SPAN>(wynik == <SPAN CLASS=L>0</SPAN>) <SPAN CLASS=K>throw</SPAN> wynik;<BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>int</SPAN> a)<BR>
+{<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Złapałem wyjątek. Parametr a="</SPAN> &lt;&lt; a &lt;&lt; endl;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Działanie tego mechanizmu jest następujące. W normalnym przebiegu programu (tzn. gdy wartość zmiennej <SPAN CLASS=T>wynik</SPAN> jest niezerowa) instrukcje znajdujące się w bloku <SPAN CLASS=K>catch</SPAN> nie są wykonywane. Dopiero gdy <SPAN CLASS=T>wynik ==</SPAN><SPAN CLASS=L> 0</SPAN>, wtedy wchodzimy do bloku <SPAN CLASS=K>catch</SPAN>. Blok ten przypomina definicję funkcji; tutaj również mamy listę parametrów. Oznacza ona <SPAN CLASS=Wazne>typy wyjątków</SPAN>, jakie może łapać dany blok <SPAN CLASS=K>catch</SPAN>.  W naszym przykładzie mamy prostą sytuację: rzucamy wyjątek typu <SPAN CLASS=K>int</SPAN> i mamy dokładnie jeden blok <SPAN CLASS=K>catch</SPAN>, łapiący wyjątki typu <SPAN CLASS=K>int</SPAN>. Jednak nieco dalej będziemy omawiać również sytuacje, kiedy rzucamy różne typy wyjątków i dysponujemy wieloma blokami <SPAN CLASS=K>catch</SPAN>.
+</P>
+<P>
+Póki co jednak, dokończmy omawianie tej prostszej sytuacji na nieco bardziej konkretnym przykładzie:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;cstdlib&gt;<BR>
+#include &lt;iostream&gt;</SPAN><BR>
+<BR><SPAN CLASS=K>
+using namespace</SPAN> std;<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> tab[<SPAN CLASS=L>3</SPAN>] = {<SPAN CLASS=L> 10,20,30</SPAN> }, indeks;<BR>
+ <BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Podaj indeks (0-2): "</SPAN>;<BR>
+&nbsp;cin &gt;&gt; indeks;<BR>
+&nbsp;cout &lt;&lt; endl &lt;&lt; endl;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>try</SPAN><BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>if</SPAN>(indeks &lt; <SPAN CLASS=L>0</SPAN> || indeks &gt; <SPAN CLASS=L>2</SPAN>) <SPAN CLASS=K>throw</SPAN> indeks;<BR>
+&nbsp;&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Element "</SPAN> &lt;&lt; indeks &lt;&lt; <SPAN CLASS=L>" jest rowny "</SPAN> &lt;&lt; tab[indeks] &lt;&lt; endl;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>int</SPAN> nWartosc)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp;clog &lt;&lt; <SPAN CLASS=L>"Nieprawidlowa wartosc indeksu: "</SPAN> &lt;&lt; nWartosc &lt;&lt; endl;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Mamy tu tablicę trzech liczb. Program prosi użytkownika o podanie indeksu, po czym wypisuje na ekranie liczbę o tym indeksie. Prawidłowe są oczywiście indeksy z zakresu <SPAN CLASS=L>0-2</SPAN>, zaś jeśli podamy inny, to zostanie rzucony wyjątek z tym nieprawidłowym indeksem w roli parametru. Dzięki temu unikamy wykrzaczenia się naszego programu, które może być spowodowane wpisaniem np. zbyt dużej liczby. Po rzuceniu wyjątku przeskakujemy do jedynego bloku <SPAN CLASS=K>catch</SPAN>, gdzie zostaje wypisany odpowiedni komunikat (<SPAN CLASS=T>clog</SPAN> działa praktycznie tak samo jak <SPAN CLASS=T>cout</SPAN>, z tym że do wypisywania komunikatów o błędach zaleca się właśnie obiekty <SPAN CLASS=T>clog</SPAN> i <SPAN CLASS=T>cerr</SPAN>).
+</P>
+
+<h2>
+Wiele bloków catch
+</h2>
+
+<P>
+Jeśli rzucamy wyjątki o różnych typach, to musimy być przygotowani na łapanie ich w kilku oddzielnych blokach <SPAN CLASS=K>catch</SPAN>. Jak to wygląda, demonstruje ten oto przykładzik:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;cstdlib&gt;<BR>
+#include &lt;iostream&gt;</SPAN><BR>
+<BR><SPAN CLASS=K>
+using namespace</SPAN> std;<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>char</SPAN> typ, wyj_c;<BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> wyj_i;<BR>
+&nbsp;<SPAN CLASS=K>float</SPAN> wyj_f;<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>try</SPAN><BR>
+&nbsp;{ <BR>
+&nbsp;&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Podaj typ wyjątku (c/f/i): "</SPAN>;<BR>
+&nbsp;&nbsp;cin &gt;&gt; typ;<BR>
+&nbsp;&nbsp;cout &lt;&lt; endl &lt;&lt; endl;<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>switch</SPAN>(typ)<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>'c'</SPAN> : <SPAN CLASS=K>throw</SPAN> wyj_c;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>'f'</SPAN> : <SPAN CLASS=K>throw</SPAN> wyj_f;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>'i'</SPAN> : <SPAN CLASS=K>throw</SPAN> wyj_i;<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>char</SPAN>)  { cout &lt;&lt; <SPAN CLASS=L>"Wyjatek typu char"</SPAN>  &lt;&lt; endl; }<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>float</SPAN>) { cout &lt;&lt; <SPAN CLASS=L>"Wyjatek typu float"</SPAN> &lt;&lt; endl; }<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>int</SPAN>)   { cout &lt;&lt; <SPAN CLASS=L>"Wyjatek typu int"</SPAN>   &lt;&lt; endl; }<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Po rzuceniu wyjątku danego typu, program sam znajdzie sobie odpowiedni blok <SPAN CLASS=K>catch</SPAN>, co możemy sprawdzić uruchamiając ten program. Co zaś stanie się, jeśli takiego nie znajdzie? Cóż, niewesoło będzie. Program po prostu natychmiast zakończy swój krótki żywot. Wywołana zostaje wtedy funkcja <SPAN CLASS=T>unexpected</SPAN> (nazwa pochodzi od wyrażenia <SPAN CLASS=Inglisz>unexpected exception</SPAN>, czyli "niespodziewany wyjątek"), która domyślnie wywołuje funkcję <SPAN CLASS=T>terminate</SPAN>, a ta z kolei wywołuje <SPAN CLASS=T>abort</SPAN>, co oznacza natychmiastowe przerwanie wykonywania programu. 
+</P>
+
+<P class=UWAGA>
+Niezłapane wyjątki powodują wyjście z programu.
+</P>
+
+<P>
+Dlatego właśnie musimy się tak bardzo starać, żeby wszystkie wyjątki zostały złapane :-). Nie ma się jednak co martwić, gdyż w praktyce niekoniecznie musi to być takie trudne, jak się wydaje.
+</P>
+
+<h2>
+Niezłapane wyjątki
+</h2>
+
+<P>
+Rodzajem zabezpieczenia przeciwko takim niespodziewanym wyjątkom może być "uniwersalna" wersja bloku <SPAN CLASS=K>catch</SPAN>. Wygląda ona następująco:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>catch</SPAN>(...)<BR>
+{<BR>
+&nbsp;<SPAN CLASS=C>// tutaj obsługujemy wszystkie niespodziewane wyjątki</SPAN><BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Działa to w ten sposób, że jeżeli dla wyjątku danego typu nie zostanie znaleziony żaden odpowiedni blok <SPAN CLASS=K>catch</SPAN>, to przydziela mu się automatycznie ów blok z trzykropkiem (coś rodzaju ostatniej deski ratunku). Przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD><SPAN CLASS=C>
+#include &lt;cstdlib&gt;<BR>
+#include &lt;iostream&gt;</SPAN><BR>
+<BR><SPAN CLASS=K>
+using namespace</SPAN> std;<BR>
+<BR>
+<SPAN CLASS=K>int</SPAN> main()<BR>
+{<BR>
+&nbsp;<SPAN CLASS=K>char</SPAN> typ, wyj_c; <BR>
+&nbsp;<SPAN CLASS=K>double</SPAN> wyj_d;</SPAN><BR>
+&nbsp;<SPAN CLASS=K>int</SPAN> wyj_i;</SPAN><BR>
+&nbsp;<SPAN CLASS=K>float</SPAN> wyj_f;</SPAN> <BR>
+&nbsp;<SPAN CLASS=K>unsigned</SPAN> wyj_u;</SPAN><BR>
+<BR>
+&nbsp;<SPAN CLASS=K>try</SPAN><BR>
+&nbsp;{ <BR>
+&nbsp;&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Podaj typ wyjątku (c/d/f/i): "</SPAN>;<BR>
+&nbsp;&nbsp;cin &gt;&gt; typ;<BR>
+&nbsp;&nbsp;cout &lt;&lt; endl &lt;&lt; endl;<BR>
+<BR>
+&nbsp;&nbsp;<SPAN CLASS=K>switch</SPAN>(typ)<BR>
+&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>'c'</SPAN> : <SPAN CLASS=K>throw</SPAN> wyj_c;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>'d'</SPAN> : <SPAN CLASS=K>throw</SPAN> wyj_d;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>'f'</SPAN> : <SPAN CLASS=K>throw</SPAN> wyj_f;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>case</SPAN> <SPAN CLASS=L>'i'</SPAN> : <SPAN CLASS=K>throw</SPAN> wyj_i;<BR>
+&nbsp;&nbsp;&nbsp;<SPAN CLASS=K>default : throw</SPAN> wyj_u;<BR>
+&nbsp;&nbsp;}<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>char</SPAN>)  { cout &lt;&lt; <SPAN CLASS=L>"Wyjatek typu char"</SPAN>  &lt;&lt; endl; }<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>float</SPAN>) { cout &lt;&lt; <SPAN CLASS=L>"Wyjatek typu float"</SPAN> &lt;&lt; endl; }<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(<SPAN CLASS=K>int</SPAN>)   { cout &lt;&lt; <SPAN CLASS=L>"Wyjatek typu int"</SPAN>   &lt;&lt; endl; }<BR>
+&nbsp;<SPAN CLASS=K>catch</SPAN>(...)   { cout &lt;&lt; <SPAN CLASS=L>"Inny wyjatek"</SPAN> &lt;&lt; endl; }<BR>
+<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>0</SPAN>;<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Rozszerzyliśmy nasz poprzedni przykład o możliwość rzucania wyjątków typu <SPAN CLASS=K>double</SPAN> i <SPAN CLASS=K>unsigned</SPAN> (przy czym wyjątek typu <SPAN CLASS=K>double</SPAN> zostaje rzucony, jeśli użytkownik wpisze literkę <SPAN CLASS=L>d</SPAN>, natomiast wyjątek typu <SPAN CLASS=K>unsigned</SPAN> - w przypadku wpisania czegokolwiek oprócz wymienionych literek). "Zapomnieliśmy" wprawdzie dodać bloki <SPAN CLASS=K>catch</SPAN> dla tych dwóch typów wyjątków, ale za to mamy "uniwersalny", trzykropkowy <SPAN CLASS=K>catch</SPAN>. I to właśnie w nim nastąpi złapanie wyjątków typu <SPAN CLASS=K>double</SPAN> oraz <SPAN CLASS=K>unsigned</SPAN>, jeśli takie będą rzucone.
+</P>
+<P>
+Co natomiast, jeśli nie chcemy trzykropka? Jest jeszcze inne wyjście. Wspomniałem o funkcji <SPAN CLASS=T>unexpected</SPAN> i o tym, że domyślnie kończy ona działanie programu, wywołując <SPAN CLASS=T>terminate</SPAN>. Możemy jednak sprawić, by zamiast tego wywoływała inną funkcję, zdefiniowaną przez nas. Czynimy to za pomocą <SPAN CLASS=T>set_unexpected</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+set_unexpected(Nieoczekiwany);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+gdzie <SPAN CLASS=T>Nieoczekiwany</SPAN> jest nazwą dowolnej bezargumentowej funkcji typu <SPAN CLASS=K>void</SPAN>, na przykład takiej:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>void</SPAN> Nieoczekiwany()<BR>
+{<BR>
+&nbsp;cout &lt;&lt; <SPAN CLASS=L>"Wystapil nieoczekiwany wyjatek. Program zostanie zakonczony."</SPAN> &lt;&lt; endl;<BR>
+&nbsp;terminate();<BR>
+}<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W tym przypadku każdy wyjątek, który z jakichś powodów nie zostanie złapany w programie, wywoła wprawdzie zakończenie wykonywania programu, ale przedtem wypisze na ekranie odpowiedni komunikat, dzięki czemu użytkownik będzie wiedział, że wystąpił wyjątek i nie będzie musiał się zastanawiać nad przyczynami, dla których program nagle przestał się wykonywać.
+</P>
+
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="kurs08a.html">&lt;&lt; Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../cpp.html"> Spis</A> &nbsp;
+<A HREF="kurs10.html">Następna część kursu &gt;&gt;</A> &nbsp;
+</TD>
+</TR>
+</TABLE>
+
+</BODY>
+</HTML>

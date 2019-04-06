@@ -1,0 +1,466 @@
+<HTML
+><HEAD
+><TITLE
+>Setting up an NFS Client</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.76b+
+"><LINK
+REL="HOME"
+TITLE="Linux NFS-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Setting Up an NFS Server"
+HREF="server.html"><LINK
+REL="NEXT"
+TITLE="Optimizing NFS Performance"
+HREF="performance.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux NFS-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="server.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="performance.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="CLIENT">4. Setting up an NFS Client</H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="REMOTEMOUNT">4.1. Mounting remote directories</H2
+><P
+>    Before beginning, you should double-check to make sure your mount 
+    program is new enough (version 2.10m if you want to use Version 3 
+    NFS), and that the client machine supports NFS mounting, though most
+    standard distributions do.  If you are using a 2.2 or later kernel 
+    with the <TT
+CLASS="FILENAME"
+>/proc</TT
+> filesystem you can check the latter by reading the 
+    file <TT
+CLASS="FILENAME"
+>/proc/filesystems</TT
+> and making sure there is a line containing 
+    nfs.  If not, typing <TT
+CLASS="USERINPUT"
+><B
+>insmod nfs</B
+></TT
+> may make it
+    magically appear if NFS has been compiled as a module; otherwise,
+    you will need to build (or download) a kernel that has 
+    NFS support built in.  In general, kernels that do not have NFS
+    compiled in will give a very specific error when the 
+    <B
+CLASS="COMMAND"
+>mount</B
+> command below is run.
+  </P
+><P
+>    To begin using machine as an NFS client, you will need the portmapper 
+    running on that machine, and to use NFS file locking, you will
+    also need <B
+CLASS="COMMAND"
+>rpc.statd</B
+> and <B
+CLASS="COMMAND"
+>rpc.lockd</B
+>
+    running on both the client and the server.  Most recent distributions 
+    start those services by default at boot time; if yours doesn't, see 
+    <A
+HREF="server.html#CONFIG"
+>Section 3.2</A
+> for information on how to start them up.
+  </P
+><P
+>    With <B
+CLASS="COMMAND"
+>portmap</B
+>, <B
+CLASS="COMMAND"
+>lockd</B
+>, 
+    and <B
+CLASS="COMMAND"
+>statd</B
+> running, you should now be able to 
+    mount the remote directory from your server just the way you mount 
+    a local hard drive, with the mount command.  Continuing our example 
+    from the previous section, suppose our server above is called 
+    <EM
+>master.foo.com</EM
+>,and we want to mount the <TT
+CLASS="FILENAME"
+>/home</TT
+> directory on 
+    <EM
+>slave1.foo.com</EM
+>.  Then, all we have to do, from the root prompt on 
+    <EM
+>slave1.foo.com</EM
+>, is type:
+  <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>   # mount master.foo.com:/home /mnt/home
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  and the directory <TT
+CLASS="FILENAME"
+>/home</TT
+> on master will appear as the directory 
+  <TT
+CLASS="FILENAME"
+>/mnt/home</TT
+> on <EM
+>slave1</EM
+>.  (Note that
+  this assumes we have created the directory <TT
+CLASS="FILENAME"
+>/mnt/home</TT
+> 
+  as an empty mount point beforehand.)
+ </P
+><P
+>   If this does not work, see the Troubleshooting section (<A
+HREF="troubleshooting.html"
+>Section 7</A
+>).
+ </P
+><P
+>   You can get rid of the file system by typing 
+  <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>   # umount /mnt/home 
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+ just like you would for a local file system.
+ </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="BOOT-TIME-NFS">4.2. Getting NFS File Systems to Be Mounted at Boot Time</H2
+><P
+>   NFS file systems can be added to your <TT
+CLASS="FILENAME"
+>/etc/fstab</TT
+> file the same way
+   local file systems can, so that they mount when your system starts
+   up.  The only difference is that the file system type will be
+   set to <TT
+CLASS="USERINPUT"
+><B
+>nfs</B
+></TT
+> and the dump and fsck order (the last two entries) will
+   have to be set to zero.  So for our example above, the entry in
+   <TT
+CLASS="FILENAME"
+>/etc/fstab</TT
+> would look like:
+  <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>   # device       mountpoint     fs-type     options      dump fsckorder
+   ...
+   master.foo.com:/home  /mnt    nfs          rw            0    0
+   ...
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+ </P
+><P
+>   See the man pages for <TT
+CLASS="FILENAME"
+>fstab</TT
+> if you are unfamiliar 
+   with the syntax of this file.  If you are using an automounter such as 
+   amd or autofs, the options in the corresponding fields of your mount 
+   listings should look very similar if not identical.
+ </P
+><P
+>   At this point you should have NFS working, though a few tweaks
+   may still be necessary to get it to work well.  You should also
+   read <A
+HREF="security.html"
+>Section 6</A
+> to be sure your setup is reasonably secure.
+ </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="MOUNTOPTIONS">4.3. Mount options</H2
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="SOFT-VS-HARD">4.3.1. Soft vs. Hard Mounting</H3
+><P
+>     There are some options you should consider adding at once.  They
+     govern the way the NFS client handles a server crash or network
+     outage.  One of the cool things about NFS is that it can handle this
+     gracefully.  If you set up the clients right.  There are two distinct
+     failure modes:
+   </P
+><P
+>  <DIV
+CLASS="GLOSSLIST"
+><DL
+><DT
+><B
+>soft</B
+></DT
+><DD
+><P
+>   If a file request fails, the NFS client will report an 
+   error to the process on the client machine requesting the file 
+   access.  Some programs can handle this with composure, most 
+   won't.  We do not recommend using this setting; it is a recipe 
+   for corrupted files and lost data.  You should especially not 
+   use this for mail disks --- if you value your mail, that is.
+   </P
+></DD
+><DT
+><B
+>hard</B
+></DT
+><DD
+><P
+>     The program accessing a file on a NFS mounted file system
+     will hang when the server crashes.  The process cannot be 
+     interrupted or killed (except by a "sure kill") unless you also 
+     specify <TT
+CLASS="USERINPUT"
+><B
+>intr</B
+></TT
+>.  When the 
+     NFS server is back online the program will
+     continue undisturbed from where it was.  We recommend using 
+     <TT
+CLASS="USERINPUT"
+><B
+>hard,intr</B
+></TT
+> on all NFS mounted file systems.
+    </P
+></DD
+></DL
+></DIV
+>
+  </P
+><P
+>  Picking up the from previous example, the fstab entry would now 
+  look like:
+  <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>   # device             mountpoint  fs-type    options    dump fsckord
+   ...
+   master.foo.com:/home  /mnt/home   nfs      rw,hard,intr  0     0
+   ...
+  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+ </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="BLOCKSIZE">4.3.2. Setting Block Size to Optimize Transfer Speeds</H3
+><P
+>   The <TT
+CLASS="USERINPUT"
+><B
+>rsize</B
+></TT
+> and <TT
+CLASS="USERINPUT"
+><B
+>wsize</B
+></TT
+> mount 
+   options specify the size of the chunks of data that the client and 
+   server pass back and forth to each other.
+ </P
+><P
+>  The defaults may be too big or to small; there is no size that works
+  well on all or most setups.  On the one hand, some combinations of 
+  Linux kernels and network cards (largely on older machines) cannot
+  handle blocks that large. On the other hand, if they can handle 
+  larger blocks, a bigger size might be faster.
+ </P
+><P
+>   Getting the block size right is an important factor in performance and
+   is a must if you are planning to use the NFS server in a production
+   environment.  See <A
+HREF="performance.html"
+>Section 5</A
+> for details.
+ </P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="server.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="performance.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Setting Up an NFS Server</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Optimizing NFS Performance</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

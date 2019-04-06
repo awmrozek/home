@@ -1,0 +1,1883 @@
+<HTML
+><HEAD
+><TITLE
+>Including the updates</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="    Burning a RedHat CD HOWTO
+  "
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Obtaining your local copy of the distribution"
+HREF="distribution-mirror.html"><LINK
+REL="NEXT"
+TITLE="Burning the CD(s)"
+HREF="burn-cd.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Burning a RedHat CD HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="distribution-mirror.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="burn-cd.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="INCLUDE-UPDATES"
+></A
+>5. Including the updates</H1
+><P
+>    There are three steps involved, the first two are (almost) equal in all the 
+    releases, while the last one changes quite a bit because of the changes in the 
+    anaconda installer: 
+    <P
+></P
+><OL
+TYPE="i"
+><LI
+><P
+>Correct the file protection modes</P
+></LI
+><LI
+><P
+>Replace updated RPMs</P
+></LI
+><LI
+><P
+>Rebuild the installer</P
+></LI
+></OL
+>
+     To incorporate the updates, you need write access to the 
+    distribution directory from a Linux machine, with a working version of 
+    <A
+HREF="http://www.rpm.org"
+TARGET="_top"
+>rpm</A
+> installed, while <EM
+>to rebuild the 
+    anaconda installer you need to use a release of Redhat Linux equal to the one you 
+    are rebuilding the installer for (otherwise the procedure will fail)</EM
+>. 
+    If you maintain a mirror of the <TT
+CLASS="FILENAME"
+>updates</TT
+> 
+    directory, you can at any time produce a CD including the current updates by 
+    repeating these steps.
+  </P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="UPDATE-PERMISSIONS"
+></A
+>5.1. Correcting the file protection modes</H2
+><P
+>      During the installation process of the releases up to and including 6.2, 
+      some programs are run directly off the CD. Unfortunately, the FTP program 
+      does not always preserve the protection modes of the files and directories 
+      that are copied. Therefore, it is necessary to make sure that execute 
+      permission is given to programs, shell scripts and shared libraries, before 
+      the directory is burned on the CD. This is done by running the 
+      <A
+HREF="rhcd-scripts/updatePerm.sh"
+TARGET="_top"
+>      updatePerm.sh</A
+> script on your local copy of the distribution. 
+      It is really needed only for version 6.2 and older, the only part useful to 
+      the 7.3/8.0/9 releases procedure is the directories permissions update, even if the 
+      rest won't hurt and things are kept coherent. It is almost equal to the 
+      <TT
+CLASS="FILENAME"
+>updatePerm</TT
+> script included in the previous version of  
+      the howto, just some slight changes were made. Before using this script you 
+      have to configure the 
+      <A
+HREF="rhcd-scripts/rhcd.conf"
+TARGET="_top"
+>      rhcd.conf</A
+> configuration file and export a <EM
+>RHCDPATH</EM
+> 
+      variable pointing to the directory where this file is.
+    </P
+><P
+>      <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>        $ export RHCDPATH=/home/luigi/tmp/rhcd-scripts
+        $ sh updatePerm.sh
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="REPLACING-PACKAGES"
+></A
+>5.2. Replacing the updated RPMS</H2
+><P
+>      The <A
+HREF="rhcd-scripts/updateCD.sh"
+TARGET="_top"
+>      updateCD.sh</A
+> script copies all the new
+      files from the update directory to the RPMS (and SRPMS) directory. The script 
+      uses the <TT
+CLASS="FILENAME"
+>rvc</TT
+> program which was presented in section 
+      <A
+HREF="rpm-packages.html#RPM-VERSION-COMPARE"
+>Comparing RPM versions</A
+> 
+      to determine which packages in the updates directory are more recent. Older packages 
+      are moved to the <EM
+>${OLDDIR}</EM
+> directory. If the 
+      <EM
+>CHECKSIG</EM
+> variable is set to <SPAN
+CLASS="QUOTE"
+>"yes"</SPAN
+>, all the packages in 
+      the main tree will have their signature checked for correctness. If a package fails 
+      the signature check (the kind of check is configured by means of the 
+      <EM
+>USEGPG</EM
+> variable whose value is assigned in the file 
+      <A
+HREF="rhcd-scripts/rhcd.conf"
+TARGET="_top"
+>rhcd.conf</A
+>), it is moved to the 
+      <EM
+>OLDDIR</EM
+> directory with an added extension of 
+      <SPAN
+CLASS="QUOTE"
+>"CDcheckfail"</SPAN
+>.
+    </P
+><P
+>       Before using this script, you have to configure the 
+      <A
+HREF="rhcd-scripts/rhcd.conf"
+TARGET="_top"
+>rhcd.conf</A
+> configuration 
+      file and export a <EM
+>RHCDPATH</EM
+> variable pointing to the 
+      directory where this file is.
+    </P
+><P
+>      <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>        $ export RHCDPATH=/home/luigi/tmp/rhcd-scripts
+        $ sh updateCD.sh
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+    </P
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>        After having incorporated the updates in the main
+        <TT
+CLASS="FILENAME"
+>RedHat/RPMS</TT
+> directory, your copy of 
+        the distribution is no longer a mirror of the Red Hat distribution site. 
+        Actually, it is more up-to-date! Therefore, if you attempt to mirror the 
+        distribution using mirror, older versions of the RPM's that have been updated 
+        will be downloaded once more, and the updates deleted. The bash/wget based 
+        procedure doesn't suffer from the problem, but will leave the main tree in an 
+        incoherent state. Old and new packages will be in this case mixed together, but 
+        you can find and remove them wrapping the <TT
+CLASS="FILENAME"
+>rvc</TT
+> binary in a 
+        simple shell script (which I will leave as an exercise for the reader...).
+      </P
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="INSTALLER-REBUILD"
+></A
+>5.3. Rebuilding the installer</H2
+><P
+>      Things have  changed pretty much in this section with the introduction of the 
+      anaconda installer (as of release 6.1) and with the considerable increment 
+      in size (and ... number of CDs) the 7.x/8.0 distributions have seen. Until 
+      release 6.2, the only step composing this section was represented by 
+      generating a new <TT
+CLASS="FILENAME"
+>hdlist</TT
+> file. With release 6.2, this 
+      appears to be true only to a certain extent, because of the changes in the 
+      anaconda installer, in the  <EM
+>rpm</EM
+> software itself 
+      (from version 3.x to 4.x) and the migration of the updated packages to 
+      this new version (updates for release 6.2 are in fact packaged with both 
+      major releases of the <TT
+CLASS="FILENAME"
+>rpm</TT
+> software). We will consider 
+      three different procedures trying to cover all the releases.
+    </P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="RH61-REBUILD"
+></A
+>5.3.1. RedHat &#60;= 6.1</H3
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN391"
+></A
+>5.3.1.1. Regenerating the hdlist file</H4
+><P
+>          When installing from the CD, the installation program on the CD relies 
+          on the file <TT
+CLASS="FILENAME"
+>RedHat/base/hdlist</TT
+> describing what RPM
+          packages are available on the CD. The <TT
+CLASS="FILENAME"
+>hdlist</TT
+> file 
+          can be generated by the program <TT
+CLASS="FILENAME"
+>misc/src/install/genhdlist</TT
+>. 
+          This program must be run with the absolute path to the root of the 
+          distribution as the only argument. Here is the <TT
+CLASS="FILENAME"
+>updateHdlist</TT
+> 
+          script which calls that program (from version 1.34 of this howto):
+        </P
+><P
+>          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            #!/bin/bash
+
+            RHVERSION=6.1
+            ARCH=i386
+
+            echo generating hdlist...
+            RHROOT=/home/luigi/tmp/redhat-${RHVERSION}
+            GENHDDIR=${RHROOT}/${ARCH}/misc/src/anaconda/utils
+          
+            chmod u+x ${GENHDDIR}/genhdlist
+            chmod 644 ${RHROOT}/${ARCH}/RedHat/base/hdlist
+            ${GENHDDIR}/genhdlist ${RHROOT}/${ARCH} || echo "*** GENHDLIST FAILED ***"
+
+            exit 0
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>Important note for RedHat &#60; 6.1</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>            The installation in RedHat 6.1 is completely changed from earlier versions,
+            and RedHat has introduced <EM
+>anaconda</EM
+>. The
+            <TT
+CLASS="FILENAME"
+>genhdlist</TT
+> program is now found in a different place, 
+            so in the script above, we used
+            <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>              GENHDDIR=${RHROOT}/${ARCH}/misc/src/anaconda/utils
+            </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+            while for releases up to (and including) 6.0 that line should read
+            <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>              GENHDDIR=${RHROOT}/${ARCH}/misc/src/install
+            </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          </P
+></TD
+></TR
+></TABLE
+></DIV
+><P
+>          In some cases, <TT
+CLASS="FILENAME"
+>genhdlist</TT
+> fails to run, because the
+          executable is not statically linked. In such a case, you can add a new line
+          <TT
+CLASS="FILENAME"
+>${RHROOT}/${ARCH}/RedHat/instimage/usr/lib</TT
+> 
+          in <TT
+CLASS="FILENAME"
+>/etc/ld.so.conf</TT
+> and run <TT
+CLASS="FILENAME"
+>ldconfig -v</TT
+>.
+        </P
+><P
+>          Another solution is to recompile <TT
+CLASS="FILENAME"
+>genhdlist</TT
+>. The
+          following modification to the <TT
+CLASS="FILENAME"
+>updateHdlist</TT
+> script worked 
+          under RedHat 5.2:
+	  <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>	    #!/bin/bash
+
+	    RHVERSION=6.1
+	    ARCH=i386
+
+	    RHROOT=/misc/redhat/redhat-${RHVERSION}
+	    GENHDDIR=${RHROOT}/${ARCH}/misc/src/anaconda/utils
+
+	    echo Compiling genhdlist...
+	    sed -e 's/FD_t/int/' \
+	        -e 's/fdOpen/open/' \
+	        -e 's/fdClose/close/' \
+	        -e 's/fdFileno//' &#60; ${GENHDDIR}/genhdlist.c &#62; /tmp/genhdlist.c
+	    cc -o /tmp/genhdlist -I/usr/include/rpm /tmp/genhdlist.c -lrpm -lz
+
+	    echo generating hdlist...
+	    chmod 644 ${RHROOT}/${ARCH}/RedHat/base/hdlist
+	    /tmp/genhdlist ${RHROOT}/${ARCH} || echo "*** GENHDLIST FAILED ***"
+
+	    exit 0
+	  </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>          In this version of the script, a copy of the C source of
+          <TT
+CLASS="FILENAME"
+>genhdlist.c</TT
+> is piped through
+          <TT
+CLASS="FILENAME"
+>sed</TT
+> to create a copy in 
+          <TT
+CLASS="FILENAME"
+>/tmp</TT
+> that will 
+          compile under RedHat 5.2.  This version of
+          <TT
+CLASS="FILENAME"
+>genhdlist</TT
+> is then used to create the
+          <TT
+CLASS="FILENAME"
+>hdlist</TT
+> file
+        </P
+><DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TH
+ALIGN="LEFT"
+VALIGN="CENTER"
+><B
+>Important note for RedHat 5.2</B
+></TH
+></TR
+><TR
+><TD
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>        
+            As distributed with RedHat version 5.2 and earlier,
+            <TT
+CLASS="FILENAME"
+>genhdlist</TT
+> CRASHES if there are files in the
+            <TT
+CLASS="FILENAME"
+>RedHat/RPMS</TT
+> directory which are <EM
+>not</EM
+> 
+            RPM files!  This causes problems, because in the 5.2 distribution, there 
+            are a couple of non-RPM files named <TT
+CLASS="FILENAME"
+>ls-lR</TT
+> and 
+            <TT
+CLASS="FILENAME"
+>ls-lR.gz</TT
+> in 
+            <TT
+CLASS="FILENAME"
+>RedHat/RPMS</TT
+>. Therefore, you must 
+            remove all non-RPM files from the directory.  Alternatively, you can apply 
+            the patch 
+            <A
+HREF="rhcd-scripts/oldversion/genhdlist.c.diff"
+TARGET="_top"
+>genhdlist.c.diff</A
+> 
+            to <TT
+CLASS="FILENAME"
+>misc/src/install/genhdlist.c</TT
+> and 
+            do a <EM
+>make</EM
+>. The patch will cause 
+            <TT
+CLASS="FILENAME"
+>genhdlist</TT
+> to ignore any non-RPM files.
+          </P
+></TD
+></TR
+></TABLE
+></DIV
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="ISO-IMAGE-CREATE"
+></A
+>5.3.1.2. Creating the CD iso image</H4
+><P
+>          You'll need to create an image file which will be written to the CD. This
+          file will be 500Mb or more so find a partition with enough free space. You 
+          may need to be root to use mount and cdrecord. Here you will prepare the 
+          iso image of the bootable CD to be burned. It is actually, not strictly 
+          necessary, to create a bootable CD, because you could use a boot floppy instead 
+          of it, but it's definitely a nifty feature (and makes your disc more similar 
+          in behaviour to the original one). These are the commands I use to complete 
+          the task:  
+          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ mkdir /images-destination-dir
+            $ mkisofs  -r  -J  -T  -v  -V "Red Hat 6.1 (Hedwig)" \
+                -c boot.cat  -b images/boot.img \
+                -o /images-destination-dir/i386-disc.iso .
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+> 
+          This is needed to burn the (bootable) disc and is executed from the top 
+          level directory of the distribution. The 
+          <TT
+CLASS="FILENAME"
+>/images-destination-dir</TT
+> directory is 
+          the container for the iso image you are generating, and it must exist
+          (obviously) before starting the procedure. In the following table you can 
+          read a brief explanation of the various options and their meanings (most 
+          of it was extracted from the <TT
+CLASS="FILENAME"
+>mkisofs</TT
+> man page). 
+        </P
+><P
+>          <DIV
+CLASS="TABLE"
+><A
+NAME="AEN442"
+></A
+><P
+><B
+>Table 1. mkisofs options and parameters</B
+></P
+><TABLE
+BORDER="0"
+CLASS="CALSTABLE"
+><TBODY
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>-r</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>Rock Ridge extensions with useful values for the 
+	                 permission bits</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>-J</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>Joliet extensions to use the cd with some different 
+                         operating systems</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>-T</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>Generate a TRANS.TBL file in each directory to map correctly 
+                         the file names even on systems which do not support the Rock 
+                         Ridge extensions.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>-v</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>be verbose</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+CLASS="LITERALLAYOUT"
+>-V&nbsp;&#60;volid&#62;</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>Specifies the volume ID (volume name or  label)  to
+                         be  written  into the master block.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+CLASS="LITERALLAYOUT"
+>-c&nbsp;&#60;boot&nbsp;catalog&#62;</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>Specifies the path and filename of the boot catalog
+                       to  be used when making an "El Torito" bootable CD.
+                       The pathname must be relative to  the  source  path
+                       specified  to  mkisofs.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+CLASS="LITERALLAYOUT"
+>-b&nbsp;&#60;eltorito&nbsp;boot&nbsp;image&#62;</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>Specifies  the  path and filename of the boot image
+                         to be used when making an "El Torito" bootable  CD.
+                         The  pathname  must  be relative to the source path
+                         specified to mkisofs and specify a floppy image (which 
+                         is why we use one of the floppy images found on the 
+                         original CD. You may want to change this with the 
+                         <TT
+CLASS="FILENAME"
+>pcmcia.img</TT
+> image to install using pcmcia 
+                         devices like network cards or CDROM readers.</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+CLASS="LITERALLAYOUT"
+>-o&nbsp;&#60;filename&#62;</P
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>Name of the file containing the generated iso image</TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>.</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>&nbsp;</TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+>This is the root directory for our generated iso image (we are 
+                         working from the root directory of every CD, so a dot is 
+                         enough).</TD
+></TR
+></TBODY
+></TABLE
+></DIV
+>
+        </P
+><P
+>          You will find details of how to burn the image on a media in <A
+HREF="burn-cd.html"
+>Burning the CD</A
+>. 
+          The <TT
+CLASS="FILENAME"
+>mkisofs</TT
+> and <TT
+CLASS="FILENAME"
+>cdrecord</TT
+> steps can be 
+          executed by means of a graphical frontend like 
+          <A
+HREF="http://www.xcdroast.org/"
+TARGET="_top"
+>X-CD-Roast</A
+> which should currently 
+          support the creation of bootable CDs (I've never used it, so don't expect me 
+          to give you any explanation).
+        </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="RH62-REBUILD"
+></A
+>5.3.2. RedHat 6.2</H3
+><P
+>        Apparently, this is a problem child when it comes to burning an uptodate CD.
+        The introduction of version 4 of the Redhat Package Manager (RPM), made the 
+        procedure to update the anaconda installer fail. So the procedures listed will 
+        work only if the updated packages were built using a version of the RPM 
+        software which is older than or equal to 3.0.4 (so, basically, 3.0.4 or 3.0.5).
+      </P
+><P
+>        If you are using the original packages from Redhat, you have to avoid using 
+        updates released after 28 March 2001 (which is a bit useless, in my opinion) 
+        or you have to rebuild the packages using the old rpm format. Details on the 
+        downgrade procedure and tools which implement it can be found in the document 
+        <A
+HREF="http://www.tigress.co.uk/rmy/rh62/rpmhack.html"
+TARGET="_top"
+>rpmhack</A
+>.
+        I have not personally tested this procedure, even if it appears to work if you 
+        read about it on the anaconda-devel and kickstart mailing lists (you can find 
+        them on the <A
+HREF="https://listman.redhat.com/mailman/listinfo"
+TARGET="_top"
+>mailing 
+        lists</A
+> section of the Redhat website. 
+      </P
+><P
+>        If you decide to stick to the old original packages and complete the update 
+        (using the rpm 4.0.2 packages after the installation is finished) 
+        there are two possible ways of doing it, depending on which kind of updates you
+        want to complete the CD with. If some of the updates regard directly the 
+        installation process (e.g. kernel, python, kudzu), you will have to use the 
+        installer rebuilding procedure explained in the document
+        <A
+HREF="http://www.scyld.com/~pzb/rhcd.html"
+TARGET="_top"
+>Building a Red Hat Linux 6.2 
+        CDROM</A
+>, otherwise you can still use the old procedure (the one for 
+        releases previous to and including 6.1 explained in the previous section).    
+        The last two steps, which are, respectively, creating the iso image and burning 
+        the actual media are described in <A
+HREF="include-updates.html#ISO-IMAGE-CREATE"
+>Creating the CD iso image</A
+> and 
+        <A
+HREF="burn-cd.html"
+>Burning the CD</A
+>, respectively.  
+      </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="RH73-REBUILD"
+></A
+>5.3.3. RedHat 9, 8.0 and 7.3</H3
+><P
+>        Once again a lot of things have changed with the release of the 7.x series of the 
+        distribution. There are now more operations to complete to obtain a fresh and 
+        uptodate series of CDs. Exactly, they have become more than one with release 7.0 
+        and now the tree has to be split to fit on the media. This is done by means of 
+        the <TT
+CLASS="FILENAME"
+>splitdistro</TT
+> script, which is written in python like most 
+        of the anaconda installer. To complete this part, you <EM
+>must</EM
+> use
+        a Linux RedHat 7.3, 8.0 or 9 machine with the <EM
+>anaconda-runtime</EM
+> 
+        package installed (it will probably have version 7.3.7, 8.0.4 or 9.0.4), depending 
+	on the release you want to rebuild.  The procedure is composed by seven steps:
+        <P
+></P
+><OL
+TYPE="i"
+><LI
+><P
+>              Regenerating the <TT
+CLASS="FILENAME"
+>hdlist</TT
+> and 
+	      <TT
+CLASS="FILENAME"
+>hdlist2</TT
+> files
+	    </P
+></LI
+><LI
+><P
+>	      Updating the <TT
+CLASS="FILENAME"
+>comps.xml</TT
+> (or 
+              <TT
+CLASS="FILENAME"
+>comps</TT
+>) file
+	    </P
+></LI
+><LI
+><P
+>Rebuilding the installer</P
+></LI
+><LI
+><P
+>Splitting the distribution in CD-sized chunks</P
+></LI
+><LI
+><P
+>	      Regenerating the <TT
+CLASS="FILENAME"
+>hdlist</TT
+> 
+	      and <TT
+CLASS="FILENAME"
+>hdlist2</TT
+> files (again)
+	    </P
+></LI
+><LI
+><P
+>Generating the iso images</P
+></LI
+><LI
+><P
+>adding and checking the md5 signatures in the iso images</P
+></LI
+></OL
+>
+      </P
+><P
+>        All the steps are grouped together in a single script presented in the last section.
+      </P
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN530"
+></A
+>5.3.3.1. Preliminary operations on the main tree</H4
+><P
+>          Some of the scripts included in the <TT
+CLASS="FILENAME"
+>anaconda-runtime</TT
+> package 
+          need the main tree to be moved in a subdirectory named like the architecture we 
+          are building for (so <TT
+CLASS="FILENAME"
+>i386/</TT
+> for me). We will 
+          move everything to such directory before starting the procedure and change the 
+          invocation of the scripts which don't need this modification.
+        </P
+><P
+>	
+           For redhat 9 and 8.0:
+           <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ chmod  -R  u+w  /absolute-path-to-toplevel-dir 
+            $ mkdir  -p  /absolute-path-to-toplevel-dir/i386
+            $ cd /absolute-path-to-toplevel-dir 
+            $ /bin/mv  *  i386
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          You should change <SPAN
+CLASS="QUOTE"
+>"/absolute-path-to-toplevel-dir"</SPAN
+> with the 
+          <EM
+>absolute path</EM
+> of the directory where the root of your 
+          local copy of the distribution is located (maybe somewhere on some hard drive).
+	  You will get an error, from the execution of the last command, because the 
+          <TT
+CLASS="FILENAME"
+>i386/</TT
+> directory cannot be moved under 
+          itself, but you don't need to worry about that.
+	</P
+><P
+>	
+           For redhat 7.3:
+           <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ chmod  -R  u+w  /absolute-path-to-toplevel-dir 
+            $ mkdir  -p  /absolute-path-to-toplevel-dir/i386
+            $ cd /absolute-path-to-toplevel-dir 
+            $ for i in `ls` ; do [ $i != "SRPMS" -a $i != i386 ] &#38;&#38; /bin/mv $i i386 ; done
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          You shouldn't receive any error message this time from the last command (hopefully).
+	</P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN542"
+></A
+>5.3.3.2. Regenerating the hdlist and hdlist2 files</H4
+><P
+>          This is done by means of the following two commands with the help of  
+          the <TT
+CLASS="FILENAME"
+>genhdlist</TT
+> program.
+          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ /usr/lib/anaconda-runtime/genhdlist  /absolute-path-to-toplevel-dir/i386 
+            $ chmod  644 /absolute-path-to-toplevel-dir/i386/RedHat/base/hdlist{,2} 
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          Once again, <SPAN
+CLASS="QUOTE"
+>"/absolute-path-to-toplevel-dir"</SPAN
+> is the 
+          <EM
+>absolute path</EM
+> of the directory where the root of your 
+          local copy of the distribution is located. 
+          The second command is needed to make sure the correct permissions are 
+          set for the file. You should already have an idea of what these files are about 
+          if you have read through <A
+HREF="redhat-ftp-site.html#REDHAT-DIR"
+>The Redhat directory</A
+>. 
+        </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="UPD-COMPS.XML"
+></A
+>5.3.3.3. Update the <EM
+>comps.xml</EM
+> file</H4
+><P
+>          In Redhat Linux 8.0 the format of the comps file has completely changed and it's 
+          now based on XML. It provides much more flexibility and ease of customization 
+          as you can read in <A
+HREF="comps-file.html"
+>The comps file</A
+>. If you have modified or intend to 
+          modify the list of the installed packages, you need to complete this step. This,
+          in turn, implies having the modified version of comps-9.tar.gz
+          <A
+HREF="rhcd-scripts/comps-9.tar.gz"
+TARGET="_top"
+>          comps-9.tar.gz</A
+> (the original one doesn't work for me) or
+          <A
+HREF="http://rhlinux.redhat.com/anaconda/comps-8.0.tar.gz"
+TARGET="_top"
+>          comps-8.0.tar.gz</A
+> package (depending on the release you are building) 
+          including the master comps file found on the Redhat website and the 
+          <TT
+CLASS="FILENAME"
+>comps-extras</TT
+> rpm package installed. 
+          Follow these steps for Redhat 9 and 8.0:
+          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ cd /some-dir-of-your-choice
+            $ tar xzvf /path-to-comps-9.tar.gz/comps-9.tar.gz 
+            $ cd comps
+            $ make
+            $ cat comps-milan.xml |sed 's!&#60;/comps&#62;!!g' &#62;comps-tmp.xml
+	    $ /usr/share/comps-extras/getfullcomps.py  comps.xml \
+                 /absolute-path-to-toplevel-dir i386 &#62;&#62; comps-tmp.xml
+	    $ echo '&#60;/comps&#62;' &#62;&#62; comps-tmp.xml
+	    $ cp comps-tmp.xml /absolute-path-to-toplevel-dir/i386/RedHat/base/comps.xml
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          Beside <SPAN
+CLASS="QUOTE"
+>"/absolute-path-to-toplevel-dir"</SPAN
+>, you should take care of 
+          assigning valid names to <SPAN
+CLASS="QUOTE"
+>"/some-dir-of-your-choice"</SPAN
+> and 
+          <SPAN
+CLASS="QUOTE"
+>"/path-to-comps-9.tar.gz"</SPAN
+>. The rest of the commands can be just 
+          copied. And... you must (obviously) change 9 to read 8.0 if you are building 
+          a Redhat 8.0 distribution.
+        </P
+><P
+>          Again, before issuing the <EM
+>make</EM
+> command, you should modify the file 
+          <TT
+CLASS="FILENAME"
+>comps-milan.xml.in</TT
+> using your favourite text editor and 
+          following the guidelines and the suggestions found in <A
+HREF="comps-file.html"
+>The comps file</A
+> 
+          and on the 
+          <A
+HREF="http://rhlinux.redhat.com/anaconda/comps.html"
+TARGET="_top"
+>anaconda comps</A
+>
+          section of the Redhat website. 
+        </P
+><P
+>          The script presented in the last section will execute all the steps needed after 
+          the <EM
+>make</EM
+> command, using the <EM
+>COMPSFILE</EM
+> 
+          variable to find the <TT
+CLASS="FILENAME"
+>comps-milan.xml</TT
+> file (it doesn't need 
+          to have that name, I'm just using the original name, but you can change it if 
+          you want).
+        </P
+><P
+>	  If you are using Redhat 7.3, the <TT
+CLASS="FILENAME"
+>comps</TT
+> file (have you noticed 
+          the different name...) is a textual file with a completely different syntax described 
+          in some more detail in <A
+HREF="comps-file.html"
+>The comps file</A
+>. In this case, the only necessary 
+          operations are modifying the file to suit your needs and copying it to the 
+          <TT
+CLASS="FILENAME"
+>RedHat/base/comps</TT
+> file in the main tree overwriting the original 
+          one. 
+        </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN575"
+></A
+>5.3.3.4. Rebuilding the installer</H4
+><P
+>          This will rebuild the anaconda installer in your local copy of the distribution 
+          using your updated packages.
+          For Redhat 9 execute: 
+          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ /usr/lib/anaconda-runtime/buildinstall  \
+                --pkgorder /absolute-path-to-toplevel-dir/pkgorder.txt  \
+                --comp dist-9 --product "Red Hat Linux" --version 9  \
+                --release "Redhat 9 (Shrike)" /absolute-path-to-toplevel-dir/i386  
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          Where, once again, <SPAN
+CLASS="QUOTE"
+>"/absolute-path-to-toplevel-dir"</SPAN
+> is 
+          the directory where the root of your local copy of the distribution is located.
+        </P
+><P
+>          For Redhat 8.0, the procedure is pretty much the same (the <SPAN
+CLASS="QUOTE"
+>"--product"</SPAN
+> 
+          option is missing):
+          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ /usr/lib/anaconda-runtime/buildinstall  \
+                --pkgorder /absolute-path-to-toplevel-dir/pkgorder.txt  \
+                --comp dist-8.0 --version 8.0  --release "Redhat 8.0 (Psyche)" \
+                /absolute-path-to-toplevel-dir/i386  
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>          Or if you are still using Redhat 7.3 (as I am):
+          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ /usr/lib/anaconda-runtime/buildinstall  \
+                --pkgorder /absolute-path-to-toplevel-dir/pkgorder.txt  \
+                --comp dist-7.3 --version 7.3 /absolute-path-to-toplevel-dir/i386  
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+><P
+>        The absence of the (mandatory in 8.0) <EM
+>--release</EM
+> option 
+        is the only noticeable difference. 
+        </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN587"
+></A
+>5.3.3.5. Split the distribution</H4
+><P
+>          This will create five directories, each one corresponding to a different 
+          CD and will put in them hard links to the real files contained in your local 
+          copy of the distribution.
+          <DIV
+CLASS="NOTE"
+><P
+></P
+><TABLE
+CLASS="NOTE"
+WIDTH="100%"
+BORDER="0"
+><TR
+><TD
+WIDTH="25"
+ALIGN="CENTER"
+VALIGN="TOP"
+><IMG
+SRC="../images/note.gif"
+HSPACE="5"
+ALT="Note"></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+><P
+>              This will not work at all for Redhat 7.3 if you don't use the modified 
+              version of the <TT
+CLASS="FILENAME"
+>splitdistro</TT
+> script reported in the next 
+              paragraph. For Redhat 8.0 and 9, a modified version of 
+              <TT
+CLASS="FILENAME"
+>splitdistro</TT
+> is provided mainly because even if the problems 
+              in the previous script were fixed, the execution now fails if there are 
+              not enough packages to fill all the CDs (the first four completely and the 
+              last one even just partly).
+            </P
+></TD
+></TR
+></TABLE
+></DIV
+> 
+          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ $/usr/lib/anaconda-runtime/splitdistro  \
+              --fileorder /absolute-path-to-toplevel-dir/pkgorder.txt  --release \
+                "Redhat 9 (Shrike)"  /absolute-path-to-toplevel-dir  i386 
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+          The only thing you need to change for 8.0 and 7.3 is the string passed to the 
+          <EM
+>--release</EM
+> option (which should read 
+          <SPAN
+CLASS="QUOTE"
+>"Redhat 8.0 (Psyche)"</SPAN
+> or <SPAN
+CLASS="QUOTE"
+>"Redhat 7.3 (Valhalla)"</SPAN
+>) 
+        </P
+><P
+>          For Redhat 7.3 the version of the 
+          <A
+HREF="rhcd-scripts/splitdistro7.3"
+TARGET="_top"
+>          splitdistro7.3</A
+> (python) script used was extracted from the 
+          <EM
+>anaconda-runtime 7.3.7</EM
+> package and modified by me. 
+          You should sustitute it to the original one (maybe after copying the latter) 
+          named <TT
+CLASS="FILENAME"
+>/usr/lib/anaconda-runtime/splitdistro</TT
+>. 
+        </P
+><P
+>          The only modification (apart from some small fixes), the script went through, 
+          is a change in its behaviour if the <TT
+CLASS="FILENAME"
+>SRPMS</TT
+> directory is not 
+          found (doesn't terminate, but generate the CDs without source packages).
+        </P
+><P
+>          For Redhat 8.0 the version of the 
+          <A
+HREF="rhcd-scripts/splitdistro8.0"
+TARGET="_top"
+>          splitdistro8.0</A
+> (python) script used was extracted from the 
+          <EM
+>anaconda-runtime 8.0.4</EM
+> package and modified once again by 
+          me to obtain some improvements I felt the need for. You should sustitute it to 
+          the original one (maybe after copying the latter somewhere) named 
+          <TT
+CLASS="FILENAME"
+>/usr/lib/anaconda-runtime/splitdistro</TT
+>. Anyway, the original 
+          one works well, if you want to build a distribution which has all the 
+          <EM
+>SRPMS</EM
+> packages (so to fill all the 5 CDs otherwise the 
+          script will fail).  
+        </P
+><P
+>          The only modification the script went through is a change in its behaviour 
+          if the <TT
+CLASS="FILENAME"
+>SRPMS</TT
+> directory is not found (doesn't terminate 
+          failing, but generates the CDs without source packages) or there is one CD which 
+          hasn't any package on it (instead of failing, generates an empty directory).
+        </P
+><P
+>          For Redhat 9 you can find a copy of the script with the same modifications 
+          applied to the version included in release 8.0 here: 
+          <A
+HREF="rhcd-scripts/splitdistro9"
+TARGET="_top"
+>splitdistro9</A
+>. Everything said 
+          for Redhat 8.0 in the previous paragraph applies to release 9.
+        </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN613"
+></A
+>5.3.3.6. Regenerating the hdlist and hdlist2 files</H4
+><P
+>           This is needed to recreate the hdlist and hdlist2 files, using some of 
+           the informations obtained in the previous steps. There are no differences 
+           between 7.3, 8.0 and 9 for this execution of the program
+           The command to issue is the following:
+           <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>             $ /usr/lib/anaconda-runtime/genhdlist  \
+                 --fileorder /absolute-path-to-toplevel-dir/pkgorder.txt  --withnumbers \
+                 /absolute-path-to-toplevel-dir/i386-disc[1-3]
+           </PRE
+></FONT
+></TD
+></TR
+></TABLE
+> 
+           As you can see, there are two new options passed to the program, if you remember 
+           the first run of it. The first one, <EM
+>--fileorder</EM
+>, tells genhdlist 
+           to use the file <TT
+CLASS="FILENAME"
+>pkgorder.txt</TT
+> we generated in the second 
+           step (rebuild the installer). This file keeps informations on how the packages 
+           were split on the different CDs and is used by the installer to determine in which 
+           order the packages should be installed. Basically, if you avoid using it, you will 
+           (probably) end up swapping the various CDs many times during the installation. 
+           The <EM
+>--withnumbers</EM
+> option is needed to associate a CD number to 
+           every package (as you can see, a wildcard indicating the first 3 iso images is 
+           used).     
+         </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN620"
+></A
+>5.3.3.7. Generating the iso images</H4
+><P
+>          Here you will prepare the iso images to be burned on the actual CDs. There are 
+          two different commands to be used for the first disc and for the rest of them. 
+          This is due to the need of obtaining a first CD which is bootable. This is 
+          actually, not strictly necessary, because you could use a boot floppy instead 
+          of it, but it's definitely a nifty feature (and makes your discs more similar 
+          in behaviour to the original ones). These are the commands I use to complete 
+          the task:
+          </P
+><P
+>            <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>              $ mkdir /images-destination-dir
+              $ mkisofs  -r  -J  -T  -v  -V "Red Hat 9 (Shrike) disc 1" \
+		  -c isolinux/boot.cat  -b isolinux/isolinux.bin -no-emul-boot \
+                  -boot-load-size 4 -boot-info-table -o /images-destination-dir/i386-disc1.iso .
+            </PRE
+></FONT
+></TD
+></TR
+></TABLE
+> 
+            This is needed to burn the first (bootable) disc for RedHat 8.0 and 9 (with no floppy 
+            emulation) and is executed from the top level directory of the distribution. The 
+            <TT
+CLASS="FILENAME"
+>/images-destination-dir</TT
+> directory is 
+            the container for the five iso images you are generating, and it must exist
+            before starting the procedure. The only thing which needs to be changed for Redhat 8.0 
+            is the volume name (it should be "Red Hat 8.0 (Psyche) disc 1").
+          </P
+><P
+>            <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>              $ mkdir /images-destination-dir
+              $ mkisofs  -r  -J  -T  -v  -V "Red Hat 7.3 (Valhalla) disc 1" \
+                  -c boot.cat  -b dosutils/autoboot/boot.img \
+                  -o /images-destination-dir/i386-disc1.iso .
+            </PRE
+></FONT
+></TD
+></TR
+></TABLE
+> 
+            This is needed to burn the first (bootable) disc on 7.3 and is executed from 
+            the top level directory of the distribution (this time with floppy emulation). 
+          </P
+><P
+>            The rest of the images can be written by means of this <SPAN
+CLASS="QUOTE"
+>"for"</SPAN
+> loop
+            <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>              $  for i in `echo 2 3 4 5` ; do mkisofs  -r  -J  -T  -v  \
+                   -V "Red Hat 9 (Shrike) disc ${i}"  \
+                   -o /images-destination-dir/i386-disc${i}.iso . ; done
+            </PRE
+></FONT
+></TD
+></TR
+></TABLE
+> 
+            The loop just presented will prepare the last four images giving them the 
+            correct numbers. As you can see, there are just two missing options from the 
+            first run, and, as you can guess, they are needed only to create a bootable 
+            CD. In <A
+HREF="include-updates.html#ISO-IMAGE-CREATE"
+>Creating the CD iso image</A
+>, you can read a brief explanation of 
+            the various options and their meanings (most of it was extracted from the man page).
+	    Again if you are building a Redhat 8.0 you should change the volume name to read 
+	    "Red Hat 8.0 (Psyche) disc ${i}".
+        </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN632"
+></A
+>5.3.3.8. Implant and check the md5 signatures in the iso images</H4
+><P
+>          This is actually an optional step but it permits the use of the 
+          <SPAN
+CLASS="QUOTE"
+>"checkmedia"</SPAN
+> option to verify the CDs signatures before installing 
+          them, so to guarantee their correctness.
+        </P
+><P
+>	  The following commands permit to inject and verify an md5 signature on an iso 
+          image: 
+          <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="PROGRAMLISTING"
+>            $ /usr/lib/anaconda-runtime/implantisomd5 iso-image
+            $ /usr/lib/anaconda-runtime/checkisomd5 iso-image
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+> 
+        </P
+><P
+>          After completing all these steps, we will find ourselves with the five CD images 
+          to burn. Considering that typing all this stuff is a bit time consuming, in the 
+          next section is presented a script, which will complete all of the listed 
+          operations in a single run (do not forget to configure the parameters properly). 
+        </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="UPDATEBUILD-SCRIPT"
+></A
+>5.3.3.9. Putting all the steps together</H4
+><P
+>          The 
+          <A
+HREF="rhcd-scripts/updateBuild.sh"
+TARGET="_top"
+>          updateBuild.sh</A
+> script will execute all the steps needed to rebuild the 
+          distribution CDs for RedHat 7.3, 8.0 or 9 in a single run (as root). Before using this 
+          script you have to configure the <A
+HREF="rhcd-scripts/rhcd.conf"
+TARGET="_top"
+>          rhcd.conf</A
+> configuration file after exporting a <EM
+>RHCDPATH</EM
+> 
+          variable pointing to the directory where this file is. If you want to include 
+          a modified <EM
+>comps.xml</EM
+> (or <EM
+>comps</EM
+>) 
+          file in your CDs as explained in <A
+HREF="comps-file.html"
+>The comps file</A
+>, you should 
+          copy it into the location defined by means of the 
+          <EM
+>COMPSFILE</EM
+> variable now (before executing the script). 
+          Don't forget to add the modified <TT
+CLASS="FILENAME"
+>splitdistro</TT
+> script 
+          to the <TT
+CLASS="FILENAME"
+>/usr/lib/anaconda-runtime</TT
+> 
+          directory if you need it.
+        </P
+><P
+>          <TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>            # export RHCDPATH=/home/luigi/tmp/rhcd-scripts
+            # sh updateBuild.sh
+          </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+        </P
+></DIV
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="distribution-mirror.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="burn-cd.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Obtaining your local copy of the distribution</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Burning the CD(s)</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

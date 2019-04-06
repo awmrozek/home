@@ -1,0 +1,213 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - Podstawy DirectDraw</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="ddraw02.html">Animacja &gt;&gt;</A>
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H1>
+Kurs DirectDraw
+</H1>
+
+<P>
+Witam w kursie <SPAN CLASS=Wazne>DirectDraw</SPAN>! Zgłębimy tu trochę tajników jednego ze składników słynnego DirectX-a, odpowiedzialnego za "płaską" grafikę. Co prawda już od lat żaden szanujący się producent gier nie splamiłby swojego honoru, zajmując się grami z dwuwymiarową grafiką, ale dla wielu programistów-amatorów 3D jest z różnych względów niedostępny, więc jeśli już tworzą grę, a standardowe funkcje API są dla ich celów zbyt powolne, to najlepszym rozwiązaniem pozostaje właśnie DirectDraw.
+</P>
+<P>
+Zanim przystąpimy do dzieła, przypominam o konieczności dolinkowania biblioteki DirectDraw. Utwórz nowy projekt windowsowy, wejdź do opcji projektu i w pole "Further object files" wpisz nazwę pliku: libddraw.a. Następnie na początku programu dodaj linijkę:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;ddraw.h&gt;</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+1.1 Tworzenie głównego obiektu DirectDraw
+</H2>
+
+<P>
+Fundamentem dla programowania w DirectX są tak zwane <SPAN CLASS=Wazne>obiekty główne</SPAN>. Każdy moduł DirectX-a (np. DirectSound, Direct3D, DirectInput) ma swój własny obiekt główny. Zanim zrobimy w DX cokolwiek, musimy najpierw taki obiekt utworzyć. Na szczęście nie jest to zbyt skomplikowana operacja:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LPDIRECTDRAW lpDDGlowny;<BR>
+<SPAN CLASS=K>if</SPAN>(DirectDrawCreate(NULL, &lpDDGlowny, NULL) != DD_OK) Blad();<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Należy zadeklarować wskaźnik do obiektu, który tworzymy, a następnie wywołać funkcję <SPAN CLASS=T>DirectDrawCreate</SPAN> i przekazać jej jako jeden z argumentów adres tego wskaźnika, który zadeklarowaliśmy. Z pozostałych argumentów pierwszy oznacza kartę graficzną, której będziemy używać z danym obiektem <SPAN CLASS=T>DirectDraw</SPAN> (większość userów ma tylko jedną i podaje tu <SPAN CLASS=T>NULL</SPAN>, aczkolwiek niektórych od przybytku głowa nie boli), zaś drugi argument... A cholera zresztą wie, do czego on służy - wrzucamy <SPAN CLASS=T>NULL</SPAN>. <SPAN CLASS=T>DirectDrawCreate</SPAN> powinna zwrócić wartość <SPAN CLASS=T>DD_OK</SPAN> - jeśli nie zwróci, no to będzie bieda, trzeba pokazać stosowny komunikat i zakończyć program. Tutaj skrótowo napisałem <SPAN CLASS=T>Blad()</SPAN>.
+</P>
+<P>
+Mamy więc obiekt główny, teraz trzeba z nim podpisać umowę o współpracy z głównym okienkiem programu. Bez umowy ani rusz, w końcu obiekt główny DirectDraw to porządny gość i na czarno nie będzie pracował. Chciałby z góry wiedzieć, jaki ma zakres obowiązków i tak dalej. DirectDraw może zostać zwykłym robolem (tryb współpracy <SPAN CLASS=T>DDSCL_NORMAL</SPAN>), albo też dostać specjalne przywileje - <SPAN CLASS=T>DDSCL_EXCLUSIVE</SPAN>. A jeśli już zdecydujemy się na ten drugi (w większości przypadków pewnie tak będzie), to musimy też ustawić dodatkowo tryb <SPAN CLASS=T>DDSCL_FULLSCREEN</SPAN> - jak sama nazwa wskazuje oznacza on, że nasz program będzie pracował na pełnym ekranie. Funkcja podpisywania umowy między DirectDraw a naszym okienkiem zwie się <SPAN CLASS=T>SetCooperativeLevel</SPAN> i jest funkcją składową naszego obiektu głównego DD:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+lpDDGlowny->SetCooperativeLevel(hwnd, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jeśli już bawimy się na pełnym ekranie, to nie zaszkodzi dowiedzieć się, jak się zmienia tryb graficzny. Na szczęście nie jest to takie pokręcone, jak w gołym WinAPI, mamy bowiem bardzo intuicyjną funkcję <SPAN CLASS=T>SetDisplayMode</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+lpDDGlowny->SetDisplayMode(<SPAN CLASS=L>800</SPAN>, <SPAN CLASS=L>600</SPAN>, <SPAN CLASS=L>16</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Co oznaczają dwa pierwsze argumenty, to chyba widać. Trzeci to oczywiście liczba bitów przypadająca na jeden piksel, czyli głębia koloru. Różne karty graficzne obsługują różne tryby; większość kart powinna mieć zaimplementowany tryb <SPAN CLASS=L>16</SPAN>-bitowy (<SPAN CLASS=L>65</SPAN> tys. kolorów), chyba wszystkie nowoczesne karty obsługują <SPAN CLASS=L>32</SPAN>-bitowy, natomiast z <SPAN CLASS=L>24</SPAN>-bitowym bywa rozmaicie.
+</P>
+<P>
+Jak to zwykle jest z windowsowymi aplikacjami, cokolwiek utworzymy - trzeba później zniszczyć albo zwolnić. Nie inaczej z naszym głównym obiektem DD. Dlatego pod koniec programu dorzucamy taką oto linijkę, mówiącą obiektowi, że ma już fajrant:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+lpddGlowny->Release();<BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+1.2 Powierzchnie DirectDraw
+</H2>
+
+<P>
+Dzięki obiektowi głównemu możemy zmienić rozdzielczość ekranu, ale nie da się na nim nic narysować. Obiekt główny tylko nadzoruje rysowanie, a naszym prawdziwym polem do popisu będą tzw. <SPAN CLASS=Wazne>powierzchnie</SPAN>. Żeby rysować, musimy stworzyć przynajmniej jedną powierzchnię i przypisać ją do ekranu - od tej pory wszystko, co wrzucimy na powierzchnię, wyświetli się automatycznie na ekranie. Możemy też tworzyć "zapasowe" powierzchnie i wykorzystywać je jako bufory, ale o tym później. Powierzchnię tworzymy podobnie jak obiekt główny DirectDraw, czyli deklarując wskaźnik do niej i następnie wywołując funkcję <SPAN CLASS=T>CreateSurface</SPAN>. Zanim jednak tę funkcję wywołamy, trzeba będzie wypełnić odpowiednią strukturę pomocniczą (to z kolei przypomina tworzenie okna w WinAPI):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//wskaźnik do naszej powierzchni</SPAN><BR>
+LPDIRECTDRAWSURFACE lpDSPow; <BR>
+<SPAN CLASS=C>//deklarujemy strukturę...</SPAN><BR>
+DDSURFACEDESC ddsdStruktura;<BR>
+<SPAN CLASS=C>//...wypełniamy ją...</SPAN><BR>
+ddsdStruktura.dwSize         = sizeof(ddsdStruktura);<BR>
+ddsdStruktura.dwFlags        = DDSD_CAPS;<BR>
+ddsdStruktura.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;<BR>
+<SPAN CLASS=C>//...i wreszcie mamy powierzchnię!</SPAN><BR>
+<SPAN CLASS=K>if</SPAN>(lpDDGlowny->CreateSurface(&ddsdStruktura, &lpDSPow, NULL) != DD_OK)<BR>
+&nbsp;Blad(); <SPAN CLASS=C>//albo i nie mamy... ;-)</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Pewnie jesteś ciekaw, o co chodzi z tymi polami struktury <SPAN CLASS=T>DDSURFACEDESC</SPAN>. Teoretycznie jest to dość spora struktura (zwłaszcza, że zawiera w sobie następne poziomy struktur), ale do naszych skromnych zastosowań wystarczą w zupełności te trzy pola, które wypełniliśmy powyżej. Pierwsze z nich, <SPAN CLASS=T>dwSize</SPAN>, określa rozmiar całej struktury w bajtach i tutaj dajemy po prostu <SPAN CLASS=K>sizeof</SPAN><SPAN CLASS=T>(ddsdStruktura)</SPAN>. Pole <SPAN CLASS=T>dwFlags</SPAN> określa, z których pól struktury korzystamy. Przyda nam się na razie tylko pole <SPAN CLASS=T>ddsCaps</SPAN>, więc ustawiamy <SPAN CLASS=T>dwFlags</SPAN> na wartość <SPAN CLASS=T>DDSD_CAPS</SPAN>.
+</P>
+<P>
+Pole ddsCaps to osobna struktura. Zawiera ona tylko jedno pole - <SPAN CLASS=T>dwCaps</SPAN>, do którego wrzucamy flagi określające rodzaj naszej powierzchni. Chcemy utworzyć główną powierzchnię, więc ustawiamy to pole na <SPAN CLASS=T>DDSCAPS_PRIMARYSURFACE</SPAN>.
+</P>
+<P>
+Wywołanie funkcji <SPAN CLASS=T>CreateSurface</SPAN> to już żadna filozofia; pierwszy argument to adres struktury, którą właśnie wypełnialiśmy, drugi to adres wskaźnika, do którego przypisana zostanie nowa powierzchnia, ostatni argument nas nie interesuje i ustawiamy go na <SPAN CLASS=T>NULL</SPAN>.
+</P>
+
+<H2>
+1.3 Wczytywanie i rysowanie bitmap
+</H2>
+
+<P>
+Jeśli chcesz zrobić grę z prawdziwego zdarzenia, a chyba po to zaglądasz do kursu DirectDraw, to w zdecydowanej większości przypadków będziesz korzystać z bitmap, zrobionych w jakimś programie graficznym albo bezczelnie ukradzionych z cudzej gry. Bitmapkę taką najpierw trzeba wczytać z dysku do pamięci. Tutaj możemy się posłużyć standardową funkcją WinAPI, czyli <SPAN CLASS=T>LoadImage</SPAN>, oraz odpowiednimi strukturami danych, również z WinAPI. Na przykład:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HBITMAP hbmObrazek = LoadImage(NULL, <SPAN CLASS=L>"obrazek.bmp"</SPAN>, IMAGE_BITMAP, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, LR_LOADFROMFILE);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Funkcję <SPAN CLASS=T>LoadImage</SPAN> powinieneś znać z kursu WinAPI, ale na wszelki wypadek przypomnę jej składnię. Pierwszy argument to uchwyt programu - wymagany jeśli bitmapę przechowujemy w pliku <SPAN CLASS=Wazne>*.exe</SPAN>. Jeśli wczytujemy ją z pliku <SPAN CLASS=Wazne>*.bmp</SPAN> (a tak się składa, że właśnie to robimy powyżej), to można tu wstawić <SPAN CLASS=T>NULL</SPAN>. Drugi argument to oczywiście ścieżka i nazwa pliku BMP, trzeci to rodzaj pliku graficznego - dla zwykłej bitmapy <SPAN CLASS=T>IMAGE_BITMAP</SPAN>. Kolejne dwa argumenty to wymiary obrazka - co się będziemy męczyć, dajemy po zerze. Ostatni argument oznacza, skąd ładujemy bitmapę - do tej pory po samych argumentach najgłupsza małpa by się skapowała, że z pliku, co jeszcze głupszemu kompilatorowi trzeba dodatkowo tłumaczyć, wstawiając <SPAN CLASS=T>LR_LOADFROMFILE</SPAN>.
+</P>
+
+<P>
+Jeśli w systemie nie panuje akurat chaos, podany plik istnieje i w dodatku jest bitmapą w rozsądnym formacie, to funkcja <SPAN CLASS=T>LoadImage</SPAN> wczyta go i zwróci do niego uchwyt (typu <SPAN CLASS=T>HBITMAP</SPAN>). W przeciwnym wypadku zwróci oczywiście <SPAN CLASS=T>NULL</SPAN>.
+</P>
+<P>
+Mamy bitmapę w pamięci, co z nią teraz począć? Na szczęście powierzchnie w DirectX są kompatybilne ze standardowymi strukturami GDI WinAPI, toteż bez większych problemów możemy naszą bitmapkę z tych struktur na nowoutworzoną powierzchnię główną DD skopiować. Potrzebny nam będzie roboczy <SPAN CLASS=T>HDC</SPAN>, któremu przypiszemy naszą bitmapkę, oraz funkcja <SPAN CLASS=T>BitBlt</SPAN>, która skopiuje bitmapę z tego roboczego kontekstu na powierzchnię:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>//Utwórz tymczasowy kontekst</SPAN><BR>
+HDC tmphdc = CreateCompatibleDC(NULL);<BR>
+<SPAN CLASS=C>//i przypisz mu naszą bitmapę</SPAN><BR>
+SelectObject(tmphdc, hbmOBrazek);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Teraz musimy uzyskać <SPAN CLASS=T>HDC</SPAN> naszej powierzchni. Ma ona specjalną funkcję składową <SPAN CLASS=T>GetDC</SPAN> (która jednak nie ma nic wspólnego z funkcją o tej samej nazwie, wchodzącą w skład WinAPI), z tym że najpierw musimy zadeklarować zmienną typu <SPAN CLASS=T>HDC</SPAN>, a następnie adres tej zmiennej przekazać jako argument funkcji <SPAN CLASS=T>GetDC</SPAN>:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+HDC hdcPow;<BR>
+lpDDPow->GetDC(&hdcPow);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Funkcja <SPAN CLASS=T>GetDC</SPAN> powinna zwrócić <SPAN CLASS=T>DD_OK</SPAN>, czego z lenistwa tutaj nie sprawdzałem. Jeśli faktycznie zwróci, to zmienna <SPAN CLASS=T>hdcPow</SPAN> będzie zawierać <SPAN CLASS=T>HDC</SPAN> związany z naszą powierzchnią. Teraz nic nie stoi już na przeszkodzie, żeby w klasyczny sposób skopiować zawartość jednego kontekstu na drugi - w tym przypadku z tymczasowego <SPAN CLASS=T>HDC</SPAN> na <SPAN CLASS=T>HDC</SPAN> powierzchni:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+BitBlt(hdcPow, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>100</SPAN>, <SPAN CLASS=L>200</SPAN>, tmphdc, <SPAN CLASS=L>0</SPAN>, <SPAN CLASS=L>0</SPAN>, SRCCOPY);<BR>
+lpDDPow->ReleaseDC(hdcPow);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W przykładzie założyliśmy, że obrazek ma wymiary <SPAN CLASS=L>100x200</SPAN>. Po skopiowaniu bitmapy na powierzchnię musimy (tak jak w przypadku rysowania po zwykłym oknie) zwolnić jej <SPAN CLASS=T>HDC</SPAN>, co robimy przy pomocy funkcji <SPAN CLASS=T>ReleaseDC</SPAN>. No i mamy obrazek na ekranie...
+</P>
+<P>
+Nie pozostaje nic innego, jak tylko wiosenne porządki - wyrzucamy naszą bitmapę i kasujemy tymczasowy kontekst:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DeleteObject(hbmObrazek);<BR>
+DeleteDC(tmphdc);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście przy wyjściu z samego programu należy jeszcze zniszczyć powierzchnię, a na koniec zwolnić główny obiekt DD, ale o tym mówiliśmy już wcześniej.
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="../directx.html">Spis</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="ddraw02.html">Animacja &gt;&gt;</A>
+</TD>
+</TR>
+</TABLE>
+
+</HTML>

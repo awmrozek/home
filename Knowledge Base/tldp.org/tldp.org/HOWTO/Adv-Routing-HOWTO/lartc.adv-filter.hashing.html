@@ -1,0 +1,320 @@
+<HTML
+><HEAD
+><TITLE
+>Hashing filters for very fast massive filtering</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Advanced filters for (re-)classifying packets"
+HREF="lartc.adv-filter.html"><LINK
+REL="PREVIOUS"
+TITLE="Policing filters"
+HREF="lartc.adv-filter.policing.html"><LINK
+REL="NEXT"
+TITLE="Kernel network parameters "
+HREF="lartc.kernel.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.adv-filter.policing.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 12. Advanced filters for (re-)classifying packets</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.kernel.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.ADV-FILTER.HASHING"
+></A
+>12.4. Hashing filters for very fast massive filtering</H1
+><P
+>If you have a need for thousands of rules, for example if you have a lot of
+clients or computers, all with different QoS specifications, you may find
+that the kernel spends a lot of time matching all those rules.</P
+><P
+>By default, all filters reside in one big chain which is matched in
+descending order of priority. If you have 1000 rules, 1000 checks may be
+needed to determine what to do with a packet.</P
+><P
+>Matching would go much quicker if you would have 256 chains with each four
+rules - if you could divide packets over those 256 chains, so that the right
+rule will be there.</P
+><P
+>Hashing makes this possible. Let's say you have 1024 cable modem customers in
+your network, with IP addresses ranging from 1.2.0.0 to 1.2.3.255, and each
+has to go in another bin, for example 'lite', 'regular' and 'premium'. You
+would then have 1024 rules like this:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.0.0 classid 1:1
+# tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.0.1 classid 1:1
+...
+# tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.3.254 classid 1:3
+# tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.3.255 classid 1:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>To speed this up, we can use the last part of the IP address as a 'hash
+key'. We then get 256 tables, the first of which looks like this:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.0.0 classid 1:1
+# tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.1.0 classid 1:1
+# tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.2.0 classid 1:3
+# tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.3.0 classid 1:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>The next one starts like this:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth1 parent 1:0 protocol ip prio 100 match ip src \
+  1.2.0.1 classid 1:1
+...</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>This way, only four checks are needed at most, two on average. </P
+><P
+>Configuration is pretty complicated, but very worth it by the time you have
+this many rules. First we make a filter root, then we create a table with
+256 entries:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth1 parent 1:0 prio 5 protocol ip u32
+# tc filter add dev eth1 parent 1:0 prio 5 handle 2: protocol ip u32 divisor 256</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>&#13;</P
+><P
+>Now we add some rules to entries in the created table:</P
+><P
+>&#13;<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth1 protocol ip parent 1:0 prio 5 u32 ht 2:7b: \
+        match ip src 1.2.0.123 flowid 1:1
+# tc filter add dev eth1 protocol ip parent 1:0 prio 5 u32 ht 2:7b: \
+        match ip src 1.2.1.123 flowid 1:2
+# tc filter add dev eth1 protocol ip parent 1:0 prio 5 u32 ht 2:7b: \
+        match ip src 1.2.3.123 flowid 1:3
+# tc filter add dev eth1 protocol ip parent 1:0 prio 5 u32 ht 2:7b: \
+        match ip src 1.2.4.123 flowid 1:2</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+This is entry 123, which contains matches for 1.2.0.123, 1.2.1.123,
+1.2.2.123, 1.2.3.123, and sends them to 1:1, 1:2, 1:3 and 1:2 respectively.
+Note that we need to specify our hash bucket in hex, 0x7b is 123.</P
+><P
+>Next create a 'hashing filter' that directs traffic to the right entry in
+the hashing table:
+
+<TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+># tc filter add dev eth1 protocol ip parent 1:0 prio 5 u32 ht 800:: \
+        match ip src 1.2.0.0/16 \
+        hashkey mask 0x000000ff at 12 \
+        link 2:</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+Ok, some numbers need explaining. The default hash table is called 800:: and
+all filtering starts there. Then we select the source address, which lives
+as position 12, 13, 14 and 15 in the IP header, and indicate that we are
+only interested in the last part. This we send to hash table 2:, which we
+created earlier.</P
+><P
+>It is quite complicated, but it does work in practice and performance will
+be staggering. Note that this example could be improved to the ideal case
+where each chain contains 1 filter!</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.policing.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.kernel.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Policing filters</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.adv-filter.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Kernel network parameters</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

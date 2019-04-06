@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Bzip2 mini-HOWTO: Using bzip2 with emacs</TITLE>
+ <LINK HREF="Bzip2-7.html" REL=next>
+ <LINK HREF="Bzip2-5.html" REL=previous>
+ <LINK HREF="Bzip2.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Bzip2-7.html">Next</A>
+<A HREF="Bzip2-5.html">Previous</A>
+<A HREF="Bzip2.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Using bzip2 with emacs</A></H2>
+
+<H2><A NAME="ss6.1">6.1 Changing emacs for everyone:</A>
+</H2>
+
+<P>I've written the following patch to jka-compr.el which adds bzip2 to
+auto-compression-mode.
+<P><B>Disclaimer:</B> I have only tested this with emacs-20.2, but have
+no reason to believe that a similar approach won't work with other versions.
+<P>To use it,
+<OL>
+<LI>Go to the emacs-20.2/lisp source directory (wherever you untarred it)</LI>
+<LI>Put the patch below in a file called jka-compr.el.diff (it should
+be alone in that file ;).</LI>
+<LI>Do
+<BLOCKQUOTE><CODE>
+<PRE>
+ patch &lt; jka-compr.el.diff
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>Start emacs, and do 
+<BLOCKQUOTE><CODE>
+<PRE>
+ M-x byte-compile-file jka-compr.el
+</PRE>
+</CODE></BLOCKQUOTE>
+</LI>
+<LI>Leave emacs.</LI>
+<LI>Move your original jka-compr.elc to a safe place in case of bugs.</LI>
+<LI>Replace it with the new jka-compr.elc.</LI>
+<LI>Have fun!</LI>
+</OL>
+
+<PRE>
+--- jka-compr.el        Sat Jul 26 17:02:39 1997
++++ jka-compr.el.new    Thu Feb  5 17:44:35 1998
+@@ -44,7 +44,7 @@
+ ;; The variable, jka-compr-compression-info-list can be used to
+ ;; customize jka-compr to work with other compression programs.
+ ;; The default value of this variable allows jka-compr to work with
+-;; Unix compress and gzip.
++;; Unix compress and gzip.  David Fetter added bzip2 support :)
+ ;;
+ ;; If you are concerned about the stderr output of gzip and other
+ ;; compression/decompression programs showing up in your buffers, you
+@@ -121,7 +121,9 @@
+ 
+ 
+ ;;; I have this defined so that .Z files are assumed to be in unix
+-;;; compress format; and .gz files, in gzip format.
++;;; compress format; and .gz files, in gzip format, and .bz2 files,
++;;; in the snappy new bzip2 format from http://www.muraroa.demon.co.uk.
++;;; Keep up the good work, people!
+ (defcustom jka-compr-compression-info-list
+   ;;[regexp
+   ;; compr-message  compr-prog  compr-args
+@@ -131,6 +133,10 @@
+      "compressing"    "compress"     ("-c")
+      "uncompressing"  "uncompress"   ("-c")
+      nil t]
++    ["\\.bz2\\'"
++     "bzip2ing"        "bzip2"         ("")
++     "bunzip2ing"      "bzip2"         ("-d")
++     nil t]
+     ["\\.tgz\\'"
+      "zipping"        "gzip"         ("-c" "-q")
+      "unzipping"      "gzip"         ("-c" "-q" "-d")
+</PRE>
+<P>
+<H2><A NAME="ss6.2">6.2 Changing emacs for one person:</A>
+</H2>
+
+<P>Thanks for this one go to Ulrik Dickow, 
+<A HREF="mailto:ukdATkampsax.dk">ukd@kampsax.dk</A>, Systems Programmer at Kampsax Technology:
+<P>To make it so you can use bzip2 automatically when you aren't the
+sysadmin, just add the following to your .emacs file.
+<P>
+<PRE>
+;; Automatic (un)compression on loading/saving files (gzip(1) and similar)
+;; We start it in the off state, so that bzip2(1) support can be added.
+;; Code thrown together by Ulrik Dickow for ~/.emacs with Emacs 19.34.
+;; Should work with many older and newer Emacsen too.  No warranty though.
+;;
+(if (fboundp 'auto-compression-mode) ; Emacs 19.30+
+    (auto-compression-mode 0)
+  (require 'jka-compr)
+  (toggle-auto-compression 0))
+;; Now add bzip2 support and turn auto compression back on.
+(add-to-list 'jka-compr-compression-info-list
+             ["\\.bz2\\(~\\|\\.~[0-9]+~\\)?\\'"
+              "zipping"        "bzip2"         ()
+              "unzipping"      "bzip2"         ("-d")
+              nil t])
+(toggle-auto-compression 1 t)
+</PRE>
+<P>
+<HR>
+<A HREF="Bzip2-7.html">Next</A>
+<A HREF="Bzip2-5.html">Previous</A>
+<A HREF="Bzip2.html#toc6">Contents</A>
+</BODY>
+</HTML>

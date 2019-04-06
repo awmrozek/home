@@ -1,0 +1,493 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Recovering a Deleted Partition Table</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Partition HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Formatting an ext2/3 partition"
+HREF="formatting.html"><LINK
+REL="NEXT"
+TITLE="Setting Up Swap Space"
+HREF="setting_up_swap.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Partition HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="formatting.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="setting_up_swap.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="recovering"
+></A
+>8. Recovering a Deleted Partition Table</H1
+><P
+>&#13;	Below are instructions for manually recovering a deleted partition
+	table. There are utilities such as <A
+HREF="http://www.stud.uni-hannover.de/user/76201/gpart"
+TARGET="_top"
+>gpart</A
+>
+	or <A
+HREF="http://www.cgsecurity.org/index.html?testdisk.html"
+TARGET="_top"
+>TestDisk
+	</A
+> which can make this task considerably easier. If you are
+	reading this, however, because you have run out of luck, this is
+	what you will have to do:
+</P
+><P
+>     
+<P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>Make a partition that is at least as big as your first partition
+  was. You can make it larger than the original partition by any
+  amount. If you underestimate, there will be much wailing and
+  gnashing of teeth.
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;Command (m for help): <TT
+CLASS="userinput"
+><B
+>n</B
+></TT
+>
+Command action
+   e   extended
+   p   primary partition (1-4)
+<TT
+CLASS="userinput"
+><B
+>p</B
+></TT
+>
+Partition number (1-4): <TT
+CLASS="userinput"
+><B
+>1</B
+></TT
+>
+First cylinder (1-23361, default 1): <TT
+CLASS="userinput"
+><B
+>&#60;RETURN&#62;</B
+></TT
+>
+Using default value 1
+Last cylinder or +size or +sizeM or +sizeK (1-22800, default 22800): <TT
+CLASS="userinput"
+><B
+>13032</B
+></TT
+>
+
+Command (m for help): <TT
+CLASS="userinput"
+><B
+>w</B
+></TT
+>
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+></LI
+><LI
+><P
+>&#13;  Run <B
+CLASS="command"
+>dumpe2fs</B
+> on the first partition and grep out the block count.
+  </P
+><P
+>&#13;  Example:
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;           % dumpe2fs /dev/sda1 | grep "Block count:"
+           Block count:              41270953
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+      If you are uncertain about this value, repeat Step 1 with a
+      bigger partition size. If the block count changes, then you
+      underestimated the size of the original partition. Repeat Step
+      1 until you get a stable block count.
+  </P
+></LI
+><LI
+><P
+>&#13;  Remove the partition you just created
+      <TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;         Command (m for help): <TT
+CLASS="userinput"
+><B
+>d</B
+></TT
+>
+         Partition number (1-4): <TT
+CLASS="userinput"
+><B
+>1</B
+></TT
+>
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+  </P
+></LI
+><LI
+><A
+NAME="BlockSize"
+></A
+><P
+>Make a new partition with the exact size you got from the block
+  count. Since you cannot enter block size in fdisk, you need to
+  figure out how many cylinders to request. Here is the formula:
+</P
+><P
+>&#13;<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;  (number of needed cylinders) = (number of blocks) / (block size)
+
+  (block size) = (unit size) / 1024
+
+  (unit size) = (number of heads) * (number of sectors/cylinder) * (number of bytes/sector)
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+</P
+><P
+>&#13;    Consider the following example, where a hard drive has been partitioned into four primary
+       partitions of 1, 2, 4, and 8 cylinders.
+
+<TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="programlisting"
+>&#13;disk /dev/sda: 16 heads, 63 sectors, 23361 cylinders
+Units = cylinders of 1008 * 512 bytes
+
+   Device Boot    Start       End    Blocks   Id  System
+/dev/sda1             1         2       976+  83  Linux
+/dev/sda2             3         5      1512   83  Linux
+/dev/sda3             6        10      2520   83  Linux
+/dev/sda4            11        19      4536   83  Linux
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+>
+
+<B
+CLASS="command"
+>fdisk</B
+> provides the configuration information I need in the head of the output.
+
+       The unit size is <TT
+CLASS="userinput"
+><B
+>516096</B
+></TT
+> ( <TT
+CLASS="userinput"
+><B
+>16</B
+></TT
+> heads * <TT
+CLASS="userinput"
+><B
+>63</B
+></TT
+> sectors/cyl * <TT
+CLASS="userinput"
+><B
+>512</B
+></TT
+> bytes/sector ). 
+
+       The block size is <TT
+CLASS="userinput"
+><B
+>504</B
+></TT
+> ( <TT
+CLASS="userinput"
+><B
+>516096 / 1024</B
+></TT
+> ). 
+
+       The number of needed cylinders for the second partition is therefore <TT
+CLASS="userinput"
+><B
+>3</B
+></TT
+> ( <TT
+CLASS="userinput"
+><B
+>1512</B
+></TT
+> blocks <TT
+CLASS="userinput"
+><B
+>/
+       504</B
+></TT
+> ). 
+
+       The partition table shows that this is indeed the case: the first cylinder is <TT
+CLASS="userinput"
+><B
+>3</B
+></TT
+>, the second <TT
+CLASS="userinput"
+><B
+>4</B
+></TT
+>, and
+       the last is <TT
+CLASS="userinput"
+><B
+>5</B
+></TT
+>, for a total of three cylinders. 
+
+       The number of needed cylinders for the third partition is calculated similarly: <TT
+CLASS="userinput"
+><B
+>2520</B
+></TT
+> blocks
+       <TT
+CLASS="userinput"
+><B
+>/ 504 = 5</B
+></TT
+>, which corresponds to blocks <TT
+CLASS="userinput"
+><B
+>6,7,8,9,10</B
+></TT
+> 
+       . 
+
+       Notice that this calculation does not work for the first partition because the block count is
+       wrong ( <TT
+CLASS="userinput"
+><B
+>976</B
+></TT
+> instead of <TT
+CLASS="userinput"
+><B
+>1008</B
+></TT
+> ). The plus sign indicates that not all the blocks are included in
+       the fdisk value. When you try the calculation ( <TT
+CLASS="userinput"
+><B
+>976 / 504</B
+></TT
+> ) you get <TT
+CLASS="userinput"
+><B
+>1.937</B
+></TT
+>. Knowing that
+       the number of cylinders must be an integer, you can simply round up. 
+  </P
+></LI
+><LI
+><P
+>Run <B
+CLASS="command"
+>e2fsck</B
+> on it to verify that you can read the new partition.
+  </P
+></LI
+><LI
+><P
+>&#13;  Repeat Steps 1-5 on remaining partitions.
+  </P
+></LI
+></OL
+>
+
+Remount your partitions. Amazingly, all of your data will be there.
+</P
+><P
+>&#13;Credit goes to: Mike Vevea, jedi sys admin, for providing the basic strategy.
+</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="formatting.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="setting_up_swap.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Formatting an ext2/3 partition</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Setting Up Swap Space</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,358 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>Run Installer</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Oracle 9i under Fedora Core 3 - Installation HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Install GCC 2.9 Compat libraries"
+HREF="sect_06.html"><LINK
+REL="NEXT"
+TITLE="Create a Startup Script"
+HREF="sect_08.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Oracle 9i under Fedora Core 3 - Installation HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="sect_06.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="sect_08.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="sect_07"
+></A
+>7. Run Installer</H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_07_01"
+></A
+>7.1. Apply the libwait.c patch</H2
+><P
+>Before running the installer, do the following in order to overcome some weird errors:</P
+><P
+></P
+><UL
+><LI
+><P
+>In <TT
+CLASS="filename"
+>/home/oracle</TT
+>,create a file name  <TT
+CLASS="filename"
+>libwait.c</TT
+> and as described below and compile it :</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>Ceate a file called libcwait.c in the
+oracle
+user's home directory to avoid getting
+an error when running the Oracle installer. The libcwait.c file should contain the
+following text:
+/*
+gcc -O2 -shared -o $HOME/libcwait.so -fpic $HOME/libcwait.c
+*/
+#include
+#include
+#include
+Deploying Oracle 9i on Red Hat Enterprise Linux AS 3
+Page 11
+#include
+pid_t
+__libc_wait (int *status)
+{
+int res;
+asm volatile ("pushl %%ebx\n\t"
+"movl %2, %%ebx\n\t"
+"movl %1, %%eax\n\t"
+"int $0x80\n\t"
+"popl %%ebx"
+: "=a" (res)
+: "i" (__NR_wait4), "0" (WAIT_ANY), "c" (status), "d" (0), "S" (0));
+return res;
+}
+Next, compile this file in the
+oracle
+user's home directory by executing the
+following command:
+gcc -02 -shared -o $HOME/libcwait.so -fpic $HOME/libwait.c
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+><B
+CLASS="command"
+>gcc <TT
+CLASS="option"
+>-shared -o</TT
+> <TT
+CLASS="filename"
+>libcwait.so libcwait.c</TT
+> <TT
+CLASS="option"
+>-fpic -O</TT
+></B
+> </P
+></LI
+><LI
+><P
+>Then add this library to the environment of the database user:</P
+><P
+><B
+CLASS="command"
+>export <TT
+CLASS="varname"
+>LD_PRELOAD</TT
+>=<TT
+CLASS="filename"
+>/home/oracle/libcwait.so</TT
+></B
+> </P
+><P
+>Earlier, we put a similar line in <TT
+CLASS="filename"
+>.bash_profile</TT
+>.</P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_07_02"
+></A
+>7.2. Configure the Display</H2
+><P
+>Execute the following commands as oracle User  :</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;oracle@9iserver ~&#62; xhost +localhost
+oracle@9iserver ~&#62; export DISPLAY=localhost:0.0
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>You can now connect to your desktop or optionally run the installation remotely, for instance using <SPAN
+CLASS="application"
+>VNC</SPAN
+>.for instance running the installer from your Windows desktop
+</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_07_03"
+></A
+>7.3. Start the Installation</H2
+><P
+>Start the graphical installation application:</P
+><P
+><B
+CLASS="command"
+>/path/to/oracle/Disk1/runInstaller</B
+> </P
+><P
+>Now carry with Graphical setup (if you are not sure choose Standard database).  From here the rest of the installation process is obvious.</P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="sect_07_04"
+></A
+>7.4. Fix nodeinfo</H2
+><P
+>Now installation should proceed without any linking errors but you will get one error in the end:</P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="screen"
+>&#13;Parameter "nodeinfo" = NO_VALUE
+Agent Service Failed
+</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>In order to fix this, run the following for starting the wizard after setup has finished:</P
+><P
+><B
+CLASS="command"
+>netca &#38;</B
+> </P
+><P
+>Now change into <TT
+CLASS="varname"
+>$ORACLE_HOME</TT
+> and run <B
+CLASS="command"
+>./lsnrctl <TT
+CLASS="parameter"
+><I
+>start</I
+></TT
+></B
+>.</P
+><P
+>Check that the process is running:</P
+><P
+><B
+CLASS="command"
+>ps <TT
+CLASS="option"
+>afx</TT
+> | grep <TT
+CLASS="parameter"
+><I
+>LISTEN</I
+></TT
+></B
+> </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="sect_06.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="sect_08.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Install GCC 2.9 Compat libraries</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Create a Startup Script</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,294 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Tango 2000 HOWTO: TAS and Web Servers</TITLE>
+ <LINK HREF="Tango-HOWTO-6.html" REL=next>
+ <LINK HREF="Tango-HOWTO-4.html" REL=previous>
+ <LINK HREF="Tango-HOWTO.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Tango-HOWTO-6.html">Next</A>
+<A HREF="Tango-HOWTO-4.html">Previous</A>
+<A HREF="Tango-HOWTO.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. TAS and Web Servers</A></H2>
+
+<P>
+<P>The Tango Application Server runs as it's own process, where it services
+requests from a web server. This allows for some functionality such as load
+splitting and direction, as well as freedom of choice in web server and platform.
+The TAS need not be on the same machine as the web server, nor is it limited
+to being even on one machine.
+<P>The preferred way of having a web server talk to Tango is through a plugin.
+The plugin is written in the web server's API, or Application Programming Interface,
+to take advantage of specific features of that web server, as well as the advantage
+of having the code execute as part of the web server, instead of as a separate
+CGI process. On Solaris, Tango has a plugin for Netscape Server and for Apache
+in later versions of Tango 2000. Tango for Linux has a plugin for Apache.
+<H2><A NAME="ss5.1">5.1 Netscape Server Configuration</A>
+</H2>
+
+<P>
+<H3>Tango 3.x</H3>
+
+<P>
+<P>Locate your Netscape configuration files in /whatever/netscape/suitespot/https-MYSERVER/config
+generally. To the mime.types file, add this line:
+<PRE>
+type=magnus-internal/taf exts=taf
+</PRE>
+<P>Add these two lines to the top of the obj.conf file (no line breaks; each
+line which starts with 'init' is a full line. Thus, there are two lines total)
+<PRE>
+Init fn=load-modules shlib=/var/opt/EDI/lib/TangoNS_ep3.so funcs="Tango_main,Tango_main_init"
+</PRE>
+
+<PRE>
+Init fn=Tango_main_init stanza="TangoNS_ep3.so"
+</PRE>
+<P>Add this line to the obj.conf file inside of the &lt;Object name=default&gt;
+area, with the other services.
+<PRE>
+Service fn="Tango_main" method="(GET|HEAD|POST)" type="magnus-internal/taf"
+</PRE>
+<P>You'll then need to use your Netscape Administration Server to restart
+the server, telling it to load the configuration files when it informs you
+that they've been hand-edited. Then, try hitting a TAF file. If it works, great!
+If not, go through your configuration file again. Most of the time, a misconfiguration
+is the reason for it not working. One space or quotation mark out of place
+will destroy the entire setup.
+<H3>Tango 2000</H3>
+
+<P>
+<P>Locate your Netscape configuration files in /whatever/netscape/suitespot/https-MYSERVER/config,
+generally. To the mime.types file, add this line:
+<PRE>
+type=magnus-internal/taf exts=taf,tcf
+</PRE>
+<P>Then, add these two lines to the beginning of the obj.conf file. Note that
+there are no line breaks in each line.
+<PRE>
+Init fn=load-modules shlib=/opt/PVSWtango/lib/libtango4ns.so funcs="Tango_main,Tango_main_init"
+</PRE>
+
+<PRE>
+Init fn=Tango_main_init stanza="libtango4ap.so" tangoconfigpath=/opt/PVSWtango/configuration
+</PRE>
+<P>Add this line to the obj.conf file inside of the &lt;Object name=default&gt;
+area, with the other services.
+<PRE>
+Service fn="Tango_main" method="(GET|HEAD|POST)" type="magnus-internal/taf"
+</PRE>
+<P>You'll then need to use your Netscape Administration Server to restart
+the server, telling it to load the configuration files when it informs you
+that they've been hand-edited. Then, try hitting a TAF file. If it works, great!
+If not, go through your configuration file again. Most of the time, a misconfiguration
+is the reason for it not working. One space or quotation mark out of place
+will destroy the entire setup.
+<H3>Tango 2000 Service Pack 1</H3>
+
+<P>
+<P>Installation is the same as for Tango 2000, but with this extra line added
+to the services in the &lt;Object name=default&gt; area of the obj.conf file:
+<PRE>
+Service fn="Tango_main" method="(GET|HEAD|POST)" type="magnus-internal/tml"
+</PRE>
+<P>Also, the mime.types file should have this line used instead of the one
+for Tango 2000:
+<HR>
+<PRE>
+type=magnus-internal/taf exts=taf,tcf,tml
+</PRE>
+<HR>
+<H2><A NAME="ss5.2">5.2 Apache Server Configuration</A>
+</H2>
+
+<P>
+<P>Tango 2000 for Linux, and Tango 2000 Service Pack 1 for Solaris both support
+the Apache webserver through an Apache plugin. Apache will require mod_so support
+for all of these. The documentation states that you must custom build your
+Apache; this is misleading. You must build your Apache only if the pre-built
+version you're using doesn't have mod_so support. There are two places to check
+for this:
+<P>First, try running your Apache server with a '-l' argument. If mod_so is
+listed, you're fine.
+<HR>
+<PRE>
+# httpd -l
+Compiled-in modules:
+http-core.c
+mod_so.c
+</PRE>
+<HR>
+<P>Second, try looking in your httpd.conf file for an 'AddModule mod_so.o'
+line. If you don't have mod_so support (also known as DSO support) in some
+way, you'll need to compile a version that does.
+<H3>Tango 2000</H3>
+
+<P>
+<P>At the end of your httpd.conf file, add these lines:
+<PRE>
+LoadModule t4_module /usr/local/tango/lib/libtango4ap.so
+TangoModule t4_module
+ /usr/local/tango/configuration/t4client.ini
+</PRE>
+<P>Modify the paths to the .so and .ini files as appropriate on your setup.
+<P>Your t4client.ini will then need a stanza for t4_module. See the t4client.ini
+section for examples.
+<H3>Tango 2000 Service Pack 1</H3>
+
+<P>
+<P>At the end of your httpd.conf file, add these lines:
+<PRE>
+LoadModule t4_apache /usr/local/tango/lib/libtango4ap.so
+TangoModule t4_apache
+ /usr/local/tango/configuration/t4client.ini
+</PRE>
+<P>Modify the paths to the files as appropriate; Solaris defaults to /opt/PVSWtango/
+for the Tango home.
+<P>Your t4client.ini will then need a stanza for t4_apache. See the t4client.ini
+section for examples.
+<H2><A NAME="ss5.3">5.3 tXclient.ini - CGI/Plugin configuration</A>
+</H2>
+
+<P>
+<P>Tango uses a client configuration file to tell the CGI or Plugins where
+to send Tango requests. The file consists of two sections; a declaration section
+and an information section. Here is an example for a file controlling a CGI:
+<PRE>
+[Tango Client Definitions]
+t4.cgi=Put A Description Here
+</PRE>
+
+<PRE>
+[t4.cgi]
+TANGO_SERVER=127.0.0.1,18100
+</PRE>
+<P>And an example of a file with both a CGI and an Apache plugin:
+<PRE>
+[Tango Client Definitions]
+t4.cgi=My Tango CGI
+t4_apache=My Apache
+ Plugin
+</PRE>
+
+<PRE>
+[t4.cgi]
+TANGO_SERVER=127.0.0.1,18100
+</PRE>
+
+<PRE>
+[t4_apache]
+TANGO_SERVER=127.0.0.1,18100
+</PRE>
+<P>Further entries can be made as appropriate. Use this list to find what
+'keyword' to use to reference a CGI/Plugin:
+<DL>
+<DT><B>CGI</B><DD><P>Use the name of the CGI. For example, you could have two CGIs,
+t4.cgi and t4private.cgi, each pointing to a different Tango server.
+<DT><B>Netscape Plugin (Tango 2000)</B><DD><P>Use 'libtango4ns.so' as the name. You
+shouldn't try to load multiple plugins.
+<DT><B>Netscape Plugin (Tango 3.x)</B><DD><P>Use 'TangoNS_ep3.so'
+<DT><B>Apache Plugin</B><DD><P>Use 't4_module' for Tango 2000 and 't4_apache' for
+Tango 2000 Service Pack 1. You shouldn't try to load multiple modules.
+</DL>
+<P>Tango 3 versions earlier than 3.6 use a slightly different format. TANGO_SERVER
+is broken into two lines; TANGO_HOST and TANGO_PORT. Here's an example:
+<PRE>
+[Tango Client Definitions]
+t3.cgi
+</PRE>
+
+<PRE>
+[t3.cgi]
+TANGO_HOST=127.0.0.1
+TANGO_PORT=18000
+</PRE>
+<H2><A NAME="ss5.4">5.4 Load Splitting/Load Balancing</A>
+</H2>
+
+<P>
+<P>All versions of Tango starting with 3.6 have allowed Load Splitting. You
+can define a series of Tango servers that a plugin can use, and it will distribute
+new requests between the servers. Users who make subsequent requests are directed
+back to the server they were at previously via the UserReference search argument
+or cookie. Users cannot move between servers without losing their variables
+and what not. Also, what Tango currently does is not load balancing; that is
+expected for a future release of Tango.
+<P>Tango does not need to be running on the same machine as the web server
+in any event. You need only run configure Tango's VALIDHOST configuration variable
+to include the IP address of the web server machine. Then, in the web server
+machine's t4client.ini file, put in the IP address and port number as usual.
+<H3>Tango Load Splitting</H3>
+
+<P>
+<P>To add multiple Tango servers, add an entry to the t4server.ini file with
+the new name of the server, and add a new stanza for it, generally by copying
+an existing stanza. Then, change all directory names to be unique, such as
+LOGDIR. Make sure that it's running on a unique port. Tango defaults to port
+18100. Here is an abbreviated example of a t4server.ini file with two Tango
+Application Server instances:
+<PRE>
+[Tango Definitions]
+TAS_1=MyFirstServer
+TAS_2=MySecondServer
+</PRE>
+
+<PRE>
+[TAS_1]
+...
+LISTENERPORT=18100 
+...
+LOGDIR=/usr/local/tango/log.TAS_1
+ 
+...
+</PRE>
+
+<PRE>
+[TAS_2]
+...
+LISTENERPORT=18101
+...
+LOGDIR=/usr/local/tango/log.TAS_2
+...
+</PRE>
+<P>All other configuration variables would be filled in as appropriate.
+<P>To run Tango with a specific configuration definition, use the -c switch.
+<HR>
+<PRE>
+$ ./tango4d -c TAS_1
+$ ./tango4d -c TAS_2
+</PRE>
+<HR>
+<P>The -c switch can be used in conjunction with the -k switch to kill servers
+as well.
+<P>Note that you'll need the appropriate licenses, either one Corporate or
+Professional license, or as many Standard licenses as you want Tango servers.
+<P>In the t4client.ini file, simply add the IP address and port of each server
+to the TANGO_SERVER line of the appropriate CGI or Plugin, colon delimited.
+Here is an example t4client.ini file, using the CGI, pointing to three separate
+Tango servers running on the same machine, on ports 18100, 18101 and 18102.
+<PRE>
+[Tango Client Definitions]
+t4.cgi=My CGI
+</PRE>
+
+<PRE>
+[t4.cgi]
+TANGO_SERVER=127.0.0.1,18100:127.0.0.1,18101:127.0.0,1,18102
+</PRE>
+<H3>Load Balancing - Hardware Load Balancers</H3>
+
+<P>
+<P>You can use a hardware load balancing device with Tango so long as your
+webserver farm is behind the load splitting device, and each webserver is using
+an exact copy of the same t4client.ini file. The t4client.ini file should be
+configured to use every Tango machine you want available. The UserReference
+based Tango redirection should function normally.
+<HR>
+<A HREF="Tango-HOWTO-6.html">Next</A>
+<A HREF="Tango-HOWTO-4.html">Previous</A>
+<A HREF="Tango-HOWTO.html#toc5">Contents</A>
+</BODY>
+</HTML>

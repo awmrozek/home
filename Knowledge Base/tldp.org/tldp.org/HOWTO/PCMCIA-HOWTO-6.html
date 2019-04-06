@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux PCMCIA HOWTO: Dealing with unsupported cards</TITLE>
+ <LINK HREF="PCMCIA-HOWTO-7.html" REL=next>
+ <LINK HREF="PCMCIA-HOWTO-5.html" REL=previous>
+ <LINK HREF="PCMCIA-HOWTO.html#toc6" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="PCMCIA-HOWTO-7.html">Next</A>
+<A HREF="PCMCIA-HOWTO-5.html">Previous</A>
+<A HREF="PCMCIA-HOWTO.html#toc6">Contents</A>
+<HR>
+<H2><A NAME="s6">6. Dealing with unsupported cards</A></H2>
+
+<P>
+<P>
+<H2><A NAME="new-card"></A> <A NAME="ss6.1">6.1 Configuring unrecognized cards</A>
+ </H2>
+
+<P>
+<P>Assuming that your card is supported by an existing driver, all
+that needs to be done is to add an entry to
+<CODE>/etc/pcmcia/config</CODE> to tell <CODE>cardmgr</CODE> how to identify the card,
+and which driver(s) need to be linked up to this card.  Check the man
+page for <CODE>pcmcia</CODE> for more information about the config file format.
+If you insert an unknown card, <CODE>cardmgr</CODE> will normally record some
+identification information in the system log that can be
+used to construct the config entry.  This information can also be
+displayed with the ``<CODE>cardctl ident</CODE>'' command.
+<P>Here is an example of how cardmgr will report an unsupported card in
+the system log:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+cardmgr[460]: unsupported card in socket 1
+cardmgr[460]: product info: "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+cardmgr[460]: manfid: 0x0101, 0x1234  function: 2 (serial)
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>The corresponding entry in <CODE>/etc/pcmcia/config</CODE> would be:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+card "Megahertz XJ2288 V.34 Fax Modem"
+  version "MEGAHERTZ", "XJ2288", "V.34 PCMCIA MODEM"
+  bind "serial_cs"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>or using the more compact product ID codes:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+card "Megahertz XJ2288 V.34 Fax Modem"
+  manfid 0x0101, 0x1234
+  bind "serial_cs"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>You can use ``*'' to match strings that don't need to match exactly,
+like version numbers.  When making new config entries, be careful
+to copy the strings exactly, preserving case and blank spaces.
+Also be sure that the config entry has the same number of strings as
+are reported in the log file.
+<P>Beware that you can specify just about any driver for a card, but if
+you're just shooting in the dark, there is not much reason to expect
+this to be productive.  You may get lucky and find that your card is
+supported by an existing driver.  However, the most likely outcome is
+that the driver won't work, and may have unfortunate side effects
+like locking up your system.  Unlike most ordinary device drivers,
+which probe for an appropriate card, the probe for a PCMCIA device is
+done by <CODE>cardmgr</CODE>, and the driver itself may not do much validation
+before attempting to communicate with the device.
+<P>After editing <CODE>/etc/pcmcia/config</CODE>, you can signal <CODE>cardmgr</CODE>
+to reload the file with:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+kill -HUP `cat /var/run/cardmgr.pid`
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>If you do set up an entry for a new card, please send me a copy so
+that I can include it in the standard config file.
+<P>
+<H2><A NAME="ss6.2">6.2 Adding support for an NE2000-compatible ethernet card</A>
+</H2>
+
+<P>Before you begin: this procedure will only work for simple 16-bit
+ethernet cards.  Multifunction cards (i.e., ethernet/modem combo
+cards) have an extra layer of complexity regarding how the two
+functions are integrated, and generally cannot be supported without
+obtaining some configuration information from the card vendor.  Using
+the following procedure for a multifunction card will not be
+productive.
+<P>First, see if the card is already recognized by <CODE>cardmgr</CODE>.  Some
+cards not listed in <CODE>SUPPORTED.CARDS</CODE> are actually OEM versions of
+cards that are supported.  If you find a card like this, let me know
+so I can add it to the list.
+<P>If your card is not recognized, follow the instructions in the
+<A HREF="#new-card">Configuring unrecognized cards</A> section to
+create a config entry for your card, 
+and bind the card to the <CODE>pcnet_cs</CODE> driver.  Restart <CODE>cardmgr</CODE>
+to use the updated config file.
+<P>If the <CODE>pcnet_cs</CODE> driver says that it is unable to determine your
+card's hardware ethernet address, then edit your new config entry to
+bind the card to the memory card driver, <CODE>memory_cs</CODE>.
+Restart <CODE>cardmgr</CODE> to use the new updated config file.
+You will need to know your card's hardware ethernet address.  This
+address is a series of six two-digit hex numbers, often printed on the
+card itself.  If it is not printed on the card, you may be able to use
+a DOS driver to display the address.  In any case, once you know it,
+run:
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+dd if=/dev/mem0a count=20 | od -Ax -t x1
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>and search the output for your address.  Only the even bytes are
+defined, so ignore the odd bytes in the dump.  Record the hex offset of the
+first byte of the address.  Now, edit <CODE>clients/pcnet_cs.c</CODE> and
+find the <CODE>hw_info</CODE> structure.  You'll need to create a new entry
+for your card.  The first field is the memory offset.  The
+next three fields are the first three bytes of the hardware address.
+The final field contains some flags for specific card features; to
+start, try setting it to 0.
+<P>After editing <CODE>pcnet_cs.c</CODE>, compile and install the new module.
+Edit <CODE>/etc/pcmcia/config</CODE> again, and change the card binding
+from <CODE>memory_cs</CODE> to <CODE>pcnet_cs</CODE>.  Follow the instructions for
+reloading the config file, and you should be all set.  Please send me
+copies of your new <CODE>hw_info</CODE> and config entries.
+<P>If you can't find your card's hardware address in the hex dump, as a
+method of last resort, it is possible to ``hard-wire'' the address when
+the <CODE>pcnet_cs</CODE> module is initialized.  Edit
+<CODE>/etc/pcmcia/config.opts</CODE> and add a <CODE>hw_addr=</CODE> option, like
+so: 
+<P>
+<BLOCKQUOTE><CODE>
+<PRE>
+module "pcnet_cs" opts "hw_addr=0x00,0x80,0xc8,0x01,0x02,0x03"
+</PRE>
+</CODE></BLOCKQUOTE>
+<P>Substitute your own card's hardware address in the appropriate spot,
+of course.  Beware that if you've gotten this far, it is very unlikely
+that your card is genuinely NE2000 compatible.  In fact, I'm not sure
+if there are <EM>any</EM> cards that are not handled by one of the first
+two methods.
+<P>
+<H2><A NAME="ss6.3">6.3 PCMCIA floppy interface cards</A>
+</H2>
+
+<P>The PCMCIA floppy interface used in the Compaq Aero and a few other
+laptops is not yet supported by this package.  The snag in supporting
+the Aero floppy is that the Aero seems to use a customized
+PCMCIA controller to support DMA to the floppy.  Without
+knowing exactly how this is done, there isn't any way to implement
+support under Linux.
+<P>If the floppy adapter card is present when an Aero is booted, the Aero
+BIOS will configure the card, and Linux will identify it as a normal
+floppy drive.  When the Linux PCMCIA drivers are loaded, they will
+notice that the card is already configured and attached to a Linux
+driver, and this socket will be left alone.  So, the drive can be used
+if it is present at boot time, but the card is not hot swappable.
+<P>
+<HR>
+<A HREF="PCMCIA-HOWTO-7.html">Next</A>
+<A HREF="PCMCIA-HOWTO-5.html">Previous</A>
+<A HREF="PCMCIA-HOWTO.html#toc6">Contents</A>
+</BODY>
+</HTML>

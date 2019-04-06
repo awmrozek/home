@@ -1,0 +1,373 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>How Jigdo Works (optional)</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Debian Jigdo mini-HOWTO"
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE="Why jigdo?"
+HREF="whyjigdo.html"><LINK
+REL="NEXT"
+TITLE="Downloading Your First Image (In 5 Easy Steps)"
+HREF="downloadingyourfirstimage.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Debian Jigdo mini-HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="whyjigdo.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="downloadingyourfirstimage.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="HOWJIGDOWORKS"
+></A
+>3. How Jigdo Works (optional)</H1
+><P
+>You don't need to know this material to download Debian ISOs, but it may help demystify how
+  jigdo works.  If you're not interested in the details, simply fast forward to <A
+HREF="downloadingyourfirstimage.html"
+>Section 4</A
+>, "How Do I Use Jigdo".</P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="PREPARINGTHEISOFORDOWNLOAD"
+></A
+>3.1. Preparing The ISO For Download</H2
+><P
+>A CD image is a filesystem called iso9660, but for this discussion, we can safely talk
+      about a CD image as being a big file called an "ISO image" (about 650MB) that contains files
+      at various offsets.  For instance, if a CD contains a 567 byte file named README, the ISO
+      image might contain the README file's contents between offsets 20480000 and 20480567.  You can
+      visualize a CD image as:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>                    --------------------------------------------------------
+      ISO Image:    |xxxx| file-0 |xx| file-1 |xxx| file-2 |x| file-3 |xxxx|
+                    --------------------------------------------------------
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The "x" areas of the image contain things like directory information, zero padding, disk
+      name, boot block, etc.</P
+><P
+><SPAN
+CLASS="APPLICATION"
+>jigdo-file</SPAN
+> takes two things as input: the complete CD image
+      (so the ISO already needs to have been made) and a set of files which may or may not be in the
+      image.  Here's a visualization of jigdo-file's input:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>                    --------------------------------------------------------
+      ISO Image:    |xxxx| file-0 |xx| file-1 |xxx| file-2 |x| file-3 |xxxx|
+                    --------------------------------------------------------
+
+                         ----------  ----------              ----------    ----------
+      Loose Files:       | file-0 |  | file-1 |              | file-3 |    | file-4 |
+                         ----------  ----------              ----------    ----------
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Through magic, jigdo-file finds out which of the loose files are contained in the ISO
+      image and their offsets within the ISO file.  It outputs two files: a ".template" file and a
+      ".jigdo" file.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="THE.TEMPLATEFILE"
+></A
+>3.2. The .template File</H2
+><P
+>Given an input of an ISO image and a set of files which may or may not be in the ISO
+      image, jigdo-file outputs a .template file for that ISO image.  Here's what the
+      <TT
+CLASS="FILENAME"
+>.template</TT
+> file looks like:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>                    --------------------------------------------------------
+      .template:    |xxxx| md5-0  |xx| md5-1  |xxx|cccccccc|x| md5-3  |xxxx|
+                    --------------------------------------------------------
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>jigdo-file found that the files <TT
+CLASS="FILENAME"
+>file-0</TT
+>, <TT
+CLASS="FILENAME"
+>file-1</TT
+>
+      and <TT
+CLASS="FILENAME"
+>file-3</TT
+> were contained in the ISO image.  It removed the contents of
+      the these files and replaced them with each file's md5 checksum (the
+      <TT
+CLASS="FILENAME"
+>md5-0</TT
+>, <TT
+CLASS="FILENAME"
+>md5-1</TT
+>, etc).</P
+><P
+>The "<TT
+CLASS="LITERAL"
+>x</TT
+>" data (directory information, zero padding, etc)
+      within the ISO image is compressed and written to the .template file.  Finally, any files
+      within the ISO image that weren't supplied as loose files (like <TT
+CLASS="FILENAME"
+>file-2</TT
+>)
+      are also compressed and written to the .template file.  This is shown as "<TT
+CLASS="LITERAL"
+>c</TT
+>" data in the .template file visualization.</P
+><P
+>Loose files which were supplied to <SPAN
+CLASS="APPLICATION"
+>jigdo-file</SPAN
+> that aren't
+      found in the ISO image (like <TT
+CLASS="FILENAME"
+>file-4</TT
+>) are ignored.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="THE.JIGDOFILE"
+></A
+>3.3. The .jigdo File</H2
+><P
+>Given an input of an ISO image and a set of loose files which may or may not be in the
+      ISO image, jigdo-file outputs a .jigdo file for that ISO image.  The Debian .jigdo files are
+      gzipped, so you need to use zcat or zless to view them.  Here's what a .jigdo file looks like
+      when you gunzip it:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>      md5-0=http://somemirror.org/file-0
+      md5-1=http://somemirror.org/file-1
+      md5-2=http://somemirror.org/file-2
+      md5-3=http://somemirror.org/file-3
+      </PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>The .jigdo file simply provides a mapping between the md5sum of a file within the ISO
+      image and the download URL of that file.  There are some other things within the
+      <TT
+CLASS="FILENAME"
+>.jigdo</TT
+> file,
+      and if you look through it, you'll see the <TT
+CLASS="FILENAME"
+>.jigdo</TT
+> file has the same
+      format as a ".ini" file.  It should be self explanatory, but if you want the nitty-gritty
+      details, see the jigdo documentation.</P
+><P
+>The format shown above is not quite what you'd see in a typical .jigdo file, but it's
+      very similar.  If you look at the [Servers] section at the bottom of the .jigdo file, you'll
+      see exactly what the difference is between what I showed above and an actual
+      <TT
+CLASS="FILENAME"
+>.jigdo</TT
+> file.</P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="DOWNLOADINGTHEIMAGE"
+></A
+>3.4. Downloading The Image</H2
+><P
+>Once you use <SPAN
+CLASS="APPLICATION"
+>jigdo-file</SPAN
+> to generate a
+      <TT
+CLASS="FILENAME"
+>.jigdo</TT
+> and .<TT
+CLASS="FILENAME"
+>template</TT
+> file for an ISO image, anyone
+      can use <SPAN
+CLASS="APPLICATION"
+>jigdo-lite</SPAN
+> to download that image.  jigdo-lite downloads
+      all the files of a Debian ISO using <SPAN
+CLASS="APPLICATION"
+>wget</SPAN
+>, assembles them and forms
+      a copy of the original ISO image on the fly.</P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="whyjigdo.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="downloadingyourfirstimage.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Why jigdo?</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Downloading Your First Image (In 5 Easy Steps)</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

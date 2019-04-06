@@ -1,0 +1,689 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="LinuxDoc-Tools 0.9.21">
+ <TITLE> Modem-HOWTO: Troubleshooting </TITLE>
+ <LINK HREF="Modem-HOWTO-19.html" REL=next>
+ <LINK HREF="Modem-HOWTO-17.html" REL=previous>
+ <LINK HREF="Modem-HOWTO.html#toc18" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Modem-HOWTO-19.html">Next</A>
+<A HREF="Modem-HOWTO-17.html">Previous</A>
+<A HREF="Modem-HOWTO.html#toc18">Contents</A>
+<HR>
+<H2><A NAME="trouble_shoot"></A> <A NAME="s18">18.</A> <A HREF="Modem-HOWTO.html#toc18">Troubleshooting </A></H2>
+
+<H2><A NAME="cant_find_modem"></A> <A NAME="ss18.1">18.1</A> <A HREF="Modem-HOWTO.html#toc18.1">My Modem is Physically There but Can't be Found </A>
+</H2>
+
+<P>The error message might also be something like "Modem
+not responding".  There are at least 4 possible reasons:
+<OL>
+<LI> Your modem is a winmodem and no working driver has been
+installed for it.  Or the modem is defective or in "online data mode"
+where it doesn't respond.  See 
+<A HREF="#winmodem_">winmodem_</A>
+</LI>
+<LI>Your modem is disabled since both the BIOS and Linux failed to
+enable it.  It has no IO address.</LI>
+<LI>Your modem is enabled and has an IO address but it has no ttyS
+device number (like ttyS14) assigned to that address so the modem
+can't be used.  </LI>
+<LI>You modem does have a ttyS number assigned to it (like ttyS4)
+but you are using the wrong ttyS number (like ttyS2 instead of
+ttyS4).  See 
+<A HREF="#wrong_ttySx">wrong_ttySx</A>
+ and/or 
+<A HREF="#wvdial_">wvdial</A> and/or 
+<A HREF="#minicom_test">minicom (test  modem)</A></LI>
+</OL>
+</P>
+
+<H3><A NAME="winmodem_"></A> Case 1: Winmodem </H3>
+
+<P>For a winmodem with no driver (or a defective modem) the serial
+port that the modem is on can usually be found OK.  But when the
+wvdial program (or whatever) interrogates that port, it gets no
+response since winmodems need a driver to do anything.  So you see a
+message saying that no modem was found.  However, it's likely that the
+modem card was detected at boot-time and it displays a message
+implying that a modem was found.  So you're told both that the modem
+was found and that it wasn't found!  What it all means is that no
+working modem has been found, since a modem that doesn't work has been
+found.  Of course it could not be working for reasons other than being
+a winmodem (or linmodem) with no driver.  See 
+<A HREF="Modem-HOWTO-2.html#soft_modem">Software-based Modems (winmodems, linmodems)</A>.</P>
+
+<H3>Cases 2-3</H3>
+
+<P>Cases 2. and 3. mean that no serial port device (such as
+/dev/ttyS2) exists for the modem.  If you suspect this, see 
+<A HREF="#cant_find_port">Serial Port Can't be Found</A>. </P>
+
+<H3><A NAME="wrong_ttySx"></A> Case 4: Wrong ttySx number </H3>
+
+<P>If you are lucky, the problem is case 4.  Then you just need to find
+which ttyS your modem is on. </P>
+
+<H3><A NAME="wvdial_"></A> wvdial </H3>
+
+<P>There's a program that looks for modems on commonly used serial
+ports called "wvdialconf".  Just type "wvdialconf
+&lt;a-new-file-name&gt;".  It will create the new file as a
+configuration file but you don't need this file unless you are going
+to use "wvdial" for dialing.  See 
+<A HREF="#wvdial_">What is wvdialconf ?</A>  Unfortunately, if your modem is in "online data" mode,
+wvdialconf will report "No modem detected".  See 
+<A HREF="#minicom_test">minicom (test modem)</A></P>
+
+<H3><A NAME="minicom_test"></A> minicom (test modem) </H3>
+
+<P>Another way try to find out if there's a modem on a certain port is
+to start "minicom" on the port (after first setting up minicom for
+that serial port.  You will need to save the setup and then exit
+minicom and start it again.  Then type "AT" and you should see "OK".
+If you don't, try typing ATQ0 V1 EI.  If you still don't get OK (and
+likely don't even see the AT you typed) then there is likely no modem
+on the port.  This may be due to either case 1. 2. or 3. above</P>
+<P>If what you type is really getting thru to a modem, then the lack of
+response could be due to the modem being in "online data" mode where
+it can't accept any AT commands.  You may have been using the modem
+and then abruptly disconnected (such as killing the process with
+signal 9).  In that case your modem did not get reset to "command
+mode" where it can interact to AT commands.  "Minicom" may display
+"You are already online.  Hangup first."  (For another meaning of this
+minicom message see 
+<A HREF="#already_online">You are already online!  Hang up first.</A>) Well, you are sort of online but you are
+may not be connected to anything over the phone line.  Wvdial will
+report "modem not responding" for the same situation.</P>
+<P>To fix this as a last resort you could reboot the computer.  Another
+way to try to fix this is to send +++ to the modem to tell it to
+escape back to "command mode" from "online data mode".  On both sides
+of the +++ sequence there must be about 1 second of delay (nothing
+sent during "guard time").  This may not work if another process is
+using the modem since the +++ sequence could wind up with other
+characters inserted in between them or after the +++ (during the guard
+time).  Ironically, even if the modem line is idle, typing an
+unexpected +++ is likely to set off an exchange of control packets
+(that you never see) that will violate the required guard time so
+that the +++ doesn't do what you wanted.  +++ is usually in the string
+that is named "hangup string" so if you command minicom (or the like)
+to hangup it might work.  Another way to do this is to just exit
+minicom and then run minicom again.</P>
+<P>Other problems which you might observe in minicom besides no response
+to AT are:
+<UL>
+<LI> It takes many seconds to get an expected truncated response
+(including only the cursor moving down one line).  See 
+<A HREF="#slow_">Extremely Slow: Text appears on the screen slowly after long delays</A></LI>
+<LI> Some strange characters appear but they are not in response to
+AT.  This likely means that your modem is still connected to something
+at the other end of the phone line which is sending some cryptic
+packets or the like.</LI>
+</UL>
+</P>
+
+<H2><A NAME="ss18.2">18.2</A> <A HREF="Modem-HOWTO.html#toc18.2">"Modem is busy"</A>
+</H2>
+
+<P> What this means depends on what program sent it.  The modem could
+actually be in use (busy).  Another cause reported for the SuSE
+distribution is that there may be two serial drivers present instead
+of one.  One driver was built into the kernel and the second was a
+module.</P>
+<P>In kppp, this message is sent when an attempt to get/set the serial
+port "stty" parameters fails.  (It's similar to the "Input/output
+error" one may get when trying to use "stty -F /dev/ttySx").  To get a
+few of these stty parameters, the true address of the port must be
+known to the driver.  So the driver may have the wrong address.  The
+setserial" command will display what the driver thinks but it's likely
+wrong in this case.  So what the "modem busy" often means is that the
+serial port (and thus the modem) can't be found.</P>
+<P>If you have a pci modem, then use one of these commands: lspci -v, or
+cat /proc/pci, or dmesg to find the correct address and irq of the
+modem's serial port.  Then check to see if "setserial" shows the same
+thing.  If not, you need to run a script at boot-time which contains a
+setserial command that will tell the driver the correct address and
+irq. </P>
+
+<H2><A NAME="already_online"></A> <A NAME="ss18.3">18.3</A> <A HREF="Modem-HOWTO.html#toc18.3">"You are already online!  Hang up first." (from minicom)</A>
+</H2>
+
+<P> The modem has its CD signal on.  Either you are actually online
+(a remote modem is sending you a carrier) or your modem has been setup
+to always send the CD signal.  In minicom, type at&amp;v to see if
+&amp;C or &amp;C0 is set.  If so, CD will be on even if you are
+offline and you'll erroneously get this error message.  The fix is to
+set &amp;C1 in the init string or save it in the modem. </P>
+
+<H2><A NAME="ss18.4">18.4</A> <A HREF="Modem-HOWTO.html#toc18.4">I can't get near 56k on my 56k modem</A>
+</H2>
+
+<P> There must be very low noise on the line for it to work at even
+close to 56k.  Some phone lines are so bad that the speeds obtainable
+are much slower than 56k (like 28.8k or even slower).  Sometimes
+extension phones connected to the same line can cause problems.  To
+test this you might connect your modem directly at the point where the
+telephone line enters the building with the feeds for everything else
+on that line disconnected (if others can tolerate such a test).</P>
+
+<H2><A NAME="ss18.5">18.5</A> <A HREF="Modem-HOWTO.html#toc18.5">Uploading (downloading) files is broken/slow</A>
+</H2>
+
+<P> Flow control (both at your PC and/or modem-to-modem) may not be
+enabled.  For the uploading case: If you have set a high DTE speed
+(like 115.2k) then flow from your modem to your PC may work OK but
+uploading flow in the other direction will not all get thru due to the
+telephone line bottleneck.  This will result in many errors and the
+resending of packets.  It may thus take far too long to send a file.
+In some cases, files don't make it thru at all.</P>
+<P>For the downloading case: If you're downloading long uncompressed
+files or web pages (and your modem uses data compression) or if you've
+set a low DTE speed, then downloading may also be broken due to no
+flow control.</P>
+
+<H2><A NAME="ss18.6">18.6</A> <A HREF="Modem-HOWTO.html#toc18.6">For Dial-in I Keep Getting "line NNN of inittab invalid"</A>
+</H2>
+
+<P>Make sure you are using the correct syntax for your version of
+<CODE>init</CODE>.  The different <CODE>init</CODE>'s that are out there use different
+syntax in the <CODE>/etc/inittab</CODE> file.  Make sure you are using the
+correct syntax for your version of <CODE>getty</CODE>.</P>
+
+<H2><A NAME="ss18.7">18.7</A> <A HREF="Modem-HOWTO.html#toc18.7">I Keep Getting: ``Id "S4" respawning too fast: disabled for 5 minutes''</A>
+</H2>
+
+<P> Id "S4" is just an example.  In this case look on the line which
+starts with "S4" in <CODE>/etc/inittab</CODE> and calls getty.  This line
+causes the problem.  Make sure the syntax for this line is correct and
+that the device (ttyS4) exists and can be found.  If the modem has
+negated CD and getty opens the port, you'll get this error message
+since negated CD will kill getty.  Then getty will respawn only to be
+killed again, etc.  Thus it respawns over and over (too fast).  It
+seems that if the cable to the modem is disconnected or you have the
+wrong serial port, it's just like CD is negated.  All this can occur
+when your modem is chatting with getty.  Make sure your modem is
+configured correctly.  Look at AT commands <CODE>E</CODE> and <CODE>Q</CODE>.</P>
+
+<P>If you use uugetty, verify that your <CODE>/etc/gettydefs</CODE> syntax is
+correct by doing the following:
+<BLOCKQUOTE><CODE>
+<PRE>
+linux# getty -c /etc/gettydefs
+</PRE>
+</CODE></BLOCKQUOTE>
+</P>
+<P>This can also happen when the <CODE>uugetty</CODE> initialization is failing.
+See section 
+<A HREF="#uu_nowork">uugetty Still Doesn't Work</A>.</P>
+
+<H2><A NAME="ss18.8">18.8</A> <A HREF="Modem-HOWTO.html#toc18.8">Dial-in: When remote user hangs up, getty doesn't respawn</A>
+</H2>
+
+<P> One possible cause is that your modem doesn't reset right when DTR
+is dropped after someone hangs up.  Most Hayes compatible modems do
+this OK with <CODE>&amp;D3</CODE>.  But for USR Courier, SupraFax, and some
+other modems, you must set <CODE>&amp;D2</CODE> (and <CODE>S13=1</CODE> in some
+cases).  Check your modem manual (if you have one).  See 
+<A HREF="Modem-HOWTO-12.html#end_dialin">Ending a Dial-in Call</A></P>
+
+<H2><A NAME="ss18.9">18.9</A> <A HREF="Modem-HOWTO.html#toc18.9">NO DIALTONE</A>
+</H2>
+
+<P>It means exactly what it says.  Someone else may be using another
+telephone on the same line.  You also get this error if there is no
+phone line plugged into the modem, or if the phone line is somehow
+broken.  Try plugging a real telephone into the phone cord used by the
+modem.  Check it for a dialtone.</P>
+<P>If for some reason your modem doesn't detect a dialtone, then you can
+force it to dial anyway by putting X3 in the init string.</P>
+
+<H2><A NAME="ss18.10">18.10</A> <A HREF="Modem-HOWTO.html#toc18.10">NO CARRIER</A>
+</H2>
+
+<P>This means that the analog sine wave (the carrier) from the other
+modem isn't present like it should be.  If you were already connected,
+this means that the connection has been lost.  There may have been
+noise on the line or a bad connection.  The other modem may have hung
+up on you for some reason:   Perhaps the automatic login process
+didn't work out OK.  Perhaps PPP didn't get started OK.  Perhaps a
+time limit was exceeded.</P>
+<P>If you get this error before you get connected, it means that the
+carrier of the other modem wasn't detected by your modem.  This may
+happen if there is there is no properly working modem on the other
+end.  For example, an answering machine could have picked up your
+call instead of a modem.  NO CARRIER will also happen if the modems
+fail to negotiate a protocol to use.  This can happen if you have an
+early V.90 modem that first tries to negotiate a high speed X2 or
+K56flex protocol.  These two protocols are obsolete and some ISP
+servers will drop the connection (hang up) when this happens since
+they have no understanding of such protocols and don't wait around
+long enough for the calling modem to fallback to V.90.</P>
+<P>If you force your modem to drop the connection by dropping the DTR
+signal or sending your modem the hangup signal (ATH) you may get this
+error message.  But in this case you (or your software) wanted to drop
+the connection so there should be no problem.  In this case you are
+only supposed to get NO CARRIER if data was lost.   So for most cases
+of dropping a connection by hangup (or by dropping DTR) you only get
+an OK message.  Your modem dialer program may not even display that to
+you.</P>
+
+<H2><A NAME="uu_nowork"></A> <A NAME="ss18.11">18.11</A> <A HREF="Modem-HOWTO.html#toc18.11">uugetty Still Doesn't Work </A>
+</H2>
+
+<P>There is a <CODE>DEBUG</CODE> option that comes with <CODE>getty_ps</CODE>.  Edit your
+config file
+<CODE>/etc/conf.{uu}getty.ttyS</CODE><EM>N</EM> and
+add <CODE>DEBUG=</CODE><EM>NNN</EM>.  Where <EM>NNN</EM> is one of the following
+combination of numbers according to what you are trying to debug:
+<BLOCKQUOTE><CODE>
+<PRE>
+D_OPT   001            option settings
+D_DEF   002            defaults file processing
+D_UTMP  004            utmp/wtmp processing
+D_INIT  010            line initialization (INIT)
+D_GTAB  020            gettytab file processing
+D_RUN   040            other runtime diagnostics
+D_RB    100            ringback debugging
+D_LOCK  200            uugetty lockfile processing
+D_SCH   400            schedule processing
+D_ALL   777            everything
+</PRE>
+</CODE></BLOCKQUOTE>
+
+Setting <CODE>DEBUG=010</CODE> is a good place to start.</P>
+<P>If you are running <CODE>syslogd</CODE>, debugging info
+will appear in your log files.  If you aren't running <CODE>syslogd</CODE>
+info will appear in <CODE>/tmp/getty:ttyS</CODE><EM>N</EM> for debugging
+<CODE>getty</CODE>
+and <CODE>/tmp/uugetty:ttyS</CODE><EM>N</EM> for <CODE>uugetty</CODE>, and in
+<CODE>/var/adm/getty.log</CODE>.  Look at the
+debugging info and see what is going on.  Most likely, you will need
+to tune some of the parameters in your config
+file, and reconfigure your modem.</P>
+<P>You could also try <CODE>mgetty</CODE>.  Some people have better luck with
+it.</P>
+
+<H2><A NAME="ss18.12">18.12</A> <A HREF="Modem-HOWTO.html#toc18.12">(The following subsections are in both the Serial and Modem HOWTOs)</A>
+</H2>
+
+<H2><A NAME="cant_find_port"></A> <A NAME="ss18.13">18.13</A> <A HREF="Modem-HOWTO.html#toc18.13">Serial Port Can't be Found</A>
+</H2>
+
+<P>There are 3 possibilities:
+<OL>
+<LI>Your port is disabled since both the BIOS and Linux failed to
+enable it.  It has no IO address.</LI>
+<LI>Your port is enabled and has an IO address but it has no ttyS
+device number (like ttyS14) assigned to that address so the port
+can't be used.  As a last resort, you may need to use "setserial" to
+assign a ttyS number to it.</LI>
+<LI>Your port does have a ttyS number assigned to it (like ttyS14)
+but you don't know which physical connector it is (on the back of your
+PC).
+
+See the Serial_HOWTO: "Which Connector on the Back of
+my PC is ttyS1, etc?"  But if you want to find which ttyS port the
+modem is on see 
+<A HREF="#cant_find_modem">My Modem is Physically There but Can't be Found</A> </LI>
+</OL>
+</P>
+<P>First check BIOS messages at boot-time (and possibly the BIOS menu for
+the serial port).  Then for the PCI bus type lspci -v.  If this shows
+something like "LPC Bridge" then your port is likely on the LPC bus
+which is not well supported by Linux yet (but the BIOS might find it)
+??  If it's an ISA bus PnP serial port, try "pnpdump --dumpregs"
+and/or see Plug-and-Play-HOWTO.  If the port happens to be enabled
+then the following two paragraphs may help find the IO port:</P>
+
+<H3>Scanning/probing legacy ports</H3>
+
+<P>This is mainly for legacy non-PCI ports and ISA ports that are not
+Plug-and-Play.</P>
+<P>Using "scanport" (Debian only ??) will scan all enabled bus ports and
+may discover an unknown port that could be a serial port (but it
+doesn't probe the port).  It could hang your PC.  If you suspect that
+your port may be at a certain address, you may try manually probing
+with setserial, but it's a slow tedious task if you have several
+addresses to probe.  See 
+<A HREF="Modem-HOWTO-10.html#probing_ss">Probing</A>.</P>
+
+<H2><A NAME="ss18.14">18.14</A> <A HREF="Modem-HOWTO.html#toc18.14">Linux Creates an Interrupt Conflict (your PC has an ISA slot)</A>
+</H2>
+
+<P>If your PC has a BIOS that handles ISA (and likely PCI too) then
+if you find a IRQ conflict, it might be due to a shortage of free
+IRQs.  The BIOS often maintains a list of reserved IRQs, reserved for
+legacy ISA cards.  If too many are reserved, the BIOS may not be able
+to find a free IRQ and will erroneously assign an IRQ to the serial
+port that creates a conflict.  So check to see if all the reserved
+IRQs are really needed and if not, unreserve an IRQ that the serial
+port can use.  For more details, see Plug-and-Play-HOWTO.</P>
+
+<H2><A NAME="slow_"></A> <A NAME="ss18.15">18.15</A> <A HREF="Modem-HOWTO.html#toc18.15">Extremely Slow: Text appears on the screen slowly after long delays</A>
+ </H2>
+
+<P> It's likely mis-set/conflicting interrupts.  Here are some of the
+symptoms which will happen the first time you try to use a modem,
+terminal, or serial printer.  In some cases you type something but
+nothing appears on the screen until many seconds later.  Only the last
+character typed may show up.  It may be just an invisible
+&lt;return&gt; character so all you notice is that the cursor jumps
+down one line.  In other cases where a lot of data should appear on
+the screen, only a batch of about 16 characters appear.  Then there is
+a long wait of many seconds for the next batch of characters.  You
+might also get "input overrun" error messages (or find them in logs).</P>
+<P>For more details on the symptoms and why this happens see
+the Serial-HOWTO section: "Interrupt Problem Details".</P>
+<P>If it involves Plug-and-Play devices, see also Plug-and-Play-HOWTO.</P>
+<P>As a quick check to see if it really is an interrupt problem, set the
+IRQ to 0 with "setserial".  This will tell the driver to use
+polling instead of interrupts.  If this seems to fix the "slow"
+problem then you had an interrupt problem.  You should still try to
+solve the problem since polling uses excessive computer resources.</P>
+<P>Checking to find the interrupt conflict may not be easy since Linux
+supposedly doesn't permit any interrupt conflicts and will send you a
+<A HREF="#busy_err">/dev/ttyS?: Device or resource busy</A> error
+message if it thinks you are attempting to create a conflict.  But a
+real conflict can be created if "setserial" has told the kernel
+incorrect info.  The kernel has been lied to and thus doesn't think
+there is any conflict.  Thus using "setserial" will not reveal the
+conflict (nor will looking at /proc/interrupts which bases its info on
+"setserial").  You still need to know what "setserial" thinks so that
+you can pinpoint where it's wrong and change it when you determine
+what's really set in the hardware.</P>
+<P>What you need to do is to check how the hardware is set by checking
+jumpers or using PnP software to check how the hardware is actually
+set.  For PnP run either "pnpdump --dumpregs" (if ISA bus) or run
+"lspci" (if PCI bus).  Compare this to how Linux (e.g. "setserial")
+thinks the hardware is set.</P>
+
+<H2><A NAME="ss18.16">18.16</A> <A HREF="Modem-HOWTO.html#toc18.16">Somewhat Slow: I expected it to be a few times faster</A>
+</H2>
+
+<P> An obvious reason is that the baud rate is set too slow.  It's
+claimed that this once happened by trying to set the baud rate to a
+speed higher than the hardware can support (such as 230400).</P>
+<P>Another reason may be that whatever is on the serial port (such as a
+modem, terminal, printer) doesn't work as fast as you thought it did.
+A 56k Modem seldom works at 56k and the Internet
+often has congestion and bottlenecks that slow things down.  If the
+modem on the other end does not have a digital connection to the phone
+line (and uses a special "digital modem" not sold in most computer
+stores), then speeds above 33.6k are not possible.</P>
+<P>Another possible reason is that you have an obsolete serial port: UART
+8250, 16450 or early 16550 (or the serial driver thinks you do).  See
+"What are UARTS" in the Serial-HOWTO. </P>
+<P>Use "setserial -g /dev/ttyS*".
+If it shows anything less than a 16550A, this may be your problem.
+If you think that "setserial" has it wrong check it out.  See 
+<A HREF="Modem-HOWTO-10.html#set_serial">What is Setserial</A> for more info.  If you
+really do have an obsolete serial port, lying about it to setserial
+will only make things worse.</P>
+
+<H2><A NAME="irqs_shown_wrong"></A> <A NAME="ss18.17">18.17</A> <A HREF="Modem-HOWTO.html#toc18.17">The Startup Screen Shows Wrong IRQs for the Serial Ports</A>
+</H2>
+
+<P> For non-PnP ports, Linux does not do any IRQ detection on startup.
+When the serial module loads it only does serial device detection.
+Thus, disregard what it says about the IRQ, because it's just assuming
+the standard IRQs.  This is done, because IRQ detection is unreliable,
+and can be fooled.  But if and when setserial runs from a start-up
+script, it changes the IRQ's and displays the new (and hopefully
+correct) state on on the startup screen.  If the wrong IRQ is not
+corrected by a later display on the screen, then you've got a problem.</P>
+<P>So, even though I have my <CODE>ttyS2</CODE> set at IRQ 5, I still see
+<BLOCKQUOTE><CODE>
+<PRE>
+ttyS02 at 0x03e8 (irq = 4) is a 16550A
+</PRE>
+</CODE></BLOCKQUOTE>
+
+at first when Linux boots.  (Older kernels may show "ttyS02" as
+"tty02" which is the same as ttyS2).  You may need to use
+<CODE>setserial</CODE> to tell Linux the IRQ you are using.</P>
+
+<H2><A NAME="ss18.18">18.18</A> <A HREF="Modem-HOWTO.html#toc18.18">"Cannot open /dev/ttyS?: Device or resource busy</A>
+</H2>
+
+<P> See 
+<A HREF="#busy_err">/dev/tty? Device or resource busy</A></P>
+
+<H2><A NAME="ss18.19">18.19</A> <A HREF="Modem-HOWTO.html#toc18.19">"Cannot open /dev/ttyS?: Permission denied"</A>
+</H2>
+
+<P> Check the file permissions on this port with "ls -l /dev/ttyS?"_
+If you own the ttyS? then you need read and write permissions: crw
+with the c (Character device) in col. 1.  It you don't own it then it
+will work for you if it shows rw- in cols. 8 &amp; 9 which means that
+everyone has read and write permission on it.  Use "chmod" to change
+permissions.  There are more complicated (and secure) ways to get
+access like belonging to a "group" that has group permission.  Some
+programs change the permissions when they run but restore them when
+the program exists normally.  But if someone pulls the plug on your
+PC it's an abnormal exit and correct permissions may not be restored.</P>
+
+<H2><A NAME="ss18.20">18.20</A> <A HREF="Modem-HOWTO.html#toc18.20">"Cannot open /dev/ttyS?"</A>
+</H2>
+
+<P>Unless stty is set for clocal, the CD pin may need to be asserted
+in order to open a serial port.  If the physical port is not connected
+to anything, or if it's connected to something that is not powered on
+(such an external modem) then there will be no voltage on CD
+from that device.  Thus the "cannot open" message.  Either set clocal
+or connect the serial port connector to something and power it on.</P>
+<P>Even if a device is powered on and connected to a port, it may
+sometimes prevent opening the port.  An example of this is where the
+device has negated CD and the CD pin on your PC is negated (negative
+voltage). </P>
+
+<H2><A NAME="ss18.21">18.21</A> <A HREF="Modem-HOWTO.html#toc18.21">"Operation not supported by device" for ttyS?</A>
+</H2>
+
+<P> This means that an operation requested by setserial, stty, etc.
+couldn't be done because the kernel doesn't support doing it.
+Formerly this was often due to the "serial" module not being loaded.
+But with the advent of PnP, it may likely mean that there is no modem
+(or other serial device) at the address where the driver (and
+setserial) thinks it is.  If there is no modem there, commands (for
+operations) sent to that address obviously don't get done.  See 
+<A HREF="Modem-HOWTO-6.html#io-irq_in_hdw">What is set in my serial port hardware?</A></P>
+<P>If the "serial" module wasn't loaded but "lsmod" shows you it's now
+loaded it might be the case that it's loaded now but wasn't loaded
+when you got the error message.  In many cases the module will
+automatically loaded when needed (if it can be found).  To force
+loading of the "serial" module it may be listed in the file:
+/etc/modules.conf or /etc/modules.  The actual module should reside
+in: /lib/modules/.../misc/serial.o.</P>
+
+<H2><A NAME="lockfile_"></A> <A NAME="ss18.22">18.22</A> <A HREF="Modem-HOWTO.html#toc18.22">"Cannot create lockfile. Sorry" </A>
+</H2>
+
+<P> Sometimes when it can't create a lockfile you get the erroneous
+message: "... Device or resource busy" instead of the one above.
+When a port is "opened" by a program a lockfile is created in
+/var/lock/.  Wrong permissions for the lock directory will not allow a
+lockfile to be created there.  Use "ls -ld /var/lock" to see if the
+permissions are OK.  Giving rwx permissions for the root owner and the
+group should work, provided that the users that need to dialout belong
+to that group.  Others should have r-x permission.  Even with this
+scheme, there may be a security risk.  Use "chmod" to change
+permissions and "chgrp" to change groups.  Of course, if there is no
+"lock" directory no lockfile can be created there.  For more info on
+lockfiles see the Serial-HOWTO subsection: "What Are Lock
+Files".</P>
+
+<H2><A NAME="ss18.23">18.23</A> <A HREF="Modem-HOWTO.html#toc18.23">"Device /dev/ttyS? is locked."</A>
+</H2>
+
+<P> This means that someone else (or some other process) is supposedly
+using the serial port.  There are various ways to try to find out what
+process is "using" it.  One way is to look at the contents of the
+lockfile (/var/lock/LCK...).  It should be the process id.  If the
+process id is say 100 type "ps 100" to find out what it is.  Then if
+the process is no longer needed, it may be gracefully killed by "kill
+100".  If it refuses to be killed use "kill -9 100" to force it to be
+killed, but then the lockfile will not be removed and you'll need to
+delete it manually.  Of course if there is no such process as 100 then
+you may just remove the lockfile but in most cases the lockfile should
+have been automatically removed if it contained a stale process id
+(such as 100).</P>
+
+<H2><A NAME="busy_err"></A> <A NAME="ss18.24">18.24</A> <A HREF="Modem-HOWTO.html#toc18.24">"/dev/tty? Device or resource busy" </A>
+</H2>
+
+<P> This means that the device you are trying to access (or use) is
+supposedly busy (in use) or that a resource it needs (such as an IRQ)
+is supposedly being used by another device and can't be shared.
+This message is easy to understand if it only means that the device is
+busy (in use).  But it sometimes means that a needed resource is already
+in use (busy).  What makes it even more confusing is that in some cases
+neither the device nor the resources that it needs are actually
+"busy".  </P>
+<P>In olden days, if a PC was shutdown by just turning off the power, a
+bogus lockfile might remain and then later on one would get this bogus
+message and not be able to use the serial port.  Software today is
+supposed to automatically remove such bogus lockfiles, but as of 2006
+there is still a problem with the "wvdial" dialer program related to
+lockfiles.  If wvdial can't create a lockfile because it doesn't have
+write permission in the /var/lock/ directory, you will see this
+erroneous message.  See 
+<A HREF="#lockfile_">Cannot create lockfile. Sorry</A> </P>
+<P>The following example is where interrupts can't be shared (at least
+one of the interrupts is on the ISA bus).  The ``resource busy'' part
+often means (example for <CODE>ttyS2</CODE>) ``You can't use <CODE>ttyS2</CODE> since
+another device is using ttyS2's interrupt.'' The potential interrupt
+conflict is inferred from what "setserial" thinks.  A more accurate
+error message would be ``Can't use <CODE>ttyS2</CODE> since the setserial data
+(and kernel data) indicates that another device is using <CODE>ttyS2</CODE>'s
+interrupt''.  If two devices use the same IRQ and you start up only
+one of the devices, everything is OK because there is no conflict yet.
+But when you next try to start the second device (without quitting the
+first device) you get a "... busy" error message.  This is because the
+kernel only keeps track of what IRQs are actually in use and actual
+conflicts don't happen unless the devices are in use (open).   The
+situation for I/O address (such as 0x3f8) conflict is similar.</P>
+<P>This error is sometimes due to having two serial drivers: one a module
+and the other compiled into the kernel.  Both drivers try to grab the
+same resources and one driver finds them "busy".</P>
+<P>There are two possible cases when you see this message:
+<OL>
+<LI> There may be a real resource conflict that is being avoided.</LI>
+<LI> Setserial has it wrong and the only reason <CODE>ttyS2</CODE> can't be
+used is that setserial erroneously predicts a conflict.</LI>
+</OL>
+</P>
+<P>What you need to do is to find the interrupt setserial thinks
+<CODE>ttyS2</CODE> is using.  Look at /proc/tty/driver/serial.  You should
+also be able to find it with the "setserial" command for <CODE>ttyS2</CODE>.   </P>
+<P>Bug in old versions:  Prior to 2001 there was a bug which wouldn't let
+you see it with "setserial".  Trying to see it would give the same
+"... busy" error message.</P>
+<P>To try to resolve this problem reboot or: exit or gracefully kill all
+likely conflicting processes.   If you reboot: 1. Watch the boot-time
+messages for the serial ports.  2. Hope that the file that runs
+"setserial" at boot-time doesn't (by itself) create the same conflict
+again.</P>
+<P>If you think you know what IRQ say <CODE>ttyS2</CODE> is using then you may
+look at /proc/interrupts to find what else (besides another serial
+port) is currently using this IRQ.  You might also want to double
+check that any suspicious IRQs shown here (and by "setserial") are
+correct (the same as set in the hardware).  A way to test whether or
+not it's a potential interrupt conflict is to set the IRQ to 0
+(polling) using "setserial".  Then if the busy message goes away, it
+was likely a potential interrupt conflict.  It's not a good idea to
+leave it permanently set at 0 since it will put more load on the CPU.</P>
+
+<H2><A NAME="ss18.25">18.25</A> <A HREF="Modem-HOWTO.html#toc18.25">"Input/output error" from setserial, stty, pppd, etc.</A>
+</H2>
+
+<P> This means that communication with the serial port isn't working
+right.  It could mean that there isn't any serial port at the IO
+address that setserial thinks your port is at.  It could also be an
+interrupt conflict (or an IO address conflict).  It also may mean that
+the serial port is in use (busy or opened) and thus the attempt to
+get/set parameters by setserial or stty failed.  It will also happen
+if you make a typo in the serial port name such as typing "ttys"
+instead of "ttyS".  </P>
+
+<H2><A NAME="ss18.26">18.26</A> <A HREF="Modem-HOWTO.html#toc18.26">"LSR safety check engaged"</A>
+</H2>
+
+<P>LSR is the name of a hardware register.  It usually means that 
+there is no serial port at the address where the driver thinks your
+serial port is located.  You need to find your serial port and
+possibly configure it.  See 
+<A HREF="Modem-HOWTO-6.html#locate_port">Locating the Serial Port: IO address IRQs</A> and/or 
+<A HREF="Modem-HOWTO-10.html#set_serial">What is Setserial</A></P>
+
+<H2><A NAME="ss18.27">18.27</A> <A HREF="Modem-HOWTO.html#toc18.27">Overrun errors on serial port</A>
+</H2>
+
+<P> This is an overrun of the hardware FIFO buffer and you can't
+increase its size.  Bug note (reported in 2002): Due to a bug in some
+kernel 2.4 versions, the port number may be missing and you will only
+see "ttyS" (no port number).  But if devfs notation such as "tts/2" is
+being used, there is no bug.  See 
+"Higher Serial Thruput" in the Serial-HOWTO.</P>
+
+<H2><A NAME="ss18.28">18.28</A> <A HREF="Modem-HOWTO.html#toc18.28">Modem doesn't pick up incoming calls</A>
+</H2>
+
+<P> This paragraph is for the case where a modem is used for both
+dial-in and dial-out.  If the modem generates a DCD (=CD) signal, some
+programs (but not mgetty) will think that the modem is busy.
+This will cause a problem when you are trying to dial out with a modem
+and the modem's DCD or DTR are not implemented correctly.  The modem
+should assert DCD only when there is an actual connection (ie someone
+has dialed in), not when <CODE>getty</CODE> is watching the port.  Check to
+make sure that your modem is configured to only assert DCD when there
+is a connection (&amp;C1).  DTR should be on (asserted) by the
+communications program whenever something is using, or watching the
+line, like <CODE>getty</CODE>, <CODE>kermit</CODE>, or some other comm program. </P>
+
+<H2><A NAME="ss18.29">18.29</A> <A HREF="Modem-HOWTO.html#toc18.29">Port gets characters only sporadically</A>
+</H2>
+
+<P> There could be some other program running on the port.  Use "top"
+(provided you've set it to display the port number) or type "ps
+-alxw".  Look at the results to see if the port is being used by
+another program.  Be on the lookout for the gpm mouse program which
+often runs on a serial port.</P>
+
+<H2><A NAME="ss18.30">18.30</A> <A HREF="Modem-HOWTO.html#toc18.30">Troubleshooting Tools</A>
+</H2>
+
+<P> These are some of the programs you might want to use in
+troubleshooting:
+<UL>
+<LI> "lsof /dev/ttyS*" will list serial ports which are open.</LI>
+<LI> "setserial" shows and sets the low-level hardware configuration
+of a port (what the driver thinks it is).  See 
+<A HREF="Modem-HOWTO-10.html#set_serial">What is Setserial</A></LI>
+<LI> "stty" shows and sets the configuration of a port (except for
+that handled by "setserial").
+See the Serial-HOWTO section: "Stty". </LI>
+<LI> "modemstat" or "statserial" or "watch head
+/proc/tty/driver/serial" will show the current state of various modem
+signal lines (such as DTR, CTS, etc.).  The one in /proc also shows
+byte flow and errors.</LI>
+<LI> "irqtune" will give serial port interrupts higher
+priority to improve performance.</LI>
+<LI> "hdparm" for hard-disk tuning may help some more.</LI>
+<LI> "lspci" shows the actual IRQs, etc. of hardware on the PCI bus.</LI>
+<LI> "pnpdump --dumpregs" shows the actual IRQs, etc. of hardware for
+PnP devices on the ISA bus.</LI>
+<LI> Some "files" in the /proc tree (such as ioports, interrupts,
+and tty/driver/serial).</LI>
+</UL>
+</P>
+
+
+
+<HR>
+<A HREF="Modem-HOWTO-19.html">Next</A>
+<A HREF="Modem-HOWTO-17.html">Previous</A>
+<A HREF="Modem-HOWTO.html#toc18">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,297 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.9">
+ <TITLE>Linux - Optical Disk HOWTO : Magneto Optical Technology - Daniel Kobras</TITLE>
+ <LINK HREF="Optical-Disk-HOWTO-4.html" REL=next>
+ <LINK HREF="Optical-Disk-HOWTO-2.html" REL=previous>
+ <LINK HREF="Optical-Disk-HOWTO.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="Optical-Disk-HOWTO-4.html">Next</A>
+<A HREF="Optical-Disk-HOWTO-2.html">Previous</A>
+<A HREF="Optical-Disk-HOWTO.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Magneto Optical Technology - Daniel Kobras</A></H2>
+
+<P>
+<H2><A NAME="ss3.1">3.1 Introduction </A>
+</H2>
+
+<P>
+<A HREF="mailto:Daniel Kobras &lt;kobras@linux.de>">Daniel Kobras &lt;kobras@linux.de></A><P>Magneto optical drives use a "far field" magnetic field and a laser to
+change polarization of a magnetic media. At temperatures below
+180-200°C (350-390°F) magnetic polarization is "frozen" into the
+media. However when heated above this so-called Curie-temperature a
+static external magnetic field can change the polarization. When the 
+media cools down below its Curie-temperature, the information is frozen 
+again. A high power write laser is used to heat the disk surface to the
+appropriate
+temperature at which time the "Far field" can set the polarization
+on the disk magnetic surface.
+<P>Read back is based on the so-called Kerr effect, i. e. depending
+on the direction of the magnetic field on the disk's surface, the plane
+of polarization of the incoming laser beam is slightly rotated and the
+information can be restored.
+<P>
+<P>
+<P>The use of a laser for polarization change allows for bit and
+track densities much higher than on conventional "flying" magnetic
+heads. The "far field" means no more "head crashes" - that is assuming
+your disk label doesn't peal off during the load or you don't
+leave one of those sticky pads on the disk cartridge. Nowadays the most 
+commonly used 3.5" media have a capacity of 640MB[*] per platter but there
+are still media with 540MB, 230MB and 128MB. On some models both sides 
+of the media are used yielding up to a capacity of 1.3GB - you must 
+remove the media and flip it over to use the other 640MB though. There 
+are 5.25" media with up to a total of 2.6GB, but these have to be flipped 
+as well.
+<P>The major drawback with ordinary magneto optical media was their need
+for an extra erase cycle considerably slowing down write speed. That's
+where LIMDOW media come in. LIMDOW (Light Intensity Modulated Direct
+OverWrite) disks use a more sophisticated set of five different magnetic
+layers. Thus the erase cycle can be omitted yielding a 33% speed up, as
+only one write and one verify cycle have to be performed. Read back is
+identical to ordinary disks. Please check with your drives manual if
+you want to use LIMDOW media. I only have experience with Fujitsu's
+M2513 which works well with LIMDOW. As far as other drives are concerned
+I simply don't know.
+<P>Manufacturers claim the life time of magneto optical media to be 30 years
+and up. Disks can be rewritten at least 10 million times (1 million for
+LIMDOW media). Reading is claimed safe for at least 100 million times.
+<P>[*] There's a sort of religious discussion going on whether 1MB should
+be understood as 1x1.000x1.000 bytes or rather 1x1.024x1.024 bytes. 
+Here we use 1MB==1.000.000 bytes, the definition preferred by vendors
+for obvious reasons. Don't worry if Linux reports your media to be
+smaller - it's just a matter of definition.
+<P>
+<H2><A NAME="ss3.2">3.2 Setup</A>
+</H2>
+
+<P>First of all, make sure your MO drive is sanely jumpered, i.e. make sure
+its SCSI id is unique on your system, Parity checking and SCAM mode 
+settings resemble those of your other SCSI devices as well as your
+controller and do _not_ enable any weird looking options such as "Mac
+Mode" or the like. Your drive might be equipped with an internal write 
+cache, but since Linux already does pretty good caching on its own, don't
+expect too much of a performance gain, if any. Also keep in mind that each
+additional level of caching is a source of possible data loss or
+corruption in case of failing hardware. Consequently the recommended 
+paranoia setting is to turn off the write cache.
+<P>As long as you're not using 640MB disks, setting up the MO drive is rather
+straightforward. Assuming your drive is properly installed, at boot/insmod 
+time, your SCSI-Controller should notify you of the newly added drive
+and configure another SCSI device like /dev/sda, /dev/sdb... (Keep
+in mind that the SCSI bus is scanned with increasing SCSI id, so if
+your SCSI hard disk for example is ID 4 and used to be /dev/sda and your
+MO drive has ID 3, the MO will now be /dev/sda whilst the HD is /dev/sdb.)
+Working with your MO is no different from working with an ordinary hard
+disk. You can partition it (more information on this topic is given below),
+create file systems, mount it as usual. Note that as long as the disk is
+mounted the drive is locked and you won't be able to change the disk.
+<P>Be careful when trying to get 640MB disks to work. These use a
+hard-sector size of 2048 bytes, 2.0.xx kernels will support only
+512 and 1024 bytes per sector. However 2048 byte support has been added
+to 2.1.32 and up. If you for some reason have to stick to 2.0.xx, there 
+are several patches floating around, for example at
+<P>* http://liniere.gen.u-tokyo.ac.jp/2048.html,
+* http://wwwcip.informatik.uni-erlangen.de/&nbsp;orschaer/mo/
+* http://elektra.e-technik.uni-ulm.de/&nbsp;mbuck/linux/patches.html
+<P>Be sure to use a either a patched version of fdisk available at some
+of the sites above or a recent enough version from the official util-
+linux package supporting the -b option. (Invoke with fdisk -b 2048 
+/dev/sdXX when partitioning 2048 byte media.) 
+<P>
+<H2><A NAME="ss3.3">3.3 Access</A>
+</H2>
+
+<P>There are two alternatives of how to access your disks: the ordinary
+method of creating one or more partitions or just accessing the raw
+drive, which in Win/DOS environments is also known as the superfloppy
+format.
+<P>The first method will require non-640MB disks or a 2048-byte-aware fdisk,
+the latter is suitable for any kind of disk, however these disks cannot
+be read with Windows NT up to version 4.0. There's a comment on
+Fujitsu's web-pages that super-floppy support will be added to NT in the
+future.
+<P>Assume your MO drive is /dev/sdb. To create a partition simply enter
+fdisk /dev/sdb (or fdisk -b 2048 /dev/sdb with 640MB media and a 
+recent copy of fdisk) as root and go on like you were to partition a 
+hard disk. If unsure about what to do, have a look at the fdisk man page. 
+Next create a file-system on each partition with a command like
+mke2fs -m 0 /dev/sdb1. For 640MB disks be sure to specify the
+-b 2048 flag. If you want to use super-floppies instead, leave out the
+fdisk part and create your file-system on the raw device, for example
+mke2fs -b 2048 -m 0 /dev/sdb. mke2fs will request confirmation before
+formatting a raw device. You might want to double check if /dev/sdb
+*really* is your MO drive and not your hard disk by chance. :) During
+the boot process (or when loading the low level SCSI module), Linux might 
+moan about an invalid partition table if a super-floppy is in the MO drive. 
+You can safely ignore this message.
+<P>*NOTE: Partitions on 2048 byte sectored media were broken throughout
+the whole 2.1 kernel series, meaning that you can happily 
+partition your media with 2.1.xxx but will be unable to use
+them with any OS other than Linux 2.1! In other words: DON'T
+DO IT. If for any reason you still have to access your MOs on
+Linux 2.1 use super-floppies which do fine. This problem hopefully
+is completely fixed starting with Linux 2.2.2.
+<P>File-systems other than ext2 will work on non-640MB disks as well, for
+640MB disks there are some caveats: 2048 byte blocks must be supported
+by the low level file-system code in the kernel and the appropriate
+mkfs tool should take an argument like -b 2048 to specify the block
+size. Kernel requirements are met at least for ext2 and msdos/vfat code
+in the 2.1.xx kernel line. The above mentioned patches should fix this as
+well for 2.0.xx kernels. I don't have any experience with other
+file-systems so I'd appreciate any comments. Of the mkfs tools mke2fs
+will definitely accept the -b flag. mkdosfs is trickier though: there's
+no top level maintainer anymore, but some distributions have their own
+maintainers and ship their own versions. Debian's mkdosfs is one such
+example. Beginning with version 1.0-17 it supports media with large
+sector sizes. You have to add an option -S 2048. Pass -I as well if
+you want to format a super-floppy. The latest Debian version of mkdosfs
+should always be available from ftp.debian.org. Look out for a
+package called dosfstools.
+<P>
+<H2><A NAME="ss3.4">3.4 Speed</A>
+</H2>
+
+<P>For the really curious but still undecided I've crammed up
+some figures as returned by bonnie. These are for the Fujitsu M2513
+spinning at 3600 rpm, an outdated model now replaced by a version
+spinning at 4300 rpm. I guess the transfer rates for the new drive
+will scale with the spin ratio or pretty close to it. Tests were
+performed running a slightly patched 2.2.2pre4 kernel. (Err... looks 
+like I've disabled verify on my drive, better not do that!)
+<P>
+<PRE>
+LIMDOW - ext2-filesystem - superfloppy:
+
+    -------Sequential Output-------- ---Sequential Input-- --Random--
+    -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
+ MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
+400  1024 16.3  1816  2.8   620  1.7   975 13.5  1952  2.2  41.4  0.7
+                            
+
+LIMDOW - vfat-filesystem - superfloppy:
+
+    -------Sequential Output-------- ---Sequential Input-- --Random--
+    -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
+ MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
+400   387  8.3   410  2.9   414  3.4   669 13.4   736  5.4   5.2  3.9
+</PRE>
+<P>The bottom line is: performance on vfat sucks like hell. If you have
+an option, use ext2!
+<P>
+<H2><A NAME="ss3.5">3.5 Sample session</A>
+</H2>
+
+<P>Here's an example of what accessing the MO look like on my machine:
+<HR>
+<PRE>
+yksi:~# modprobe scsi_mod
+scsi: ***** BusLogic SCSI Driver Version 2.1.15 of 17 August 1998 *****
+scsi: Copyright 1995-1998 by Leonard N. Zubkoff &lt;lnz@dandelion.com>
+scsi0: Configuring BusLogic Model BT-930 PCI Ultra SCSI Host Adapter
+scsi0:   Firmware Version: 5.02, I/O Address: 0xDE00, IRQ Channel: 18/Level
+scsi0:   PCI Bus: 0, Device: 15, Address: 0xFE00F000, Host Adapter SCSI ID: 7
+scsi0:   Parity Checking: Enabled, Extended Translation: Enabled
+scsi0:   Synchronous Negotiation: Ultra, Wide Negotiation: Disabled
+scsi0:   Disconnect/Reconnect: Enabled, Tagged Queuing: Enabled
+scsi0:   Driver Queue Depth: 255, Scatter/Gather Limit: 128 segments
+scsi0:   Tagged Queue Depth: Automatic, Untagged Queue Depth: 3
+scsi0:   Error Recovery Strategy: Default, SCSI Bus Reset: Enabled
+scsi0:   SCSI Bus Termination: Disabled, SCAM: Disabled
+scsi0: *** BusLogic BT-930 Initialized Successfully ***
+scsi0 : BusLogic BT-930
+scsi : 1 host.
+Vendor: PLEXTOR   Model: CD-ROM PX-32TS    Rev: 1.03
+Type:   CD-ROM                             ANSI SCSI revision: 02
+Vendor: FUJITSU   Model: M2513A            Rev: 1300
+Type:   Optical Device                     ANSI SCSI revision: 02
+scsi0: Target 1: Queue Depth 3, Synchronous at 20.0 MB/sec, offset 15
+scsi0: Target 3: Queue Depth 3, Synchronous at 10.0 MB/sec, offset 10
+</PRE>
+<HR>
+          
+As you can see, I have two SCSI devices attached: one CD-ROM drive and
+one MO drive. As CD-ROMs do have SCSI devices of their own (/dev/scdX),
+the MO is assigned to /dev/sda.
+<P>Let's create an ext2-based super-floppy on the media:
+<HR>
+<PRE>
+yksi:~# mke2fs -m 0 -b 2048 /dev/sda
+mke2fs 1.12, 9-Jul-98 for EXT2 FS 0.5b, 95/08/09
+/dev/sda is entire device, not just one partition!
+Proceed anyway? (y,n) y
+Detected scsi removable disk sda at scsi0, channel 0, id 3, lun 0
+SCSI device sda: hdwr sector= 2048 bytes. Sectors= 310352 [606 MB] [0.6 GB]
+sda: Write Protect is off
+ sda:
+Linux ext2 filesystem format
+Filesystem label=
+155344 inodes, 310352 blocks
+0 blocks (0.00%) reserved for the super user
+First data block=0
+Block size=2048 (log=1)
+Fragment size=2048 (log=1)
+19 block groups
+16384 blocks per group, 16384 fragments per group
+8176 inodes per group
+Superblock backups stored on blocks:
+         16384, 32768, 49152, 65536, 81920, 98304, 114688,
+         131072, 147456, 163840, 180224, 196608, 212992, 229376,
+         245760, 262144, 278528, 294912
+
+Writing inode tables: done
+Writing superblocks and filesystem accounting information: done
+</PRE>
+<HR>
+
+Now mount the media to directory /mnt/mo (which already exists).
+<HR>
+<PRE>
+yksi:~# mount -t ext2 /dev/sda /mnt/mo
+yksi:~# ls /mnt/mo
+lost+found
+yksi:~# df
+Filesystem         1024-blocks  Used Available Capacity Mounted on
+/dev/hda6             124407   48963    69020     42%   /
+/dev/hda7             256592      30   243310      0%   /tmp
+/dev/hda8             124407   31750    86233     27%   /var
+/dev/hda9             505440  174092   305244     36%   /home
+/dev/hda10           2028098 1278972   644304     66%   /usr
+/dev/hda11           2028098 1551617   371659     81%   /usr/local
+/dev/sda              601134      26   601108      0%   /mnt/mo
+</PRE>
+<HR>
+
+/mnt/mo can now be used like any ordinary hard disk. You may also
+choose to add a line like the following to your /etc/fstab:
+<HR>
+<PRE>
+/dev/sda    /mnt/mo    ext2 defaults,noauto 0 0
+</PRE>
+<HR>
+
+Then mount /mnt/mo will suffice to mount any ext2-formatted media.
+Before removing the media from your MO drive, don't forget to unmount it.
+<HR>
+<PRE>
+yksi:/mnt/mo# umount /mnt/mo            # (Whoops!)
+umount: /mnt/mo: device is busy
+yksi:/mnt/mo# cd ..
+yksi:/mnt# umount /mnt/mo
+yksi:/mnt#
+</PRE>
+<HR>
+
+Pretty easy, isn't it?
+<P>
+<P>
+<P>
+<HR>
+<A HREF="Optical-Disk-HOWTO-4.html">Next</A>
+<A HREF="Optical-Disk-HOWTO-2.html">Previous</A>
+<A HREF="Optical-Disk-HOWTO.html#toc3">Contents</A>
+</BODY>
+</HTML>

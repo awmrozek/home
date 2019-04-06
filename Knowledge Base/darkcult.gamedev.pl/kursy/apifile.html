@@ -1,0 +1,557 @@
+<script type="text/javascript" language="JavaScript"><!--  document.write (unescape ('%3cscript type="text/javascript" '+' src="http://kropka.onet.pl/_s/kropka/r.js?id=B8XlFCO1yU.kxYbVHvZDL8Q8HSeKoi8AdrFAxSxBYoj.s7&t=1&z=0&k=0&RR='+(new Date()).getTime()+'"%3e%3c/script%3e'));  //--></script> 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="content-type" CONTENT="text/html; charset=windows-1250">
+<META NAME="Language" CONTENT="pl">
+<META NAME="Author" CONTENT="Twój nocny koszmar">
+<META NAME="Generator" CONTENT="Notatnik :-)">
+
+<TITLE>Dark Cult of C++ - WinAPI - Pliki</TITLE>
+<LINK REL=stylesheet HREF="kurs.css" TYPE="text/css">
+</HEAD>
+
+<BODY STYLE="font-family: Verdana; font-size: 9pt; color: #CCCCCC; background-color: #464646;">
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apievnt.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="apigraf.html">Następna część kursu >></A>
+</TD>
+</TR>
+</TABLE>
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+
+<H2>
+1. Odczyt z pliku
+</H2>
+
+<P>
+Marny los programisty, który nie umie odczytywać i zapisywać danych do pliku. Dlatego warto by się w ten temat zagłębić. Zrobimy to krótko i rzeczowo. Najpierw, żeby cokolwiek z plikiem zrobić, musimy go otworzyć. Funkcji do wyboru mamy od czorta, ale najlepiej będzie skorzystać z <SPAN CLASS=T>CreateFile</SPAN>. Nazwa może niezbyt trafna, ale w każdym razie funkcja ta robi, co trzeba:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: HANDLE CreateFile(<I>lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDistribution, dwFlagsAndAttributes, hTemplateFile</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>lpFileName</I></TD><TD CLASS=ARGLIST>Nazwa pliku</TD></TR>
+<TR><TD CLASS=ARGLIST><I>dwDesiredAccess</I></TD><TD CLASS=ARGLIST>Tryb dostępu (odczyt lub zapis)</TD></TR>
+<TR><TD CLASS=ARGLIST><I>dwShareMode</I></TD><TD CLASS=ARGLIST>Tryb współdzielenia pliku (jakie operacje mogą wykonywać na nim inne procesy)</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpSecurityAttributes</I></TD><TD CLASS=ARGLIST>Atrybuty bezpieczeństwa (nie interesuje nas to :-) )</TD></TR>
+<TR><TD CLASS=ARGLIST><I>dwCreationDistribution</I></TD><TD CLASS=ARGLIST>Jak utworzyć plik</TD></TR> 
+<TR><TD CLASS=ARGLIST><I>dwFlagsAndAttributes</I></TD><TD CLASS=ARGLIST>Flagi i atrybuty</TD></TR>
+<TR><TD CLASS=ARGLIST><I>hTemplateFile</I></TD><TD CLASS=ARGLIST>Uchwyt pliku, którego atrybuty chcemy skopiować na właśnie otwierany plik</TD></TR>
+</TABLE>
+ 
+<P>
+Pierwszy argument, to oczywiście nazwa pliku, który chcemy otworzyć. Pamiętaj o podwójnych beksleszach <SPAN CLASS=T>\\</SPAN>, jeśli zawiera ona ścieżkę dostępu. Argument drugi określa rodzaj dostępu: odczyt lub zapis. Na razie chcemy czytać, więc ustawiamy go na <SPAN CLASS=T>GENERIC_READ</SPAN>.
+</P>
+<P>
+Następny argument to tryb współdzielenia pliku - w systemie Windows kilka programów może mieć jednocześnie dostęp do jednego pliku, ale nie zawsze taka synchronizacja jest możliwa. Jeśli nie chcemy, by jakiś inny program grzebał w naszym pliku, dajemy w tym argumencie <SPAN CLASS=L>0</SPAN>. W przeciwnym wypadku możemy ustawić <SPAN CLASS=T>FILE_SHARE_READ</SPAN> (jeśli chcemy, by inne programy mogły równocześnie odczytywać z naszego pliku dane), <SPAN CLASS=T>FILE_SHARE_WRITE</SPAN> (zgadnij) lub <SPAN CLASS=T>FILE_SHARE_READ | FILE_SHARE_WRITE</SPAN>, czyli pełny dostęp. Najbezpieczniej będzie jednak ustawić <SPAN CLASS=L>0</SPAN>.
+</P>
+<P>
+Argument <SPAN CLASS=T>lpSecurityAttributes</SPAN> na razie nas nie obchodzi, niech się wypcha sianem (czyli <SPAN CLASS=T>NULL</SPAN>-em). Dużo ważniejszy jest następny argument, <SPAN CLASS=T>dwCreationDistribution</SPAN>. Określa on, co stanie się podczas otwierania w zależności od tego, czy plik istnieje czy też nie. Musimy wybrać jedną z następujących stałych:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TH CLASS=ARGLIST>Stała</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST>CREATE_NEW</TD><TD CLASS=ARGLIST>Tworzy nowy plik, generuje błąd jeśli plik o podanej nazwie już istnieje.</TD></TR>
+<TR><TD CLASS=ARGLIST>CREATE_ALWAYS</TD><TD CLASS=ARGLIST>Tworzy nowy plik, jeśli plik o podanej nazwie już istnieje, to zostaje on nadpisany.</TD></TR>
+<TR><TD CLASS=ARGLIST>OPEN_EXISTING</TD><TD CLASS=ARGLIST>Otwiera istniejący plik, jeśli plik nie istnieje, to generuje błąd.</TD></TR>
+<TR><TD CLASS=ARGLIST>OPEN_ALWAYS</TD><TD CLASS=ARGLIST>Otwiera istniejący plik, jeśli plik nie istnieje, to go tworzy.</TD></TR>
+<TR><TD CLASS=ARGLIST>TRUNCATE_EXISTING</TD><TD CLASS=ARGLIST>Otwiera istniejący plik, zerując go (obcinając do zerowej długości), jeśli plik nie istnieje, to funkcja generuje błąd. Plik musi być otwarty co najmniej z dostępem GENERIC_WRITE.</TD></TR>
+</TABLE>
+
+<P>
+Następnie - flagi, czyli argument <SPAN CLASS=T>dwFlagsAndAttributes</SPAN>. Tutaj możliwości mamy dość sporo, między innymi takie:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TH CLASS=ARGLIST>Stała</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_ARCHIVE, FILE_ATTRIBUTE_HIDDEN, FILE_ATTRIBUTE_NORMAL itd.</TD><TD CLASS=ARGLIST>Atrybuty, jakie ma mieć plik, jeśli tworzymy nowy. Dokładny spis niżej, w rozdziale o atrybutach.</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_FLAG_RANDOM_ACCESS</TD><TD CLASS=ARGLIST>Określa, że plik ma dostęp swobodny (patrz niżej, rozdział o wskaźnikach pliku). System używa tego tylko jako wskazówki dla optymalizacji zapisu/odczytu.</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_FLAG_SEQUENTIAL_SCAN</TD><TD CLASS=ARGLIST>Określa, że plik ma dostęp sekwencyjny, od początku do końca pliku (patrz niżej, rozdział o wskaźnikach pliku). System używa tego tylko jako wskazówki dla optymalizacji zapisu/odczytu. </TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_FLAG_DELETE_ON_CLOSE</TD><TD CLASS=ARGLIST>Określa, że plik zostanie skasowany bezpośrednio po zamknięciu wszystkich odwołujących się do niego uchwytów (nie tylko tego uchwytu, dla którego ustawiona jest ta flaga).</TD></TR>
+</TABLE>
+
+<P>
+Ostatni argument musi być równy <SPAN CLASS=T>NULL</SPAN>, jeśli piszemy pod Windowsem 95 lub pokrewnym. W przeciwnym razie spowodujemy błąd, na czym raczej nam nie zależy, toteż posłuchamy grzecznie wskazań Microsoftu.
+</P>
+<P>
+Uff, to już wszystko. Tyle właśnie trzeba zachodu, żeby otworzyć jeden głupi plik. No ale teraz już sytuacja jest w miarę klarowna. Funkcja <SPAN CLASS=T>CreateFile</SPAN>, o ile się jej powiedzie zadanie, powinna nam zwrócić uchwyt do pliku, który jest typu <SPAN CLASS=T>HANDLE</SPAN>. W przeciwnym wypadku zwróci wartość <SPAN CLASS=T>INVALID_HANDLE_VALUE</SPAN>.
+<P>
+</P>
+Załóżmy, że chcemy sobie cały nasz pliczek wczytać do jakiegoś wcześniej zaalokowanego bufora znakowego. Można to zrobić na co najmniej dwa sposoby: wczytywać plik bajt po bajcie, aż napotkamy znak <SPAN CLASS=Wazne>EOF</SPAN> (End Of File), co jednak będzie wykonywane w żółwim tempie, albo najpierw pobrać rozmiar pliku, a następnie od razu wczytać wszystkie bajty do bufora. Wybieramy oczywiście rozwiązanie nr 2.
+</P>
+<P>
+Funkcja zwracająca rozmiar pliku nazywa się (co za niespodzianka) <SPAN CLASS=T>GetFileSize</SPAN>. Zwracana wartość jest typu <SPAN CLASS=T>DWORD</SPAN>, drugi argument funkcji (bo dwa są) zostawmy na razie w spokoju:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+DWORD dwSize = GetFileSize(hPlik, NULL);<BR>
+<SPAN CLASS=K>if</SPAN>(dwSize == <SPAN CLASS=L>0xFFFFFFFF</SPAN>) <SPAN CLASS=C>//błąd!</SPAN><BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Zły rozmiar pliku!"</SPAN>, <SPAN CLASS=L>"Błąd"</SPAN>, MB_ICONEXCLAMATION);<BR>
+<SPAN CLASS=K>else</SPAN><BR>
+&nbsp;<SPAN CLASS=C>//ok, możemy wczytywać plik</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak nietrudno obliczyć, zmienna typu <SPAN CLASS=T>DWORD</SPAN> może przedstawić rozmiar pliku tylko wtedy, gdy jest on mniejszy niż jakieś 4 GB, co powinno nam w większości wypadków wystarczyć ;-). W razie czego jednak funkcja <SPAN CLASS=T>GetFileSize</SPAN> potrafi pobrać również rozmiar znacznie większych plików i do tego właśnie służy ten drugi argument, gdzie wstawiliśmy <SPAN CLASS=T>NULL</SPAN>. Jak to zrobić, tego nie pokażę bo i tak nam się nie powinno przydać ;-P. Jeśli kogoś będzie bardzo ciekawość dręczyć, może spytać w mejlu.
+</P>
+<P>
+Mamy więc plik, znamy jego rozmiar, w tym momencie możemy sobie alokować jakiś zgrabny buforek. W "gołym" C++ robiliśmy to operatorem <SPAN CLASS=K>new</SPAN>, teraz poznamy drugi sposób, zalecany dla okienkowych aplikacji. Jest to funkcja <SPAN CLASS=T>GlobalAlloc</SPAN> (lub <SPAN CLASS=T>LocalAlloc</SPAN>, która w Win95 robi dokładnie to samo). Oto jak z niej korzystać:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LPSTR Bufor;<BR>
+Bufor = (LPSTR)GlobalAlloc(GPTR, dwSize);<BR>
+<SPAN CLASS=K>if</SPAN>(Bufor == NULL)<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Błąd alokacji"</SPAN>, <SPAN CLASS=L>"Ups..."</SPAN>, MB_ICONSTOP);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+<SPAN CLASS=T>GlobalAlloc</SPAN> zwraca wskaźnik do świeżo alokowanego obszaru, podobnie jak <SPAN CLASS=K>new</SPAN>. Musimy jednak przekonwertować jawnie ten wskaźnik na taki typ, jakiego potrzebujemy (tutaj z kolei mamy podobieństwo do <SPAN CLASS=T>malloc</SPAN>-a). Pierwszy argument funkcji, czyli stała <SPAN CLASS=T>GPTR</SPAN>, sprawia, że nowo alokowany obszar zostaje od razu wypełniony zerami (co daje tej funkcji niejaką przewagę nad <SPAN CLASS=K>new</SPAN>). Jeśli tego nie chcemy, zamieniamy <SPAN CLASS=T>GPTR</SPAN> na <SPAN CLASS=T>GMEM_FIXED</SPAN>. Jeśli funkcja zwróci <SPAN CLASS=T>NULL</SPAN>, oznacza to oczywiście, że mamy w systemie deficyt pamięciowy i w związku z tym nowe obszary przydzielane są tylko na kartki ;-).
+</P>
+<P>
+Przed nami ostatni, najważniejszy etap - właściwe czytanie z pliku. Posłużymy się w tym celu funkcją (znów niespodzianka) <SPAN CLASS=T>ReadFile</SPAN>. Jej składnia wygląda tak:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: BOOL ReadFile(<I>hFile, lpBuffer, nBytesToRead, lpBytesRead, lpOverlapped</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>hFile</I></TD><TD CLASS=ARGLIST>Uchwyt pliku do odczytu</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpBuffer</I></TD><TD CLASS=ARGLIST>Wskaźnik na bufor, do którego czytamy dane</TD></TR>
+<TR><TD CLASS=ARGLIST><I>nBytesToRead</I></TD><TD CLASS=ARGLIST>Liczba bajtów do odczytania</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpBytesRead</I></TD><TD CLASS=ARGLIST>Adres zmiennej, otrzymującej liczbę bajtów, które udało się przeczytać</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpOverlapped</I></TD><TD CLASS=ARGLIST>Adres struktury, otrzymującej dane</TD></TR>
+</TABLE>
+ 
+
+<P>
+Wyjaśnienia wymagają chyba tylko ostatnie dwa argumenty. Otóż <SPAN CLASS=T>lpNumberOfBytesRead</SPAN> to adres zmiennej, do której funkcja wpisze liczbę bajtów, jaką uda jej się przeczytać. Nie musimy z tej zmiennej korzystać, ale podanie jej adresu jest wymagane. Chyba, że ostatni argument funkcji jest różny od <SPAN CLASS=T>NULL</SPAN>, ale nie będzie, bo i po co ;-). <SPAN CLASS=T>NULL</SPAN> tak bardzo ułatwia nam życie :-).
+</P>
+<P>
+Jeśli dysk nie zardzewiał, nikt nie skasował nam pliku kiedy nie patrzyliśmy, nie mamy akurat wirusa, napięcie w sieci nie wzrasta powyżej jakichś 400 V i nie spada poniżej 200, w pokoju panuje temperatura, w której komputerowe akcesoria się nie topią ani nie zamarzają i wszystkie inne warunki są sprzyjające, to dane z pliku zostaną wczytane i funkcja zwróci wartość niezerową. Pozostaje nam wtedy jeszcze sprawdzić, czy liczba przeczytanych bajtów, czyli wartość zmiennej pod adresem <SPAN CLASS=T>lpNumberOfBytesRead</SPAN>, jest równa liczbie bajtów, które funkcja MIAŁA przeczytać. Jeśli tak jest, to wszystko OK, jeśli nie - cóż, niewesoło, ale żeby nie zapeszyć sytuacji takich nie będziemy tutaj omawiać ;-).
+</P>
+<P>
+Pora wszystko, co powiedziane zostało powyżej, pokazać na konkretnym przykładzie. Oto wczytywanie pliku do bufora:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LPSTR Bufor;<BR>
+DWORD dwRozmiar, dwPrzeczyt;<BR>
+HANDLE hPlik;<BR>
+<BR>
+hPlik = CreateFile(<SPAN CLASS=L>"test.txt"</SPAN>, GENERIC_READ, <SPAN CLASS=L>0</SPAN>, NULL, OPEN_EXISTING, <SPAN CLASS=L>0</SPAN>, NULL);<BR>
+<SPAN CLASS=K>if</SPAN>(hPlik == INVALID_HANDLE_VALUE)<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Nie można otworzyć pliku."</SPAN>, <SPAN CLASS=L>"A to pech!"</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>); <SPAN CLASS=C>//Zakończ program</SPAN><BR>
+}<BR>
+<BR>
+dwRozmiar = GetFileSize(hPlik, NULL);<BR>
+<SPAN CLASS=K>if</SPAN>(dwRozmiar == <SPAN CLASS=L>0xFFFFFFFF</SPAN>)<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Nieprawidłowy rozmiar pliku!"</SPAN>, <SPAN CLASS=L>"Niedobrze..."</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>); <SPAN CLASS=C>//Zakończ program</SPAN><BR>
+}<BR>
+<BR>
+Bufor = (LPSTR)GlobalAlloc(GPTR, dwRozmiar+<SPAN CLASS=L>1</SPAN>);<BR>
+<SPAN CLASS=K>if</SPAN>(Bufor == NULL)<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Za mało pamięci!"</SPAN>, <SPAN CLASS=L>"Ale wiocha..."</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>); <SPAN CLASS=C>//Zakończ program</SPAN><BR>
+}<BR>
+<BR>
+<SPAN CLASS=K>if</SPAN>(!ReadFile(hPlik, Bufor, dwRozmiar, &dwPrzeczyt, NULL))<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Błąd czytania z pliku"</SPAN>, <SPAN CLASS=L>"Dupa blada!"</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>); <SPAN CLASS=C>//Zakończ program</SPAN><BR>
+}<BR>
+<BR>
+Bufor[dwRozmiar] = <SPAN CLASS=L>0</SPAN>; <SPAN CLASS=C>//dodaj zero na końcu stringa</SPAN><BR>
+SetWindowText(hwnd, Bufor); <SPAN CLASS=C>//zrób coś z tekstem, np. wyświetl go</SPAN><BR>
+<BR>
+GlobalFree(Bufor); <SPAN CLASS=C>//Zwolnij bufor</SPAN><BR>
+CloseHandle(hPlik); <SPAN CLASS=C>//Zamknij plik</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, w przykładzie aż roi się od rozmaitych <SPAN CLASS=K>if</SPAN>-ów, które pilnują, żeby nam jakiś straszliwy error się nie zdarzył. Zabawa z plikami to bowiem jak mecz miłki nożnej na polu minowym - gdzie się nie ruszysz, tam coś można spieprzyć, dlatego należy zachować najwyższą ostrożność. 
+</P>
+
+<H2>
+2. Zapis do pliku
+</H2>
+
+<P>
+Ktoś musi zapisywać, by odczytywać mógł ktoś. No więc teraz pokażemy sobie, jak wrzucić dane do pliku. Stwórzmy sobie jakieś pole tekstowe, w które będzie można powpisywać jakieś głupoty, które potem powędrują do pliku. Generalnie zasady są bardzo podobne do odczytu, tzn. plik trzeba najpierw otworzyć. Tym razem użyjemy flagi <SPAN CLASS=T>CREATE_ALWAYS</SPAN>, która... Nie, nie tworzy podpaski ze skrzydełkami. Jeśli ustawimy tę flagę, będzie utworzony nowy plik, a jeśli plik o podanej nazwie już istnieje, zostanie wyzerowany.
+</P>
+<P>
+Jak się zapewne domyślasz, trzeba też będzie zamienić flagę <SPAN CLASS=T>GENERIC_READ</SPAN> na <SPAN CLASS=T>GENERIC_WRITE</SPAN>. Wreszcie, należy uwzględnić współdzielenie pliku - generalnie najbezpieczniej nie dawać innym procesom dostępu do pliku, kiedy akurat coś do niego zapisujemy, więc ustawiamy odpowiedni argument na <SPAN CLASS=L>0</SPAN>.
+</P>
+<P>
+Pobieranie rozmiaru pliku tym razem nam odpada, ze zrozumiałych powodów. Bufor na tekst nadal jednak musimy sobie utworzyć. Skopiujemy do niego tekst z pola tekstowego przy pomocy funkcji <SPAN CLASS=T>GetWindowText</SPAN>. Zanim jednak skopiujemy i zanim utworzymy bufor, musimy znać długość tekstu. I tutaj z kolei przyda nam się funkcja <SPAN CLASS=T>GetWindowTextLength</SPAN>.
+</P>
+<P>
+Funkcja zapisująca dane do pliku nazywa się oczywiście <SPAN CLASS=T>WriteFile</SPAN> i ma właściwie identyczną składnię co <SPAN CLASS=T>ReadFile</SPAN>. Dlatego też nie będę się powtarzał i przejdę od razu do przykładu:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+LPSTR Bufor;<BR>
+DWORD dwRozmiar, dwZapisane;<BR>
+HANDLE hPlik;<BR>
+<BR>
+hPlik = CreateFile(<SPAN CLASS=L>"test.txt"</SPAN>, GENERIC_WRITE, <SPAN CLASS=L>0</SPAN>, NULL, CREATE_ALWAYS, <SPAN CLASS=L>0</SPAN>, NULL);<BR>
+<SPAN CLASS=K>if</SPAN>(hPlik == INVALID_HANDLE_VALUE)<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Nie można otworzyć pliku."</SPAN>, <SPAN CLASS=L>"A to pech!"</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>); <SPAN CLASS=C>//Zakończ program</SPAN><BR>
+}<BR>
+<BR>
+dwRozmiar = GetWindowTextLength(hwnd);<BR>
+<SPAN CLASS=K>if</SPAN>(dwRozmiar == <SPAN CLASS=L>0</SPAN>)<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Nieprawidłowy rozmiar pliku!"</SPAN>, <SPAN CLASS=L>"Niedobrze..."</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>); <SPAN CLASS=C>//Zakończ program</SPAN><BR>
+}<BR>
+<BR>
+Bufor = (LPSTR)GlobalAlloc(GPTR, dwRozmiar+<SPAN CLASS=L>1</SPAN>);<BR>
+<SPAN CLASS=K>if</SPAN>(Bufor == NULL)<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Za mało pamięci!"</SPAN>, <SPAN CLASS=L>"Ale wiocha..."</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>); <SPAN CLASS=C>//Zakończ program</SPAN><BR>
+}<BR>
+GetWindowText(hwnd, Bufor, dwRozmiar); <SPAN CLASS=C>//skopiuj do bufora tekst z jakiegoś okna</SPAN><BR>
+Bufor[dwRozmiar] = <SPAN CLASS=L>0</SPAN>; <SPAN CLASS=C>//dodaj zero na końcu stringa</SPAN><BR>
+<BR>
+<SPAN CLASS=K>if</SPAN>(!WriteFile(hPlik, Bufor, dwRozmiar, &dwZapisane, NULL))<BR>
+{<BR>
+&nbsp;MessageBox(NULL, <SPAN CLASS=L>"Błąd zapisu do pliku"</SPAN>, <SPAN CLASS=L>"Dupa blada!"</SPAN>, MB_ICONEXCLAMATION);<BR>
+&nbsp;PostQuitMessage(<SPAN CLASS=L>0</SPAN>); <SPAN CLASS=C>//Zakończ program</SPAN><BR>
+}<BR>
+<BR>
+GlobalFree(Bufor); <SPAN CLASS=C>//Zwolnij bufor</SPAN><BR>
+CloseHandle(hPlik); <SPAN CLASS=C>//Zamknij plik</SPAN><BR>
+</TD></TR>
+</TABLE>
+
+<H2>
+3. Pomocne funkcje
+</H2>
+
+<H3>
+3.1 Atrybuty plików
+</H3>
+
+<P>
+Możemy łatwo sprawdzić atrybuty pliku o podanej nazwie, wykorzystując funkcję <SPAN CLASS=T>GetFileAttributes</SPAN>. Zwraca ona liczbę typu <SPAN CLASS=T>DWORD</SPAN>. Może ona być równa <SPAN CLASS=L>0xFFFFFFFF</SPAN> (co nie oznacza nic dobrego), albo też przyjąć jedną z następujących wartości (mogą one być łączone):
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TH CLASS=ARGLIST>Stała</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_ARCHIVE</TD><TD CLASS=ARGLIST>Atrybut 'Archiwalny' - oznacza się nim pliki lub katalogi, które poddane mają być backup'owi.</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_COMPRESSED</TD><TD CLASS=ARGLIST>Dla pliku oznacza, że dane w nim są skompresowane, dla katalogu - że wszystkie nowe pliki tworzone w tym katalogu mają być domyślnie kompresowane.</TD></TR> 
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_DIRECTORY</TD><TD CLASS=ARGLIST>Cytując MSDN: "Plik lub katalog" jest katalogiem :-).</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_HIDDEN</TD><TD CLASS=ARGLIST>Plik lub katalog jest ukryty.</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_NORMAL</TD><TD CLASS=ARGLIST>Taki zupełnie zwyczajny plik lub katalog, bez żadnych innych atrybutów.</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_OFFLINE</TD><TD CLASS=ARGLIST>Oznacza, że plik jest przechowywany offline i nie jest dostępny natychmiastowo.</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_READONLY</TD><TD CLASS=ARGLIST>Plik lub katalog jest przeznaczony tylko do odczytu, aplikacje nie mogą go modyfikować ani usunąć.</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_SYSTEM</TD><TD CLASS=ARGLIST>Plik lub katalog jest częścią systemu operacyjnego, czyli tylko kumple Billa lub prawdziwi hakerzy wiedzą, co jest w środku i jak w tym grzebać.</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_ATTRIBUTE_TEMPORARY</TD><TD CLASS=ARGLIST>Plik tymczasowy, powinien być usunięty natychmiast w momencie, kiedy przestaje być potrzebny.</TD></TR>
+</TABLE>
+ 
+<P>
+Dla wścibskich: tak, istnieje funkcja <SPAN CLASS=T>SetFileAttributes</SPAN>. Pobiera ona dwa argumenty, tj. nazwę pliku i zmienną typu <SPAN CLASS=T>DWORD</SPAN>, zawierającą dowolną (prawie) kombinację powyższych stałych, zależnie jakie atrybuty chcemy ustawić. Zwraca <SPAN CLASS=K>true</SPAN> jeśli się uda, <SPAN CLASS=K>false</SPAN> jeśli nie. Nie można ustawiać atrybutu <SPAN CLASS=T>FILE_ATTRIBUTE_COMPRESSED</SPAN> (tzn. błąd się nie pojawi, ale też taka operacja nie skompresuje pliku).
+</P>
+
+<H3>
+3.2 Data i czas pliku
+</H3>
+
+<P>
+Czasami może się przydać informacja, kiedy dany plik został utworzony, zmodyfikowany lub w ogóle ostatnio używany. I na pewno nie zgadniesz, jaka funkcja zdobędzie dla nas taką informację - ano, <SPAN CLASS=T>GetFileTime</SPAN>. W przeciwieństwie do funkcji pobierającej lub ustawiającej atrybuty, ta może operować wyłącznie na plikach już otwartych, i to, co więcj, otwartych do odczytu (<SPAN CLASS=T>GENERIC_READ</SPAN>). 
+</P>
+<P>
+Składnia jest taka:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: BOOL GetFileTime(<I>hFile, lpCreationTime, lpLastAccessTime, lpLastWriteTime</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST>hFile</TD><TD CLASS=ARGLIST>Uchwyt pliku</TD></TR>
+<TR><TD CLASS=ARGLIST>lpCreationTime</TD><TD CLASS=ARGLIST>Wskaźnik do struktury, w której funkcja zapisze czas utworzenia pliku</TD></TR>
+<TR><TD CLASS=ARGLIST>lpLastAccessTime</TD><TD CLASS=ARGLIST>Wskaźnik do struktury, w której funkcja zapisze czas ostatniego dostępu do pliku</TD></TR>
+<TR><TD CLASS=ARGLIST>lpLastWriteTime</TD><TD CLASS=ARGLIST>Wskaźnik do struktury, w której funkcja zapisze czas ostatniej modyfikacji pliku</TD></TR>
+</TABLE>
+
+<P>
+Pierwszy argument jest oczywisty, trzy pozostałe to wskaźniki do struktur typu <SPAN CLASS=T>FILETIME</SPAN>, przechowujących informację o dokładnej dacie pliku. Jest to struktura <SPAN CLASS=L>64</SPAN>-bitowa (dwa <SPAN CLASS=L>32</SPAN>-bitowe pola typu <SPAN CLASS=T>DWORD</SPAN>). W MSDN natknąłem się na informację, że może pomieścić daty od 1601 roku, ale chyba im się ta szóstka z dziewiątką pomyliła, bo po co komu XVII wiek w komputerze ;-). W tym samym miejscu twierdzą (co już bardziej prawdopodobne), że dokładność czasu przechowywanego w tej strukturze to 100 nanosekund.
+</P>
+<P>
+Nie musimy deklarować wszystkich trzech struktur na raz, jeśli np. potrzebna nam tylko data ostatniej modyfikacji, to podajemy tylko <SPAN CLASS=T>lpLastWriteTime</SPAN>, pozostałe dwa wskaźniki ustawiamy na <SPAN CLASS=T>NULL</SPAN>.
+</P>
+<P>
+Jak użyć danych ze struktury <SPAN CLASS=T>FILETIME</SPAN>? Najlepiej przekonwertować ją na czas systemowy funkcją <SPAN CLASS=T>FileTimeToSystemTime</SPAN>. Pierwszy jej argument to wskaźnik do struktury typu <SPAN CLASS=T>FILETIME</SPAN>, drugi - do struktury typu <SPAN CLASS=T>SYSTEMTIME</SPAN>. Wartość zwracana: jak zwykle, czyli <SPAN CLASS=L>0</SPAN> oznacza błąd, wartość niezerowa - powodzenie. Struktura <SPAN CLASS=T>SYSTEMTIME</SPAN> jest już wcale przyjazna w użyciu, jej pola to: <SPAN CLASS=T>wYear, wMonth, wDayOfWeek, wDay, wHour, wMinute, wSecond, wMiliseconds</SPAN>. Chyba nie trzeba więcej tłumaczyć... No, może tylko, że wartości wMonth zaczynają się od <SPAN CLASS=L>1</SPAN> (co oczywiście oznacza styczeń), natomiast <SPAN CLASS=T>DayOfWeek</SPAN> przyjmuje wartości <SPAN CLASS=L>0-6</SPAN>, gdzie <SPAN CLASS=L>0</SPAN> to niedziela, <SPAN CLASS=L>1</SPAN> poniedziałek itd.
+</P>
+<P>
+Chcesz sobie zmienić datę modyfikacji pliku nie ruszając zawartych w nim danych ani daty systemowej? Nie ma sprawy, pobaw się funkcją <SPAN CLASS=T>SetFileTime</SPAN> (składnia analogiczna do <SPAN CLASS=T>GetFileTime</SPAN>). Przykładów nie podaję, żeby pobudzić twoją kreatywność ;-).
+</P>
+
+<H2>
+3.3 Rozszerzone informacje
+</H2>
+
+<P>
+Jest taka jedna funkcja-gigant, pobierająca naraz informację o atrybutach pliku, wszystkich datach, rozmiarze i jeszcze kilku innych rzeczach. Zowie się toto <SPAN CLASS=T>GetFileInformationByHandle</SPAN>. Prawda, że niezły potworek? Składnia na szczęście jest bardzo prosta: pierwszy argument to uchwyt pliku, drugi - wskaźnik na strukturę typu, tu głęboki wdech, <SPAN CLASS=T>BY_HANDLE_FILE_INFORMATION</SPAN>. Składniki tej struktury to:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=K>typedef struct</SPAN> _BY_HANDLE_FILE_INFORMATION<BR>
+{<BR>
+&nbsp;DWORD&nbsp;&nbsp;&nbsp; dwFileAttributes;<BR>
+&nbsp;FILETIME ftCreationTime;<BR>
+&nbsp;FILETIME ftLastAccessTime;<BR>
+&nbsp;FILETIME ftLastWriteTime;<BR>
+&nbsp;DWORD&nbsp;&nbsp;&nbsp; dwVolumeSerialNumber;<BR>
+&nbsp;DWORD&nbsp;&nbsp;&nbsp; nFileSizeHigh;<BR>
+&nbsp;DWORD&nbsp;&nbsp;&nbsp; nFileSizeLow;<BR>
+&nbsp;DWORD&nbsp;&nbsp;&nbsp; nNumberOfLinks;<BR>
+&nbsp;DWORD&nbsp;&nbsp;&nbsp; nFileIndexHigh;<BR>
+&nbsp;DWORD&nbsp;&nbsp;&nbsp; nFileIndexLow;<BR>
+} BY_HANDLE_FILE_INFORMATION;<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Jak widać, oprócz wspomnianych rzeczy, możemy jeszcze uzyskać: numer seryjny woluminu, do którego przynależy nasz plik, liczbę skrótów, jakie się do niego odwołują oraz unikalną liczbę związaną z plikiem. Mało przydatne, ale fajne bajerki ;-).
+</P>
+
+<H3>
+3.4 Informacje o dysku
+</H3>
+
+<P>
+Przyda się jeszcze coś dla twórców wirusów :-). Najpierw dowiemy się, jak sprawdzić, jakie dyski są dostępne w komputerze. To z kolei rozpoczniemy od ustalenia, jakie literki-określenia dysków są w ogóle prawidłowe. Służy do tego funkcja <SPAN CLASS=T>GetLogicalDrives</SPAN>. Nie ma ona żadnych argumentów, a zwraca wartość typu <SPAN CLASS=T>DWORD</SPAN>, której kolejne bity wskazują, czy dana literka jest określeniem dysku (pierwszy bit - A, drugi - B itd.). Jeśli wartość zwrócona wynosi <SPAN CLASS=L>0</SPAN>, to, jak się domyślamy, nic dobrego ;-).
+</P>
+<P>
+Jeśli nie chce nam się grzebać w bitach, mamy alternatywę w postaci funkcji <SPAN CLASS=T>GetLogicalDriveStrings</SPAN>. Jeśli podamy jej rozmiar i adres bufora znaków, to ona wypełni go wszystkimi dostępnymi literkami dysków, porozdzielanymi przez znaki zerowe, a na końcu tej wyliczanki postawi podwójny znak zerowy. Oto jak wykorzystać taki buforek do wypisania wszystkich literek na ekranie (przykład wymaga włączenia konsoli w opcjach kompilatora):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;windows.h&gt;<BR>
+#include &lt;iostream.h&gt;<BR>
+#include &lt;stdlib.h&gt;</SPAN><BR>
+<BR>
+<SPAN CLASS=K>const</SPAN> WORD nBufferSize = <SPAN CLASS=L>40</SPAN>;<BR>
+LPSTR Bufor = (LPSTR)GlobalAlloc(GPTR, nBufferSize);<BR>
+WORD Wymagane, i=<SPAN CLASS=L>0</SPAN>, flaga=<SPAN class=L>0</SPAN>;<BR>
+<BR>
+Wymagane = GetLogicalDriveStrings(nBufferSize, Bufor);<BR>
+<SPAN CLASS=K>if</SPAN>(Wymagane &gt; nBufferSize)<BR>
+{<BR>
+&nbsp;cout << <SPAN CLASS=L>"Za maly bufor, potrzeba "</SPAN> << Wymagane << <SPAN CLASS=L>" bajtow."</SPAN> << endl;<BR>
+&nbsp;system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+&nbsp;<SPAN CLASS=K>return</SPAN> <SPAN CLASS=L>1</SPAN>;<BR>
+}<BR>
+cout << <SPAN CLASS=L>"Dostepne dyski:"</SPAN> << endl;<BR>
+<SPAN CLASS=K>do</SPAN><BR>
+{<BR>
+&nbsp;koniec = <span class=L>0</span>;<br>
+&nbsp;<SPAN CLASS=K>if</SPAN>(Bufor[i] != <SPAN CLASS=L>0</SPAN>) cout << Bufor[i];<BR>
+&nbsp;<SPAN CLASS=K>else</SPAN> { cout << endl; flaga=<span class=L>0</span>; } <BR>
+}<BR>
+<SPAN CLASS=K>while</SPAN>(Bufor[++i] != <SPAN CLASS=L>0</SPAN> || flaga);<BR>
+<BR>
+GlobalFree(Bufor);<BR>
+<BR>
+system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Skoro mamy już literkę danego dysku, możemy się jeszcze dowiedzieć, jakiego typu jest to dysk (stały, wymienny, CD-ROM, dysk sieciowy, RAM-dysk...). Załatwimy to funkcją <SPAN CLASS=T>GetDriveType</SPAN>. Ma ona tylko jeden argument, którym jest katalog główny naszego dysku, czyli właśnie literka, którą uzyskaliśmy w powyższym przykładzie z dwukropkiem na końcu, może też być jeszcze z beksleszem. <SPAN CLASS=T>GetDriveType</SPAN> zwraca jedną z następujących wartości:
+</P>
+
+<TABLE WIDTH=100%>
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Stała</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST>DRIVE_UNKNOWN</TD><TD CLASS=ARGLIST>Nie można określić typu dysku</TD></TR>
+<TR><TD CLASS=ARGLIST>DRIVE_NO_ROOT_DIR</TD><TD CLASS=ARGLIST>Podano błędny argument (taki katalog główny nie istnieje)</TD></TR>
+<TR><TD CLASS=ARGLIST>DRIVE_REMOVABLE</TD><TD CLASS=ARGLIST>Dysk wymienny</TD></TR>
+<TR><TD CLASS=ARGLIST>DRIVE_FIXED</TD><TD CLASS=ARGLIST>Dysk stały (zwykły twardy dysk)</TD></TR>
+<TR><TD CLASS=ARGLIST>DRIVE_REMOTE</TD><TD CLASS=ARGLIST>Dysk sieciowy</TD></TR>
+<TR><TD CLASS=ARGLIST>DRIVE_CDROM</TD><TD CLASS=ARGLIST>To ci dopiero zagadka ;-)</TD></TR>
+<TR><TD CLASS=ARGLIST>DRIVE_RAMDISK</TD><TD CLASS=ARGLIST>RAM-dysk</TD></TR>
+</TABLE>
+
+<P>
+Oczywiście stacje dyskietek podchodzą pod <SPAN CLASS=T>DRIVE_REMOVABLE</SPAN>, a nagrywarki - pod <SPAN CLASS=T>DRIVE_CDROM</SPAN>. 
+</P>
+<P>
+Sprawdźmy sobie jeszcze, ile mamy miejsca na dysku. Można to zrobić funkcją <SPAN CLASS=T>GetDiskFreeSpace</SPAN> lub <SPAN CLASS=T>GetDiskFreeSpaceEx</SPAN>. W bardzo starych Windowsach ta pierwsza może nawalić, jeśli zastosować ją do dysku większego niż 2 GB, ale na moim poczciwym 98 działa bez zarzutu. Składnia jest taka:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: BOOL GetDiskFreeSpace(<I>lpRootPathName, lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>lpRootPathName</I></TD><TD CLASS=ARGLIST>Katalog główny dysku (literka dysku, wraz z dwukropkiem i ewentualnie beksleszem)</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpSectorsPerCluster</I></TD><TD CLASS=ARGLIST>Adres zmiennej, do której funkcja zapisze liczbę sektorów w 1 klastrze</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpBytesPerSector</I></TD><TD CLASS=ARGLIST>Adres zmiennej, do której funkcja zapisze liczbę bajtów w 1 sektorze</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpNumberOfFreeClusters</I></TD><TD CLASS=ARGLIST>Adres zmiennej, do której funkcja zapisze liczbę wolnych klastrów</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpTotalNumberOfClusters</I></TD><TD CLASS=ARGLIST>Adres zmiennej, do której funkcja zapisze liczbę wszystkich klastrów na dysku</TD></TR>
+</TABLE> 
+
+<P>
+Pierwszy argument jest chyba oczywiste, cztery pozostałe to wskaźniki do 4 zmiennych typu <SPAN CLASS=T>DWORD</SPAN>, do których funkcja wpisze odpowiednie informacje. Po wywołaniu funkcji i ewentualnym sprawdzeniu, czy zwróciła <SPAN CLASS=K>true</SPAN>, możemy już skorzystać z wyników. Tylko po kiego diabła nam wiedzieć, ile klastrów ma nasz dysk? Chcemy bajty! Wiemy, ile sektorów przypada na 1 klaster, wiemy też, ile sektor ma bajtów, wreszcie wiemy, ile mamy wszystkich klastrów na dysku i ile z nich jest wolnych. Wystarczy więc pomnożyć odpowiednie zmienne i mamy, co chcieliśmy:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>#include &lt;windows.h&gt;<BR>
+#include &lt;iostream.h&gt;<BR>
+#include &lt;stdlib.h&gt;</SPAN><BR>
+<BR>
+DWORD Sektory, Bajty, Wolne, Klastry;<BR>
+<SPAN CLASS=K>if</SPAN>(GetDiskFreeSpace(<SPAN CLASS=L>"c:\"</SPAN>, &Sektory, &Bajty, &Wolne, &Klastry))<BR>
+{<BR>
+&nbsp;cout << <SPAN CLASS=L>"Dysk C: ma "</SPAN> << Sektory*Bajty*Klastry << <SPAN CLASS=L>" bajtow, z tego "</SPAN><BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; << Sektory*Bajty*Wolne << <SPAN CLASS=L>" wolnych."</SPAN> << endl;<BR>
+}<BR>
+<BR>
+system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Wspomniana funkcja <SPAN CLASS=T>GetDiskFreeSpaceEx</SPAN> jest trochę bardziej skomplikowana w użyciu, ponieważ wymaga Windowsa 95 w wersji <SPAN CLASS=Wazne>OSR 2</SPAN>, a więc trzeba przed jej wywołaniem sprawdzić wersję systemu, potem załadować bibliotekę kernel32.dll, następnie pobrać adres funkcji i dopiero wtedy ją wywołać. Szkoda tu miejsca na takie manewry, ale postaram się pokazać to przy innej okazji.
+</P>
+
+<H3>
+3.5 Kopiowanie, przenoszenie, usuwanie...
+</H3>
+
+<P>
+Teraz dla rozluźnienia pobawimy się w menedżera plików. Najpierw sprawdzimy, w jakim katalogu aktualnie jesteśmy. Funkcja <SPAN CLASS=T>GetCurrentDirectory</SPAN> wymaga podania bufora wraz z maksymalnym rozmiarem (tak jak <SPAN CLASS=T>GetLogicalDriveStrings</SPAN>):
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+<SPAN CLASS=C>
+#include &lt;windows.h&gt;<BR>
+#include &lt;iostream.h&gt;<BR>
+#include &lt;stdlib.h&gt;<BR>
+</SPAN>
+<BR>
+<SPAN CLASS=K>const</SPAN> WORD dl = <SPAN CLASS=L>255</SPAN>;<BR>
+LPSTR Bufor = (LPSTR)GlobalAlloc(GPTR, dl);<BR>
+<BR>
+GetCurrentDirectory(dl, Bufor);<BR>
+cout << <SPAN CLASS=L>"Jestesmy w "</SPAN> << Bufor << endl;<BR>
+<BR>
+GlobalFree(Bufor);<BR>
+system(<SPAN CLASS=L>"pause"</SPAN>);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+W podobny sposób działają funkcje <SPAN CLASS=T>GetWindowsDirectory</SPAN> oraz <SPAN CLASS=T>GetSystemDirectory</SPAN>, przeznaczenia których bez wątpienia sam się domyślasz.
+</P>
+<P>
+Kopiowaniem plików zajmuje się funkcja, jakże by inaczej, <SPAN CLASS=T>CopyFile</SPAN>. Argumenty to:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: BOOL CopyFile(<I>lpSrcFileName, lpDstFileName, bFailIfExists</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST><I>lpSrcFileName</I></TD><TD CLASS=ARGLIST>Nazwa pliku (może być ze ścieżką)</TD></TR>
+<TR><TD CLASS=ARGLIST><I>lpDstFileName</I></TD><TD CLASS=ARGLIST>Nazwa pliku, do którego kopiujemy (może zawierać inną ścieżkę, niż ścieżka do pliku żródłowego)</TD></TR>
+<TR><TD CLASS=ARGLIST><I>bFailIfExists</I></TD><TD CLASS=ARGLIST>Flaga określająca co robić, jeśli podany plik istnieje</TD></TR>
+</TABLE>
+ 
+<P>
+Pierwszych dwóch nie muszę chyba omawiać. Ostatni to flaga określająca, co robić w wypadku, gdy plik docelowy już istnieje. Jeśli w takim wypadku ustawione jest <SPAN CLASS=T>TRUE</SPAN>, to funkcja nawala (zwraca <SPAN CLASS=L>0</SPAN>), natomiast jeśli <SPAN CLASS=T>FALSE</SPAN>, to nadpisuje (niszczy) istniejący plik i zwraca wartość niezerową. 
+</P>
+<P>
+Przenoszenie lub zmiana nazwy plików to zadanie funkcji <SPAN CLASS=T>MoveFile</SPAN>. Ta ma tylko dwa argumenty, takie same, jak dwa pierwsze funkcji <SPAN CLASS=T>CopyFile</SPAN>. Ścieżka podana jako drugi argument NIE MOŻE istnieć w chwili wywołania funkcji. Możemy przenosić pliki na inny dysk, ale katalogi można przenosić tylko w obrębie tego samego dysku. Jeśli chcesz zastąpić istniejący plik, musisz użyć innej funkcji:
+</P>
+
+<TABLE BORDER WIDTH=100%>
+<TR><TD>
+MoveFileEx(Plik, PlikDoZastapienia, MOVEFILE_REPLACE_EXISTING);<BR>
+</TD></TR>
+</TABLE>
+
+<P>
+Kasowania plików mógłbyś się bez trudu domyślić sam - funkcja <SPAN CLASS=T>DeleteFile</SPAN>, jedyny argument to nazwa pliku do skasowania. Równie proste jest tworzenie katalogów (funkcja <SPAN CLASS=T>CreateDirectory</SPAN>, argumenty: nazwa, <SPAN CLASS=T>NULL</SPAN>) oraz ich usuwanie (<SPAN CLASS=T>RemoveDirectory</SPAN>, nazwa). Ta ostatnia usuwa jedynie puste katalogi, coś jak komenda rmdir w DOS-ie. Praca domowa - przećwiczyć samodzielnie ;-).
+</P>
+
+<H3>
+3.6 Wskaźnik pliku
+</H3>
+
+<P>
+Są dwa rodzaje dostępu do danych, w tym także danych w pliku: <SPAN CLASS=Wazne>sekwencyjny</SPAN> i <SPAN CLASS=Wazne>swobodny</SPAN>. Dostęp sekwencyjny oznacza, że musimy czytać wszystkie bajty pliku po kolei, aż dotrzemy do tego, który nas interesuje. Dostęp swobodny pozwala "przeskoczyć" zbędne bajty i odczytać od razu tę "właściwą" część pliku. Ułatwia nam to tzw. <SPAN CLASS=T>wskaźnik pliku</SPAN> (file pointer). Nie ma on nic wspólnego ze wskaźnikami C++, po prostu jest to numer bajtu, na którym zakończyliśmy czytanie lub zapis. Jeśli czytamy sekwencyjnie, nie musimy się o niego martwić. Jeśli chcemy przestawić wskaźnik pliku, używamy funkcji <SPAN CLASS=T>SetFilePointer</SPAN>:
+</P>
+
+<TABLE WIDTH=100%>
+<TR><TD CLASS=ARGLIST COLSPAN=2>
+<U>Składnia</U>: DWORD SetFilePointer(<I>hFile, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod</I>)
+</TD></TR>
+<TR><TH CLASS=ARGLIST>Argument</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST>hFile</TD><TD CLASS=ARGLIST>Uchwyt pliku</TD></TR>
+<TR><TD CLASS=ARGLIST>lDistanceToMove</TD><TD CLASS=ARGLIST>Liczba bajtów, o które chcemy przesunąć wskaźnik</TD></TR>
+<TR><TD CLASS=ARGLIST>lpDistanceToMoveHigh</TD><TD CLASS=ARGLIST>Adres górnego słowa dystansu, o który przesuwamy wskaźnik</TD></TR>
+<TR><TD CLASS=ARGLIST>dwMoveMethod</TD><TD CLASS=ARGLIST>Sposób w jaki przesuwamy wskaźnik (tj. względem czego to robimy)</TD></TR>
+</TABLE>
+ 
+<P>
+Argument <SPAN CLASS=T>lpDistanceToMoveHigh</SPAN> możemy sobie darować (tzn. ustawić na <SPAN CLASS=T>NULL</SPAN>), ale wtedy możemy operować na plikach mniejszych, niż jakieś 4 GB (patrz funkcja <SPAN CLASS=T>GetFileSize</SPAN> na górze tej części kursu). W przeciwnym wypadku argument ten wskazuje na dodatkową zmienną typu <SPAN CLASS=T>LONG</SPAN>, zawierającą resztę liczby (wtedy funkcja może sobie operować na plikach do <SPAN CLASS=L>18446744</SPAN> terabajtów (!)). Ostatni argument określa miejsce, względem którego liczymy bajty, o które przestawiamy wskaźnik. 
+</P>
+ 
+
+<TABLE WIDTH=100%>
+<TR><TH CLASS=ARGLIST>Stała</TH><TH CLASS=ARGLIST>Znaczenie</TH></TR>
+<TR><TD CLASS=ARGLIST>FILE_BEGIN</TD><TD CLASS=ARGLIST>Przesuwamy wskaźnik względem początku pliku (podana wartość DistanceToMove jest de facto nowym położeniem wskaźnika)</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_CURRENT</TD><TD CLASS=ARGLIST>Przesuwamy wskaźnik względem jego aktualnej pozycji</TD></TR>
+<TR><TD CLASS=ARGLIST>FILE_END</TD><TD CLASS=ARGLIST>Przesuwamy wskaźnik względem końca pliku</TD></TR>
+</TABLE>
+ 
+<P>
+Funkcja powinna zwrócić nową wartość wskaźnika, przy czym z oczywistych powodów tak naprawdę zwraca tylko podwójne słowo tej wartości (pierwszą połowę), co daje oczekiwany wynik tylko wtedy, kiedy ustawiliśmy <SPAN CLASS=T>lpDistanceToMoveHigh</SPAN> na <SPAN CLASS=T>NULL</SPAN>. Natomiast zwrócenie wartości <SPAN CLASS=L>0xFFFFFFFF</SPAN> (czyli maksymalnej wartości dla typu <SPAN CLASS=T>DWORD</SPAN>) oznacza błąd.
+</P>
+<P>
+Tyle o plikach, gdyby ktoś chciał wiedzieć coś więcej, może mejlować - w końcu trzeba trochę zapełniać dział FAQ, no nie?
+</P>
+
+<HR COLOR=GRAY WIDTH=90% SIZE=1>
+<TABLE ALIGN=CENTER>
+<TR>
+<TD CLASS=TDN>
+<A HREF="apievnt.html"><< Poprzednia część kursu</A> &nbsp;
+<A HREF="../index.html" TARGET="_top">Strona główna</A> &nbsp;
+<A HREF="../winapi.html">Spis</A> &nbsp;
+<A HREF="apigraf.html">Następna część kursu >></A>
+</TD>
+</TR>
+</TABLE>

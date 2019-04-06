@@ -1,0 +1,258 @@
+<HTML
+><HEAD
+><TITLE
+>ARP</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"><LINK
+REL="HOME"
+TITLE="Linux Advanced Routing &#38; Traffic Control HOWTO"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Introduction to iproute2"
+HREF="lartc.iproute2.html"><LINK
+REL="PREVIOUS"
+TITLE="Exploring your current configuration"
+HREF="lartc.iproute2.explore.html"><LINK
+REL="NEXT"
+TITLE="Rules - routing policy database"
+HREF="lartc.rpdb.html"></HEAD
+><BODY
+CLASS="SECT1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>Linux Advanced Routing &#38; Traffic Control HOWTO</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="lartc.iproute2.explore.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 3. Introduction to iproute2</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="lartc.rpdb.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="LARTC.IPROUTE2.ARP"
+></A
+>3.5. ARP</H1
+><P
+>ARP is the Address Resolution Protocol as described in
+<A
+HREF="http://www.faqs.org/rfcs/rfc826.html"
+TARGET="_top"
+>RFC 826</A
+>.
+ARP is used by a networked machine to resolve the hardware location/address of
+another machine on the same
+local network.  Machines on the Internet are generally known by their names
+which resolve to IP
+addresses.  This is how a machine on the foo.com network is able to communicate
+with another machine which is on the bar.net network.  An IP address, though,
+cannot tell you the physical location of a machine.  This is where ARP comes
+into the picture.</P
+><P
+>Let's take a very simple example.  Suppose I have a network composed of several
+machines.  Two of the machines which are currently on my network are foo
+with an IP address of 10.0.0.1 and bar with an IP address of 10.0.0.2.
+Now foo wants to ping bar to see that he is alive, but alas, foo has no idea
+where bar is.  So when foo decides to ping bar he will need to send
+out an ARP request.
+This ARP request is akin to foo shouting out on the network "Bar (10.0.0.2)!
+Where are you?"  As a result of this every machine on the network will hear
+foo shouting, but only bar (10.0.0.2) will respond.  Bar will then send an
+ARP reply directly back to foo which is akin
+bar saying,
+"Foo (10.0.0.1) I am here at 00:60:94:E9:08:12."  After this simple transaction
+that's used to locate his friend on the network, foo is able to communicate
+with bar until he (his arp cache) forgets where bar is (typically after
+15 minutes on Unix).</P
+><P
+>Now let's see how this works.
+You can view your machines current arp/neighbor cache/table like so:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[root@espa041 /home/src/iputils]# ip neigh show
+9.3.76.42 dev eth0 lladdr 00:60:08:3f:e9:f9 nud reachable
+9.3.76.1 dev eth0 lladdr 00:06:29:21:73:c8 nud reachable</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>As you can see my machine espa041 (9.3.76.41) knows where to find espa042 
+(9.3.76.42) and
+espagate (9.3.76.1).  Now let's add another machine to the arp cache.</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[root@espa041 /home/paulsch/.gnome-desktop]# ping -c 1 espa043
+PING espa043.austin.ibm.com (9.3.76.43) from 9.3.76.41 : 56(84) bytes of data.
+64 bytes from 9.3.76.43: icmp_seq=0 ttl=255 time=0.9 ms
+
+--- espa043.austin.ibm.com ping statistics ---
+1 packets transmitted, 1 packets received, 0% packet loss
+round-trip min/avg/max = 0.9/0.9/0.9 ms
+
+[root@espa041 /home/src/iputils]# ip neigh show
+9.3.76.43 dev eth0 lladdr 00:06:29:21:80:20 nud reachable
+9.3.76.42 dev eth0 lladdr 00:60:08:3f:e9:f9 nud reachable
+9.3.76.1 dev eth0 lladdr 00:06:29:21:73:c8 nud reachable</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>As a result of espa041 trying to contact espa043, espa043's hardware
+address/location has now been added to the arp/neighbor cache.
+So until the entry for
+espa043 times out (as a result of no communication between the two) espa041
+knows where to find espa043 and has no need to send an ARP request.</P
+><P
+>Now let's delete espa043 from our arp cache:</P
+><TABLE
+BORDER="1"
+BGCOLOR="#E0E0E0"
+WIDTH="100%"
+><TR
+><TD
+><FONT
+COLOR="#000000"
+><PRE
+CLASS="SCREEN"
+>[root@espa041 /home/src/iputils]# ip neigh delete 9.3.76.43 dev eth0
+[root@espa041 /home/src/iputils]# ip neigh show
+9.3.76.43 dev eth0  nud failed
+9.3.76.42 dev eth0 lladdr 00:60:08:3f:e9:f9 nud reachable
+9.3.76.1 dev eth0 lladdr 00:06:29:21:73:c8 nud stale</PRE
+></FONT
+></TD
+></TR
+></TABLE
+><P
+>Now espa041 has again forgotten where to find espa043 and will need to send
+another ARP request the next time he needs to communicate with espa043.
+You can also see from the above output that espagate (9.3.76.1) has been
+changed to the "stale" state.  This means that the location shown is still
+valid, but it will have to be confirmed at the first transaction to that
+machine.</P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="lartc.iproute2.explore.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="lartc.rpdb.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Exploring your current configuration</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="lartc.iproute2.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Rules - routing policy database</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>
