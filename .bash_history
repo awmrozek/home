@@ -482,3 +482,12 @@ git push origin master
 cd .ssh/
 ls
 vim authorized_keys 
+git add system/
+file Windows/
+vim .gitignore 
+git add .
+git commit -m "add system private public key"
+git pull 
+git pull origin master
+git push
+git push --set-upstream origin master
