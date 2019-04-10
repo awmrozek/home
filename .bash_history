@@ -438,3 +438,47 @@ git clone git@84.55.119.97:/p1.git
 git clone git@84.55.119.97:/git/p1.git
 git clone git@84.55.119.97:/git/p1
 git clone git@84.55.119.97:/p1.git
+cd
+git pull --rebase
+git reset --hard
+git pull --rebase
+git status
+vim .gitignore 
+git status
+vim .gitignore 
+vim .gitignore 
+git status
+vim .gitignore 
+git add .gitignore 
+vim .gitignore 
+git pull --rebase
+git statsu
+git status
+git add frac.c 
+git add segfout.txt 
+git add simple.c 
+git add .gitignore 
+git status
+vim .gitignore 
+vim .gitignore 
+vim .gitignore 
+git status
+git add .gitignore 
+git commit -m "gitignore and frac.c"
+git pull --rebase
+git status
+git ignore .mozilla/*
+git status
+git add .
+git commit
+git push
+git push --set-upstream origin master
+git pull --rebase
+git pull
+git pull origin master
+git add .
+git commit -m "gitfight3"
+git push origin master
+cd .ssh/
+ls
+vim authorized_keys 
