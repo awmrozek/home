@@ -1,3 +1,5 @@
+.LOG
+
 /****************************************************************************** * * Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved. * * Permission is hereby granted, free of charge, to any person obtaining a copy * 
 of this software and associated documentation files (the "Software"), to deal * in the Software without restriction, including without limitation the rights * to use, copy, modify, merge, publish, distribute, sublicense, and/or 
 sell * copies of the Software, and to permit persons to whom the Software is * furnished to do so, subject to the following conditions: * * The above copyright notice and this permission notice shall be included in * all copies 
@@ -88,3 +90,340 @@ int main(void){
 
 
 // awesome fastest gcd everr!!
+
+
+
+/******************************************************************************
+*
+* Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* Use of the Software is limited solely to applications:
+* (a) running on a Xilinx device, or
+* (b) that interact with a Xilinx device through a bus or interconnect.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+* XILINX  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*
+* Except as contained in this notice, the name of the Xilinx shall not be used
+* in advertising or otherwise to promote the sale, use or other dealings in
+* this Software without prior written authorization from Xilinx.
+*
+******************************************************************************/
+
+/*
+ * helloworld.c: simple test application
+ *
+ * This application configures UART 16550 to baud rate 9600.
+ * PS7 UART (Zynq) is not initialized by this application, since
+ * bootrom/bsp configures it to baud rate 115200
+ *
+ * ------------------------------------------------
+ * | UART TYPE   BAUD RATE                        |
+ * ------------------------------------------------
+ *   uartns550   9600
+ *   uartlite    Configurable only in HW design
+ *   ps7_uart    115200 (configured by bootrom/bsp)
+ */
+
+#include <stdio.h>
+#include "platform.h"
+#include "xil_printf.h"
+
+
+#include <mb_interface.h>
+
+typedef unsigned int ui;
+
+// begin queue
+
+#define MAXQ 100
+int pk = 0, kk = 0;
+int mqueue[MAXQ];
+
+unsigned getnum() {
+	char srb=0;
+	unsigned num=0;
+
+	// skip non digits
+	while(srb < '0' || srb > '9') srb=XUartLite_RecvByte(STDIN_BASEADDRESS);
+
+	// read all digits
+	while(srb >= '0' && srb <= '9') {
+		num=num*10+(srb-'0');
+		srb=XUartLite_RecvByte(STDIN_BASEADDRESS);
+	};
+	return num;
+}
+
+
+void push(ui e) {
+        mqueue[kk++%MAXQ] = e;
+}
+
+ui pop () {
+        return mqueue[pk++%MAXQ];
+}
+
+char isempty() {
+        return pk == kk;
+}
+
+int qlen() {
+        return kk - pk;
+}
+
+void printq() {
+        xil_printf("Queue:\n");
+        xil_printf("Queue len: %d\n", qlen());
+        for (int i = pk; i < kk; i++) {
+                xil_printf("%d ", mqueue[i]);
+        }
+        xil_printf("End of queue\n");
+}
+// end quuee
+//
+ui gcd2 (ui a, ui b) {
+        while (a != b) {
+                if (b > a)
+                        b -= a;
+                else
+                        a -= b;
+        }
+
+        return a;
+}
+
+int fillArray(const ui length){
+        for(ui i = 0; i < length; i++){
+                push(getnum());
+        }
+        return 0;
+}
+
+int main(void){
+		xil_printf("GCD fastest program in the world(tm)\n v. 0.0.1");
+        //const int BSZ = 0x100;
+        ui length = getnum();
+        ui buffer[length];
+        ui mySol;
+
+        fillArray(length);
+
+        while (qlen() != 1) {
+        	printq();
+            int a = pop();
+            int b = pop();
+            int res = gcd2(a, b);
+            push(res);
+        }
+
+        xil_printf("Result is: %d\n", pop());
+}
+
+15:00 2019-04-29
+Main core program:
+
+#include <stdio.h>
+#include "platform.h"
+#include "xil_printf.h"
+#include <mb_interface.h>
+
+unsigned getnum() {
+	char srb=0;
+	unsigned num=0;
+
+	// skip non digits
+	while(srb < '0' || srb > '9') srb=XUartLite_RecvByte(STDIN_BASEADDRESS);
+
+	// read all digits
+	while(srb >= '0' && srb <= '9') {
+		num=num*10+(srb-'0');
+		srb=XUartLite_RecvByte(STDIN_BASEADDRESS);
+	};
+	return num;
+}
+
+// begin queue
+
+typedef unsigned int ui;
+
+#define MAXQ 100
+int pk = 0, kk = 0;
+int mqueue[MAXQ];
+
+void push(ui e) {
+        mqueue[kk++%MAXQ] = e;
+}
+
+ui pop () {
+        return mqueue[pk++%MAXQ];
+}
+
+char isempty() {
+        return pk == kk;
+}
+
+int qlen() {
+        return kk - pk;
+}
+
+void printq() {
+        xil_printf("Queue:\n");
+        xil_printf("Queue len: %d\n", qlen());
+        for (int i = pk; i < kk; i++) {
+                xil_printf("%d ", mqueue[i]);
+        }
+        xil_printf("End of queue\n");
+}
+// end quuee
+//
+ui gcd2 (ui a, ui b) {
+        while (a != b) {
+                if (b > a)
+                        b -= a;
+                else
+                        a -= b;
+        }
+
+        return a;
+}
+
+int fillArray(const ui length){
+        for(ui i = 0; i < length; i++){
+                push(getnum());
+        }
+        return 0;
+}
+
+void communicate(int expectedReceive) {
+	putfsl (expectedReceive, 0);
+	for (int i = 0; i < expectedReceive; i++) {
+		int rcvd = pop();
+		putfsl(rcvd, 0);
+
+		push(rcvd);
+	}
+}
+
+int main(void){
+		xil_printf("GCD fastest program in the world(tm)\n v. 0.0.1");
+        //const int BSZ = 0x100;
+        ui length = getnum();
+        ui buffer[length];
+        ui mySol;
+
+        fillArray(length);
+
+        int expectedReceive = qlen() / 2;
+        communicate(expectedReceive);
+
+        while (qlen() != 1) {
+        	printq();
+            int a = pop();
+            int b = pop();
+            int res = gcd2(a, b);
+            push(res);
+        }
+
+        int aux_core_res;
+        getfsl(aux_core_res, 0);
+
+        xil_printf("Result of upper half is: %d\n", pop());
+        xil_printf("Aux core returned: %d\n", aux_core_res);
+}
+
+Auxillary core program:
+
+#include <stdio.h>
+#include "platform.h"
+#include "xil_printf.h"
+#include <mb_interface.h>
+
+// begin queue
+#define MAXQ 100
+int pk = 0, kk = 0;
+int mqueue[MAXQ];
+
+typedef unsigned int ui;
+
+void push(ui e) {
+        mqueue[kk++%MAXQ] = e;
+}
+
+ui pop () {
+        return mqueue[pk++%MAXQ];
+}
+
+char isempty() {
+        return pk == kk;
+}
+
+int qlen() {
+        return kk - pk;
+}
+
+void printq() {
+        xil_printf("Queue:\n");
+        xil_printf("Queue len: %d\n", qlen());
+        for (int i = pk; i < kk; i++) {
+                xil_printf("%d ", mqueue[i]);
+        }
+        xil_printf("End of queue\n");
+}
+// end quuee
+
+
+ui gcd2 (ui a, ui b) {
+    while (a != b) {
+        if (b > a)
+            b -= a;
+        else
+            a -= b;
+    }
+	return a;
+}
+
+// Global definitions for communications
+int expectedReceive;
+
+void communicate() {
+	getfsl (expectedReceive, 0);
+	for (int i = 0; i < expectedReceive; i++) {
+		int rcvd;
+		getfsl(rcvd, 0);
+
+		push(rcvd);
+	}
+}
+
+int main(void){
+	communicate();
+	while (qlen() != 1) {
+		printq();
+	    int a = pop();
+	    int b = pop();
+	    int res = gcd2(a, b);
+	    push(res);
+	}
+
+	// send to main_cpu
+	putfsl(pop(), 0);
+}
+
+
+Wrong answer on 2 1 3.
