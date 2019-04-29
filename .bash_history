@@ -1,48 +1,3 @@
-./a.out 
-./a.out 
-cc check.c
-cc check.c
-./a.out 
-./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-ls -lart
-vim check.c 
-cc check.c && ./a.out 
 cc check.c && ./a.out 
 cc check.c && ./a.out 
 cc check.c && ./a.out 
@@ -498,3 +453,48 @@ vim small.c
 vim simple.c 
 ls -lart
 vim small.c 
+git add .
+git commit -m "working gcd unicprocessor c queue"
+git push
+cd Downloads/
+ls -lart
+unzip labb1Matlabprogram.zip 
+mkdir ~/ko1/
+mv *m ~/ko1
+cd
+cd ko1
+ls -alrt
+mv whothebloodisfor.webm ..
+ls -alrt
+cat > ko1.m
+cd ko1
+l
+ls
+matlab
+cd git/
+git clone git clone git@bitbucket.org:dat14amr/a2.git
+git clone git@bitbucket.org:dat14amr/a2.git
+SSH key pair and known host information
+git clone https://dat14amr@bitbucket.org/dat14amr/a2.git
+ls -lart
+cd a2/
+ls -lart
+find . | grep -i signal
+find . | grep -i cor
+find . | grep -i corr
+cd ..
+git clone https://dat14amr@bitbucket.org/dat14amr/a2.git
+git clone https://dat14amr@bitbucket.org/dat14amr/dsp.git
+ls -lart
+cd dsp/
+l
+ls
+less README.md 
+python menu.py
+python menu.py
+ssh amr@84.55.119.97
+cd git/
+ls
+cd a3/
+ls
+cd ..
