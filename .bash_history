@@ -1,124 +1,3 @@
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-ls -lart
-diff check.c check.orig 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out  | less
-cc check.c && ./a.out  | less
-cc check.c && ./a.out  | less
-cc check.c && ./a.out  | less
-cc check.c && ./a.out  | less
-cc check.c && ./a.out  | less
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out 
-cc check.c && ./a.out | less
-cc check.c && ./a.out | less
-cc check.c && ./a.out | less
-cc check.c && ./a.out | less
-cc check.c && ./a.out | less
-ls -alrt
-vim check.c 
-lpr check.c 
-lpq
-vim check.c 
-scp check.c amr@84.55.119.97:
-ls -alrt
-ssh power.cs.lth.se
-ssh power.cs.lth.se
-ssh dat14amr@power.cs.lth.se
-git clone https://dat14amr@bitbucket.org/dat14amr/edaf15.git
-ls -alrt
-git clone https://gitlab.com/StefanEJonsson/edaf15.git
-ls -alrt
-cd edaf15/
-ls -alrt
-ls
-cd simple/
-ls
-make
-ls --color=auto
-ls
-vim ~/.bashrc
-vim ~/.bashrc
-chmod +x ~/.bashrc 
-source ~/.bashrc 
-ls
-ls -lar
-make
-./fm 
-screen
-scp -r amr@84.55.119.97:.screenrc ~
-screen
-cd .ssh/
-cat id_rsa.pub 
-ssh -T git@gitlab.com
-scp project_4.* amr@84.55.119.97:
-rm project_4.*
-cd .ssh/
-ls
-vim authorized_keys 
-ls -alrt
-vim makefile 
-ls -alrt
-cd ..
-git pull
-git status
-git pull --rebase
-cd
-ssh-keygen -o -t rsa -b 4096 -C "dat14amr@student.lu.se@
-ssh-keygen -o -t rsa -b 4096 -C "dat14amr@student.lu.se"
-cat .ssh/id_rsa.pub 
-cd
-cd edaf15/
-git pull
-ls
-cd
-rm -rf edaf15/
-git clone git@gitlab.com:StefanEJonsson/edaf15.git
-cd edaf15/
-git pull
-git pull
-vim simple/simple.c 
-ls .ssh/
-vim .gitignore 
-cd
-ls -lart
 git commit -m "Initial commit"
 git push origin master
 mkdir MatLAB
@@ -498,3 +377,124 @@ ls
 cd a3/
 ls
 cd ..
+cd project_4/
+cd project_4.sdk/.metadata/.plugins/org.eclipse.core.resources/.history/
+ls
+cd 1
+ls
+cd ..
+ls -R
+find . -exec cat {}\;
+find . -exec cat {} \;
+find . -exec cat {} \; | less
+ls -lart
+git pull --rebase
+git status
+vim .gitignore 
+vim .gitignore 
+vim .gitignore 
+git status
+vim .gitignore 
+git status
+vim .gitignore 
+git status
+rm upstart-udev-bridge.*
+rm matlab_crash_dump.718-1 
+mv whothebloodisfor.webm Pictures/
+vim .git
+vim .gitignore 
+vim .git
+git status
+git add Documents/ Pictures/ kol*
+git add Documents/ Pictures/ ko1
+git add Documents/ Pictures/ ko1.m
+git status
+git pull --rebase
+git commit -m "Creted ko1 direct"
+git pull --rebase
+vim .gitignore 
+git statis
+git status
+git add .
+git commit -m "added hidden directories as git wishes"
+git pull --rebase
+git status
+ls *7z
+df -h
+mkdir tmp
+man unzip
+unzip project_4.zip -d tmp/
+cd tmp/
+ls
+find . -iname "
+find . -iname "*.C"
+find . -iname "*.C" |less
+find . -iname "*.C" |head -n 1
+vim `find . -iname "*.C" |head -n 1`
+find . | grep -i gcd
+cd ..
+rm -rf tmp/*
+git log
+git diff fe308c7ed
+git checkout fe308c7ed
+vim .gitignore 
+vim .git/info/exclude
+cd
+git add .gitignore 
+gnore
+git add .gitignore 
+ls -lart
+ls -alrt
+man 7z
+7z
+p7zip 
+man p7zip
+p7zip -d project_4.7z tmp/
+p7zip -d project_4.7z 
+rm -rf tmp
+cd project_4/
+ls -lart
+grep -rin putfsl *
+cd project_4.sdk/
+ls
+grep -rin putfsl * |less
+cd ..
+find . -iname core1
+cd project_4.sdk/core
+ls
+cd project_4.sdk/core1
+ls
+cd src/
+ls
+grep pop *
+ls
+vim helloworld.c 
+ls -lart
+cd ..
+cd ..
+cd ..
+grep -rin putfsl * |less
+vf ..
+cd ..
+rm -rf project_4
+rm -rf project_4
+ls -lart
+mcedit
+nano allwewrote.txt
+git add allwewrote.txt w
+git add allwewrote.txt 
+git commit -m "Created allwewrote.txt where we keep all we produced ourselvesss"
+git status
+git checkout project_4.7z
+git add Pictures/panther.PNG 
+git status
+git ignore .bash_history
+git push origin master
+git add allwewrote.txt 
+git commit -m "core communication not yet working"
+git push origin master
+ls -alr
+ls *m
+cd Downloads/
+ls
+ls *zip
