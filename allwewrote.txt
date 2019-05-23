@@ -664,3 +664,102 @@ begin
 end process;
 
 end slow_arch;
+
+11:07 2019-05-22
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity user_logic is
+    Port ( clk : in STD_LOGIC;
+            rstN : in STD_LOGIC;
+            wren : in STD_LOGIC;
+            waddr : in STD_LOGIC_VECTOR (1 downto 0);
+            wdata : in STD_LOGIC_VECTOR (31 downto 0);
+            rden : in STD_LOGIC;
+            raddr : in STD_LOGIC_VECTOR (1 downto 0);
+            rdata : out STD_LOGIC_VECTOR (31 downto 0);
+            busy : out STD_LOGIC);
+end user_logic;
+
+architecture slow_arch of user_logic is
+    type state_type is (idle, start, sub, schwift);
+    signal state_reg, state_next: state_type;
+    signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+    signal gcd_current : unsigned(31 downto 0);
+	signal gcd_next : unsigned(31 downto 0);
+begin
+     -- state & data registers
+    process(clk)
+    begin
+    if rstN='0' then
+        state_reg <= idle;
+        b_reg <= "00000000000000000000000000000000";
+        a_reg <= "00000000000000000000000000000000";
+		gcd_current <= "10000000000000000000000000000000";
+    elsif (clk'event and clk='1') then
+		state_reg <= state_next;
+		
+		a_reg <= a_next;
+		b_reg <= b_next;
+    end if;
+end process;
+
+process(state_reg, wren, a_reg, b_reg, wdata, clk)
+begin
+	case state_reg is
+	when idle =>
+		if wren = '1' then
+			state_next <= start;
+			a_next <= unsigned(wdata);
+			--b_next <= gcd_current;
+			
+			if a_reg = b_reg and b_reg = "00000000000000000000000000000000" then
+				-- after reset b_next undefined. Lets fix it.
+				b_next <= unsigned(wdata);
+			end if;
+		end if;
+		
+		busy <= '0';
+		rdata <= std_logic_vector(a_reg);
+	when start =>
+		if (a_reg = b_reg) then
+			state_next <= idle;
+		else
+			state_next <= schwift;
+		end if;
+		
+		busy <= '1';
+	when schwift =>
+		if a_reg = b_reg then
+			state_next <= idle;
+		else
+			if a_reg < b_reg then
+				a_next <= b_reg;
+				b_next <= a_reg;
+			else
+				a_next <= a_reg;
+				b_next <= b_reg;
+			end if;
+			state_next <= sub;
+			busy <= '1';
+		end if;
+	
+	when sub =>
+		if a_reg = b_reg then
+			state_next <= idle;
+			gcd_next <= a_reg;
+		else
+			a_next <= a_reg - b_reg;
+			b_next <= b_reg;
+			state_next <= schwift;
+		end if;
+		
+		rdata <= std_logic_vector(a_reg);
+		busy <= '1';
+	end case;
+end process;
+
+end slow_arch;

@@ -1,24 +1,3 @@
-git status
-git add Documents/ Pictures/ kol*
-git add Documents/ Pictures/ ko1
-git add Documents/ Pictures/ ko1.m
-git status
-git pull --rebase
-git commit -m "Creted ko1 direct"
-git pull --rebase
-vim .gitignore 
-git statis
-git status
-git add .
-git commit -m "added hidden directories as git wishes"
-git pull --rebase
-git status
-ls *7z
-df -h
-mkdir tmp
-man unzip
-unzip project_4.zip -d tmp/
-cd tmp/
 ls
 find . -iname "
 find . -iname "*.C"
@@ -498,3 +477,24 @@ matlab
 cat > source.vhd
 vim source.vhd 
 texmaker
+screen -x
+screen
+git add .
+echo $JAVA_HMOE
+echo $JAVA_HOME
+ssh -XC dat14amr@power.cs.lth.se
+ls -lart
+cd git/
+ls
+cd edaf15/
+ls
+git pull
+git pull
+ls -alrt
+vim .bashrc 
+ssh dat14amr@power.cs.lth.se
+ssh dat14amr@power.cs.lth.se
+ssh dat14amr@power.cs.lth.se
+ssh dat14amr@power.cs.lth.se -XC
+ssh dat14amr@power.cs.lth.se -XC
+ssh dat14amr@power.cs.lth.se
