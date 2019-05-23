@@ -1,409 +1,3 @@
-git commit -m "Initial commit"
-git push origin master
-mkdir MatLAB
-mv *m MatLAB/
-git add .
-git commit -m "Moved matlab to MATLABBBBB"
-git push origin master
-vim .gitignore 
-git push origin master
-git push origin master
-git add .
-git push origin master
-git pull --rebase
-git commit -m "Moved matlab to MATLABBBBB"
-git push origin master
-git pull --rebase
-git branch
-git pulll remote master
-git pull remote master
-git pull  master
-git pull --rebase
-git pull
-git reset --hard
-git pull
-git status
-git commit -a
-git add edaf15/
-git pull
-git pull origin master
-git pull origin master
-git push origin master
-mkdir change
-git add .
-git commit -m "Testing change in maindir"
-git pull
-git pull origin master
-git push origin master
-mv Assignment7/ MatLAB/
-cd git/
-ls
-ls
-cd ..
-ls
-cd edaf15/
-ls
-ls +lart
-ls -lart
-cd ..
-mv edaf15/ git/
-cd git/
-ls -lart
-cd ..
-git add .
-git commit -m "Removed edaf15 from maindir, moved to git"
-git pull && git push origin master
-git pull
-git push origin master
-ssh amr@84.55.119.97
-ssh amr@84.55.119.97
-du -h
-git clone 
-820K    ./.cache/wallpaper
-git clone git@github.com:awmrozek/home.git
-cat .ssh/id_rsa.pub 
-mkdir git
-vim .gitignore
-git clone git@github.com:awmrozek/home.git
-cd home
-ls
-cd ..
-rm -r home/
-rm -rf home
-git clone git@github.com:awmrozek/home.git .
-git init
-git remote add origin git@github.com:awmrozek/home.git
-git pull origin master
-vim .gitignore 
-git add .
-screen -x
-screen
-ssh-keygen -t rsa
-cd .ssh/
-ls
-cat id_rsa.pub 
-cd
-cd git/
-ls
-mkdir a3
-cd a3/
-git init
-git add remote origin git@84.55.119.97:gita3/
-git add remote origin git@84.55.119.97:gita3/
-git add remote git@84.55.119.97:gita3/
-git add origin git@84.55.119.97:gita3/
-git remote origin git@84.55.119.97:gita3/
-git remote add git@84.55.119.97:gita3/
-git clone git@84.55.119.97:/p1.git
-git clone git@84.55.119.97:/git/p1.git
-git clone git@84.55.119.97:/git/p1
-git clone git@84.55.119.97:/p1.git
-cd
-git pull --rebase
-git reset --hard
-git pull --rebase
-git status
-vim .gitignore 
-git status
-vim .gitignore 
-vim .gitignore 
-git status
-vim .gitignore 
-git add .gitignore 
-vim .gitignore 
-git pull --rebase
-git statsu
-git status
-git add frac.c 
-git add segfout.txt 
-git add simple.c 
-git add .gitignore 
-git status
-vim .gitignore 
-vim .gitignore 
-vim .gitignore 
-git status
-git add .gitignore 
-git commit -m "gitignore and frac.c"
-git pull --rebase
-git status
-git ignore .mozilla/*
-git status
-git add .
-git commit
-git push
-git push --set-upstream origin master
-git pull --rebase
-git pull
-git pull origin master
-git add .
-git commit -m "gitfight3"
-git push origin master
-cd .ssh/
-ls
-vim authorized_keys 
-git add system/
-file Windows/
-vim .gitignore 
-git add .
-git commit -m "add system private public key"
-git pull 
-git pull origin master
-git push
-git push --set-upstream origin master
-git add .
-git commit -m "Pingpong on multicore"
-git push
-cd
-git pull origin master
-cd git/
-ls
-cd edaf15/
-ls
-cd simple/
-make
-make
-cd ..
-ls -lart
-cd small/
-ls -lart
-cat small.c 
-cd ..c
-cd ..
-cd fast/
-ls
-vim fast.c
-cd ..
-cd simple/
-ls -lart
-make
-make
-make
-cd ..
-git reset --hard
-git pull origin master
-git pull origin master
-cd simple/
-make
-chmod +x bench.sh 
-./bench.sh 
-./bench.sh 
-size fm
-expr 1 + 2
-cd ..
-cd small/
-ls
-make
-ls -lart
-cat stats.csv 
-cd git/
-ls -alrt
-cd edaf15/
-ls -alrt
-cd fast/
-make
-cd ..
-git pull
-git stash
-git pull
-git rm fast/fm 
-git rm fast/fm 
-file fast/note 
-cat fast/note 
-vim .gitignore
-git pull origin master
-git add .gitignore 
-vim .gitignore 
-cat small/note 
-git pull
-ls -lart
-cd fast/
-make
-atom fast.c 
-cd ..
-cd simple/
-atom simple.c 
-ls -lart
-vim simple.c 
-ls -lart
-make
-cd ..
-cd simple/
-ls
-make
-ls -lar
-vim simple.c 
-ls -lart
-make
-ls -lart
-vim simple.c 
-vim makefile 
-vim bench.py
-vim bench.sh
-./bench.sh 
-cat stats.csv 
-vim makefile 
-git add makefile 
-git add bench.sh 
-git commit -m "Simple supports automatic tracking of fm size"
-git push origin master
-cd ..
-git pull --rebase
-git status
-git pull
-git commit -m "Simple supports automatic tracking of fm size"
-git push
-cd small/
-ls
-cp ../simple/bench.sh .
-vim makefile 
-git add makefile 
-git add bench.sh 
-git commit -m "Small supports tracking of filesize"
-git push
-make
-ls -lart
-git pull 
-git pull --rebase
-git status
-vim .gitignore
-git status
-git status
-git status
-vim .gitignore 
-rm .gitignore 
-cd ..
-vim .gitignore 
-git status
-git add .gitignore 
-git status
-git status
-cd simple/
-git checkout -- error.o fm main.o malloc.o note simple.c fm 
-cd. .c
-cd ..
-cd small/
-git checkout -- fm note
-cd ..
-git status
-git commit -m "Small supports output file size measurement"
-git push orign master
-git push
-ls -lart
-cd small/
-ls
-vim small.c 
-make
-cd ..
-git pull
-vim .gitignore 
-git pull
-git stash
-git pull
-ls -lart
-cd small/
-ls
-vim small.c 
-cd ..
-ls -lart
-git pull
-cd small/
-ls
-make
-vim small.c 
-make
-make
-make
-make
-ls -lart
-vim small.c 
-make
-vim makefile 
-make
-make
-vim makefile 
-make
-vim makefile 
-make
-vim makefile 
-make
-ls -lart
-vim small.c 
-vim simple.c 
-ls -lart
-vim small.c 
-git add .
-git commit -m "working gcd unicprocessor c queue"
-git push
-cd Downloads/
-ls -lart
-unzip labb1Matlabprogram.zip 
-mkdir ~/ko1/
-mv *m ~/ko1
-cd
-cd ko1
-ls -alrt
-mv whothebloodisfor.webm ..
-ls -alrt
-cat > ko1.m
-cd ko1
-l
-ls
-matlab
-cd git/
-git clone git clone git@bitbucket.org:dat14amr/a2.git
-git clone git@bitbucket.org:dat14amr/a2.git
-SSH key pair and known host information
-git clone https://dat14amr@bitbucket.org/dat14amr/a2.git
-ls -lart
-cd a2/
-ls -lart
-find . | grep -i signal
-find . | grep -i cor
-find . | grep -i corr
-cd ..
-git clone https://dat14amr@bitbucket.org/dat14amr/a2.git
-git clone https://dat14amr@bitbucket.org/dat14amr/dsp.git
-ls -lart
-cd dsp/
-l
-ls
-less README.md 
-python menu.py
-python menu.py
-ssh amr@84.55.119.97
-cd git/
-ls
-cd a3/
-ls
-cd ..
-cd project_4/
-cd project_4.sdk/.metadata/.plugins/org.eclipse.core.resources/.history/
-ls
-cd 1
-ls
-cd ..
-ls -R
-find . -exec cat {}\;
-find . -exec cat {} \;
-find . -exec cat {} \; | less
-ls -lart
-git pull --rebase
-git status
-vim .gitignore 
-vim .gitignore 
-vim .gitignore 
-git status
-vim .gitignore 
-git status
-vim .gitignore 
-git status
-rm upstart-udev-bridge.*
-rm matlab_crash_dump.718-1 
-mv whothebloodisfor.webm Pictures/
-vim .git
-vim .gitignore 
-vim .git
 git status
 git add Documents/ Pictures/ kol*
 git add Documents/ Pictures/ ko1
@@ -498,3 +92,409 @@ ls *m
 cd Downloads/
 ls
 ls *zip
+git add .
+git commit -m "Polskie piosenki z chomika dodano"
+cd Windows/
+ls
+cd Desktop/
+ls
+cd ..
+cd ..
+find . -iname "*.MP3"
+cd Downloads/
+ls
+pwd
+move TestBench1.txt TestBench1.vhd
+mv TestBench1.txt TestBench1.vhd
+exit
+cd
+ls -lart *c
+cd git/
+ls -alrt
+cd edaf15/
+ls -alrt
+git pull --rebase
+git pull
+ls- lart
+ls
+cd ..
+ls- lart
+ls -alrt
+cd edaf15/
+ls
+sl
+ls
+cd /usr/local/cs/
+ls
+cd EDAF15/
+ls
+xeyes
+xeyes
+git pull
+alsamixer
+matlab
+cd Downloads/
+ls -lart
+ls -lart
+cat allwewrote.txt 
+cat allwewrote.txt 
+;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+entity user_logic is
+    Port ( clk : in STD_LOGIC;
+           rstN : in STD_LOGIC;
+           wren : in STD_LOGIC;
+           waddr : in STD_LOGIC_VECTOR (1 downto 0);
+           wdata : in STD_LOGIC_VECTOR (31 downto 0);
+           rden : in STD_LOGIC;
+           raddr : in STD_LOGIC_VECTOR (1 downto 0);
+           rdata : out STD_LOGIC_VECTOR (31 downto 0);
+           busy : out STD_LOGIC);
+end user_logic;
+architecture slow_arch of user_logic is
+   type state_type is (idle, swap, sub);
+   signal state_reg, state_next: state_type;
+   signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+   --signal wren_current : STD_LOGIC := '0';
+   signal gcd_current : unsigned(31 downto 0);
+begin
+   -- state & data registers
+   process(clk,rstN, wdata,a_next,b_next)
+   begin
+      if rstN='0' then;          state_reg <= idle;                    b_reg <= unsigned(wdata);
+         a_reg <= unsigned(wdata);
+      elsif (clk'event and clk='1') then
+         state_reg <= state_next;
+         a_reg <= a_next;
+         b_reg <= b_next;
+      end if;
+   end process;
+   
+   -- next-state logic & data path functional units/routing
+   process(state_reg,a_reg,b_reg,wren,wdata)
+   begin
+      busy <= '1';
+      --a_next <= a_reg;
+      --b_next <= b_reg;
+      case state_reg is
+         when idle =>
+            if wren='1' then -- and wren_current='0' then
+               -- if user enters a == b
+               busy <= '0';
+               a_next <= unsigned(wdata);
+               
+               state_next <= swap;
+               if (a_next = b_next) then
+                 state_next <= idle;
+               end if;
+            else
+               state_next <= idle;
+               busy <= '0';
+            end if;
+         when swap =>
+            if (a_reg=b_reg) then
+               state_next <= idle;
+               --wren_current <= '0';
+            else
+               if (a_reg < b_reg) then
+                  a_next <= b_reg;
+                  b_next <= a_reg;
+               end if;
+               state_next <= sub;
+            end if;
+         when sub =>
+            if (a_reg = b_reg) then
+                state_next <= idle;
+            else
+                a_next <= a_reg - b_reg;
+                state_next <= swap;
+            end if;
+         end case;
+   end process;
+   -- output
+   busy <= '0' when state_reg=idle else '1';
+   rdata <= std_logic_vector(a_reg);
+end slow_arch;
+
+--architecture Behavioral of user_logic is
+--    type STATE_TYPE is (S0, S1, S2, S3);
+--    --attribute ENUM_ENCODING: STRING;
+--    --attribute ENUM_ENCODING of STATE_TYPE: type is "0001 0010 0100 1000";
+    
+--    signal CS, NS: STATE_TYPE;
+--    signal reset : STD_LOGIC;
+--begin
+--    -- insert the following after 'begin'
+--    reset <= not rstN;
+--    busy <= '0';
+    
+--    SYNC_PROC: process(clk, reset)
+--    begin
+--        if (reset = '1') then
+--            CS <= S0;
+--            -- other state variables reset
+--        elsif rising_edge(clk) then
+--            CS <= NS;
+--            -- other state variable assignment
+--        end if;
+--    end process;
+    
+--    COMB_PROC: process(CS, wdata)
+--    begin
+--        -- assign default signals here to avoid latches
+--    case CS is
+--        when S0 =>
+--            NS <= S1;
+--            rdata <= wdata;
+--        when S1 =>
+--            NS <= S2;
+--            rdata <= wren & rden  & "0000000000000000000000000000000";
+--        when S2 =>
+--            NS <= S3;
+--            rdata <= wdata;
+--        when S3 =>
+--            NS <= S0;
+--            rdata <= wdata;
+--    end case;
+--    end process;
+
+--end Behavioral;
+;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity user_logic is
+    Port ( clk : in STD_LOGIC;
+           rstN : in STD_LOGIC;
+           wren : in STD_LOGIC;
+           waddr : in STD_LOGIC_VECTOR (1 downto 0);
+           wdata : in STD_LOGIC_VECTOR (31 downto 0);
+           rden : in STD_LOGIC;
+           raddr : in STD_LOGIC_VECTOR (1 downto 0);
+           rdata : out STD_LOGIC_VECTOR (31 downto 0);
+           busy : out STD_LOGIC);
+end user_logic;
+
+architecture slow_arch of user_logic is
+   type state_type is (idle, swap, sub);
+   signal state_reg, state_next: state_type;
+   signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+   --signal wren_current : STD_LOGIC := '0';
+   signal gcd_current : unsigned(31 downto 0);
+begin
+   -- state & data registers
+   process(clk,rstN, wdata,a_next,b_next)
+   begin
+      if rstN='0' then
+         state_reg <= idle;
+         
+         b_reg <= unsigned(wdata);
+         a_reg <= unsigned(wdata);
+      elsif (clk'event and clk='1') then
+         state_reg <= state_next;
+         a_reg <= a_next;
+         b_reg <= b_next;
+      end if;
+   end process;
+   
+   -- next-state logic & data path functional units/routing
+   process(state_reg,a_reg,b_reg,wren,wdata)
+   begin
+      busy <= '1';
+      --a_next <= a_reg;
+      --b_next <= b_reg;
+      case state_reg is
+         when idle =>
+            if wren='1' then -- and wren_current='0' then;                -- if user enters a == b;                busy <= '0';                a_next <= unsigned(wdata);
+               
+               state_next <= swap;
+               if (a_next = b_next) then                  state_next <= idle;                end if;             else                state_next <= idle;                busy <= '0';             end if;          when swap =>
+            if (a_reg=b_reg) then                state_next <= idle;                --wren_current <= '0';             else                if (a_reg < b_reg) then                   a_next <= b_reg;                   b_next <= a_reg;                end if;                state_next <= sub;             end if;          when sub =>
+            if (a_reg = b_reg) then                 state_next <= idle;             else                 a_next <= a_reg - b_reg;                 state_next <= swap;             end if;          end case;    end process;    -- output;    busy <= '0' when state_reg=idle else '1';    rdata <= std_logic_vector(a_reg);
+end slow_arch;
+--architecture Behavioral of user_logic is
+--    type STATE_TYPE is (S0, S1, S2, S3);
+--    --attribute ENUM_ENCODING: STRING;
+--    --attribute ENUM_ENCODING of STATE_TYPE: type is "0001 0010 0100 1000";
+    
+--    signal CS, NS: STATE_TYPE;
+--    signal reset : STD_LOGIC;
+--begin
+--    -- insert the following after 'begin'
+--    reset <= not rstN;
+--    busy <= '0';
+    
+--    SYNC_PROC: process(clk, reset)
+--    begin
+--        if (reset = '1') then
+--            CS <= S0;
+--            -- other state variables reset
+--        elsif rising_edge(clk) then
+--            CS <= NS;
+--            -- other state variable assignment
+--        end if;
+--    end process;
+    
+--    COMB_PROC: process(CS, wdata)
+--    begin
+--        -- assign default signals here to avoid latches
+--    case CS is
+--        when S0 =>
+--            NS <= S1;
+--            rdata <= wdata;
+--        when S1 =>
+--            NS <= S2;
+--            rdata <= wren & rden  & "0000000000000000000000000000000";
+--        when S2 =>
+--            NS <= S3;
+--            rdata <= wdata;
+--        when S3 =>
+--            NS <= S0;
+--            rdata <= wdata;
+--    end case;
+--    end process;
+--end Behavioral;
+;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+entity user_logic is
+    Port ( clk : in STD_LOGIC;
+           rstN : in STD_LOGIC;
+           wren : in STD_LOGIC;
+           waddr : in STD_LOGIC_VECTOR (1 downto 0);
+           wdata : in STD_LOGIC_VECTOR (31 downto 0);
+           rden : in STD_LOGIC;
+           raddr : in STD_LOGIC_VECTOR (1 downto 0);
+           rdata : out STD_LOGIC_VECTOR (31 downto 0);
+           busy : out STD_LOGIC);
+end user_logic;
+architecture slow_arch of user_logic is
+   type state_type is (idle, swap, sub);
+   signal state_reg, state_next: state_type;
+   signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+   --signal wren_current : STD_LOGIC := '0';
+   signal gcd_current : unsigned(31 downto 0);
+begin
+   -- state & data registers
+   process(clk,rstN, wdata,a_next,b_next)
+   begin
+      if rstN='0' then;          state_reg <= idle;                    b_reg <= unsigned(wdata);
+         a_reg <= unsigned(wdata);
+      elsif (clk'event and clk='1') then
+         state_reg <= state_next;
+         a_reg <= a_next;
+         b_reg <= b_next;
+      end if;
+   end process;
+   
+   -- next-state logic & data path functional units/routing
+   process(state_reg,a_reg,b_reg,wren,wdata)
+   begin
+      busy <= '1';
+      --a_next <= a_reg;
+      --b_next <= b_reg;
+      case state_reg is
+         when idle =>
+            if wren='1' then -- and wren_current='0' then
+               -- if user enters a == b
+               busy <= '0';
+               a_next <= unsigned(wdata);
+               
+               state_next <= swap;
+               if (a_next = b_next) then
+                 state_next <= idle;
+               end if;
+            else
+               state_next <= idle;
+               busy <= '0';
+            end if;
+         when swap =>
+            if (a_reg=b_reg) then
+               state_next <= idle;
+               --wren_current <= '0';
+            else
+               if (a_reg < b_reg) then
+                  a_next <= b_reg;
+                  b_next <= a_reg;
+               end if;
+               state_next <= sub;
+            end if;
+         when sub =>
+            if (a_reg = b_reg) then
+                state_next <= idle;
+            else
+                a_next <= a_reg - b_reg;
+                state_next <= swap;
+            end if;
+         end case;
+   end process;
+   -- output
+   busy <= '0' when state_reg=idle else '1';
+   rdata <= std_logic_vector(a_reg);
+end slow_arch;
+
+--architecture Behavioral of user_logic is
+--    type STATE_TYPE is (S0, S1, S2, S3);
+--    --attribute ENUM_ENCODING: STRING;
+--    --attribute ENUM_ENCODING of STATE_TYPE: type is "0001 0010 0100 1000";
+    
+--    signal CS, NS: STATE_TYPE;
+--    signal reset : STD_LOGIC;
+--begin
+--    -- insert the following after 'begin'
+--    reset <= not rstN;
+--    busy <= '0';
+    
+--    SYNC_PROC: process(clk, reset)
+--    begin
+--        if (reset = '1') then
+--            CS <= S0;
+--            -- other state variables reset
+--        elsif rising_edge(clk) then
+--            CS <= NS;
+--            -- other state variable assignment
+--        end if;
+--    end process;
+    
+--    COMB_PROC: process(CS, wdata)
+--    begin
+--        -- assign default signals here to avoid latches
+--    case CS is
+--        when S0 =>
+--            NS <= S1;
+--            rdata <= wdata;
+--        when S1 =>
+--            NS <= S2;
+--            rdata <= wren & rden  & "0000000000000000000000000000000";
+--        when S2 =>
+--            NS <= S3;
+--            rdata <= wdata;
+--        when S3 =>
+--            NS <= S0;
+--            rdata <= wdata;
+--    end case;
+--    end process;
+
+--end Behavioral;
+
+grep -rin power .bashrc 
+ssh dat14amr@power.cs.lth.se
+ssh dat14amr@power.cs.lth.se
+cd .ssh/
+ls
+vim authorized_keys 
+cd .ssh/
+ls -lart
+cat authorized_keys 
+cat id_rsa.pub 
+ls -lart
+ssh dat14amr@power.cs.lth.se
+ssh dat14amr@power.cs.lth.se
+ssh dat14amr@power.cs.lth.se
+ssh -XC dat14amr@power.cs.lth.se
+ssh dat14amr@power.cs.lth.se -XC
+matlab
+cat > source.vhd
+vim source.vhd 
+texmaker

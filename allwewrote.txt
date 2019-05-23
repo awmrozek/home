@@ -1,26 +1,5 @@
 .LOG
 
-/****************************************************************************** * * Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved. * * Permission is hereby granted, free of charge, to any person obtaining a copy * 
-of this software and associated documentation files (the "Software"), to deal * in the Software without restriction, including without limitation the rights * to use, copy, modify, merge, publish, distribute, sublicense, and/or 
-sell * copies of the Software, and to permit persons to whom the Software is * furnished to do so, subject to the following conditions: * * The above copyright notice and this permission notice shall be included in * all copies 
-or substantial portions of the Software. * * Use of the Software is limited solely to applications: * (a) running on a Xilinx device, or * (b) that interact with a Xilinx device through a bus or interconnect. * * THE SOFTWARE IS 
-PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL * XILINX BE LIABLE 
-FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE * SOFTWARE. * * Except as contained 
-in this notice, the name of the Xilinx shall not be used * in advertising or otherwise to promote the sale, use or other dealings in * this Software without prior written authorization from Xilinx. * 
-******************************************************************************/ /*
- * helloworld.c: simple test application
- *
- * This application configures UART 16550 to baud rate 9600.
- * PS7 UART (Zynq) is not initialized by this application, since
- * bootrom/bsp configures it to baud rate 115200
- *
- * ------------------------------------------------
- * | UART TYPE BAUD RATE |
- * ------------------------------------------------
- * uartns550 9600
- * uartlite Configurable only in HW design
- * ps7_uart 115200 (configured by bootrom/bsp)
- */
 #include <stdio.h> include "platform.h" include "xil_printf.h" include <mb_interface.h>
 typedef unsigned int ui; // begin queue
 #define MAXQ 100
@@ -91,54 +70,6 @@ int main(void){
 
 // awesome fastest gcd everr!!
 
-
-
-/******************************************************************************
-*
-* Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved.
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-* SOFTWARE.
-*
-* Except as contained in this notice, the name of the Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-******************************************************************************/
-
-/*
- * helloworld.c: simple test application
- *
- * This application configures UART 16550 to baud rate 9600.
- * PS7 UART (Zynq) is not initialized by this application, since
- * bootrom/bsp configures it to baud rate 115200
- *
- * ------------------------------------------------
- * | UART TYPE   BAUD RATE                        |
- * ------------------------------------------------
- *   uartns550   9600
- *   uartlite    Configurable only in HW design
- *   ps7_uart    115200 (configured by bootrom/bsp)
- */
 
 #include <stdio.h>
 #include "platform.h"
@@ -427,3 +358,309 @@ int main(void){
 
 
 Wrong answer on 2 1 3.
+
+17:26 2019-05-15
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity user_logic is
+    Port ( clk : in STD_LOGIC;
+           rstN : in STD_LOGIC;
+           wren : in STD_LOGIC;
+           waddr : in STD_LOGIC_VECTOR (1 downto 0);
+           wdata : in STD_LOGIC_VECTOR (31 downto 0);
+           rden : in STD_LOGIC;
+           raddr : in STD_LOGIC_VECTOR (1 downto 0);
+           rdata : out STD_LOGIC_VECTOR (31 downto 0);
+           busy : out STD_LOGIC);
+end user_logic;
+
+architecture slow_arch of user_logic is
+   type state_type is (idle, swap, sub);
+   signal state_reg, state_next: state_type;
+   signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+   --signal wren_current : STD_LOGIC := '0';
+   signal gcd_current : unsigned(31 downto 0);
+begin
+   -- state & data registers
+   process(clk,rstN, wdata,a_next,b_next)
+   begin
+      if rstN='0' then
+         state_reg <= idle;
+         
+         b_reg <= unsigned(wdata);
+         a_reg <= unsigned(wdata);
+      elsif (clk'event and clk='1') then
+         state_reg <= state_next;
+         a_reg <= a_next;
+         b_reg <= b_next;
+      end if;
+   end process;
+   
+   -- next-state logic & data path functional units/routing
+   process(state_reg,a_reg,b_reg,wren,wdata)
+   begin
+      busy <= '1';
+      --a_next <= a_reg;
+      --b_next <= b_reg;
+      case state_reg is
+         when idle =>
+            if wren='1' then -- and wren_current='0' then
+               -- if user enters a == b
+               busy <= '0';
+               a_next <= unsigned(wdata);
+               
+               state_next <= swap;
+               if (a_next = b_next) then
+                 state_next <= idle;
+               end if;
+            else
+               state_next <= idle;
+               busy <= '0';
+            end if;
+         when swap =>
+            if (a_reg=b_reg) then
+               state_next <= idle;
+               --wren_current <= '0';
+            else
+               if (a_reg < b_reg) then
+                  a_next <= b_reg;
+                  b_next <= a_reg;
+               end if;
+               state_next <= sub;
+            end if;
+         when sub =>
+            if (a_reg = b_reg) then
+                state_next <= idle;
+            else
+                a_next <= a_reg - b_reg;
+                state_next <= swap;
+            end if;
+         end case;
+   end process;
+   -- output
+   busy <= '0' when state_reg=idle else '1';
+   rdata <= std_logic_vector(a_reg);
+end slow_arch;
+
+--architecture Behavioral of user_logic is
+--    type STATE_TYPE is (S0, S1, S2, S3);
+--    --attribute ENUM_ENCODING: STRING;
+--    --attribute ENUM_ENCODING of STATE_TYPE: type is "0001 0010 0100 1000";
+    
+--    signal CS, NS: STATE_TYPE;
+--    signal reset : STD_LOGIC;
+--begin
+--    -- insert the following after 'begin'
+--    reset <= not rstN;
+--    busy <= '0';
+    
+--    SYNC_PROC: process(clk, reset)
+--    begin
+--        if (reset = '1') then
+--            CS <= S0;
+--            -- other state variables reset
+--        elsif rising_edge(clk) then
+--            CS <= NS;
+--            -- other state variable assignment
+--        end if;
+--    end process;
+    
+--    COMB_PROC: process(CS, wdata)
+--    begin
+--        -- assign default signals here to avoid latches
+--    case CS is
+--        when S0 =>
+--            NS <= S1;
+--            rdata <= wdata;
+--        when S1 =>
+--            NS <= S2;
+--            rdata <= wren & rden  & "0000000000000000000000000000000";
+--        when S2 =>
+--            NS <= S3;
+--            rdata <= wdata;
+--        when S3 =>
+--            NS <= S0;
+--            rdata <= wdata;
+--    end case;
+--    end process;
+
+--end Behavioral;
+
+
+-------------------------------------------
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity user_logic is
+    Port ( clk : in STD_LOGIC;
+            rstN : in STD_LOGIC;
+            wren : in STD_LOGIC;
+            waddr : in STD_LOGIC_VECTOR (1 downto 0);
+            wdata : in STD_LOGIC_VECTOR (31 downto 0);
+            rden : in STD_LOGIC;
+            raddr : in STD_LOGIC_VECTOR (1 downto 0);
+            rdata : out STD_LOGIC_VECTOR (31 downto 0);
+            busy : out STD_LOGIC);
+end user_logic;
+
+architecture slow_arch of user_logic is
+    type state_type is (idle, start, sub);
+    signal state_reg, state_next: state_type;
+    signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+    signal gcd_current : unsigned(31 downto 0);
+begin
+     -- state & data registers
+    process(clk)
+    begin
+    if rstN='0' then
+        state_reg <= idle;
+        b_reg <= "00000000000000000000000000000000";
+        a_reg <= "00000000000000000000000000000000";
+		gcd_current <= unsigned(wdata);
+    elsif (clk'event and clk='1') then
+		state_reg <= state_next;
+		
+		a_reg <= a_next;
+		b_reg <= b_next;
+    end if;
+end process;
+
+process(state_reg, wren, a_reg, b_reg, wdata)
+begin
+	case state_reg is
+	when idle =>
+		if wren = '1' then
+			state_next <= start;
+			a_next <= unsigned(wdata);
+			b_next <= gcd_current;
+		end if;
+		b_next <= "00000000000000000000000000000000";
+		busy <= '0';
+	when start =>
+		if b_reg = "00000000000000000000000000000000" then
+			state_next <= idle;
+			b_next <= a_next;
+		end if;
+		
+		if a_reg = b_reg then
+			state_next <= idle;
+		end if;
+		
+		busy <= '1';
+		state_next <= sub;
+	when sub =>
+		if a_reg = b_reg then
+			state_next <= idle;
+			gcd_current <= a_reg;
+		end if;
+		
+		if a_reg < b_reg then
+			a_next <= 5;
+			b_next <= 8;
+		else
+			a_next <= 6;
+			b_next <= 5;
+		end if;
+		
+		busy <= '1';
+		state_next <= start;
+	end case;
+end process;
+
+end slow_arch;
+
+
+13:11 2019-05-17
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity user_logic is
+    Port ( clk : in STD_LOGIC;
+            rstN : in STD_LOGIC;
+            wren : in STD_LOGIC;
+            waddr : in STD_LOGIC_VECTOR (1 downto 0);
+            wdata : in STD_LOGIC_VECTOR (31 downto 0);
+            rden : in STD_LOGIC;
+            raddr : in STD_LOGIC_VECTOR (1 downto 0);
+            rdata : out STD_LOGIC_VECTOR (31 downto 0);
+            busy : out STD_LOGIC);
+end user_logic;
+
+architecture slow_arch of user_logic is
+    type state_type is (idle, start, sub, schwift);
+    signal state_reg, state_next: state_type;
+    signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+    signal gcd_current : unsigned(31 downto 0);
+begin
+     -- state & data registers
+    process(clk)
+    begin
+    if rstN='0' then
+        state_reg <= idle;
+        b_reg <= "00000000000000000000000000000000";
+        a_reg <= "00000000000000000000000000000000";
+		gcd_current <= "00000000000000000000000000000000";
+    elsif (clk'event and clk='1') then
+		state_reg <= state_next;
+		
+		a_reg <= a_next;
+		b_reg <= b_next;
+    end if;
+end process;
+
+process(state_reg, wren, a_reg, b_reg, wdata)
+begin
+	case state_reg is
+	when idle =>
+		if wren = '1' then
+			state_next <= start;
+			a_next <= unsigned(wdata);
+			b_next <= gcd_current;
+		end if;
+		b_next <= "00000000000000000000000000000000";
+		busy <= '0';
+	when start =>
+		if b_reg = "00000000000000000000000000000000" or (a_reg = b_reg) then
+			state_next <= idle;
+			gcd_current <= a_reg;
+			b_next <= a_next;
+		else
+			state_next <= schwift;
+		end if;
+		
+		busy <= '1';
+	when schwift =>
+		if a_reg < b_reg then
+			a_next <= b_reg;
+			b_next <= a_reg;
+		else
+			a_next <= a_reg;
+			b_next <= b_reg;
+		end if;
+		state_next <= sub;
+		busy <= '1';
+	
+	when sub =>
+		if a_reg = b_reg then
+			state_next <= idle;
+			gcd_current <= a_reg;
+		end if;
+		
+		a_next <= a_reg - b_reg;
+		b_next <= b_reg;
+		
+		busy <= '1';
+		state_next <= schwift;
+	end case;
+end process;
+
+end slow_arch;

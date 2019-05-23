@@ -1,0 +1,364 @@
+The purpose of this lab is to learn more about the optimization options of GCC. We will use a benchmark called the Stanford benchmarks, used for the MIPSX project. The input sizes have been adapted for our 970MP machine, however. Note who collected these functions (one of the three most important persons in the RISC revolution)...so treat them well! It should be pointed out that in the book Computer Architecture: A Quantitave Approach it was established that these functions are not ideal for benchmarking computers but they are suitable for this lab (in which we do not want to wait tens of minutes for each program execution!)
+
+Online documentation about the optimization options of GCC is available here.
+
+    Log in to power.cs.lth.se and start bash in your terminal.
+
+    Use the command cp -r /usr/local/cs/edaf15/lab6 . (including the dot)
+
+    Give the command cd lab6
+
+    The first task in the lab is to determine which optimization levels have any additional effect. Compile the program mipsx.c with different optimization levels and save each relocatable file, using the command:
+
+    for x in s 0 1 2 3 4 5
+    do
+    gcc -c -O$x -o $x.o mipsx.c
+    done
+
+
+    The for loop is equivalent to writing the following commands:
+
+    gcc -c -Os -o s.o mipsx.c
+    gcc -c -O0 -o 0.o mipsx.c
+    gcc -c -O1 -o 1.o mipsx.c
+    gcc -c -O2 -o 2.o mipsx.c
+    gcc -c -O3 -o 3.o mipsx.c
+    gcc -c -O4 -o 4.o mipsx.c
+    gcc -c -O5 -o 5.o mipsx.c
+
+
+    Level zero is the same as no optimization. To determine the size of the instructions in a file, the command size is used:
+
+    size --common *.o
+
+    The size of the read-only section is printed below text and includes instructions and constants. Global variables which should be initialized to zero are listed under bss which means block started by symbol (for historical reasons).
+
+    To see which variables bss refers to, type the command:
+
+    nm 0.o
+
+    Try to figure out what T, U, G (or D), and C mean.
+
+    The explanation is given in the manual page for nm. Type:
+
+    man nm
+
+    What does -Os mean? All files compiled at levels 3--5 should have identical sizes.
+
+    To compare whether two files are identical, use the command diff file1 file2
+
+    If diff prints no output, the files are identical.
+
+    Now run the following shell command:
+
+    for x in s 0 1 2 3
+    do
+    gcc -O$x -o $x mipsx.c tbr.o timebase.o
+    ./$x
+    done
+
+
+----------------------------------------------------------------------------
+
+
+dat14amr@power:~/lab6$ for x in x 0 1 2 3
+> do
+> gcc -O$x -o $x mipsx.c tbr.o timebase.o
+> ./$x
+> done
+cc1: error: argument to ‘-O’ should be a non-negative integer, ‘g’, ‘s’ or ‘fast’
+-bash: ./x: No such file or directory
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  49379175  62966926  24645600 127398001 177653702  22202400   7484025   4649850  19205925   9565875
+
+Clock cycles:  505151480
+Time:            202.194 ms
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+   9051300  21709425  16752075  46532550  77636026   7287675   2626350   1769400  11973150   1698450
+
+Clock cycles:  197036402
+Time:             79.291 ms
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+   9180675  17228700  11616750  20301300  22901550   7185600   2448000   2589525   8478900   1450200
+
+Clock cycles:  103381201
+Time:             41.484 ms
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  13686000  12256275  13143450  20267100  23604450   6682275   2435400   1747650   8049975   1184625
+
+Clock cycles:  103057201
+Time:             41.354 ms
+dat14amr@power:~/lab6$ for x in s 0 1 2 3; do gcc -O$x -o $x mipsx.c tbr.o timebase.o; ./$x; done
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  10867575  17544300  13783350  48438675  76273951   8281575   3120825   1824525   8951925   1658700
+
+Clock cycles:  190745402
+Time:             76.423 ms
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  52823551  63265501  24671925 127667326 178148177  22196550   7405800   4647675  19187025   9563925
+
+Clock cycles:  509577455
+Time:            203.973 ms
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+   9001275  21491775  12753600  45994425  77551201   7298325   2609250   1769175  11863800   1704450
+
+Clock cycles:  192037277
+Time:             76.956 ms
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+   9242625  17235525  11583150  20724150  23044350   7094400   2464650   1748175   8758500   1425525
+
+Clock cycles:  103321051
+Time:             41.454 ms
+r      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  14330100  12194250  13173825  20698725  22953075   6656625   2464050   1748550   8263275   1186125
+
+Clock cycles:  103668601
+Time:             41.596 ms
+
+
+
+----------------------------------------------------------------------------
+
+
+    Then run the programs optimized at the different levels and note whether they improve in speed. Run each program a few times.
+
+    The remaining compilations should use -O3 and some other flags. Let us start with enabling vectorization, either by adding -maltivec or -mcpu=970. The former tells the compiler that it should produce code for a Power processor with SIMD instructions, and the latter specifically which processor it is which in this case means it has SIMD instructions. Using the former can produce good code for different processors while the latter will perform better instruction scheduling for power.cs.lth.se!
+
+    What is the effect?
+
+----------------------------------------------------------------------------
+
+
+
+dat14amr@power:~/lab6$ gcc -O5 -o $x mipsx.c tbr.o timebase.o -mcpu=970
+dat14amr@power:~/lab6$ ./pwr 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  13472625  12629025  11062800  19157250  22892550   6644175   2437575   1748775   8954625   1200375
+
+Clock cycles:  100199776
+Time:             40.207 ms
+dat14amr@power:~/lab6$ ./pwr 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  13485825  12635325  11068500  19170075  22932450   6657150   2446875   1747125   8145825   1196700
+
+Clock cycles:   99485851
+Time:             39.930 ms
+dat14amr@power:~/lab6$ ./pwr 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  13477575  12624450  11067450  19173375  22900650   6661350   2444625   1748025   8081775   1196775
+
+Clock cycles:   99376051
+Time:             39.894 ms
+dat14amr@power:~/lab6$ ./pwr 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  14412900  12665100  11070900  19205850  22914150   6656925   2443725   1747875   8166525   1198650
+
+Clock cycles:  100482601
+Time:             40.320 ms
+dat14amr@power:~/lab6$ ./pwr 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  14074350  12636975  11073975  19555575  22908675   6658425   2443125   1747425   8058450   1194975
+
+Clock cycles:  100351951
+Time:             40.273 ms
+dat14amr@power:~/lab6$
+
+
+
+
+----------------------------------------------------------------------------
+
+
+
+
+    To understand what happended, type the following:
+
+    objdump -d mipsx > x
+
+    This disassembles the program and and writes to the file x. Edit that file and search for stv which is the machine instruction for storing a vector register to memory. Can you find any? Many? Can you see many other vector instructions? Examples of other vector instructions are vmaddfp, vperm, and lvx.
+
+------------------------------------------
+A lot of them.
+
+------------------------------------------
+
+    As you can see, GCC doesn't like the source code very much and usually fails to vectorize the loops.
+
+    Feedback-directed optimizations uses statistics (usually about branches) from previous executions and exploits that information when optimizing a file.
+
+    Read about the options -fprofile-generate and -fprofile-use online or on page 202 of the course book. Compile with:
+
+-------------------------------------------
+
+
+-fprofile-generate will instrument the application with profiling code. The application will, while actually running, log certain events that could improve performance if this usage pattern was known at compile time. Branches, possibility for inlining, etc, can all be logged, but I'm not sure in detail how GCC implements this. 
+
+
+    -fprofile-use
+
+    -fprofile-use=path
+
+    Enable profile feedback-directed optimizations, and the following optimizations which are generally profitable only with profile feedback available: [...]
+
+    If path is specified, GCC looks at the path to find the profile feedback data files. See -fprofile-dir.
+
+
+-------------------------------------------
+
+    gcc -O3 -fprofile-generate mipsx.c tbr.o timebase.o
+
+    then run the program and then recompile with:
+
+    gcc -O3 -fprofile-use mipsx.c tbr.o timebase.o
+
+    What is the effect and what can have happened? You need to run the programs a few times.
+
+-------------------------------------------
+
+
+
+
+dat14amr@power:~/lab6$ gcc -O3 -fprofile-use mipsx.c tbr.o timebase.o
+dat14amr@power:~/lab6$ ./a.out 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  15787500  11653950  11460900  13460250  21676350   4647975   2457075   1841850   8095500   1169475
+
+Clock cycles:   92250826
+Time:             37.040 ms
+dat14amr@power:~/lab6$ ./a.out 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  15543975  11648475  11478600  13430025  21671625   4655475   2454450   1843275   8119950   1168125
+
+Clock cycles:   92013976
+Time:             36.948 ms
+dat14amr@power:~/lab6$ ./a.out 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  14346075  11730450  12047175  13443225  22026600   6138825   2527650   1837800   8344875   1171350
+
+Clock cycles:   93614026
+Time:             37.572 ms
+dat14amr@power:~/lab6$ ./a.out 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  14727150  11616975  11589075  13449075  21695775   4636050   2468025   1836825   8316750   1169325
+
+Clock cycles:   91505026
+Time:             36.742 ms
+dat14amr@power:~/lab6$ gcc -O3 -fprofile-generate mipsx.c tbr.o timebase.o
+dat14amr@power:~/lab6$ gcc -O3 -fprofile-use mipsx.c tbr.o timebase.o
+dat14amr@power:~/lab6$ ./a.out 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  15792450  11637975  12028275  13418175  21674400   4658550   2458125   1844400   8173725   1165425
+
+Clock cycles:   92851501
+Time:             37.281 ms
+dat14amr@power:~/lab6$ gcc -O3 -fprofile-generate mipsx.c tbr.o timebase.o
+dat14amr@power:~/lab6$ ./a.out 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  34564725  97734601  20244300  20330625  22956075   8361900   2900775   2073375   9794175   1560225
+
+Clock cycles:  220520777
+Time:             88.369 ms
+dat14amr@power:~/lab6$ ./a.out 
+      Perm    Towers    Queens     Intmm        Mm    Puzzle     Quick    Bubble      Tree       FFT
+  34615650  98067301  20266200  20327025  22911075   8343225   2895825   2065275   9639000   1553925
+
+Clock cycles:  220684502
+Time:             88.400 ms
+
+
+
+
+--------------------------------------------
+
+    Related to -fprofile-generate are the options used in the following command:
+
+    gcc -g -fprofile-arcs -ftest-coverage mipsx.c tbr.o timebase.o
+
+    Compile and run. These options do not give feedback to GCC but rather to you. The command:
+
+    gcov mipsx.c
+
+    will produce a file mips.c.gcov with statistics about how many times each line was executed. Adding -b will in addition print statistics about branches, as explained on pages 222-223 in the book.
+
+--------------------------------------------
+
+
+gcov tells what lines are executed and how often
+
+
+--------------------------------------------
+
+
+    A recent addition to GCC is link-time optimization. It means that optimization is performed during linking, i.e. when all relocatable files of a program are available. Issue the following commands:
+
+    cat a.c b.c
+
+    gcc -O3 a.c b.c
+
+    objdump -d a.out > x (dump the file and disassemble)
+
+    Then open the file x to see what the function main looks like.
+
+    Search for <main>:
+
+---------------------------------------------
+
+Disassembly of section .text:
+
+100002e0 <main>:
+100002e0:       94 21 ff f0     stwu    r1,-16(r1)
+100002e4:       38 80 00 02     li      r4,2
+100002e8:       7c 08 02 a6     mflr    r0
+100002ec:       38 60 00 04     li      r3,4
+100002f0:       90 01 00 14     stw     r0,20(r1)
+100002f4:       48 00 01 7d     bl      10000470 <f>
+100002f8:       7c 64 1b 78     mr      r4,r3
+100002fc:       3c 60 10 00     lis     r3,4096
+10000300:       38 63 06 10     addi    r3,r3,1552
+10000304:       4c c6 31 82     crclr   4*cr1+eq
+10000308:       48 00 02 49     bl      10000550 <printf@plt>
+1000030c:       80 01 00 14     lwz     r0,20(r1)
+10000310:       38 60 00 00     li      r3,0
+10000314:       38 21 00 10     addi    r1,r1,16
+10000318:       7c 08 03 a6     mtlr    r0
+1000031c:       4e 80 00 20     blr
+
+
+----------------------------------------------
+
+    Redo the same thing but add -flto to GCC. Check what main now was compiled to!
+
+
+
+
+
+
+
+
+    Now take the matrix multiplication program matmul.c and try to get GCC to vectorize the inner loop. Is there any array reference which would make it difficult to put the elements in a vector register? If so, what can you do about it? What else would be affected by that change?
+
+    You should modify the matmul.c file!
+
+    Compile with:
+
+    gcc -O3 -o matmul matmul.c tbr.o timebase.o -m32 -mcpu=970
+
+    Verify that the code was vectorized --- how can you do that?
+
+    Now scp tbr.o timebase.o timebase.o and matmul.c to 12.42.205.32 and compare how well gcc can optimize code compared with a commercial compiler: IBM xlc. IBM's compiler was developed by some of the best compiler researchers in the world, and the most important compiler optimization algorithms were invented at IBM Research Yorktown Heights.
+
+    You may want to increase the matrix sizes to 1024 x 1024. To compile, use:
+
+    gcc -O3 -o gnu matmul.c tbr.o timebase.o -m32
+
+    and then
+
+    xlc -O3 -o ibm matmul.c tbr.o timebase.o
+
+    Run both gnu and ibm multiple times.
+
+    Explore the compiler flags of xlc using the command: xlc -qhelp
+
+    You can read more about IBM xlc here. 
+
+
