@@ -2,7 +2,7 @@ clear all; %empty memory
 rand('seed',0)%set random seed
 
 lambda1=7.5; %arrival rate
-lambda2=10; %arrival rate
+lambda2=12; %arrival rate
 
 mu1=10; 	%service rate
 mu2=14; 	%service rate
@@ -35,9 +35,13 @@ servtime5=0; %time in server in system 5
 %next service completion system 4 (pos 6), next
 %service completion system 5 (pos 7) and next sample
 %event (pos 😎
-event(1)=exprnd(1/lambda1); %next arrival system 1
+%event(1)=exprnd(1/lambda1); %next arrival system 1
+event(1)=1/lambda1;
+%event(1)=h2rnd(0.5,1/lambda1-2,1/lambda1+2);
 event(2)=inf; %no customer in system 1
-event(3)=exprnd(1/lambda2); %next arrival system 2
+%event(3)=exprnd(1/lambda2); %next arrival system 2
+event(3)=1/lambda2;
+%event(1)=h2rnd(0.5,1/lambda2-2,1/lambda2+2);
 event(4)=inf; %no customer in system 2
 event(5)=inf; %no customer in system 3
 event(6)=inf; %no customer in system 4

@@ -1,0 +1,737 @@
+EDF
+https://www.youtube.com/watch?v=ejPXTOcMRPA
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+Lucas Numbers
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Lucas2 is
+    port (
+        clk : in std_logic;
+        n : in std_logic_vector(0 to 31);
+        start : in std_logic;
+        lucas : out std_logic_vector(0 to 31);
+        done : out std_logic);
+end Lucas2;
+
+architecture Behavioral of Lucas2 is
+    signal l1 : unsigned(31 downto 0);
+    signal l2 : unsigned(31 downto 0);
+    signal l3 : unsigned(31 downto 0);
+    
+    signal l1_nx : unsigned(0 to 31);
+    signal l2_nx : unsigned(0 to 31);
+    signal l3_nx : unsigned(0 to 31);
+    
+    signal count : unsigned(0 to 31);
+    signal count_nx : unsigned(0 to 31);
+begin
+    -- if you write to a port
+    -- this sensitivity list must not contain this port
+    process(clk)
+    begin
+        if start = '1' then
+            l1 <= x"00000002";
+            l2 <= x"00000001";
+            l3 <= x"00000003";
+            count <= "00000000000000000000000000000000";
+        elsif (clk'event and clk='1') then
+            l3 <= l3_nx;
+            l2 <= l2_nx;
+            l1 <= l1_nx;
+            count <= count_nx;
+            lucas <= std_logic_vector(l3);
+        end if;
+    end process;
+    
+    -- if an expression is on the right hand side
+    -- it must be in the sensitivity list
+    process(clk, l1, l2, l3, count)
+    begin
+        if count = unsigned(n) then
+            done <= '1';
+        else
+            l3_nx <= l3 + l2;
+            l1_nx <= l2;
+            l2_nx <= l3;
+            count_nx <= count + 1;
+            done <= '0';
+        end if;
+    end process;
+
+end Behavioral;
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+Testbench
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity FibSim1 is
+
+
+end FibSim1;
+
+architecture Behavioral of FibSim1 is
+    component Lucas2
+        port (clk : in std_logic;
+              n : in std_logic_vector(0 to 31);
+              start : in std_logic);
+    end component;
+    
+    signal clk : std_logic;
+    signal n : std_logic_vector(0 to 31);
+    signal start : std_logic;
+    
+    constant clk_spd : time := 12.5 ns;
+begin
+    clock_gen : process is
+    begin
+        clk <= '0' after clk_spd, '1' after 2*clk_spd;
+        wait for 2*clk_spd;
+    end process clock_gen;
+    
+    uut: lucas2 port map (
+        clk => clk,
+        n => n,
+        start => start);
+        
+    stimulus: process
+    begin
+        n <= x"00000009";
+        start <= '1';
+        wait for 40ns;
+        
+        start <= '0';
+        wait;
+    end process;
+
+end Behavioral;
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+Larger filter in VHDL
+
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+
+GCD in VHDL
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity user_logic is
+   Port ( clk : in STD_LOGIC;
+          rstN : in STD_LOGIC;
+          wren : in STD_LOGIC;
+          waddr : in STD_LOGIC_VECTOR (1 downto 0);
+          wdata : in STD_LOGIC_VECTOR (31 downto 0);
+          rden : in STD_LOGIC;
+          raddr : in STD_LOGIC_VECTOR (1 downto 0);
+          rdata : out STD_LOGIC_VECTOR (31 downto 0);
+          busy : out STD_LOGIC);
+end user_logic;
+
+architecture slow_arch of user_logic is
+   type state_type is (idle, swap, sub, start);
+   signal state_reg, state_next: state_type;
+   signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+   --signal wren_current : STD_LOGIC := '0';
+   signal gcd_current : unsigned(31 downto 0);
+begin
+    -- state & data registers
+   process(clk,rstN, wdata,a_next,b_next,wren)
+   begin
+      if rstN='0' then
+         state_reg <= idle;
+         b_reg <= "00000000000000000000000000000000";
+         a_reg <= "00000000000000000000000000000000";
+      end if;
+   elsif (clk'event and clk='1') then
+      state_reg <= state_next;
+      a_reg <= a_next;
+      b_reg <= b_next;
+   end if;
+end process;
+
+   -- next-state logic & data path functional units/routing
+process(state_reg)
+begin
+   busy <= '1';
+   case state_reg is
+      when start =>
+         a_next <= unsigned(wdata);
+         b_next <= b_reg;
+         state_next <= sub;
+      when idle =>
+         if wren='1' then
+            state_next <= start;
+         else
+            state_next <= idle;
+            busy <= '0';
+         end if;
+      when swap =>
+         if (a_reg < b_reg) then
+            a_next <= b_reg;
+            b_next <= a_reg;
+         end if;
+         state_next <= sub;
+      when sub =>
+         --if (a_reg = b_reg) then
+         --   state_next <= idle;
+         --   a_next <= a_reg;
+         --   b_next <= b_reg;
+         --else
+         --   a_next <= a_reg - b_reg;
+         --   state_next <= swap;
+         --end if;
+		 state_next <= idle;
+   end case;
+end process;
+   -- output
+busy <= '0' when state_reg=idle else '1';
+rdata <= std_logic_vector(a_reg);
+end slow_arch;
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+(Untested in vivado, no syntax errors)
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Lucas2 is
+port (
+clk : in STD_LOGIC;
+reset : in STD_LOGIC;
+X : in STD_LOGIC_VECTOR(0 to 31);
+S : out STD_LOGIC_VECTOR(0 to 31)
+);
+end Lucas2;
+
+architecture Behavioral of Lucas2 is	
+	constant a : unsigned(0 to 31) := X"000000001";
+	constant b : unsigned(0 to 31) := X"0000000A2";
+	constant c : unsigned(0 to 31) := X"000000003";
+	
+	signal Sn : unsigned(0 to 31);
+	signal Sn_next : unsigned(0 to 31);
+	
+	signal Sn1 : unsigned(0 to 31);
+	signal Sn1_next : unsigned(0 to 31);
+	
+	signal Sn2 : unsigned(0 to 31);
+	signal Sn2_next : unsigned(0 to 31);
+begin
+    -- if you write to a port
+    -- this sensitivity list must not contain this port
+    process(clk, reset)
+    begin
+        if reset = '1' then
+			-- reset
+			Sn <= X"000000000";
+			Sn1 <= X"000000000";
+			Sn2 <= X"000000000";
+        elsif (clk'event and clk='1') then
+			Sn <= Sn_next;
+			Sn1 <= Sn1_next;
+			Sn2 <= Sn2_next;
+        end if;
+    end process;
+    
+    -- if an expression is on the right hand side
+    -- it must be in the sensitivity list
+    process(clk, X, Sn_next, Sn1_next, Sn2_next)
+    begin
+		Sn_next <= (unsigned(X) * Sn2 + a) * b + c;
+		Sn1_next <= Sn;
+		Sn2_next <= Sn1;
+    end process;
+
+end Behavioral;
+
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+architecture that implements a simple sequence detector
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Lucas2 is
+port (
+clock : in STD_LOGIC;
+reset : in STD_LOGIC;
+y_in : in STD_LOGIC;
+x_in : in STD_LOGIC;
+z_out : out STD_LOGIC
+);
+end Lucas2;
+
+architecture Behavioral of Lucas2 is	
+	-- signals declarations
+	signal x1 : std_logic_vector(0 to 7);
+	signal x2 : std_logic_vector(0 to 7);
+	
+	signal z_out_next : std_logic_vector(0 to 7);
+begin
+	-- process for clock
+    process (clock, reset) 
+	begin
+		if reset = '0' then
+			-- reset behaviour
+			z_out <= '0';
+		elsif clock'event and clock = '1' then
+			-- clock event behaviour
+			z_out <= z_out_next;
+		end if;
+	end process;
+	
+	-- process for logic
+	process (clock)
+	begin
+		if (x2 = '1' and x1 = '1' and x_in = '0') then
+			z_out_next <= std_logic_vector(-unsigned(y_in));
+		else
+			z_out_next <= y_in;
+		end if;
+		
+		x2 <= x1;
+		x1 <= x;
+	end process;
+	
+end Behavioral;
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity user_logic is
+   Port ( clk : in STD_LOGIC;
+          rstN : in STD_LOGIC;
+          wren : in STD_LOGIC;
+          waddr : in STD_LOGIC_VECTOR (1 downto 0);
+          wdata : in STD_LOGIC_VECTOR (31 downto 0);
+          rden : in STD_LOGIC;
+          raddr : in STD_LOGIC_VECTOR (1 downto 0);
+          rdata : out STD_LOGIC_VECTOR (31 downto 0);
+          busy : out STD_LOGIC);
+end user_logic;
+
+architecture slow_arch of user_logic is
+   type state_type is (idle, swap, sub, start); -- Type declarations
+   signal state_reg, state_next: state_type;
+   signal a_reg, a_next, b_reg, b_next: unsigned(31 downto 0);
+   --signal wren_current : STD_LOGIC := '0';
+   signal gcd_current : unsigned(31 downto 0);
+begin
+    -- state & data registers
+   process(clk,rstN, wdata,a_next,b_next,wren)
+   begin
+      if rstN='0' then
+         state_reg <= idle;
+         b_reg <= "00000000000000000000000000000000";
+         a_reg <= "00000000000000000000000000000000";
+      end if;
+   elsif (clk'event and clk='1') then
+      state_reg <= state_next;
+      a_reg <= a_next;
+      b_reg <= b_next;
+   end if;
+end process;
+
+-- next-state logic & data path functional units/routing
+process(state_reg)
+begin
+   busy <= '1';
+   case state_reg is
+      when start =>
+         a_next <= unsigned(wdata);
+         b_next <= b_reg;
+         state_next <= sub;
+      when idle =>
+         if wren='1' then
+            state_next <= start;
+         else
+            state_next <= idle;
+            busy <= '0';
+         end if;
+      when swap =>
+         if (a_reg < b_reg) then
+            a_next <= b_reg;
+            b_next <= a_reg;
+         end if;
+         state_next <= sub;
+      when sub =>
+         --if (a_reg = b_reg) then
+         --   state_next <= idle;
+         --   a_next <= a_reg;
+         --   b_next <= b_reg;
+         --else
+         --   a_next <= a_reg - b_reg;
+         --   state_next <= swap;
+         --end if;
+		 state_next <= idle;
+   end case;
+end process;
+   -- output
+busy <= '0' when state_reg=idle else '1';
+rdata <= std_logic_vector(a_reg);
+end slow_arch;
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+int foo(int a, int b) {
+int result = 0;
+while (b>0) {
+result += a;
+b--;
+}
+return result;
+}
+
+in VHDL
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Lucas2 is
+port (
+clock : in STD_LOGIC;
+reset : in STD_LOGIC;
+a_in : in std_logic_vector(0 to 31);
+b_in : in std_logic_vector(0 to 31);
+r : out std_logic_vector(0 to 31)
+);
+end Lucas2;
+
+architecture Behavioral of Lucas2 is
+	-- signals declarations
+	type state_type is (sub, idle);
+	signal state_reg, state_next : state_type;
+	
+	signal a : unsigned(0 to 31);
+	signal b : unsigned(0 to 31);
+	
+	signal a_next : unsigned(0 to 31);
+	signal b_next : unsigned(0 to 31);
+	signal r_next : unsigned(0 to 31);
+	signal r_cur : unsigned(0 to 31);
+begin
+	-- process for clock
+    process (clock, reset)
+	begin
+		if reset = '0' then
+			-- reset behaviour
+			r <= "00000000000000000000000000000000";
+			a <= unsigned(a_in);
+			b <= unsigned(b_in);
+			r_cur <= X"00000000";
+		elsif clock'event and clock = '1' then
+			-- clock event behaviour
+			r <= std_logic_vector(r_next);
+			b <= b_next;
+			state_reg <= state_next;
+		end if;
+	end process;
+	
+	-- process for logic
+	process (clock)
+	begin
+		case state_reg is
+		when sub =>
+			r_next <= r_cur + a;
+			b_next <= b - 1;
+			
+			if (b > 0) then
+				state_next <= sub;
+			else
+				state_next <= idle;
+			end if;
+		when idle =>
+	    end case;
+	end process;
+	
+end Behavioral;
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+VHDL for elevator SM
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Lucas2 is
+port (
+clock : in STD_LOGIC;
+reset : in STD_LOGIC;
+
+request : in std_logic_vector(0 to 1);
+go : out std_logic_vector(0 to 2)
+);
+end Lucas2;
+
+architecture Behavioral of Lucas2 is
+	-- signals declarations
+	type state_type is (s1, s2, s3);
+	signal current_state, next_state : state_type;
+	
+	signal go_next : unsigned (0 to 2);
+begin
+	process(clock, reset)
+	begin
+		if reset = '0'
+			current_state <= s1;
+		elsif clock'event and clock = '1' then
+			go <= go_next;
+			current_state <= next_state;
+		end if;
+	end process;
+	
+	
+	process(clock)
+	begin
+		when current_state is
+		case s1 =>
+			if request = r1 then
+				go_next <= n;
+				next_state <= s1;
+			elsif request = r2 then
+				go_next <= u1;
+				next_state <= s2;
+			end if;
+			-- else error
+		case s2 =>
+			if request = r2 then
+				go_next <= n;
+				next_state <= s2;
+			elsif request = r3 then
+				go_next <= u1;
+				next_state <= s3;
+			end if;
+		case s3 =>
+			if request = r3 then
+				go_next <= n;
+				next_state <= s3;
+			elsif request = r1 then
+				go_next <= d2;
+				next_state <= s1;
+			end if;
+	end process;
+end Behavioral;
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+SOS Version 1
+
+.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:._.:*~*:.
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Lucas2 is
+port (
+x : in std_logic;
+y : out std_logic;
+);
+end Lucas2;
+
+architecture Behavioral of Lucas2 is
+
+begin
+
+end Behavioral;
+
+port (
+clk : in std_logic;
+reset : in std_logic;
+x : in std_logic;
+y : out std_logic;
+);
+
+architecture filter is
+	signal sn : std_logic_vector(0 to 31);
+	signal sn1 : std_logic_vector(0 to 31);
+	signal sn2 : std_logic_vector(0 to 31);
+	signal sn3 : std_logic_vector(0 to 31);
+	
+	signal sn_next : std_logic_vector(0 to 31);
+	signal sn1_next : std_logic_vector(0 to 31);
+	signal sn2_next : std_logic_vector(0 to 31);
+	signal sn3_next : std_logic_vector(0 to 31);
+	
+	signal out_next : std_logic_vector(0 to 31);
+	
+begin
+	process(clk, reset)
+	begin
+		if reset = '1' then -- asynchronous
+			sn <= "0000000000000000000000000000000";
+			sn1 <= "0000000000000000000000000000000";
+			sn2 <= "0000000000000000000000000000000";
+			sn3 <= "0000000000000000000000000000000";
+		elsif clk = '1' and clk'event then
+			sn <= sn_next;
+			sn1 <= sn_next1;
+			sn2 <= sn_next2;
+			sn3 <= sn_next3;
+			y <= out_next;
+		end if;
+	end;
+	
+	process(sn, sn1, sn2, sn3)
+	begin
+		out_next <= (unsigned(sn3) + unsigned(sn2) + unsigned(sn1) + unsigned(sn)) / 4;
+		sn_next3 <= sn2;
+		sn_next2 <= sn1;
+		sn_next1 <= sn;
+		sn_next <= x;
+	end;
+
+end filter;
+
+
+
+c code ½½""""
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity sample is
+port (
+clock : in STD_LOGIC;
+reset : in STD_LOGIC;
+a_in : in std_logic_vector(0 to 31);
+b_in : in std_logic_vector(0 to 31);
+r : out std_logic_vector(0 to 31)
+);
+end sample;
+
+architecture Behavioral of sample is
+	type state_type is (sub, idle, done);
+	signal a : unsigned(0 to 31);
+	signal b : unsigned(0 to 31);
+	signal state_reg, state_next : state_type;
+	signal r_next, a_next, b_next, r_cur : unsigned(0 to 31);
+begin
+	process (clock)
+	begin
+		if reset = '1' then
+			a <= X"00000000";
+			b <= X"00000000";
+		elsif clock = '1' and clock'event then
+			case state_reg is
+			when sub =>
+				r_next <= r_cur + a;
+				b_next <= b - 1;
+			
+				if (b > 0) then
+					state_next <= sub;
+				else
+					state_next <= done;
+				end if;
+		    when idle =>
+				a <= unsigned(a_in);
+				b <= unsigned(b_in);
+				state_next <= sub;
+			when done =>
+			end case;
+		end if;
+	end process;
+end Behavioral;
+
+C Code 2
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Lucas2 is
+port (
+clock : in STD_LOGIC;
+reset : in STD_LOGIC;
+a_in : in std_logic_vector(0 to 31);
+b_in : in std_logic_vector(0 to 31);
+r : out std_logic_vector(0 to 31)
+);
+end Lucas2;
+
+architecture Behavioral of Lucas2 is
+	-- signals declarations
+	type state_type is (sub, idle, done);
+	signal state_reg, state_next : state_type;
+	
+	signal a : unsigned(0 to 31);
+	signal b : unsigned(0 to 31);
+	
+	signal a_next : unsigned(0 to 31);
+	signal b_next : unsigned(0 to 31);
+	signal r_next : unsigned(0 to 31);
+	signal r_cur : unsigned(0 to 31);
+begin
+	-- process for clock
+    process (clock, reset)
+	begin
+		if reset = '1' then
+			-- reset behaviour
+			--r <= "00000000000000000000000000000000";
+			r_cur <= X"00000000";
+			state_reg <= idle;
+			a <= unsigned(a_in);
+            b <= unsigned(b_in);
+		elsif clock'event and clock = '1' then
+			-- clock event behaviour
+			r <= std_logic_vector(r_cur);
+			b <= b_next;
+			r_cur <= r_next;
+			state_reg <= state_next;
+		end if;
+	end process;
+	
+	-- process for logic
+	process (clock, a, b, a_in, b_in)
+	begin
+		case state_reg is
+		when sub =>
+			r_next <= r_cur + a;
+			b_next <= b - 1;
+			
+			if (b > 0) then
+				state_next <= sub;
+			else
+				state_next <= done;
+			end if;
+		when idle =>
+            r_next <= X"00000000";
+            state_next <= sub;
+        when done =>
+	    end case;
+	end process;
+	
+end Behavioral;
